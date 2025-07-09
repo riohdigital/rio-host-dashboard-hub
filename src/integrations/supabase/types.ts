@@ -14,7 +14,163 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      expenses: {
+        Row: {
+          amount: number
+          category: string | null
+          created_at: string | null
+          description: string
+          expense_date: string
+          expense_type: string | null
+          id: string
+          property_id: string | null
+        }
+        Insert: {
+          amount: number
+          category?: string | null
+          created_at?: string | null
+          description: string
+          expense_date: string
+          expense_type?: string | null
+          id?: string
+          property_id?: string | null
+        }
+        Update: {
+          amount?: number
+          category?: string | null
+          created_at?: string | null
+          description?: string
+          expense_date?: string
+          expense_type?: string | null
+          id?: string
+          property_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      properties: {
+        Row: {
+          address: string | null
+          airbnb_link: string | null
+          base_nightly_price: number | null
+          booking_link: string | null
+          cleaning_fee: number | null
+          commission_rate: number | null
+          created_at: string | null
+          id: string
+          max_guests: number | null
+          name: string
+          nickname: string | null
+          notes: string | null
+          property_type: string
+          status: string
+        }
+        Insert: {
+          address?: string | null
+          airbnb_link?: string | null
+          base_nightly_price?: number | null
+          booking_link?: string | null
+          cleaning_fee?: number | null
+          commission_rate?: number | null
+          created_at?: string | null
+          id?: string
+          max_guests?: number | null
+          name: string
+          nickname?: string | null
+          notes?: string | null
+          property_type?: string
+          status?: string
+        }
+        Update: {
+          address?: string | null
+          airbnb_link?: string | null
+          base_nightly_price?: number | null
+          booking_link?: string | null
+          cleaning_fee?: number | null
+          commission_rate?: number | null
+          created_at?: string | null
+          id?: string
+          max_guests?: number | null
+          name?: string
+          nickname?: string | null
+          notes?: string | null
+          property_type?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      reservations: {
+        Row: {
+          base_revenue: number | null
+          check_in_date: string
+          check_out_date: string
+          commission_amount: number | null
+          created_at: string | null
+          guest_name: string | null
+          id: string
+          net_revenue: number | null
+          number_of_guests: number | null
+          payment_date: string | null
+          payment_status: string | null
+          platform: string
+          property_id: string | null
+          reservation_code: string
+          reservation_status: string | null
+          total_revenue: number
+        }
+        Insert: {
+          base_revenue?: number | null
+          check_in_date: string
+          check_out_date: string
+          commission_amount?: number | null
+          created_at?: string | null
+          guest_name?: string | null
+          id?: string
+          net_revenue?: number | null
+          number_of_guests?: number | null
+          payment_date?: string | null
+          payment_status?: string | null
+          platform?: string
+          property_id?: string | null
+          reservation_code: string
+          reservation_status?: string | null
+          total_revenue: number
+        }
+        Update: {
+          base_revenue?: number | null
+          check_in_date?: string
+          check_out_date?: string
+          commission_amount?: number | null
+          created_at?: string | null
+          guest_name?: string | null
+          id?: string
+          net_revenue?: number | null
+          number_of_guests?: number | null
+          payment_date?: string | null
+          payment_status?: string | null
+          platform?: string
+          property_id?: string | null
+          reservation_code?: string
+          reservation_status?: string | null
+          total_revenue?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservations_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
