@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calculator, TrendingUp, Building2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Property } from '@/types/property';
 import { Reservation } from '@/types/reservation';
@@ -401,67 +402,126 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
         </CardContent>
       </Card>
 
-      {/* Seção 2: Detalhamento Financeiro */}
+      {/* Seção 2: Detalhamento Financeiro Melhorado */}
       {selectedProperty && totalRevenue > 0 && (
-        <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200">
-          <CardHeader>
-            <CardTitle className="text-blue-800 flex items-center gap-2">
-              📊 Detalhamento Financeiro
-              <span className="text-sm font-normal text-blue-600">
+        <Card className="overflow-hidden border-0 shadow-lg bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+          <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white pb-6">
+            <CardTitle className="flex items-center gap-3 text-xl">
+              <div className="p-2 bg-white/20 rounded-lg">
+                <Calculator className="h-6 w-6" />
+              </div>
+              Detalhamento Financeiro
+              <span className="text-blue-100 text-sm font-normal ml-2">
                 (Cálculo Automático)
               </span>
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3 font-mono text-sm">
-              <div className="flex justify-between items-center p-2 bg-white rounded border">
-                <span className="text-gray-700">Valor Total da Reserva:</span>
-                <span className="font-semibold text-gray-900">
-                  R$ {totalRevenue.toFixed(2)}
+          <CardContent className="p-8">
+            <div className="space-y-4">
+              {/* Valor Total */}
+              <div className="flex justify-between items-center p-4 bg-white rounded-xl shadow-sm border border-slate-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                    <span className="text-blue-600 font-semibold text-sm">1</span>
+                  </div>
+                  <span className="text-slate-700 font-medium">Valor Total da Reserva</span>
+                </div>
+                <span className="font-bold text-slate-900 text-xl">
+                  R$ {totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </span>
               </div>
               
-              <div className="flex justify-between items-center p-2 bg-white rounded border">
-                <span className="text-gray-700">(- Taxa de Limpeza):</span>
-                <span className="font-semibold text-red-600">
-                  R$ {cleaningFee.toFixed(2)}
+              {/* Taxa de Limpeza */}
+              <div className="flex justify-between items-center p-4 bg-white rounded-xl shadow-sm border border-slate-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                    <span className="text-red-600 font-semibold text-sm">-</span>
+                  </div>
+                  <span className="text-slate-700 font-medium">Taxa de Limpeza</span>
+                </div>
+                <span className="font-bold text-red-600 text-xl">
+                  - R$ {cleaningFee.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </span>
               </div>
               
-              <div className="flex justify-between items-center p-2 bg-blue-100 rounded border-2 border-blue-300">
-                <span className="text-blue-800 font-medium">(=) Base de Cálculo:</span>
-                <span className="font-bold text-blue-900">
-                  R$ {baseRevenue.toFixed(2)}
+              {/* Base de Cálculo */}
+              <div className="flex justify-between items-center p-5 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl shadow-md text-white">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                    <span className="text-white font-semibold text-sm">=</span>
+                  </div>
+                  <span className="font-semibold text-lg">Base de Cálculo</span>
+                </div>
+                <span className="font-bold text-2xl">
+                  R$ {baseRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </span>
               </div>
               
-              <div className="flex justify-between items-center p-2 bg-white rounded border">
-                <span className="text-gray-700">
-                  (- Comissão Co-Anfitrião {((commissionRate || 0) * 100).toFixed(1)}%):
-                </span>
-                <span className="font-semibold text-red-600">
-                  R$ {commissionAmount.toFixed(2)}
+              {/* Comissão */}
+              <div className="flex justify-between items-center p-4 bg-white rounded-xl shadow-sm border border-slate-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+                    <span className="text-orange-600 font-semibold text-sm">-</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-slate-700 font-medium">Comissão Co-Anfitrião</span>
+                    <span className="text-slate-500 text-sm">
+                      {((commissionRate || 0) * 100).toFixed(1)}% sobre a base
+                    </span>
+                  </div>
+                </div>
+                <span className="font-bold text-orange-600 text-xl">
+                  - R$ {commissionAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </span>
               </div>
               
-              <div className="border-t-2 border-gray-300 pt-2">
-                <div className="flex justify-between items-center p-3 bg-gradient-to-r from-green-100 to-emerald-100 rounded-lg border-2 border-green-300">
-                  <span className="text-green-800 font-bold text-base">
-                    🏠 TOTAL LÍQUIDO DO PROPRIETÁRIO:
-                  </span>
-                  <span className="font-bold text-green-900 text-lg">
-                    R$ {ownerTotal.toFixed(2)}
-                  </span>
+              {/* Divisor */}
+              <div className="border-t-2 border-dashed border-slate-300 my-6"></div>
+              
+              {/* Total Líquido do Proprietário */}
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-green-400 to-emerald-500 rounded-2xl opacity-10"></div>
+                <div className="relative flex justify-between items-center p-6 bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl shadow-lg text-white">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-white/20 rounded-xl">
+                      <Building2 className="h-8 w-8" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-bold text-xl">TOTAL LÍQUIDO</span>
+                      <span className="font-bold text-xl">DO PROPRIETÁRIO</span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="h-6 w-6" />
+                      <span className="font-bold text-3xl">
+                        R$ {ownerTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
             
-            <div className="mt-4 p-3 bg-blue-100 rounded-lg">
-              <p className="text-xs text-blue-700">
-                <strong>Propriedade:</strong> {selectedProperty.nickname || selectedProperty.name} | 
-                <strong> Comissão:</strong> {((selectedProperty.commission_rate || 0) * 100).toFixed(1)}% | 
-                <strong> Taxa Limpeza:</strong> R$ {(selectedProperty.cleaning_fee || 0).toFixed(2)}
-              </p>
+            {/* Informações da Propriedade */}
+            <div className="mt-6 p-4 bg-white/60 rounded-lg border border-slate-200">
+              <div className="flex items-center gap-2 text-slate-600 text-sm">
+                <Building2 className="h-4 w-4" />
+                <span className="font-medium">Propriedade:</span>
+                <span className="font-semibold text-slate-800">
+                  {selectedProperty.nickname || selectedProperty.name}
+                </span>
+                <span className="mx-2">•</span>
+                <span className="font-medium">Comissão:</span>
+                <span className="font-semibold text-slate-800">
+                  {((selectedProperty.commission_rate || 0) * 100).toFixed(1)}%
+                </span>
+                <span className="mx-2">•</span>
+                <span className="font-medium">Taxa Limpeza:</span>
+                <span className="font-semibold text-slate-800">
+                  R$ {(selectedProperty.cleaning_fee || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -469,14 +529,20 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
 
       {/* Mensagem quando não há propriedade selecionada */}
       {(!selectedProperty || totalRevenue === 0) && (
-        <Card className="bg-gray-50 border-gray-200">
-          <CardContent className="pt-6">
-            <div className="text-center text-gray-500">
-              <p className="text-sm">
+        <Card className="border-2 border-dashed border-slate-300 bg-slate-50/50">
+          <CardContent className="pt-8 pb-8">
+            <div className="text-center">
+              <div className="mx-auto w-16 h-16 bg-slate-200 rounded-full flex items-center justify-center mb-4">
+                <Calculator className="h-8 w-8 text-slate-400" />
+              </div>
+              <p className="text-slate-600 font-medium mb-2">
                 {!selectedProperty 
-                  ? "📋 Selecione uma propriedade para ver o detalhamento financeiro automático"
-                  : "💰 Digite o valor total da reserva para ver os cálculos"
+                  ? "Selecione uma propriedade para ver o detalhamento financeiro"
+                  : "Digite o valor total da reserva para calcular automaticamente"
                 }
+              </p>
+              <p className="text-slate-500 text-sm">
+                Os cálculos serão atualizados em tempo real conforme você preenche os dados
               </p>
             </div>
           </CardContent>
