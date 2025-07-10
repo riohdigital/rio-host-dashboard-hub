@@ -16,6 +16,8 @@ const Dashboard = () => {
   const [selectedProperties, setSelectedProperties] = useState<string[]>(['todas']);
   const [selectedPeriod, setSelectedPeriod] = useState('12meses');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth().toString());
+  const [chartViewMode, setChartViewMode] = useState('monthly'); // 'monthly', 'comparison'
+  const [comparisonMonths, setComparisonMonths] = useState<string[]>([new Date().getMonth().toString()]);
   const [properties, setProperties] = useState<Property[]>([]);
   const [propertySelectOpen, setPropertySelectOpen] = useState(false);
   const [dashboardData, setDashboardData] = useState({
@@ -116,9 +118,19 @@ const Dashboard = () => {
       const totalExpenses = (expenses || []).reduce((sum, e) => sum + (e.amount || 0), 0);
       const netProfit = totalRevenue - totalExpenses - totalCommission;
 
-      // Calcular receita mensal para o gráfico de período
-      const monthlyRevenue = calculateMonthlyRevenue(reservations || [], periodMonths);
-      
+      // Calcular receita para o gráfico baseado no modo de visualização
+      let chartData = [];
+      if (chartViewMode === 'monthly') {
+        if (selectedPeriod === 'diario') {
+          chartData = calculateDailyRevenue(reservations || [], parseInt(selectedMonth));
+        } else {
+          chartData = calculateMonthlyRevenue(reservations || [], periodMonths);
+        }
+      } else {
+        // Modo de comparação entre meses
+        chartData = calculateComparisonData(reservations || [], comparisonMonths);
+      }
+
       // Calcular receita diária para o mês selecionado
       const dailyRevenue = calculateDailyRevenue(reservations || [], parseInt(selectedMonth));
       
@@ -151,7 +163,7 @@ const Dashboard = () => {
         totalCommission,
         netProfit,
         occupancyRate,
-        monthlyRevenue: selectedPeriod === 'daily' ? dailyRevenue : monthlyRevenue,
+        monthlyRevenue: chartData,
         dailyRevenue,
         expensesByCategory,
         monthlyGrowth,
@@ -254,8 +266,36 @@ const Dashboard = () => {
     }));
   };
 
-  const COLORS = ['#6A6DDF', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
+  const calculateComparisonData = (reservations: any[], months: string[]) => {
+    const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 
+                       'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const currentYear = new Date().getFullYear();
+    const data = [];
 
+    // Criar dados para cada mês selecionado
+    const daysInMonth = Math.max(...months.map(m => new Date(currentYear, parseInt(m) + 1, 0).getDate()));
+    
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dayData: any = { day: day.toString() };
+      
+      months.forEach(month => {
+        const monthIndex = parseInt(month);
+        const dateKey = `${currentYear}-${(monthIndex + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+        
+        const dayRevenue = reservations
+          .filter(r => r.check_in_date === dateKey)
+          .reduce((sum, r) => sum + (r.total_revenue || 0), 0);
+
+        dayData[monthNames[monthIndex]] = dayRevenue;
+      });
+      
+      data.push(dayData);
+    }
+
+    return data;
+  };
+
+  const COLORS = ['#6A6DDF', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
   const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
                      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
@@ -290,13 +330,13 @@ const Dashboard = () => {
               <SelectItem value="3meses">3 Meses</SelectItem>
               <SelectItem value="6meses">6 Meses</SelectItem>
               <SelectItem value="12meses">12 Meses</SelectItem>
-              <SelectItem value="daily">Diário</SelectItem>
+              <SelectItem value="diario">Diário</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </div>
 
-      {/* KPIs - Com componentes corrigidos */}
+      {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MonthlyRevenueKPI 
           totalRevenue={dashboardData.totalRevenue} 
@@ -320,44 +360,88 @@ const Dashboard = () => {
         />
       </div>
 
-      {/* Segunda linha: Gráfico de Receita do Período e Últimas Reservas */}
+      {/* Segunda linha: Gráfico de Receita por Período e Últimas Reservas */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="bg-white">
           <CardHeader>
-            <div className="flex justify-between items-center">
-              <CardTitle className="text-gradient-primary">
-                {selectedPeriod === 'daily' ? 'Receita Diária' : 'Receita por Período'}
-              </CardTitle>
-              {selectedPeriod === 'daily' && (
-                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <div className="flex justify-between items-center mb-4">
+              <CardTitle className="text-gradient-primary">Receita por Período</CardTitle>
+              <div className="flex gap-2">
+                <Select value={chartViewMode} onValueChange={setChartViewMode}>
                   <SelectTrigger className="w-40">
-                    <SelectValue placeholder="Mês" />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {monthNames.map((month, index) => (
-                      <SelectItem key={index} value={index.toString()}>
-                        {month}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="monthly">Mensal</SelectItem>
+                    <SelectItem value="comparison">Comparação</SelectItem>
                   </SelectContent>
                 </Select>
-              )}
+                
+                {chartViewMode === 'comparison' && (
+                  <Select 
+                    value={comparisonMonths.join(',')} 
+                    onValueChange={(value) => setComparisonMonths(value.split(','))}
+                  >
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="Selecionar meses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {monthNames.map((month, index) => (
+                        <SelectItem key={index} value={index.toString()}>
+                          {month}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                
+                {(selectedPeriod === 'diario' || chartViewMode === 'comparison') && chartViewMode !== 'comparison' && (
+                  <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue placeholder="Mês" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {monthNames.map((month, index) => (
+                        <SelectItem key={index} value={index.toString()}>
+                          {month}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
             </div>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={dashboardData.monthlyRevenue}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
+                <XAxis dataKey={chartViewMode === 'comparison' ? "day" : "month"} />
                 <YAxis />
                 <Tooltip formatter={(value) => [`R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Receita']} />
-                <Line 
-                  type="monotone" 
-                  dataKey="receita" 
-                  stroke="#6A6DDF" 
-                  strokeWidth={3}
-                  dot={{ fill: '#6A6DDF', strokeWidth: 2 }}
-                />
+                {chartViewMode === 'comparison' ? (
+                  comparisonMonths.map((monthIndex, index) => {
+                    const monthName = monthNames[parseInt(monthIndex)];
+                    return (
+                      <Line 
+                        key={monthIndex}
+                        type="monotone" 
+                        dataKey={monthName.slice(0, 3)} 
+                        stroke={COLORS[index % COLORS.length]} 
+                        strokeWidth={3}
+                        dot={{ fill: COLORS[index % COLORS.length], strokeWidth: 2 }}
+                      />
+                    );
+                  })
+                ) : (
+                  <Line 
+                    type="monotone" 
+                    dataKey="receita" 
+                    stroke="#6A6DDF" 
+                    strokeWidth={3}
+                    dot={{ fill: '#6A6DDF', strokeWidth: 2 }}
+                  />
+                )}
               </LineChart>
             </ResponsiveContainer>
           </CardContent>

@@ -38,6 +38,7 @@ interface ReservationFormProps {
 
 const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormProps) => {
   const [properties, setProperties] = useState<Property[]>([]);
+  const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -83,17 +84,48 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
     }
   };
 
-  // Calcular net_revenue automaticamente
+  // Calcular comissão e receita líquida automaticamente
   useEffect(() => {
     const subscription = watch((value) => {
       const totalRevenue = value.total_revenue || 0;
-      const commissionAmount = value.commission_amount || 0;
-      const netRevenue = totalRevenue - commissionAmount;
-      setValue('net_revenue', netRevenue);
+      let commissionAmount = 0;
+      let netRevenue = totalRevenue;
+
+      // Se uma propriedade foi selecionada, calcular comissão e receita líquida
+      if (selectedProperty && totalRevenue > 0) {
+        // Calcular comissão baseada na porcentagem da propriedade
+        const commissionRate = selectedProperty.commission_rate || 0;
+        commissionAmount = totalRevenue * commissionRate;
+        
+        // Calcular receita líquida: receita total - comissão - taxa de limpeza
+        const cleaningFee = selectedProperty.cleaning_fee || 0;
+        netRevenue = totalRevenue - commissionAmount - cleaningFee;
+      } else if (value.commission_amount) {
+        // Se não há propriedade selecionada, usar valor manual da comissão
+        commissionAmount = value.commission_amount;
+        netRevenue = totalRevenue - commissionAmount;
+      }
+
+      setValue('commission_amount', Number(commissionAmount.toFixed(2)));
+      setValue('net_revenue', Number(netRevenue.toFixed(2)));
     });
 
     return () => subscription.unsubscribe();
-  }, [watch, setValue]);
+  }, [watch, setValue, selectedProperty]);
+
+  // Atualizar propriedade selecionada quando property_id mudar
+  useEffect(() => {
+    const subscription = watch((value) => {
+      if (value.property_id) {
+        const property = properties.find(p => p.id === value.property_id);
+        setSelectedProperty(property || null);
+      } else {
+        setSelectedProperty(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [watch, properties]);
 
   const onSubmit = async (data: ReservationFormData) => {
     setLoading(true);
@@ -184,6 +216,12 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                   ))}
                 </SelectContent>
               </Select>
+              {selectedProperty && (
+                <div className="text-xs text-gray-500 mt-1">
+                  Comissão: {((selectedProperty.commission_rate || 0) * 100).toFixed(1)}% • 
+                  Taxa Limpeza: R$ {(selectedProperty.cleaning_fee || 0).toFixed(2)}
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -259,13 +297,18 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="commission_amount">Valor da Comissão (R$)</Label>
+              <Label htmlFor="commission_amount">
+                Valor da Comissão (R$)
+                {selectedProperty && <span className="text-xs text-gray-500 ml-1">(Calculado automaticamente)</span>}
+              </Label>
               <Input
                 id="commission_amount"
                 type="number"
                 step="0.01"
                 {...register('commission_amount', { valueAsNumber: true })}
                 placeholder="Ex: 300.00"
+                readOnly={!!selectedProperty}
+                className={selectedProperty ? "bg-gray-100" : ""}
               />
             </div>
 
