@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -30,11 +29,36 @@ const AnnualGrowthChart = ({ monthlyData, yearlyData, loading }: AnnualGrowthCha
   const currentYear = new Date().getFullYear();
   const previousYear = currentYear - 1;
 
-  const totalGrowth = yearlyData.length >= 2 ? 
-    ((yearlyData[yearlyData.length - 1]?.revenue - yearlyData[yearlyData.length - 2]?.revenue) / yearlyData[yearlyData.length - 2]?.revenue * 100) || 0 : 0;
+  // --- LÓGICA DE CÁLCULO CORRIGIDA ---
+  const calculateTotalGrowth = () => {
+    if (yearlyData.length < 2) {
+      return { value: 0, text: 'N/A' }; // Não há dados suficientes para comparar
+    }
 
-  const avgMonthlyGrowth = monthlyData.length > 0 ? 
-    monthlyData.reduce((sum, month) => sum + month.growth, 0) / monthlyData.length : 0;
+    const currentYearRevenue = yearlyData[yearlyData.length - 1]?.revenue || 0;
+    const previousYearRevenue = yearlyData[yearlyData.length - 2]?.revenue || 0;
+
+    if (previousYearRevenue > 0) {
+      const growth = ((currentYearRevenue - previousYearRevenue) / previousYearRevenue) * 100;
+      return { value: growth, text: `${growth >= 0 ? '+' : ''}${growth.toFixed(1)}%` };
+    }
+    
+    // Se a receita anterior foi 0, mas a atual não é, o crescimento é novo.
+    if (previousYearRevenue === 0 && currentYearRevenue > 0) {
+      return { value: 100, text: 'Novo' }; // Ou '+100%' se preferir
+    }
+
+    // Se ambos são 0 ou o cenário não se encaixa, o crescimento é 0.
+    return { value: 0, text: '+0.0%' };
+  };
+
+  const totalGrowthInfo = calculateTotalGrowth();
+
+  // Cálculo da média mensal, ignorando valores infinitos
+  const validMonthlyGrowths = monthlyData.filter(m => isFinite(m.growth));
+  const avgMonthlyGrowth = validMonthlyGrowths.length > 0 ? 
+    validMonthlyGrowths.reduce((sum, month) => sum + month.growth, 0) / validMonthlyGrowths.length : 0;
+  // --- FIM DA LÓGICA DE CÁLCULO CORRIGIDA ---
 
   if (loading) {
     return (
@@ -56,7 +80,7 @@ const AnnualGrowthChart = ({ monthlyData, yearlyData, loading }: AnnualGrowthCha
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle className="text-gradient-primary flex items-center gap-2">
-            {totalGrowth >= 0 ? (
+            {totalGrowthInfo.value >= 0 ? (
               <TrendingUp className="h-5 w-5 text-green-500" />
             ) : (
               <TrendingDown className="h-5 w-5 text-red-500" />
@@ -64,8 +88,8 @@ const AnnualGrowthChart = ({ monthlyData, yearlyData, loading }: AnnualGrowthCha
             Crescimento Anual
           </CardTitle>
           <div className="flex items-center gap-4 mt-2">
-            <span className={`text-2xl font-bold ${totalGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {totalGrowth >= 0 ? '+' : ''}{totalGrowth.toFixed(1)}%
+            <span className={`text-2xl font-bold ${totalGrowthInfo.value >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {totalGrowthInfo.text}
             </span>
             <span className="text-sm text-gray-500">
               Crescimento anual • Média mensal: {avgMonthlyGrowth >= 0 ? '+' : ''}{avgMonthlyGrowth.toFixed(1)}%
