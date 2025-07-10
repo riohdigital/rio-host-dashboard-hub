@@ -68,7 +68,7 @@ const ReservasPage = () => {
     try {
       const { data, error } = await supabase
         .from('properties')
-        .select('id, name, nickname')
+        .select('*')
         .order('name');
 
       if (error) throw error;
