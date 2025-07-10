@@ -16,6 +16,7 @@ import { Property } from '@/types/property';
 const Dashboard = () => {
   const [selectedProperties, setSelectedProperties] = useState<string[]>(['todas']);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth().toString());
+  const [selectedPeriod, setSelectedPeriod] = useState('3'); // Período padrão de 3 meses
   const [properties, setProperties] = useState<Property[]>([]);
   const [propertySelectOpen, setPropertySelectOpen] = useState(false);
   const [dashboardData, setDashboardData] = useState({
@@ -39,7 +40,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchDashboardData();
-  }, [selectedProperties, selectedMonth]);
+  }, [selectedProperties, selectedMonth, selectedPeriod]);
 
   const fetchProperties = async () => {
     try {
@@ -59,7 +60,8 @@ const Dashboard = () => {
     setLoading(true);
     try {
       const now = new Date();
-      const startDate = new Date(now.getFullYear(), 0, 1); // Buscar dados do ano inteiro
+      const monthsBack = parseInt(selectedPeriod);
+      const startDate = new Date(now.getFullYear(), now.getMonth() - monthsBack + 1, 1);
 
       // Construir condições de filtro de propriedades
       const propertyFilter = selectedProperties.includes('todas') && selectedProperties.length === 1 
@@ -79,22 +81,22 @@ const Dashboard = () => {
       const { data: reservations, error: revenueError } = await revenueQuery;
       if (revenueError) throw revenueError;
 
-      // Buscar receitas do ano anterior para crescimento
-      const lastYearStart = new Date(now.getFullYear() - 1, 0, 1);
-      const lastYearEnd = new Date(now.getFullYear() - 1, 11, 31);
+      // Buscar receitas do período anterior para crescimento
+      const lastPeriodStart = new Date(now.getFullYear(), now.getMonth() - (monthsBack * 2) + 1, 1);
+      const lastPeriodEnd = new Date(now.getFullYear(), now.getMonth() - monthsBack, 0);
 
-      let lastYearQuery = supabase
+      let lastPeriodQuery = supabase
         .from('reservations')
         .select('total_revenue, check_in_date')
-        .gte('check_in_date', lastYearStart.toISOString().split('T')[0])
-        .lte('check_in_date', lastYearEnd.toISOString().split('T')[0]);
+        .gte('check_in_date', lastPeriodStart.toISOString().split('T')[0])
+        .lte('check_in_date', lastPeriodEnd.toISOString().split('T')[0]);
 
       if (propertyFilter && propertyFilter.length > 0) {
-        lastYearQuery = lastYearQuery.in('property_id', propertyFilter);
+        lastPeriodQuery = lastPeriodQuery.in('property_id', propertyFilter);
       }
 
-      const { data: lastYearReservations, error: lastYearError } = await lastYearQuery;
-      if (lastYearError) throw lastYearError;
+      const { data: lastPeriodReservations, error: lastPeriodError } = await lastPeriodQuery;
+      if (lastPeriodError) throw lastPeriodError;
 
       // Buscar despesas
       let expenseQuery = supabase
@@ -116,10 +118,13 @@ const Dashboard = () => {
       const netProfit = totalRevenue - totalExpenses - totalCommission;
 
       // Calcular receita diária para o mês selecionado
-      const chartData = calculateDailyRevenue(reservations || [], parseInt(selectedMonth));
+      const dailyData = calculateDailyRevenue(reservations || [], parseInt(selectedMonth));
+
+      // Calcular receita mensal para o período selecionado
+      const monthlyData = calculateMonthlyRevenue(reservations || [], monthsBack);
 
       // Calcular crescimento mensal
-      const monthlyGrowth = calculateMonthlyGrowth(reservations || [], lastYearReservations || []);
+      const monthlyGrowth = calculateMonthlyGrowth(reservations || [], lastPeriodReservations || [], monthsBack);
 
       // Calcular despesas por categoria
       const expensesByCategory = calculateExpensesByCategory(expenses || []);
@@ -139,7 +144,7 @@ const Dashboard = () => {
         }));
 
       // Taxa de ocupação simplificada
-      const occupancyRate = Math.min(((reservations || []).length / 12) * 10, 100);
+      const occupancyRate = Math.min(((reservations || []).length / (monthsBack * 4)) * 10, 100);
 
       setDashboardData({
         totalRevenue,
@@ -147,8 +152,8 @@ const Dashboard = () => {
         totalCommission,
         netProfit,
         occupancyRate,
-        monthlyRevenue: chartData,
-        dailyRevenue: chartData,
+        monthlyRevenue: monthlyData,
+        dailyRevenue: dailyData,
         expensesByCategory,
         monthlyGrowth,
         recentReservations,
@@ -184,7 +189,6 @@ const Dashboard = () => {
     return data;
   };
 
-
   const calculateDailyRevenue = (reservations: any[], monthIndex: number) => {
     const currentYear = new Date().getFullYear();
     const daysInMonth = new Date(currentYear, monthIndex + 1, 0).getDate();
@@ -206,28 +210,33 @@ const Dashboard = () => {
     return data;
   };
 
-  const calculateMonthlyGrowth = (currentReservations: any[], lastYearReservations: any[]) => {
+  const calculateMonthlyGrowth = (currentReservations: any[], lastPeriodReservations: any[], months: number) => {
     const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 
                        'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
     const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth();
     const data = [];
 
-    for (let month = 0; month < 12; month++) {
-      const currentMonthKey = `${currentYear}-${(month + 1).toString().padStart(2, '0')}`;
-      const lastYearMonthKey = `${currentYear - 1}-${(month + 1).toString().padStart(2, '0')}`;
+    for (let i = months - 1; i >= 0; i--) {
+      const month = currentMonth - i;
+      const year = month < 0 ? currentYear - 1 : currentYear;
+      const adjustedMonth = month < 0 ? 12 + month : month;
+      
+      const currentMonthKey = `${year}-${(adjustedMonth + 1).toString().padStart(2, '0')}`;
+      const lastPeriodMonthKey = `${year}-${(adjustedMonth - months + 1).toString().padStart(2, '0')}`;
 
       const currentRevenue = currentReservations
         .filter(r => r.check_in_date.startsWith(currentMonthKey))
         .reduce((sum, r) => sum + (r.total_revenue || 0), 0);
 
-      const previousRevenue = lastYearReservations
-        .filter(r => r.check_in_date.startsWith(lastYearMonthKey))
+      const previousRevenue = lastPeriodReservations
+        .filter(r => r.check_in_date.startsWith(lastPeriodMonthKey))
         .reduce((sum, r) => sum + (r.total_revenue || 0), 0);
 
       const growth = previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : 0;
 
       data.push({
-        month: monthNames[month],
+        month: monthNames[adjustedMonth],
         current: currentRevenue,
         previous: previousRevenue,
         growth: growth
@@ -251,12 +260,18 @@ const Dashboard = () => {
     }));
   };
 
-
   const COLORS = ['#6A6DDF', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
   const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
                      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
   const monthNamesShort = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 
                            'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+  const periodOptions = [
+    { value: '1', label: '1 mês' },
+    { value: '3', label: '3 meses' },
+    { value: '6', label: '6 meses' },
+    { value: '12', label: '12 meses' }
+  ];
 
   if (loading) {
     return (
@@ -272,6 +287,19 @@ const Dashboard = () => {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gradient-primary">Dashboard Analítico</h1>
         <div className="flex gap-4">
+          <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="Período" />
+            </SelectTrigger>
+            <SelectContent>
+              {periodOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
           <PropertyMultiSelect
             properties={properties}
             selectedProperties={selectedProperties}
@@ -286,7 +314,7 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MonthlyRevenueKPI 
           totalRevenue={dashboardData.totalRevenue} 
-          selectedPeriod="anual"
+          selectedPeriod={`${selectedPeriod} ${selectedPeriod === '1' ? 'mês' : 'meses'}`}
         />
         
         <KPICard
@@ -330,7 +358,7 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={dashboardData.monthlyRevenue}>
+              <LineChart data={dashboardData.dailyRevenue}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
                 <YAxis />
