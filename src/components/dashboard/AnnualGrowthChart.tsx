@@ -41,9 +41,9 @@ const AnnualGrowthChart = ({ monthlyData, yearlyData, loading }: AnnualGrowthCha
       return { value: growth, text: `${growth >= 0 ? '+' : ''}${growth.toFixed(1)}%`, type: 'percentage' };
     }
     
+    // ALTERAÇÃO 1: Se a receita anterior for R$ 0, o texto principal agora será "100%".
     if (previousYearRevenue === 0 && currentYearRevenue > 0) {
-      const formattedRevenue = `R$ ${currentYearRevenue.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`;
-      return { value: currentYearRevenue, text: formattedRevenue, type: 'absolute' };
+      return { value: 100, text: '100%', type: 'absolute_growth' };
     }
 
     return { value: 0, text: '+0.0%', type: 'percentage' };
@@ -54,7 +54,7 @@ const AnnualGrowthChart = ({ monthlyData, yearlyData, loading }: AnnualGrowthCha
   // Lógica de cálculo de crescimento médio Mês a Mês (MoM)
   const calculateAverageMoMGrowth = (data: MonthlyData[]) => {
     const monthlyGrowths: number[] = [];
-    const relevantMonths = data.filter(m => m.current > 0 || m.previous > 0).slice(0, new Date().getMonth() + 1);
+    const relevantMonths = data.filter(m => m.current > 0).slice(0, new Date().getMonth() + 1);
 
     for (let i = 1; i < relevantMonths.length; i++) {
       const currentMonthRevenue = relevantMonths[i].current;
@@ -77,8 +77,9 @@ const AnnualGrowthChart = ({ monthlyData, yearlyData, loading }: AnnualGrowthCha
     if (totalGrowthInfo.type === 'percentage') {
       return `Crescimento de ${currentYear} vs ${previousYear} • ${avgMoMText}`;
     }
-    if (totalGrowthInfo.type === 'absolute') {
-      return `Receita de ${currentYear} (base anterior R$ 0) • ${avgMoMText}`;
+    // ALTERAÇÃO 2: Novo texto para o subtítulo quando o crescimento é a partir do zero.
+    if (totalGrowthInfo.type === 'absolute_growth') {
+      return `Comparativo ${previousYear} a ${currentYear} (base anterior R$ 0) • ${avgMoMText}`;
     }
     return 'Aguardando dados para comparação.';
   };
@@ -86,14 +87,8 @@ const AnnualGrowthChart = ({ monthlyData, yearlyData, loading }: AnnualGrowthCha
   if (loading) {
     return (
       <Card className="bg-white col-span-2">
-        <CardHeader>
-          <CardTitle className="text-gradient-primary">Crescimento Anual</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-80 flex items-center justify-center">
-            <div className="text-primary">Carregando dados de crescimento...</div>
-          </div>
-        </CardContent>
+        <CardHeader><CardTitle className="text-gradient-primary">Crescimento Anual</CardTitle></CardHeader>
+        <CardContent><div className="h-80 flex items-center justify-center"><div className="text-primary">Carregando dados de crescimento...</div></div></CardContent>
       </Card>
     );
   }
@@ -107,9 +102,11 @@ const AnnualGrowthChart = ({ monthlyData, yearlyData, loading }: AnnualGrowthCha
             Crescimento Anual
           </CardTitle>
           <div className="flex items-center gap-4 mt-2">
+            {/* O valor principal agora mostra "100%" */}
             <span className={`text-2xl font-bold ${totalGrowthInfo.value >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               {totalGrowthInfo.text}
             </span>
+            {/* O subtítulo agora mostra o texto contextual completo */}
             <span className="text-sm text-gray-500">
               {renderSubtitle()}
             </span>
@@ -117,9 +114,7 @@ const AnnualGrowthChart = ({ monthlyData, yearlyData, loading }: AnnualGrowthCha
         </div>
         
         <Select value={viewMode} onValueChange={(value) => setViewMode(value as 'monthly' | 'yearly')}>
-          <SelectTrigger className="w-40">
-            <SelectValue />
-          </SelectTrigger>
+          <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="monthly">Mensal</SelectItem>
             <SelectItem value="yearly">Anual</SelectItem>
@@ -134,29 +129,9 @@ const AnnualGrowthChart = ({ monthlyData, yearlyData, loading }: AnnualGrowthCha
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" />
               <YAxis />
-              <Tooltip 
-                formatter={(value, name) => [
-                  `R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-                  name === 'current' ? `${currentYear}` : `${previousYear}`
-                ]}
-                labelFormatter={(label) => `Mês: ${label}`}
-              />
-              <Line 
-                type="monotone" 
-                dataKey="previous" 
-                stroke="#94A3B8" 
-                strokeWidth={2}
-                dot={{ fill: '#94A3B8', strokeWidth: 2 }} 
-                name={`${previousYear}`}
-              />
-              <Line 
-                type="monotone" 
-                dataKey="current" 
-                stroke="#6A6DDF" 
-                strokeWidth={3}
-                dot={{ fill: '#6A6DDF', strokeWidth: 2 }} 
-                name={`${currentYear}`}
-              />
+              <Tooltip formatter={(value, name) => [`R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, name === 'current' ? `${currentYear}` : `${previousYear}`]} labelFormatter={(label) => `Mês: ${label}`} />
+              <Line type="monotone" dataKey="previous" stroke="#94A3B8" strokeWidth={2} dot={{ fill: '#94A3B8', strokeWidth: 2 }} name={`${previousYear}`} />
+              <Line type="monotone" dataKey="current" stroke="#6A6DDF" strokeWidth={3} dot={{ fill: '#6A6DDF', strokeWidth: 2 }} name={`${currentYear}`} />
             </LineChart>
           </ResponsiveContainer>
         ) : (
@@ -165,9 +140,7 @@ const AnnualGrowthChart = ({ monthlyData, yearlyData, loading }: AnnualGrowthCha
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="year" />
               <YAxis />
-              <Tooltip 
-                formatter={(value) => [`R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Receita']} 
-              />
+              <Tooltip formatter={(value) => [`R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Receita']} />
               <Bar dataKey="revenue" fill="#10B981" />
             </BarChart>
           </ResponsiveContainer>
