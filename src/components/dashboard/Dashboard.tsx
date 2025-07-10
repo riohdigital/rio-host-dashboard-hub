@@ -15,8 +15,8 @@ import { Property } from '@/types/property';
 const Dashboard = () => {
   const [selectedProperties, setSelectedProperties] = useState<string[]>(['todas']);
   const [selectedPeriod, setSelectedPeriod] = useState('12meses');
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth().toString());
   const [chartViewMode, setChartViewMode] = useState('monthly'); // 'monthly', 'comparison'
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth().toString());
   const [comparisonMonths, setComparisonMonths] = useState<string[]>([new Date().getMonth().toString()]);
   const [properties, setProperties] = useState<Property[]>([]);
   const [propertySelectOpen, setPropertySelectOpen] = useState(false);
@@ -41,7 +41,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchDashboardData();
-  }, [selectedProperties, selectedPeriod, selectedMonth]);
+  }, [selectedProperties, selectedPeriod, selectedMonth, chartViewMode, comparisonMonths]);
 
   const fetchProperties = async () => {
     try {
@@ -267,26 +267,31 @@ const Dashboard = () => {
   };
 
   const calculateComparisonData = (reservations: any[], months: string[]) => {
-    const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 
-                       'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const monthNamesShort = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 
+                            'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
     const currentYear = new Date().getFullYear();
     const data = [];
 
-    // Criar dados para cada mês selecionado
-    const daysInMonth = Math.max(...months.map(m => new Date(currentYear, parseInt(m) + 1, 0).getDate()));
+    // Encontrar o número máximo de dias entre os meses selecionados
+    const maxDays = Math.max(...months.map(m => new Date(currentYear, parseInt(m) + 1, 0).getDate()));
     
-    for (let day = 1; day <= daysInMonth; day++) {
+    for (let day = 1; day <= maxDays; day++) {
       const dayData: any = { day: day.toString() };
       
-      months.forEach(month => {
-        const monthIndex = parseInt(month);
-        const dateKey = `${currentYear}-${(monthIndex + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+      months.forEach(monthIndex => {
+        const monthIdx = parseInt(monthIndex);
+        const daysInMonth = new Date(currentYear, monthIdx + 1, 0).getDate();
         
-        const dayRevenue = reservations
-          .filter(r => r.check_in_date === dateKey)
-          .reduce((sum, r) => sum + (r.total_revenue || 0), 0);
+        // Só adicionar dados se o dia existir no mês
+        if (day <= daysInMonth) {
+          const dateKey = `${currentYear}-${(monthIdx + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+          
+          const dayRevenue = reservations
+            .filter(r => r.check_in_date === dateKey)
+            .reduce((sum, r) => sum + (r.total_revenue || 0), 0);
 
-        dayData[monthNames[monthIndex]] = dayRevenue;
+          dayData[monthNamesShort[monthIdx]] = dayRevenue;
+        }
       });
       
       data.push(dayData);
@@ -295,9 +300,18 @@ const Dashboard = () => {
     return data;
   };
 
+  const handleComparisonMonthsChange = (value: string) => {
+    const selectedMonths = value.split(',').filter(m => m !== '');
+    if (selectedMonths.length > 0) {
+      setComparisonMonths(selectedMonths);
+    }
+  };
+
   const COLORS = ['#6A6DDF', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
   const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
                      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  const monthNamesShort = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 
+                           'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
   if (loading) {
     return (
@@ -378,32 +392,36 @@ const Dashboard = () => {
                 </Select>
                 
                 {chartViewMode === 'comparison' && (
-                  <Select 
-                    value={comparisonMonths.join(',')} 
-                    onValueChange={(value) => setComparisonMonths(value.split(','))}
-                  >
-                    <SelectTrigger className="w-48">
-                      <SelectValue placeholder="Selecionar meses" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {monthNames.map((month, index) => (
-                        <SelectItem key={index} value={index.toString()}>
-                          {month}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-2">
+                    {monthNames.map((month, index) => (
+                      <label key={index} className="flex items-center space-x-1 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={comparisonMonths.includes(index.toString())}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setComparisonMonths([...comparisonMonths, index.toString()]);
+                            } else {
+                              setComparisonMonths(comparisonMonths.filter(m => m !== index.toString()));
+                            }
+                          }}
+                          className="rounded"
+                        />
+                        <span>{monthNamesShort[index]}</span>
+                      </label>
+                    ))}
+                  </div>
                 )}
                 
-                {(selectedPeriod === 'diario' || chartViewMode === 'comparison') && chartViewMode !== 'comparison' && (
+                {((selectedPeriod === 'diario' && chartViewMode === 'monthly') || chartViewMode === 'monthly') && selectedPeriod === 'diario' && (
                   <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                    <SelectTrigger className="w-40">
+                    <SelectTrigger className="w-32">
                       <SelectValue placeholder="Mês" />
                     </SelectTrigger>
                     <SelectContent>
                       {monthNames.map((month, index) => (
                         <SelectItem key={index} value={index.toString()}>
-                          {month}
+                          {monthNamesShort[index]}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -421,12 +439,12 @@ const Dashboard = () => {
                 <Tooltip formatter={(value) => [`R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Receita']} />
                 {chartViewMode === 'comparison' ? (
                   comparisonMonths.map((monthIndex, index) => {
-                    const monthName = monthNames[parseInt(monthIndex)];
+                    const monthName = monthNamesShort[parseInt(monthIndex)];
                     return (
                       <Line 
                         key={monthIndex}
                         type="monotone" 
-                        dataKey={monthName.slice(0, 3)} 
+                        dataKey={monthName} 
                         stroke={COLORS[index % COLORS.length]} 
                         strokeWidth={3}
                         dot={{ fill: COLORS[index % COLORS.length], strokeWidth: 2 }}

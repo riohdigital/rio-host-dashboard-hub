@@ -86,28 +86,40 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
 
   // Calcular comissão e receita líquida automaticamente
   useEffect(() => {
-    const subscription = watch((value) => {
-      const totalRevenue = value.total_revenue || 0;
-      let commissionAmount = 0;
-      let netRevenue = totalRevenue;
+    const subscription = watch((value, { name }) => {
+      // Só executar cálculos se o total_revenue ou property_id mudaram
+      if (name === 'total_revenue' || name === 'property_id') {
+        const totalRevenue = value.total_revenue || 0;
+        let commissionAmount = 0;
+        let netRevenue = totalRevenue;
 
-      // Se uma propriedade foi selecionada, calcular comissão e receita líquida
-      if (selectedProperty && totalRevenue > 0) {
-        // Calcular comissão baseada na porcentagem da propriedade
-        const commissionRate = selectedProperty.commission_rate || 0;
-        commissionAmount = totalRevenue * commissionRate;
+        // Se uma propriedade foi selecionada, calcular comissão e receita líquida
+        if (selectedProperty && totalRevenue > 0) {
+          // Calcular comissão baseada na porcentagem da propriedade  
+          const commissionRate = selectedProperty.commission_rate || 0;
+          commissionAmount = totalRevenue * commissionRate;
+          
+          // Calcular receita líquida: receita total - comissão - taxa de limpeza
+          const cleaningFee = selectedProperty.cleaning_fee || 0;
+          netRevenue = totalRevenue - commissionAmount - cleaningFee;
+        } else if (value.commission_amount && !selectedProperty) {
+          // Se não há propriedade selecionada, usar valor manual da comissão
+          commissionAmount = value.commission_amount;
+          netRevenue = totalRevenue - commissionAmount;
+        }
+
+        // Só atualizar se os valores realmente mudaram
+        const currentCommission = value.commission_amount || 0;
+        const currentNetRevenue = value.net_revenue || 0;
         
-        // Calcular receita líquida: receita total - comissão - taxa de limpeza
-        const cleaningFee = selectedProperty.cleaning_fee || 0;
-        netRevenue = totalRevenue - commissionAmount - cleaningFee;
-      } else if (value.commission_amount) {
-        // Se não há propriedade selecionada, usar valor manual da comissão
-        commissionAmount = value.commission_amount;
-        netRevenue = totalRevenue - commissionAmount;
+        if (Math.abs(currentCommission - commissionAmount) > 0.01) {
+          setValue('commission_amount', Number(commissionAmount.toFixed(2)));
+        }
+        
+        if (Math.abs(currentNetRevenue - netRevenue) > 0.01) {
+          setValue('net_revenue', Number(netRevenue.toFixed(2)));
+        }
       }
-
-      setValue('commission_amount', Number(commissionAmount.toFixed(2)));
-      setValue('net_revenue', Number(netRevenue.toFixed(2)));
     });
 
     return () => subscription.unsubscribe();
@@ -217,9 +229,12 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                 </SelectContent>
               </Select>
               {selectedProperty && (
-                <div className="text-xs text-gray-500 mt-1">
-                  Comissão: {((selectedProperty.commission_rate || 0) * 100).toFixed(1)}% • 
-                  Taxa Limpeza: R$ {(selectedProperty.cleaning_fee || 0).toFixed(2)}
+                <div className="text-xs text-gray-500 mt-1 p-2 bg-blue-50 rounded">
+                  <div><strong>Comissão:</strong> {((selectedProperty.commission_rate || 0) * 100).toFixed(1)}%</div>
+                  <div><strong>Taxa Limpeza:</strong> R$ {(selectedProperty.cleaning_fee || 0).toFixed(2)}</div>
+                  <div className="text-blue-600 font-medium mt-1">
+                    ✓ Cálculos automáticos ativados
+                  </div>
                 </div>
               )}
             </div>
@@ -288,9 +303,15 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                 step="0.01"
                 {...register('total_revenue', { valueAsNumber: true })}
                 placeholder="Ex: 1500.00"
+                className={selectedProperty ? "border-blue-300 focus:border-blue-500" : ""}
               />
               {errors.total_revenue && (
                 <p className="text-sm text-red-600">{errors.total_revenue.message}</p>
+              )}
+              {selectedProperty && (
+                <p className="text-xs text-blue-600">
+                  💡 Comissão e receita líquida calculadas automaticamente
+                </p>
               )}
             </div>
           </div>
@@ -299,7 +320,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
             <div className="space-y-2">
               <Label htmlFor="commission_amount">
                 Valor da Comissão (R$)
-                {selectedProperty && <span className="text-xs text-gray-500 ml-1">(Calculado automaticamente)</span>}
+                {selectedProperty && <span className="text-xs text-blue-600 ml-1">(Automático)</span>}
               </Label>
               <Input
                 id="commission_amount"
@@ -308,21 +329,34 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                 {...register('commission_amount', { valueAsNumber: true })}
                 placeholder="Ex: 300.00"
                 readOnly={!!selectedProperty}
-                className={selectedProperty ? "bg-gray-100" : ""}
+                className={selectedProperty ? "bg-blue-50 border-blue-200" : ""}
               />
+              {selectedProperty && (
+                <p className="text-xs text-blue-600">
+                  Calculado: {((selectedProperty.commission_rate || 0) * 100).toFixed(1)}% de R$ {(watchedValues.total_revenue || 0).toFixed(2)}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="net_revenue">Receita Líquida (R$)</Label>
+              <Label htmlFor="net_revenue">
+                Receita Líquida (R$)
+                {selectedProperty && <span className="text-xs text-blue-600 ml-1">(Automático)</span>}
+              </Label>
               <Input
                 id="net_revenue"
                 type="number"
                 step="0.01"
                 {...register('net_revenue', { valueAsNumber: true })}
                 placeholder="Calculado automaticamente"
-                readOnly
-                className="bg-gray-100"
+                readOnly={!!selectedProperty}
+                className={selectedProperty ? "bg-blue-50 border-blue-200" : "bg-gray-100"}
               />
+              {selectedProperty && (
+                <p className="text-xs text-blue-600">
+                  Total - Comissão - Taxa Limpeza (R$ {(selectedProperty.cleaning_fee || 0).toFixed(2)})
+                </p>
+              )}
             </div>
           </div>
 
