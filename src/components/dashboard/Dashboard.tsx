@@ -5,6 +5,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import KPICard from './KPICard';
 import NetProfitKPI from './NetProfitKPI';
 import MonthlyRevenueKPI from './MonthlyRevenueKPI';
+import MonthlyRevenueChart from './MonthlyRevenueChart';
 import PropertyMultiSelect from './PropertyMultiSelect';
 import RecentReservations from './RecentReservations';
 import AnnualGrowthChart from './AnnualGrowthChart';
@@ -114,7 +115,7 @@ const Dashboard = () => {
       const totalExpenses = (expenses || []).reduce((sum, e) => sum + (e.amount || 0), 0);
       const netProfit = totalRevenue - totalExpenses - totalCommission;
 
-      // Calcular receita mensal
+      // Calcular receita mensal para o gráfico de período
       const monthlyRevenue = calculateMonthlyRevenue(reservations || [], periodMonths);
       
       // Calcular crescimento mensal
@@ -265,9 +266,12 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* KPIs - Com novos componentes especializados */}
+      {/* KPIs - Com componentes corrigidos */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <MonthlyRevenueKPI reservations={dashboardData.reservations} />
+        <MonthlyRevenueKPI 
+          totalRevenue={dashboardData.totalRevenue} 
+          selectedPeriod={selectedPeriod}
+        />
         
         <KPICard
           title="Despesas Totais"
@@ -276,11 +280,7 @@ const Dashboard = () => {
           icon={<TrendingDown className="h-4 w-4" />}
         />
         
-        <NetProfitKPI 
-          totalRevenue={dashboardData.totalRevenue}
-          totalExpenses={dashboardData.totalExpenses}
-          totalCommission={dashboardData.totalCommission}
-        />
+        <NetProfitKPI reservations={dashboardData.reservations} />
         
         <KPICard
           title="Taxa de Ocupação"
@@ -290,11 +290,11 @@ const Dashboard = () => {
         />
       </div>
 
-      {/* Segunda linha: Receita Mensal e Últimas Reservas */}
+      {/* Segunda linha: Gráfico de Receita do Período e Últimas Reservas */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="bg-white">
           <CardHeader>
-            <CardTitle className="text-gradient-primary">Receita Mensal</CardTitle>
+            <CardTitle className="text-gradient-primary">Receita por Período</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -321,7 +321,12 @@ const Dashboard = () => {
         />
       </div>
 
-      {/* Terceira linha: Gráfico de Crescimento Anual - largura completa */}
+      {/* Terceira linha: Gráfico de Receita Mensal Detalhada */}
+      <div className="w-full">
+        <MonthlyRevenueChart reservations={dashboardData.reservations} />
+      </div>
+
+      {/* Quarta linha: Gráfico de Crescimento Anual */}
       <div className="w-full">
         <AnnualGrowthChart
           monthlyData={dashboardData.monthlyGrowth}

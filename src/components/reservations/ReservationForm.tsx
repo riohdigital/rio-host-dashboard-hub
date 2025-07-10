@@ -1,80 +1,79 @@
-
 import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { Reservation } from '@/types/reservation';
 import { Property } from '@/types/property';
+import { Reservation } from '@/types/reservation';
+import { useToast } from '@/hooks/use-toast';
+
+const reservationSchema = z.object({
+  property_id: z.string().optional(),
+  platform: z.string().min(1, 'Plataforma é obrigatória'),
+  reservation_code: z.string().min(1, 'Código da reserva é obrigatório'),
+  guest_name: z.string().optional(),
+  number_of_guests: z.number().min(1).optional(),
+  check_in_date: z.string().min(1, 'Data de check-in é obrigatória'),
+  check_out_date: z.string().min(1, 'Data de check-out é obrigatória'),
+  total_revenue: z.number().min(0, 'Receita total deve ser positiva'),
+  base_revenue: z.number().min(0).optional(),
+  commission_amount: z.number().min(0).optional(),
+  net_revenue: z.number().min(0).optional(),
+  payment_status: z.string().optional(),
+  reservation_status: z.string().min(1, 'Status da reserva é obrigatório'),
+});
+
+type ReservationFormData = z.infer<typeof reservationSchema>;
 
 interface ReservationFormProps {
-  reservation?: Reservation | null;
+  reservation?: Reservation;
   onSuccess: () => void;
   onCancel: () => void;
 }
 
 const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormProps) => {
   const [properties, setProperties] = useState<Property[]>([]);
-  const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
-  
-  const [formData, setFormData] = useState({
-    property_id: '',
-    platform: 'Direto',
-    reservation_code: '',
-    guest_name: '',
-    number_of_guests: 1,
-    check_in_date: '',
-    check_out_date: '',
-    total_revenue: 0,
-    payment_status: 'Agendado',
-    reservation_status: 'Confirmada'
-  });
-
-  const [calculations, setCalculations] = useState({
-    cleaning_fee: 0,
-    base_revenue: 0,
-    commission_amount: 0,
-    net_revenue: 0
-  });
-
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<ReservationFormData>({
+    resolver: zodResolver(reservationSchema),
+    defaultValues: reservation ? {
+      ...reservation,
+      property_id: reservation.property_id || '',
+      check_in_date: reservation.check_in_date,
+      check_out_date: reservation.check_out_date,
+      number_of_guests: reservation.number_of_guests || undefined,
+      base_revenue: reservation.base_revenue || undefined,
+      commission_amount: reservation.commission_amount || undefined,
+      net_revenue: reservation.net_revenue || undefined,
+    } : {
+      platform: 'Direto',
+      reservation_status: 'Confirmada',
+      payment_status: 'Pago',
+    }
+  });
 
   useEffect(() => {
     fetchProperties();
   }, []);
-
-  useEffect(() => {
-    if (reservation) {
-      setFormData({
-        property_id: reservation.property_id || '',
-        platform: reservation.platform || 'Direto',
-        reservation_code: reservation.reservation_code || '',
-        guest_name: reservation.guest_name || '',
-        number_of_guests: reservation.number_of_guests || 1,
-        check_in_date: reservation.check_in_date || '',
-        check_out_date: reservation.check_out_date || '',
-        total_revenue: reservation.total_revenue || 0,
-        payment_status: reservation.payment_status || 'Agendado',
-        reservation_status: reservation.reservation_status || 'Confirmada'
-      });
-    }
-  }, [reservation]);
-
-  useEffect(() => {
-    if (formData.property_id && formData.total_revenue > 0) {
-      calculateFinancials();
-    }
-  }, [formData.property_id, formData.total_revenue]);
 
   const fetchProperties = async () => {
     try {
       const { data, error } = await supabase
         .from('properties')
         .select('*')
-        .eq('status', 'Ativo')
         .order('name');
 
       if (error) throw error;
@@ -84,79 +83,64 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
     }
   };
 
-  const calculateFinancials = () => {
-    const property = properties.find(p => p.id === formData.property_id);
-    if (!property) return;
-
-    const cleaningFee = property.cleaning_fee || 0;
-    const baseRevenue = formData.total_revenue - cleaningFee;
-    const commissionAmount = baseRevenue * property.commission_rate;
-    const netRevenue = baseRevenue - commissionAmount;
-
-    setCalculations({
-      cleaning_fee: cleaningFee,
-      base_revenue: baseRevenue,
-      commission_amount: commissionAmount,
-      net_revenue: netRevenue
+  // Calcular net_revenue automaticamente
+  useEffect(() => {
+    const subscription = watch((value) => {
+      const totalRevenue = value.total_revenue || 0;
+      const commissionAmount = value.commission_amount || 0;
+      const netRevenue = totalRevenue - commissionAmount;
+      setValue('net_revenue', netRevenue);
     });
 
-    setSelectedProperty(property);
-  };
+    return () => subscription.unsubscribe();
+  }, [watch, setValue]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (data: ReservationFormData) => {
     setLoading(true);
-
     try {
-      // Preparar dados completos para submissão
-      const dataToSubmit = {
-        property_id: formData.property_id,
-        platform: formData.platform,
-        reservation_code: formData.reservation_code,
-        guest_name: formData.guest_name || null,
-        number_of_guests: formData.number_of_guests || null,
-        check_in_date: formData.check_in_date,
-        check_out_date: formData.check_out_date,
-        total_revenue: formData.total_revenue,
-        base_revenue: calculations.base_revenue,
-        commission_amount: calculations.commission_amount,
-        net_revenue: calculations.net_revenue,
-        payment_status: formData.payment_status,
-        reservation_status: formData.reservation_status
+      // Preparar dados para envio - corrigir property_id
+      const submitData = {
+        ...data,
+        property_id: data.property_id && data.property_id !== '' ? data.property_id : null,
+        number_of_guests: data.number_of_guests || null,
+        base_revenue: data.base_revenue || null,
+        commission_amount: data.commission_amount || null,
+        net_revenue: data.net_revenue || null,
       };
 
-      console.log('Submitting reservation data:', dataToSubmit);
-
-      let error;
       if (reservation) {
-        const { error: updateError } = await supabase
+        // Atualizar reserva existente
+        const { error } = await supabase
           .from('reservations')
-          .update(dataToSubmit)
+          .update(submitData)
           .eq('id', reservation.id);
-        error = updateError;
+
+        if (error) throw error;
+        
+        toast({
+          title: "Sucesso",
+          description: "Reserva atualizada com sucesso!",
+        });
       } else {
-        const { error: insertError } = await supabase
+        // Criar nova reserva
+        const { error } = await supabase
           .from('reservations')
-          .insert([dataToSubmit]);
-        error = insertError;
+          .insert([submitData]);
+
+        if (error) throw error;
+        
+        toast({
+          title: "Sucesso",
+          description: "Reserva criada com sucesso!",
+        });
       }
 
-      if (error) {
-        console.error('Database error:', error);
-        throw error;
-      }
-
-      toast({
-        title: "Sucesso",
-        description: reservation ? "Reserva atualizada com sucesso." : "Reserva criada com sucesso.",
-      });
-      
       onSuccess();
     } catch (error) {
       console.error('Erro ao salvar reserva:', error);
       toast({
         title: "Erro",
-        description: `Não foi possível salvar a reserva: ${error?.message || 'Erro desconhecido'}`,
+        description: `Não foi possível salvar a reserva: ${error.message}`,
         variant: "destructive",
       });
     } finally {
@@ -164,220 +148,212 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
     }
   };
 
-  const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
+  const watchedValues = watch();
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Seção 1: Dados da Reserva */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-[#6A6DDF] border-b pb-2">
-          Dados da Reserva
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="property_id">Propriedade *</Label>
-            <Select 
-              value={formData.property_id} 
-              onValueChange={(value) => handleInputChange('property_id', value)}
-              required
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione a propriedade" />
-              </SelectTrigger>
-              <SelectContent>
-                {properties.map((property) => (
-                  <SelectItem key={property.id} value={property.id}>
-                    {property.nickname || property.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label htmlFor="platform">Plataforma *</Label>
-            <Select 
-              value={formData.platform} 
-              onValueChange={(value) => handleInputChange('platform', value)}
-              required
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Airbnb">Airbnb</SelectItem>
-                <SelectItem value="Booking.com">Booking.com</SelectItem>
-                <SelectItem value="Direto">Direto</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="reservation_code">Código da Reserva *</Label>
-            <Input
-              id="reservation_code"
-              value={formData.reservation_code}
-              onChange={(e) => handleInputChange('reservation_code', e.target.value)}
-              placeholder="Ex: HM123456789"
-              required
-            />
-          </div>
-          <div>
-            <Label htmlFor="guest_name">Nome do Hóspede</Label>
-            <Input
-              id="guest_name"
-              value={formData.guest_name}
-              onChange={(e) => handleInputChange('guest_name', e.target.value)}
-              placeholder="Nome completo do hóspede"
-            />
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <Label htmlFor="number_of_guests">Número de Hóspedes</Label>
-            <Input
-              id="number_of_guests"
-              type="number"
-              min="1"
-              value={formData.number_of_guests}
-              onChange={(e) => handleInputChange('number_of_guests', parseInt(e.target.value) || 1)}
-            />
-          </div>
-          <div>
-            <Label htmlFor="check_in_date">Check-in *</Label>
-            <Input
-              id="check_in_date"
-              type="date"
-              value={formData.check_in_date}
-              onChange={(e) => handleInputChange('check_in_date', e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <Label htmlFor="check_out_date">Check-out *</Label>
-            <Input
-              id="check_out_date"
-              type="date"
-              value={formData.check_out_date}
-              onChange={(e) => handleInputChange('check_out_date', e.target.value)}
-              required
-            />
-          </div>
-        </div>
-        
-        <div>
-          <Label htmlFor="total_revenue">Valor Total da Reserva (R$) *</Label>
-          <Input
-            id="total_revenue"
-            type="number"
-            min="0"
-            step="0.01"
-            value={formData.total_revenue}
-            onChange={(e) => handleInputChange('total_revenue', parseFloat(e.target.value) || 0)}
-            placeholder="0.00"
-            required
-          />
-        </div>
-      </div>
+    <Card className="w-full max-w-2xl mx-auto">
+      <CardHeader>
+        <CardTitle>
+          {reservation ? 'Editar Reserva' : 'Nova Reserva'}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="property_id">Propriedade</Label>
+              <Select 
+                value={watchedValues.property_id || ''} 
+                onValueChange={(value) => setValue('property_id', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione uma propriedade" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Nenhuma propriedade</SelectItem>
+                  {properties.map((property) => (
+                    <SelectItem key={property.id} value={property.id}>
+                      {property.nickname || property.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-      {/* Seção 2: Detalhamento Financeiro */}
-      {selectedProperty && formData.total_revenue > 0 && (
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-[#6A6DDF] border-b pb-2">
-            Detalhamento Financeiro
-          </h3>
-          <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-            <div className="flex justify-between">
-              <span>Valor Total:</span>
-              <span className="font-medium">R$ {formData.total_revenue.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-sm text-gray-600">
-              <span>(- Taxa de Limpeza):</span>
-              <span>R$ {calculations.cleaning_fee.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between border-t pt-2">
-              <span>(=) Base de Cálculo:</span>
-              <span className="font-medium">R$ {calculations.base_revenue.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-sm text-gray-600">
-              <span>(- Comissão Co-Anfitrião {(selectedProperty.commission_rate * 100).toFixed(0)}%):</span>
-              <span>R$ {calculations.commission_amount.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between border-t pt-2 text-lg font-semibold text-[#10B981]">
-              <span>(=) Total Líquido do Proprietário:</span>
-              <span>R$ {calculations.net_revenue.toFixed(2)}</span>
+            <div className="space-y-2">
+              <Label htmlFor="platform">Plataforma</Label>
+              <Select 
+                value={watchedValues.platform} 
+                onValueChange={(value) => setValue('platform', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Airbnb">Airbnb</SelectItem>
+                  <SelectItem value="Booking.com">Booking.com</SelectItem>
+                  <SelectItem value="Direto">Direto</SelectItem>
+                  <SelectItem value="Outros">Outros</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.platform && (
+                <p className="text-sm text-red-600">{errors.platform.message}</p>
+              )}
             </div>
           </div>
-        </div>
-      )}
 
-      {/* Seção 3: Status */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-[#6A6DDF] border-b pb-2">
-          Status
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="payment_status">Status do Pagamento</Label>
-            <Select 
-              value={formData.payment_status} 
-              onValueChange={(value) => handleInputChange('payment_status', value)}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Agendado">Agendado</SelectItem>
-                <SelectItem value="Pago">Pago</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label htmlFor="reservation_status">Status da Reserva</Label>
-            <Select 
-              value={formData.reservation_status} 
-              onValueChange={(value) => handleInputChange('reservation_status', value)}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Confirmada">Confirmada</SelectItem>
-                <SelectItem value="Em Andamento">Em Andamento</SelectItem>
-                <SelectItem value="Finalizada">Finalizada</SelectItem>
-                <SelectItem value="Cancelada">Cancelada</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="reservation_code">Código da Reserva</Label>
+              <Input
+                id="reservation_code"
+                {...register('reservation_code')}
+                placeholder="Ex: HMAB123456"
+              />
+              {errors.reservation_code && (
+                <p className="text-sm text-red-600">{errors.reservation_code.message}</p>
+              )}
+            </div>
 
-      {/* Botões */}
-      <div className="flex justify-end gap-3 pt-4 border-t">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-          disabled={loading}
-        >
-          Cancelar
-        </Button>
-        <Button
-          type="submit"
-          className="bg-[#6A6DDF] hover:bg-[#5A5BCF] text-white"
-          disabled={loading}
-        >
-          {loading ? 'Salvando...' : 'Salvar'}
-        </Button>
-      </div>
-    </form>
+            <div className="space-y-2">
+              <Label htmlFor="guest_name">Nome do Hóspede</Label>
+              <Input
+                id="guest_name"
+                {...register('guest_name')}
+                placeholder="Nome do hóspede"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="number_of_guests">Número de Hóspedes</Label>
+              <Input
+                id="number_of_guests"
+                type="number"
+                {...register('number_of_guests', { valueAsNumber: true })}
+                placeholder="Ex: 2"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="total_revenue">Receita Total (R$)</Label>
+              <Input
+                id="total_revenue"
+                type="number"
+                step="0.01"
+                {...register('total_revenue', { valueAsNumber: true })}
+                placeholder="Ex: 1500.00"
+              />
+              {errors.total_revenue && (
+                <p className="text-sm text-red-600">{errors.total_revenue.message}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="commission_amount">Valor da Comissão (R$)</Label>
+              <Input
+                id="commission_amount"
+                type="number"
+                step="0.01"
+                {...register('commission_amount', { valueAsNumber: true })}
+                placeholder="Ex: 300.00"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="net_revenue">Receita Líquida (R$)</Label>
+              <Input
+                id="net_revenue"
+                type="number"
+                step="0.01"
+                {...register('net_revenue', { valueAsNumber: true })}
+                placeholder="Calculado automaticamente"
+                readOnly
+                className="bg-gray-100"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="check_in_date">Data de Check-in</Label>
+              <Input
+                id="check_in_date"
+                type="date"
+                {...register('check_in_date')}
+              />
+              {errors.check_in_date && (
+                <p className="text-sm text-red-600">{errors.check_in_date.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="check_out_date">Data de Check-out</Label>
+              <Input
+                id="check_out_date"
+                type="date"
+                {...register('check_out_date')}
+              />
+              {errors.check_out_date && (
+                <p className="text-sm text-red-600">{errors.check_out_date.message}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="payment_status">Status do Pagamento</Label>
+              <Select 
+                value={watchedValues.payment_status || ''} 
+                onValueChange={(value) => setValue('payment_status', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Pago">Pago</SelectItem>
+                  <SelectItem value="Pendente">Pendente</SelectItem>
+                  <SelectItem value="Atrasado">Atrasado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="reservation_status">Status da Reserva</Label>
+              <Select 
+                value={watchedValues.reservation_status} 
+                onValueChange={(value) => setValue('reservation_status', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Confirmada">Confirmada</SelectItem>
+                  <SelectItem value="Cancelada">Cancelada</SelectItem>
+                  <SelectItem value="Em andamento">Em andamento</SelectItem>
+                  <SelectItem value="Finalizada">Finalizada</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.reservation_status && (
+                <p className="text-sm text-red-600">{errors.reservation_status.message}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-4 pt-4">
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? 'Salvando...' : reservation ? 'Atualizar' : 'Criar'} Reserva
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
   );
 };
 

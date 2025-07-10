@@ -5,26 +5,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { TrendingUp } from 'lucide-react';
 
 interface NetProfitKPIProps {
-  totalRevenue: number;
-  totalExpenses: number;
-  totalCommission: number;
+  reservations: any[];
 }
 
-const NetProfitKPI = ({ totalRevenue, totalExpenses, totalCommission }: NetProfitKPIProps) => {
+const NetProfitKPI = ({ reservations }: NetProfitKPIProps) => {
   const [viewType, setViewType] = useState<'net' | 'commission' | 'combined'>('net');
 
-  const netProfit = totalRevenue - totalExpenses - totalCommission;
+  // Calcular valores baseados nas reservations
+  const totalNetRevenue = reservations.reduce((sum, r) => sum + (r.net_revenue || 0), 0);
+  const totalCommission = reservations.reduce((sum, r) => sum + (r.commission_amount || 0), 0);
   
   const getValue = () => {
     switch (viewType) {
       case 'net':
-        return `R$ ${netProfit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+        return `R$ ${totalNetRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
       case 'commission':
         return `R$ ${totalCommission.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
       case 'combined':
-        return `R$ ${(netProfit + totalCommission).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+        return `R$ ${(totalNetRevenue + totalCommission).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
       default:
-        return `R$ ${netProfit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+        return `R$ ${totalNetRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
     }
   };
 
