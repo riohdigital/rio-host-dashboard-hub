@@ -1,13 +1,14 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import KPICard from './KPICard';
+import NetProfitKPI from './NetProfitKPI';
+import MonthlyRevenueKPI from './MonthlyRevenueKPI';
 import PropertyMultiSelect from './PropertyMultiSelect';
 import RecentReservations from './RecentReservations';
 import AnnualGrowthChart from './AnnualGrowthChart';
-import { TrendingUp, DollarSign, TrendingDown, Calendar } from 'lucide-react';
+import { TrendingDown, Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Property } from '@/types/property';
 
@@ -19,12 +20,14 @@ const Dashboard = () => {
   const [dashboardData, setDashboardData] = useState({
     totalRevenue: 0,
     totalExpenses: 0,
+    totalCommission: 0,
     netProfit: 0,
     occupancyRate: 0,
     monthlyRevenue: [],
     expensesByCategory: [],
     monthlyGrowth: [],
-    recentReservations: []
+    recentReservations: [],
+    reservations: []
   });
   const [loading, setLoading] = useState(true);
 
@@ -54,7 +57,7 @@ const Dashboard = () => {
     setLoading(true);
     try {
       const now = new Date();
-      const periodMonths = selectedPeriod === '3meses' ? 3 : selectedPeriod === '6meses' ? 6 : 12;
+      const periodMonths = selectedPeriod === '1mes' ? 1 : selectedPeriod === '3meses' ? 3 : selectedPeriod === '6meses' ? 6 : 12;
       const startDate = new Date(now.getFullYear(), now.getMonth() - periodMonths, 1);
 
       // Construir condições de filtro de propriedades
@@ -65,7 +68,7 @@ const Dashboard = () => {
       // Buscar receitas
       let revenueQuery = supabase
         .from('reservations')
-        .select('id, total_revenue, net_revenue, check_in_date, check_out_date, property_id, guest_name, reservation_status, properties(name, nickname)')
+        .select('id, total_revenue, net_revenue, commission_amount, check_in_date, check_out_date, property_id, guest_name, reservation_status, properties(name, nickname)')
         .gte('check_in_date', startDate.toISOString().split('T')[0]);
 
       if (propertyFilter && propertyFilter.length > 0) {
@@ -107,15 +110,13 @@ const Dashboard = () => {
 
       // Calcular KPIs
       const totalRevenue = (reservations || []).reduce((sum, r) => sum + (r.total_revenue || 0), 0);
+      const totalCommission = (reservations || []).reduce((sum, r) => sum + (r.commission_amount || 0), 0);
       const totalExpenses = (expenses || []).reduce((sum, e) => sum + (e.amount || 0), 0);
-      const netProfit = totalRevenue - totalExpenses;
+      const netProfit = totalRevenue - totalExpenses - totalCommission;
 
       // Calcular receita mensal
       const monthlyRevenue = calculateMonthlyRevenue(reservations || [], periodMonths);
       
-      // Calcular receita anual para o gráfico de crescimento
-      const yearlyRevenue = calculateYearlyRevenue(reservations || []);
-
       // Calcular crescimento mensal
       const monthlyGrowth = calculateMonthlyGrowth(reservations || [], lastYearReservations || []);
 
@@ -142,12 +143,14 @@ const Dashboard = () => {
       setDashboardData({
         totalRevenue,
         totalExpenses,
+        totalCommission,
         netProfit,
         occupancyRate,
         monthlyRevenue,
         expensesByCategory,
         monthlyGrowth,
-        recentReservations
+        recentReservations,
+        reservations: reservations || []
       });
     } catch (error) {
       console.error('Erro ao buscar dados do dashboard:', error);
@@ -177,21 +180,6 @@ const Dashboard = () => {
     }
 
     return data;
-  };
-
-  const calculateYearlyRevenue = (reservations: any[]) => {
-    const yearlyData: { [key: string]: number } = {};
-    
-    reservations.forEach(r => {
-      const year = r.check_in_date.split('-')[0];
-      yearlyData[year] = (yearlyData[year] || 0) + (r.total_revenue || 0);
-    });
-
-    return Object.entries(yearlyData).map(([year, receita]) => ({
-      year,
-      receita,
-      revenue: receita
-    })).sort((a, b) => a.year.localeCompare(b.year));
   };
 
   const calculateMonthlyGrowth = (currentReservations: any[], lastYearReservations: any[]) => {
@@ -268,6 +256,7 @@ const Dashboard = () => {
               <SelectValue placeholder="Período" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="1mes">1 Mês</SelectItem>
               <SelectItem value="3meses">3 Meses</SelectItem>
               <SelectItem value="6meses">6 Meses</SelectItem>
               <SelectItem value="12meses">12 Meses</SelectItem>
@@ -276,26 +265,23 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* KPIs - Arrastáveis */}
+      {/* KPIs - Com novos componentes especializados */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <KPICard
-          title="Receita Bruta"
-          value={`R$ ${dashboardData.totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-          isPositive={true}
-          icon={<DollarSign className="h-4 w-4" />}
-        />
+        <MonthlyRevenueKPI reservations={dashboardData.reservations} />
+        
         <KPICard
           title="Despesas Totais"
           value={`R$ ${dashboardData.totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
           isPositive={false}
           icon={<TrendingDown className="h-4 w-4" />}
         />
-        <KPICard
-          title="Lucro Líquido"
-          value={`R$ ${dashboardData.netProfit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-          isPositive={dashboardData.netProfit >= 0}
-          icon={<TrendingUp className="h-4 w-4" />}
+        
+        <NetProfitKPI 
+          totalRevenue={dashboardData.totalRevenue}
+          totalExpenses={dashboardData.totalExpenses}
+          totalCommission={dashboardData.totalCommission}
         />
+        
         <KPICard
           title="Taxa de Ocupação"
           value={`${dashboardData.occupancyRate.toFixed(1)}%`}

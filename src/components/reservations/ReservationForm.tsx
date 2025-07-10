@@ -28,7 +28,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
     check_in_date: '',
     check_out_date: '',
     total_revenue: 0,
-    payment_status: 'Pendente',
+    payment_status: 'Agendado',
     reservation_status: 'Confirmada'
   });
 
@@ -57,7 +57,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
         check_in_date: reservation.check_in_date || '',
         check_out_date: reservation.check_out_date || '',
         total_revenue: reservation.total_revenue || 0,
-        payment_status: reservation.payment_status || 'Pendente',
+        payment_status: reservation.payment_status || 'Agendado',
         reservation_status: reservation.reservation_status || 'Confirmada'
       });
     }
@@ -108,14 +108,24 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
     setLoading(true);
 
     try {
+      // Preparar dados completos para submissão
       const dataToSubmit = {
-        ...formData,
-        number_of_guests: formData.number_of_guests || null,
+        property_id: formData.property_id,
+        platform: formData.platform,
+        reservation_code: formData.reservation_code,
         guest_name: formData.guest_name || null,
+        number_of_guests: formData.number_of_guests || null,
+        check_in_date: formData.check_in_date,
+        check_out_date: formData.check_out_date,
+        total_revenue: formData.total_revenue,
         base_revenue: calculations.base_revenue,
         commission_amount: calculations.commission_amount,
-        net_revenue: calculations.net_revenue
+        net_revenue: calculations.net_revenue,
+        payment_status: formData.payment_status,
+        reservation_status: formData.reservation_status
       };
+
+      console.log('Submitting reservation data:', dataToSubmit);
 
       let error;
       if (reservation) {
@@ -131,7 +141,10 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
         error = insertError;
       }
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error:', error);
+        throw error;
+      }
 
       toast({
         title: "Sucesso",
@@ -143,7 +156,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
       console.error('Erro ao salvar reserva:', error);
       toast({
         title: "Erro",
-        description: "Não foi possível salvar a reserva.",
+        description: `Não foi possível salvar a reserva: ${error?.message || 'Erro desconhecido'}`,
         variant: "destructive",
       });
     } finally {
@@ -321,9 +334,8 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Pago">Pago</SelectItem>
-                <SelectItem value="Pendente">Pendente</SelectItem>
                 <SelectItem value="Agendado">Agendado</SelectItem>
+                <SelectItem value="Pago">Pago</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -338,7 +350,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="Confirmada">Confirmada</SelectItem>
-                <SelectItem value="Ativa">Ativa</SelectItem>
+                <SelectItem value="Em Andamento">Em Andamento</SelectItem>
                 <SelectItem value="Finalizada">Finalizada</SelectItem>
                 <SelectItem value="Cancelada">Cancelada</SelectItem>
               </SelectContent>

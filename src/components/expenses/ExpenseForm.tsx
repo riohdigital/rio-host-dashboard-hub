@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Property } from '@/types/property';
 import { Expense, ExpenseCategory } from '@/types/expense';
+import RecurrenceSettings from './RecurrenceSettings';
 
 interface ExpenseFormProps {
   expense?: Expense | null;
@@ -25,6 +26,11 @@ const ExpenseForm = ({ expense, selectedPropertyId, onSuccess, onCancel }: Expen
     expense_type: expense?.expense_type || 'Variável',
     amount: expense?.amount.toString() || '',
   });
+
+  // Estados para recorrência
+  const [recurrenceType, setRecurrenceType] = useState('monthly');
+  const [recurrenceDuration, setRecurrenceDuration] = useState(12);
+  const [recurrenceStartDate, setRecurrenceStartDate] = useState(new Date().toISOString().split('T')[0]);
   
   const [properties, setProperties] = useState<Property[]>([]);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
@@ -64,12 +70,45 @@ const ExpenseForm = ({ expense, selectedPropertyId, onSuccess, onCancel }: Expen
     }
   };
 
+  const generateRecurrentExpenses = (baseExpense: any) => {
+    const expenses = [];
+    const startDate = new Date(recurrenceStartDate);
+    const amount = parseFloat(formData.amount);
+    
+    // Gerar UUID para o grupo de recorrência
+    const recurrenceGroupId = crypto.randomUUID();
+    
+    for (let i = 0; i < recurrenceDuration; i++) {
+      const expenseDate = new Date(startDate);
+      
+      // Calcular a data baseada no tipo de recorrência
+      if (recurrenceType === 'monthly') {
+        expenseDate.setMonth(startDate.getMonth() + i);
+      } else if (recurrenceType === 'quarterly') {
+        expenseDate.setMonth(startDate.getMonth() + (i * 3));
+      } else if (recurrenceType === 'annually') {
+        expenseDate.setFullYear(startDate.getFullYear() + i);
+      }
+
+      expenses.push({
+        ...baseExpense,
+        expense_date: expenseDate.toISOString().split('T')[0],
+        amount: amount,
+        recurrence_group_id: recurrenceGroupId,
+        recurrence_index: i,
+        is_recurrent: true
+      });
+    }
+    
+    return expenses;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const expenseData = {
+      const baseExpenseData = {
         property_id: formData.property_id,
         expense_date: formData.expense_date,
         description: formData.description,
@@ -79,9 +118,10 @@ const ExpenseForm = ({ expense, selectedPropertyId, onSuccess, onCancel }: Expen
       };
 
       if (expense) {
+        // Editando despesa existente
         const { error } = await supabase
           .from('expenses')
-          .update(expenseData)
+          .update(baseExpenseData)
           .eq('id', expense.id);
 
         if (error) throw error;
@@ -91,16 +131,34 @@ const ExpenseForm = ({ expense, selectedPropertyId, onSuccess, onCancel }: Expen
           description: "Despesa atualizada com sucesso.",
         });
       } else {
-        const { error } = await supabase
-          .from('expenses')
-          .insert([expenseData]);
+        // Criando nova despesa
+        if (formData.expense_type === 'Fixo') {
+          // Criar despesas recorrentes
+          const recurrentExpenses = generateRecurrentExpenses(baseExpenseData);
+          
+          const { error } = await supabase
+            .from('expenses')
+            .insert(recurrentExpenses);
 
-        if (error) throw error;
+          if (error) throw error;
 
-        toast({
-          title: "Sucesso",
-          description: "Despesa criada com sucesso.",
-        });
+          toast({
+            title: "Sucesso",
+            description: `${recurrentExpenses.length} despesas recorrentes criadas com sucesso.`,
+          });
+        } else {
+          // Criar despesa única
+          const { error } = await supabase
+            .from('expenses')
+            .insert([baseExpenseData]);
+
+          if (error) throw error;
+
+          toast({
+            title: "Sucesso",
+            description: "Despesa criada com sucesso.",
+          });
+        }
       }
 
       onSuccess();
@@ -123,115 +181,131 @@ const ExpenseForm = ({ expense, selectedPropertyId, onSuccess, onCancel }: Expen
     }));
   };
 
+  const isFixedExpense = formData.expense_type === 'Fixo';
+  const showRecurrenceSettings = isFixedExpense && !expense; // Só mostra ao criar nova despesa fixa
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="property_id">Propriedade *</Label>
-          <Select 
-            value={formData.property_id} 
-            onValueChange={(value) => handleInputChange('property_id', value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Selecionar propriedade" />
-            </SelectTrigger>
-            <SelectContent>
-              {properties.map((property) => (
-                <SelectItem key={property.id} value={property.id}>
-                  {property.nickname || property.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+    <div className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="property_id">Propriedade *</Label>
+            <Select 
+              value={formData.property_id} 
+              onValueChange={(value) => handleInputChange('property_id', value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecionar propriedade" />
+              </SelectTrigger>
+              <SelectContent>
+                {properties.map((property) => (
+                  <SelectItem key={property.id} value={property.id}>
+                    {property.nickname || property.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="expense_date">Data da Despesa *</Label>
+            <Input
+              id="expense_date"
+              type="date"
+              value={formData.expense_date}
+              onChange={(e) => handleInputChange('expense_date', e.target.value)}
+              required
+            />
+          </div>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="expense_date">Data da Despesa *</Label>
+          <Label htmlFor="description">Descrição *</Label>
           <Input
-            id="expense_date"
-            type="date"
-            value={formData.expense_date}
-            onChange={(e) => handleInputChange('expense_date', e.target.value)}
+            id="description"
+            value={formData.description}
+            onChange={(e) => handleInputChange('description', e.target.value)}
+            placeholder="Ex: Taxa de limpeza, Reparo na torneira..."
             required
           />
         </div>
-      </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="description">Descrição *</Label>
-        <Input
-          id="description"
-          value={formData.description}
-          onChange={(e) => handleInputChange('description', e.target.value)}
-          placeholder="Ex: Taxa de limpeza, Reparo na torneira..."
-          required
-        />
-      </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="category">Categoria *</Label>
+            <Select 
+              value={formData.category} 
+              onValueChange={(value) => handleInputChange('category', value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecionar categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((category) => (
+                  <SelectItem key={category.id} value={category.name}>
+                    {category.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="category">Categoria *</Label>
-          <Select 
-            value={formData.category} 
-            onValueChange={(value) => handleInputChange('category', value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Selecionar categoria" />
-            </SelectTrigger>
-            <SelectContent>
-              {categories.map((category) => (
-                <SelectItem key={category.id} value={category.name}>
-                  {category.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="space-y-2">
+            <Label htmlFor="expense_type">Tipo *</Label>
+            <Select 
+              value={formData.expense_type} 
+              onValueChange={(value) => handleInputChange('expense_type', value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecionar tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Fixo">Fixo</SelectItem>
+                <SelectItem value="Variável">Variável</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="expense_type">Tipo *</Label>
-          <Select 
-            value={formData.expense_type} 
-            onValueChange={(value) => handleInputChange('expense_type', value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Selecionar tipo" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Fixo">Fixo</SelectItem>
-              <SelectItem value="Variável">Variável</SelectItem>
-            </SelectContent>
-          </Select>
+          <Label htmlFor="amount">Valor (R$) *</Label>
+          <Input
+            id="amount"
+            type="number"
+            step="0.01"
+            min="0"
+            value={formData.amount}
+            onChange={(e) => handleInputChange('amount', e.target.value)}
+            placeholder="0,00"
+            required
+          />
         </div>
-      </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="amount">Valor (R$) *</Label>
-        <Input
-          id="amount"
-          type="number"
-          step="0.01"
-          min="0"
-          value={formData.amount}
-          onChange={(e) => handleInputChange('amount', e.target.value)}
-          placeholder="0,00"
-          required
-        />
-      </div>
+        <div className="flex gap-4 justify-end">
+          <Button type="button" variant="outline" onClick={onCancel}>
+            Cancelar
+          </Button>
+          <Button 
+            type="submit" 
+            disabled={loading}
+            className="bg-[#6A6DDF] hover:bg-[#5A5BCF] text-white"
+          >
+            {loading ? 'Salvando...' : (expense ? 'Atualizar' : 'Salvar')} Despesa
+          </Button>
+        </div>
+      </form>
 
-      <div className="flex gap-4 justify-end">
-        <Button type="button" variant="outline" onClick={onCancel}>
-          Cancelar
-        </Button>
-        <Button 
-          type="submit" 
-          disabled={loading}
-          className="bg-[#6A6DDF] hover:bg-[#5A5BCF] text-white"
-        >
-          {loading ? 'Salvando...' : (expense ? 'Atualizar' : 'Salvar')} Despesa
-        </Button>
-      </div>
-    </form>
+      {/* Configurações de Recorrência */}
+      <RecurrenceSettings
+        isVisible={showRecurrenceSettings}
+        recurrenceType={recurrenceType}
+        recurrenceDuration={recurrenceDuration}
+        startDate={recurrenceStartDate}
+        onRecurrenceTypeChange={setRecurrenceType}
+        onRecurrenceDurationChange={setRecurrenceDuration}
+        onStartDateChange={setRecurrenceStartDate}
+      />
+    </div>
   );
 };
 
