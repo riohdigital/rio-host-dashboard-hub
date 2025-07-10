@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -121,8 +122,8 @@ const Dashboard = () => {
       // Calcular receita para o gráfico baseado no modo de visualização
       let chartData = [];
       if (chartViewMode === 'monthly') {
-        if (selectedPeriod === 'diario') {
-          chartData = calculateDailyRevenue(reservations || [], parseInt(selectedMonth));
+        if (selectedPeriod === 'mensal') {
+          chartData = calculateMonthlyRevenueForMonth(reservations || [], parseInt(selectedMonth));
         } else {
           chartData = calculateMonthlyRevenue(reservations || [], periodMonths);
         }
@@ -194,6 +195,27 @@ const Dashboard = () => {
       data.push({
         month: monthNames[month.getMonth()],
         receita: monthRevenue
+      });
+    }
+
+    return data;
+  };
+
+  const calculateMonthlyRevenueForMonth = (reservations: any[], monthIndex: number) => {
+    const currentYear = new Date().getFullYear();
+    const daysInMonth = new Date(currentYear, monthIndex + 1, 0).getDate();
+    const data = [];
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateKey = `${currentYear}-${(monthIndex + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+      
+      const dayRevenue = reservations
+        .filter(r => r.check_in_date === dateKey)
+        .reduce((sum, r) => sum + (r.total_revenue || 0), 0);
+
+      data.push({
+        month: `${day}`,
+        receita: dayRevenue
       });
     }
 
@@ -344,7 +366,7 @@ const Dashboard = () => {
               <SelectItem value="3meses">3 Meses</SelectItem>
               <SelectItem value="6meses">6 Meses</SelectItem>
               <SelectItem value="12meses">12 Meses</SelectItem>
-              <SelectItem value="diario">Diário</SelectItem>
+              <SelectItem value="mensal">Mensal</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -413,7 +435,7 @@ const Dashboard = () => {
                   </div>
                 )}
                 
-                {((selectedPeriod === 'diario' && chartViewMode === 'monthly') || chartViewMode === 'monthly') && selectedPeriod === 'diario' && (
+                {selectedPeriod === 'mensal' && (
                   <Select value={selectedMonth} onValueChange={setSelectedMonth}>
                     <SelectTrigger className="w-32">
                       <SelectValue placeholder="Mês" />
