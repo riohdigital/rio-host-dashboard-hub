@@ -98,14 +98,21 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
   const onSubmit = async (data: ReservationFormData) => {
     setLoading(true);
     try {
-      // Preparar dados para envio - corrigir property_id
+      // Preparar dados para envio garantindo que campos obrigatórios estejam presentes
       const submitData = {
-        ...data,
+        platform: data.platform,
+        reservation_code: data.reservation_code,
+        check_in_date: data.check_in_date,
+        check_out_date: data.check_out_date,
+        total_revenue: data.total_revenue,
+        reservation_status: data.reservation_status,
         property_id: data.property_id && data.property_id !== '' ? data.property_id : null,
+        guest_name: data.guest_name || null,
         number_of_guests: data.number_of_guests || null,
         base_revenue: data.base_revenue || null,
         commission_amount: data.commission_amount || null,
         net_revenue: data.net_revenue || null,
+        payment_status: data.payment_status || null,
       };
 
       if (reservation) {
@@ -125,7 +132,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
         // Criar nova reserva
         const { error } = await supabase
           .from('reservations')
-          .insert([submitData]);
+          .insert(submitData);
 
         if (error) throw error;
         
