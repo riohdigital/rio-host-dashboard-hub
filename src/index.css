@@ -54,6 +54,10 @@ All colors MUST be HSL.
     --gradient-accent: linear-gradient(135deg, hsl(174 100% 29%) 0%, hsl(158 64% 52%) 100%);
     --gradient-muted: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(210 40% 96%) 100%);
     --gradient-hover: linear-gradient(135deg, hsl(251 78% 68%) 0%, hsl(268 67% 71%) 100%);
+    --gradient-success: linear-gradient(135deg, hsl(142 76% 36%) 0%, hsl(158 64% 52%) 100%);
+    --gradient-warning: linear-gradient(135deg, hsl(38 92% 50%) 0%, hsl(43 96% 56%) 100%);
+    --gradient-danger: linear-gradient(135deg, hsl(0 84% 60%) 0%, hsl(0 72% 51%) 100%);
+    --gradient-info: linear-gradient(135deg, hsl(217 91% 60%) 0%, hsl(221 83% 53%) 100%);
   }
 
   .dark {
@@ -99,6 +103,10 @@ All colors MUST be HSL.
     --gradient-accent: linear-gradient(135deg, hsl(174 100% 24%) 0%, hsl(158 64% 42%) 100%);
     --gradient-muted: linear-gradient(135deg, hsl(222.2 84% 4.9%) 0%, hsl(217.2 32.6% 17.5%) 100%);
     --gradient-hover: linear-gradient(135deg, hsl(251 78% 53%) 0%, hsl(268 67% 56%) 100%);
+    --gradient-success: linear-gradient(135deg, hsl(142 76% 31%) 0%, hsl(158 64% 47%) 100%);
+    --gradient-warning: linear-gradient(135deg, hsl(38 92% 45%) 0%, hsl(43 96% 51%) 100%);
+    --gradient-danger: linear-gradient(135deg, hsl(0 84% 55%) 0%, hsl(0 72% 46%) 100%);
+    --gradient-info: linear-gradient(135deg, hsl(217 91% 55%) 0%, hsl(221 83% 48%) 100%);
   }
 }
 
@@ -133,6 +141,22 @@ All colors MUST be HSL.
     background: var(--gradient-hover);
   }
   
+  .gradient-success {
+    background: var(--gradient-success);
+  }
+  
+  .gradient-warning {
+    background: var(--gradient-warning);
+  }
+  
+  .gradient-danger {
+    background: var(--gradient-danger);
+  }
+  
+  .gradient-info {
+    background: var(--gradient-info);
+  }
+  
   .text-gradient-primary {
     background: var(--gradient-primary);
     -webkit-background-clip: text;
@@ -145,5 +169,98 @@ All colors MUST be HSL.
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+  }
+  
+  .text-gradient-success {
+    background: var(--gradient-success);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  .text-gradient-warning {
+    background: var(--gradient-warning);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  .text-gradient-danger {
+    background: var(--gradient-danger);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  .text-gradient-info {
+    background: var(--gradient-info);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Efeitos de hover com gradientes */
+  .gradient-hover-card {
+    transition: all 0.3s ease;
+  }
+  
+  .gradient-hover-card:hover {
+    background: var(--gradient-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(106, 109, 223, 0.2);
+  }
+
+  /* Botões com gradientes */
+  .btn-gradient-primary {
+    background: var(--gradient-primary);
+    color: white;
+    border: none;
+    transition: all 0.3s ease;
+  }
+  
+  .btn-gradient-primary:hover {
+    background: var(--gradient-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 5px 15px rgba(106, 109, 223, 0.3);
+  }
+  
+  .btn-gradient-accent {
+    background: var(--gradient-accent);
+    color: white;
+    border: none;
+    transition: all 0.3s ease;
+  }
+  
+  .btn-gradient-accent:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+    box-shadow: 0 5px 15px rgba(16, 185, 129, 0.3);
+  }
+
+  /* Bordas com gradientes */
+  .border-gradient-primary {
+    border: 2px solid transparent;
+    background: linear-gradient(white, white) padding-box, var(--gradient-primary) border-box;
+  }
+  
+  .border-gradient-accent {
+    border: 2px solid transparent;
+    background: linear-gradient(white, white) padding-box, var(--gradient-accent) border-box;
+  }
+
+  /* Animações suaves */
+  .smooth-transition {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Cards com efeito de elevação */
+  .card-elevated {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    transition: all 0.3s ease;
+  }
+  
+  .card-elevated:hover {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    transform: translateY(-2px);
   }
 }

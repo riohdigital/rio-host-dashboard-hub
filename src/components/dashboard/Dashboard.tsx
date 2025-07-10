@@ -4,14 +4,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 import KPICard from './KPICard';
+import PropertyMultiSelect from './PropertyMultiSelect';
+import RecentReservations from './RecentReservations';
+import AnnualGrowthChart from './AnnualGrowthChart';
 import { TrendingUp, DollarSign, TrendingDown, Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Property } from '@/types/property';
 
 const Dashboard = () => {
-  const [selectedProperty, setSelectedProperty] = useState('todas');
+  const [selectedProperties, setSelectedProperties] = useState<string[]>(['todas']);
   const [selectedPeriod, setSelectedPeriod] = useState('12meses');
   const [properties, setProperties] = useState<Property[]>([]);
+  const [propertySelectOpen, setPropertySelectOpen] = useState(false);
   const [dashboardData, setDashboardData] = useState({
     totalRevenue: 0,
     totalExpenses: 0,
@@ -19,7 +23,9 @@ const Dashboard = () => {
     occupancyRate: 0,
     monthlyRevenue: [],
     yearlyRevenue: [],
-    expensesByCategory: []
+    expensesByCategory: [],
+    monthlyGrowth: [],
+    recentReservations: []
   });
   const [loading, setLoading] = useState(true);
 
@@ -29,7 +35,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchDashboardData();
-  }, [selectedProperty, selectedPeriod]);
+  }, [selectedProperties, selectedPeriod]);
 
   const fetchProperties = async () => {
     try {
@@ -52,18 +58,40 @@ const Dashboard = () => {
       const periodMonths = selectedPeriod === '3meses' ? 3 : selectedPeriod === '6meses' ? 6 : 12;
       const startDate = new Date(now.getFullYear(), now.getMonth() - periodMonths, 1);
 
+      // Construir condições de filtro de propriedades
+      const propertyFilter = selectedProperties.includes('todas') && selectedProperties.length === 1 
+        ? null 
+        : selectedProperties.filter(id => id !== 'todas');
+
       // Buscar receitas
       let revenueQuery = supabase
         .from('reservations')
-        .select('total_revenue, net_revenue, check_in_date, property_id')
+        .select('total_revenue, net_revenue, check_in_date, property_id, guest_name, reservation_status, properties(name, nickname)')
         .gte('check_in_date', startDate.toISOString().split('T')[0]);
 
-      if (selectedProperty !== 'todas') {
-        revenueQuery = revenueQuery.eq('property_id', selectedProperty);
+      if (propertyFilter && propertyFilter.length > 0) {
+        revenueQuery = revenueQuery.in('property_id', propertyFilter);
       }
 
       const { data: reservations, error: revenueError } = await revenueQuery;
       if (revenueError) throw revenueError;
+
+      // Buscar receitas do ano anterior para crescimento
+      const lastYearStart = new Date(now.getFullYear() - 1, 0, 1);
+      const lastYearEnd = new Date(now.getFullYear() - 1, 11, 31);
+
+      let lastYearQuery = supabase
+        .from('reservations')
+        .select('total_revenue, check_in_date')
+        .gte('check_in_date', lastYearStart.toISOString().split('T')[0])
+        .lte('check_in_date', lastYearEnd.toISOString().split('T')[0]);
+
+      if (propertyFilter && propertyFilter.length > 0) {
+        lastYearQuery = lastYearQuery.in('property_id', propertyFilter);
+      }
+
+      const { data: lastYearReservations, error: lastYearError } = await lastYearQuery;
+      if (lastYearError) throw lastYearError;
 
       // Buscar despesas
       let expenseQuery = supabase
@@ -71,8 +99,8 @@ const Dashboard = () => {
         .select('amount, expense_date, category, property_id')
         .gte('expense_date', startDate.toISOString().split('T')[0]);
 
-      if (selectedProperty !== 'todas') {
-        expenseQuery = expenseQuery.eq('property_id', selectedProperty);
+      if (propertyFilter && propertyFilter.length > 0) {
+        expenseQuery = expenseQuery.in('property_id', propertyFilter);
       }
 
       const { data: expenses, error: expenseError } = await expenseQuery;
@@ -89,10 +117,27 @@ const Dashboard = () => {
       // Calcular receita anual
       const yearlyRevenue = calculateYearlyRevenue(reservations || []);
 
+      // Calcular crescimento mensal
+      const monthlyGrowth = calculateMonthlyGrowth(reservations || [], lastYearReservations || []);
+
       // Calcular despesas por categoria
       const expensesByCategory = calculateExpensesByCategory(expenses || []);
 
-      // Taxa de ocupação simplificada (placeholder)
+      // Preparar reservas recentes
+      const recentReservations = (reservations || [])
+        .sort((a, b) => new Date(b.check_in_date).getTime() - new Date(a.check_in_date).getTime())
+        .slice(0, 8)
+        .map(r => ({
+          id: r.id || '',
+          guest_name: r.guest_name || '',
+          property_name: r.properties?.nickname || r.properties?.name || 'Propriedade não informada',
+          check_in_date: r.check_in_date,
+          check_out_date: r.check_out_date || '',
+          total_revenue: r.total_revenue || 0,
+          reservation_status: r.reservation_status || 'Confirmada'
+        }));
+
+      // Taxa de ocupação simplificada
       const occupancyRate = Math.min(((reservations || []).length / periodMonths) * 10, 100);
 
       setDashboardData({
@@ -102,7 +147,9 @@ const Dashboard = () => {
         occupancyRate,
         monthlyRevenue,
         yearlyRevenue,
-        expensesByCategory
+        expensesByCategory,
+        monthlyGrowth,
+        recentReservations
       });
     } catch (error) {
       console.error('Erro ao buscar dados do dashboard:', error);
@@ -144,8 +191,40 @@ const Dashboard = () => {
 
     return Object.entries(yearlyData).map(([year, receita]) => ({
       year,
-      receita
+      receita,
+      revenue: receita
     })).sort((a, b) => a.year.localeCompare(b.year));
+  };
+
+  const calculateMonthlyGrowth = (currentReservations: any[], lastYearReservations: any[]) => {
+    const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 
+                       'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const currentYear = new Date().getFullYear();
+    const data = [];
+
+    for (let month = 0; month < 12; month++) {
+      const currentMonthKey = `${currentYear}-${(month + 1).toString().padStart(2, '0')}`;
+      const lastYearMonthKey = `${currentYear - 1}-${(month + 1).toString().padStart(2, '0')}`;
+
+      const currentRevenue = currentReservations
+        .filter(r => r.check_in_date.startsWith(currentMonthKey))
+        .reduce((sum, r) => sum + (r.total_revenue || 0), 0);
+
+      const previousRevenue = lastYearReservations
+        .filter(r => r.check_in_date.startsWith(lastYearMonthKey))
+        .reduce((sum, r) => sum + (r.total_revenue || 0), 0);
+
+      const growth = previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : 0;
+
+      data.push({
+        month: monthNames[month],
+        current: currentRevenue,
+        previous: previousRevenue,
+        growth: growth
+      });
+    }
+
+    return data;
   };
 
   const calculateExpensesByCategory = (expenses: any[]) => {
@@ -167,7 +246,7 @@ const Dashboard = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-64">
-        <div className="text-[#6A6DDF] text-lg">Carregando dashboard...</div>
+        <div className="text-gradient-primary text-lg">Carregando dashboard...</div>
       </div>
     );
   }
@@ -176,21 +255,15 @@ const Dashboard = () => {
     <div className="space-y-8">
       {/* Cabeçalho */}
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-[#6A6DDF]">Dashboard Analítico</h1>
+        <h1 className="text-3xl font-bold text-gradient-primary">Dashboard Analítico</h1>
         <div className="flex gap-4">
-          <Select value={selectedProperty} onValueChange={setSelectedProperty}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Selecionar Propriedade" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todas">Todas as Propriedades</SelectItem>
-              {properties.map((property) => (
-                <SelectItem key={property.id} value={property.id}>
-                  {property.nickname || property.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <PropertyMultiSelect
+            properties={properties}
+            selectedProperties={selectedProperties}
+            onSelectionChange={setSelectedProperties}
+            isOpen={propertySelectOpen}
+            onToggle={() => setPropertySelectOpen(!propertySelectOpen)}
+          />
           
           <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
             <SelectTrigger className="w-40">
@@ -233,11 +306,25 @@ const Dashboard = () => {
         />
       </div>
 
-      {/* Gráficos */}
+      {/* Gráfico de Crescimento Anual */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <AnnualGrowthChart
+          monthlyData={dashboardData.monthlyGrowth}
+          yearlyData={dashboardData.yearlyRevenue}
+          loading={loading}
+        />
+        
+        <RecentReservations
+          reservations={dashboardData.recentReservations}
+          loading={loading}
+        />
+      </div>
+
+      {/* Gráficos Existentes */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="bg-white">
           <CardHeader>
-            <CardTitle className="text-[#374151]">Receita Mensal</CardTitle>
+            <CardTitle className="text-gradient-primary">Receita Mensal</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -260,7 +347,7 @@ const Dashboard = () => {
 
         <Card className="bg-white">
           <CardHeader>
-            <CardTitle className="text-[#374151]">Receita Anual</CardTitle>
+            <CardTitle className="text-gradient-primary">Receita Anual</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -278,7 +365,7 @@ const Dashboard = () => {
         {dashboardData.expensesByCategory.length > 0 && (
           <Card className="bg-white lg:col-span-2">
             <CardHeader>
-              <CardTitle className="text-[#374151]">Despesas por Categoria</CardTitle>
+              <CardTitle className="text-gradient-primary">Despesas por Categoria</CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>

@@ -11,9 +11,9 @@ interface KPICardProps {
 
 const KPICard = ({ title, value, isPositive = true, icon }: KPICardProps) => {
   return (
-    <Card className="bg-white">
+    <Card className="bg-white card-elevated gradient-hover-card smooth-transition">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-[#374151]">
+        <CardTitle className="text-sm font-medium text-gradient-primary">
           {title}
         </CardTitle>
         {icon && (
@@ -24,7 +24,7 @@ const KPICard = ({ title, value, isPositive = true, icon }: KPICardProps) => {
       </CardHeader>
       <CardContent>
         <div className={`text-2xl font-bold ${
-          isPositive ? 'text-[#10B981]' : 'text-[#EF4444]'
+          isPositive ? 'text-gradient-success' : 'text-gradient-danger'
         }`}>
           {value}
         </div>
