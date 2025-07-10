@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import KPICard from './KPICard';
 import PropertyMultiSelect from './PropertyMultiSelect';
 import RecentReservations from './RecentReservations';
@@ -21,7 +21,6 @@ const Dashboard = () => {
     netProfit: 0,
     occupancyRate: 0,
     monthlyRevenue: [],
-    yearlyRevenue: [],
     expensesByCategory: [],
     monthlyGrowth: [],
     recentReservations: []
@@ -277,7 +276,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* KPIs */}
+      {/* KPIs - Arrastáveis */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <KPICard
           title="Receita Bruta"
@@ -305,21 +304,7 @@ const Dashboard = () => {
         />
       </div>
 
-      {/* Gráfico de Crescimento Anual */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <AnnualGrowthChart
-          monthlyData={dashboardData.monthlyGrowth}
-          yearlyData={dashboardData.yearlyRevenue}
-          loading={loading}
-        />
-        
-        <RecentReservations
-          reservations={dashboardData.recentReservations}
-          loading={loading}
-        />
-      </div>
-
-      {/* Gráficos Existentes */}
+      {/* Segunda linha: Receita Mensal e Últimas Reservas */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="bg-white">
           <CardHeader>
@@ -344,52 +329,50 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
+        <RecentReservations
+          reservations={dashboardData.recentReservations}
+          loading={loading}
+        />
+      </div>
+
+      {/* Terceira linha: Gráfico de Crescimento Anual - largura completa */}
+      <div className="w-full">
+        <AnnualGrowthChart
+          monthlyData={dashboardData.monthlyGrowth}
+          yearlyData={[]}
+          loading={loading}
+        />
+      </div>
+
+      {/* Despesas por Categoria */}
+      {dashboardData.expensesByCategory.length > 0 && (
         <Card className="bg-white">
           <CardHeader>
-            <CardTitle className="text-gradient-primary">Receita Anual</CardTitle>
+            <CardTitle className="text-gradient-primary">Despesas por Categoria</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={dashboardData.yearlyRevenue}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="year" />
-                <YAxis />
-                <Tooltip formatter={(value) => [`R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Receita']} />
-                <Bar dataKey="receita" fill="#10B981" />
-              </BarChart>
+              <PieChart>
+                <Pie
+                  data={dashboardData.expensesByCategory}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {dashboardData.expensesByCategory.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => [`R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Valor']} />
+              </PieChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
-
-        {dashboardData.expensesByCategory.length > 0 && (
-          <Card className="bg-white lg:col-span-2">
-            <CardHeader>
-              <CardTitle className="text-gradient-primary">Despesas por Categoria</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={dashboardData.expensesByCategory}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {dashboardData.expensesByCategory.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value) => [`R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Valor']} />
-                </PieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+      )}
     </div>
   );
 };

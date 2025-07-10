@@ -1,19 +1,9 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import MainLayout from '@/components/layout/MainLayout';
-import PropertyForm from '@/components/properties/PropertyForm';
+import PropertiesList from '@/components/properties/PropertiesList';
 
 const PropriedadesPage = () => {
-  const [refreshKey, setRefreshKey] = useState(0);
-
-  const handleSuccess = () => {
-    setRefreshKey(prev => prev + 1);
-  };
-
-  const handleCancel = () => {
-    // No action needed for cancel on this page
-  };
-
   return (
     <MainLayout>
       <div className="space-y-6">
@@ -21,11 +11,7 @@ const PropriedadesPage = () => {
           <h1 className="text-3xl font-bold text-gradient-primary">Gestão de Propriedades</h1>
           <p className="text-gray-600 mt-2">Gerencie suas propriedades de aluguel por temporada</p>
         </div>
-        <PropertyForm 
-          key={refreshKey}
-          onSuccess={handleSuccess}
-          onCancel={handleCancel}
-        />
+        <PropertiesList />
       </div>
     </MainLayout>
   );

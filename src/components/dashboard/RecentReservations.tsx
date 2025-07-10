@@ -73,7 +73,7 @@ const RecentReservations = ({ reservations, loading }: RecentReservationsProps) 
             {reservations.map((reservation) => (
               <div 
                 key={reservation.id} 
-                className="p-4 border border-gray-200 rounded-lg hover:border-primary/50 hover:shadow-md transition-all duration-200 gradient-hover"
+                className="p-4 border border-gray-200 rounded-lg bg-white hover:border-primary/50 hover:shadow-md transition-all duration-200"
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">

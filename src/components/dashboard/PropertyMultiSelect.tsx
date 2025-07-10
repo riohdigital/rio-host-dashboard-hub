@@ -60,11 +60,11 @@ const PropertyMultiSelect = ({
     <div className="relative">
       <button
         onClick={onToggle}
-        className="w-48 px-4 py-2 text-left bg-white border border-gray-300 rounded-md hover:bg-gray-50 flex items-center justify-between gradient-hover transition-all duration-200"
+        className="w-48 px-4 py-2 text-left bg-white border border-gray-300 rounded-md hover:bg-gray-50 flex items-center justify-between transition-all duration-200 hover:border-primary/50"
       >
         <span className="text-gradient-primary font-medium">{getSelectedText()}</span>
         <svg
-          className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          className={`w-4 h-4 transition-transform text-gradient-primary ${isOpen ? 'rotate-180' : ''}`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -74,7 +74,7 @@ const PropertyMultiSelect = ({
       </button>
 
       {isOpen && (
-        <Card className="absolute top-full left-0 w-64 mt-1 z-50 shadow-lg">
+        <Card className="absolute top-full left-0 w-64 mt-1 z-50 shadow-lg bg-white">
           <CardContent className="p-4">
             <div className="space-y-3">
               <div className="flex items-center space-x-2 pb-2 border-b">
@@ -109,7 +109,7 @@ const PropertyMultiSelect = ({
                     />
                     <label 
                       htmlFor={property.id} 
-                      className="text-sm cursor-pointer hover:text-gradient-primary transition-colors"
+                      className="text-sm cursor-pointer hover:text-gradient-primary transition-colors text-gray-700"
                     >
                       {property.nickname || property.name}
                     </label>
