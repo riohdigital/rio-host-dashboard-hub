@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { Plus, Edit, Trash2, Search } from 'lucide-react';
@@ -161,20 +160,22 @@ const ReservasPage = () => {
     <MainLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-[#6A6DDF]">Minhas Reservas</h1>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-[#6A6DDF] to-[#8B5CF6] bg-clip-text text-transparent">
+            Minhas Reservas
+          </h1>
           <Dialog open={isFormOpen} onOpenChange={(open) => {
             setIsFormOpen(open);
             if (!open) setEditingReservation(null);
           }}>
             <DialogTrigger asChild>
-              <Button className="bg-[#6A6DDF] hover:bg-[#5A5BCF] text-white">
+              <Button className="bg-gradient-to-r from-[#6A6DDF] to-[#8B5CF6] hover:from-[#5A5BCF] hover:to-[#7C3AED] text-white shadow-lg">
                 <Plus className="mr-2 h-4 w-4" />
                 Adicionar Nova Reserva
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle className="text-[#6A6DDF]">
+                <DialogTitle className="bg-gradient-to-r from-[#6A6DDF] to-[#8B5CF6] bg-clip-text text-transparent">
                   {editingReservation ? 'Editar Reserva' : 'Nova Reserva'}
                 </DialogTitle>
               </DialogHeader>
@@ -188,7 +189,7 @@ const ReservasPage = () => {
         </div>
 
         {/* Barra de Ferramentas */}
-        <div className="bg-white p-4 rounded-lg shadow-sm">
+        <div className="bg-gradient-to-r from-white to-gray-50 p-4 rounded-lg shadow-sm border">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -204,7 +205,7 @@ const ReservasPage = () => {
                 <SelectValue placeholder="Filtrar por propriedade" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todas as propriedades</SelectItem>
+                <SelectItem value="all-properties">Todas as propriedades</SelectItem>
                 {properties.map((property) => (
                   <SelectItem key={property.id} value={property.id}>
                     {property.nickname || property.name}
@@ -217,7 +218,7 @@ const ReservasPage = () => {
                 <SelectValue placeholder="Filtrar por status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos os status</SelectItem>
+                <SelectItem value="all-status">Todos os status</SelectItem>
                 <SelectItem value="Confirmada">Confirmada</SelectItem>
                 <SelectItem value="Ativa">Ativa</SelectItem>
                 <SelectItem value="Finalizada">Finalizada</SelectItem>
@@ -238,9 +239,9 @@ const ReservasPage = () => {
         </div>
 
         {/* Tabela de Reservas */}
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div className="bg-white rounded-lg shadow-sm overflow-hidden border">
           <Table>
-            <TableHeader>
+            <TableHeader className="bg-gradient-to-r from-gray-50 to-gray-100">
               <TableRow>
                 <TableHead>Propriedade</TableHead>
                 <TableHead>Hóspede / Código</TableHead>
@@ -262,7 +263,7 @@ const ReservasPage = () => {
                 </TableRow>
               ) : (
                 filteredReservations.map((reservation) => (
-                  <TableRow key={reservation.id}>
+                  <TableRow key={reservation.id} className="hover:bg-gradient-to-r hover:from-gray-50 hover:to-transparent">
                     <TableCell>
                       <div>
                         <div className="font-medium">
@@ -312,6 +313,7 @@ const ReservasPage = () => {
                           variant="outline"
                           size="sm"
                           onClick={() => handleEdit(reservation)}
+                          className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100"
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -319,7 +321,7 @@ const ReservasPage = () => {
                           variant="outline"
                           size="sm"
                           onClick={() => handleDelete(reservation.id)}
-                          className="text-red-600 hover:text-red-700"
+                          className="text-red-600 hover:text-red-700 hover:bg-gradient-to-r hover:from-red-50 hover:to-red-100"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

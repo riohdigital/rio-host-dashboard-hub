@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -39,20 +40,20 @@ All colors MUST be HSL.
     --radius: 0.5rem;
 
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Gradientes do sistema de design */
+    --gradient-primary: linear-gradient(135deg, hsl(251 78% 63%) 0%, hsl(268 67% 66%) 100%);
+    --gradient-secondary: linear-gradient(135deg, hsl(210 40% 96%) 0%, hsl(220 13% 91%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(174 100% 29%) 0%, hsl(158 64% 52%) 100%);
+    --gradient-muted: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(210 40% 96%) 100%);
+    --gradient-hover: linear-gradient(135deg, hsl(251 78% 68%) 0%, hsl(268 67% 71%) 100%);
   }
 
   .dark {
@@ -91,6 +92,13 @@ All colors MUST be HSL.
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Gradientes para modo escuro */
+    --gradient-primary: linear-gradient(135deg, hsl(251 78% 48%) 0%, hsl(268 67% 51%) 100%);
+    --gradient-secondary: linear-gradient(135deg, hsl(217.2 32.6% 17.5%) 0%, hsl(240 3.7% 15.9%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(174 100% 24%) 0%, hsl(158 64% 42%) 100%);
+    --gradient-muted: linear-gradient(135deg, hsl(222.2 84% 4.9%) 0%, hsl(217.2 32.6% 17.5%) 100%);
+    --gradient-hover: linear-gradient(135deg, hsl(251 78% 53%) 0%, hsl(268 67% 56%) 100%);
   }
 }
 
@@ -101,5 +109,41 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .gradient-primary {
+    background: var(--gradient-primary);
+  }
+  
+  .gradient-secondary {
+    background: var(--gradient-secondary);
+  }
+  
+  .gradient-accent {
+    background: var(--gradient-accent);
+  }
+  
+  .gradient-muted {
+    background: var(--gradient-muted);
+  }
+  
+  .gradient-hover {
+    background: var(--gradient-hover);
+  }
+  
+  .text-gradient-primary {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  .text-gradient-accent {
+    background: var(--gradient-accent);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 }
