@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -112,7 +113,7 @@ const Dashboard = () => {
       // Calcular receita mensal
       const monthlyRevenue = calculateMonthlyRevenue(reservations || [], periodMonths);
       
-      // Calcular receita anual
+      // Calcular receita anual para o gráfico de crescimento
       const yearlyRevenue = calculateYearlyRevenue(reservations || []);
 
       // Calcular crescimento mensal
@@ -144,7 +145,6 @@ const Dashboard = () => {
         netProfit,
         occupancyRate,
         monthlyRevenue,
-        yearlyRevenue,
         expensesByCategory,
         monthlyGrowth,
         recentReservations

@@ -8,6 +8,10 @@ export interface Expense {
   expense_type: string;
   amount: number;
   created_at: string;
+  properties?: {
+    name: string;
+    nickname?: string;
+  };
 }
 
 export interface ExpenseCategory {
