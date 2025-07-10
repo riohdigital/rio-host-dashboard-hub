@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -32,6 +31,10 @@ const Dashboard = () => {
     recentReservations: [],
     reservations: []
   });
+  const [annualGrowthData, setAnnualGrowthData] = useState({
+    monthlyData: [],
+    yearlyData: []
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -41,6 +44,10 @@ const Dashboard = () => {
   useEffect(() => {
     fetchDashboardData();
   }, [selectedProperties, selectedMonth, selectedPeriod]);
+
+  useEffect(() => {
+    fetchAnnualGrowthData();
+  }, [selectedProperties]);
 
   const fetchProperties = async () => {
     try {
@@ -54,6 +61,95 @@ const Dashboard = () => {
     } catch (error) {
       console.error('Erro ao buscar propriedades:', error);
     }
+  };
+
+  const fetchAnnualGrowthData = async () => {
+    try {
+      const currentYear = new Date().getFullYear();
+      const previousYear = currentYear - 1;
+
+      // Construir condições de filtro de propriedades
+      const propertyFilter = selectedProperties.includes('todas') && selectedProperties.length === 1 
+        ? null 
+        : selectedProperties.filter(id => id !== 'todas');
+
+      // Buscar receitas do ano atual (janeiro a dezembro)
+      let currentYearQuery = supabase
+        .from('reservations')
+        .select('total_revenue, check_in_date')
+        .gte('check_in_date', `${currentYear}-01-01`)
+        .lte('check_in_date', `${currentYear}-12-31`);
+
+      if (propertyFilter && propertyFilter.length > 0) {
+        currentYearQuery = currentYearQuery.in('property_id', propertyFilter);
+      }
+
+      const { data: currentYearReservations, error: currentYearError } = await currentYearQuery;
+      if (currentYearError) throw currentYearError;
+
+      // Buscar receitas do ano anterior (janeiro a dezembro)
+      let previousYearQuery = supabase
+        .from('reservations')
+        .select('total_revenue, check_in_date')
+        .gte('check_in_date', `${previousYear}-01-01`)
+        .lte('check_in_date', `${previousYear}-12-31`);
+
+      if (propertyFilter && propertyFilter.length > 0) {
+        previousYearQuery = previousYearQuery.in('property_id', propertyFilter);
+      }
+
+      const { data: previousYearReservations, error: previousYearError } = await previousYearQuery;
+      if (previousYearError) throw previousYearError;
+
+      // Calcular crescimento mensal para todos os meses do ano
+      const monthlyGrowth = calculateAnnualGrowth(currentYearReservations || [], previousYearReservations || [], currentYear, previousYear);
+
+      // Calcular dados anuais
+      const currentYearTotal = (currentYearReservations || []).reduce((sum, r) => sum + (r.total_revenue || 0), 0);
+      const previousYearTotal = (previousYearReservations || []).reduce((sum, r) => sum + (r.total_revenue || 0), 0);
+
+      const yearlyData = [
+        { year: previousYear.toString(), revenue: previousYearTotal, growth: 0 },
+        { year: currentYear.toString(), revenue: currentYearTotal, growth: previousYearTotal > 0 ? ((currentYearTotal - previousYearTotal) / previousYearTotal) * 100 : 0 }
+      ];
+
+      setAnnualGrowthData({
+        monthlyData: monthlyGrowth,
+        yearlyData
+      });
+    } catch (error) {
+      console.error('Erro ao buscar dados de crescimento anual:', error);
+    }
+  };
+
+  const calculateAnnualGrowth = (currentReservations: any[], previousReservations: any[], currentYear: number, previousYear: number) => {
+    const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 
+                       'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const data = [];
+
+    for (let month = 0; month < 12; month++) {
+      const currentMonthKey = `${currentYear}-${(month + 1).toString().padStart(2, '0')}`;
+      const previousMonthKey = `${previousYear}-${(month + 1).toString().padStart(2, '0')}`;
+
+      const currentRevenue = currentReservations
+        .filter(r => r.check_in_date.startsWith(currentMonthKey))
+        .reduce((sum, r) => sum + (r.total_revenue || 0), 0);
+
+      const previousRevenue = previousReservations
+        .filter(r => r.check_in_date.startsWith(previousMonthKey))
+        .reduce((sum, r) => sum + (r.total_revenue || 0), 0);
+
+      const growth = previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : 0;
+
+      data.push({
+        month: monthNames[month],
+        current: currentRevenue,
+        previous: previousRevenue,
+        growth: growth
+      });
+    }
+
+    return data;
   };
 
   const fetchDashboardData = async () => {
@@ -123,9 +219,6 @@ const Dashboard = () => {
       // Calcular receita mensal para o período selecionado
       const monthlyData = calculateMonthlyRevenue(reservations || [], monthsBack);
 
-      // Calcular crescimento mensal
-      const monthlyGrowth = calculateMonthlyGrowth(reservations || [], lastPeriodReservations || [], monthsBack);
-
       // Calcular despesas por categoria
       const expensesByCategory = calculateExpensesByCategory(expenses || []);
 
@@ -155,7 +248,7 @@ const Dashboard = () => {
         monthlyRevenue: monthlyData,
         dailyRevenue: dailyData,
         expensesByCategory,
-        monthlyGrowth,
+        monthlyGrowth: [],
         recentReservations,
         reservations: reservations || []
       });
@@ -204,42 +297,6 @@ const Dashboard = () => {
       data.push({
         month: `${day}`,
         receita: dayRevenue
-      });
-    }
-
-    return data;
-  };
-
-  const calculateMonthlyGrowth = (currentReservations: any[], lastPeriodReservations: any[], months: number) => {
-    const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 
-                       'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-    const currentYear = new Date().getFullYear();
-    const currentMonth = new Date().getMonth();
-    const data = [];
-
-    for (let i = months - 1; i >= 0; i--) {
-      const month = currentMonth - i;
-      const year = month < 0 ? currentYear - 1 : currentYear;
-      const adjustedMonth = month < 0 ? 12 + month : month;
-      
-      const currentMonthKey = `${year}-${(adjustedMonth + 1).toString().padStart(2, '0')}`;
-      const lastPeriodMonthKey = `${year}-${(adjustedMonth - months + 1).toString().padStart(2, '0')}`;
-
-      const currentRevenue = currentReservations
-        .filter(r => r.check_in_date.startsWith(currentMonthKey))
-        .reduce((sum, r) => sum + (r.total_revenue || 0), 0);
-
-      const previousRevenue = lastPeriodReservations
-        .filter(r => r.check_in_date.startsWith(lastPeriodMonthKey))
-        .reduce((sum, r) => sum + (r.total_revenue || 0), 0);
-
-      const growth = previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : 0;
-
-      data.push({
-        month: monthNames[adjustedMonth],
-        current: currentRevenue,
-        previous: previousRevenue,
-        growth: growth
       });
     }
 
@@ -384,8 +441,8 @@ const Dashboard = () => {
       {/* Terceira linha: Gráfico de Crescimento Anual */}
       <div className="w-full">
         <AnnualGrowthChart
-          monthlyData={dashboardData.monthlyGrowth}
-          yearlyData={[]}
+          monthlyData={annualGrowthData.monthlyData}
+          yearlyData={annualGrowthData.yearlyData}
           loading={loading}
         />
       </div>
