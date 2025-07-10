@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -66,7 +65,7 @@ const Dashboard = () => {
       // Buscar receitas
       let revenueQuery = supabase
         .from('reservations')
-        .select('total_revenue, net_revenue, check_in_date, property_id, guest_name, reservation_status, properties(name, nickname)')
+        .select('id, total_revenue, net_revenue, check_in_date, check_out_date, property_id, guest_name, reservation_status, properties(name, nickname)')
         .gte('check_in_date', startDate.toISOString().split('T')[0]);
 
       if (propertyFilter && propertyFilter.length > 0) {
