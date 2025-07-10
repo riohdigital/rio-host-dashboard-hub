@@ -51,7 +51,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
     resolver: zodResolver(reservationSchema),
     defaultValues: reservation ? {
       ...reservation,
-      property_id: reservation.property_id || '',
+      property_id: reservation.property_id || undefined,
       check_in_date: reservation.check_in_date,
       check_out_date: reservation.check_out_date,
       number_of_guests: reservation.number_of_guests || undefined,
@@ -171,13 +171,12 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
               <Label htmlFor="property_id">Propriedade</Label>
               <Select 
                 value={watchedValues.property_id || ''} 
-                onValueChange={(value) => setValue('property_id', value)}
+                onValueChange={(value) => setValue('property_id', value || undefined)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione uma propriedade" />
+                  <SelectValue placeholder="Selecione uma propriedade (opcional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nenhuma propriedade</SelectItem>
                   {properties.map((property) => (
                     <SelectItem key={property.id} value={property.id}>
                       {property.nickname || property.name}
@@ -318,7 +317,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                 onValueChange={(value) => setValue('payment_status', value)}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Selecione o status" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Pago">Pago</SelectItem>

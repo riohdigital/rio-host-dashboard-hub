@@ -5,7 +5,6 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import KPICard from './KPICard';
 import NetProfitKPI from './NetProfitKPI';
 import MonthlyRevenueKPI from './MonthlyRevenueKPI';
-import MonthlyRevenueChart from './MonthlyRevenueChart';
 import PropertyMultiSelect from './PropertyMultiSelect';
 import RecentReservations from './RecentReservations';
 import AnnualGrowthChart from './AnnualGrowthChart';
@@ -16,6 +15,7 @@ import { Property } from '@/types/property';
 const Dashboard = () => {
   const [selectedProperties, setSelectedProperties] = useState<string[]>(['todas']);
   const [selectedPeriod, setSelectedPeriod] = useState('12meses');
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth().toString());
   const [properties, setProperties] = useState<Property[]>([]);
   const [propertySelectOpen, setPropertySelectOpen] = useState(false);
   const [dashboardData, setDashboardData] = useState({
@@ -25,6 +25,7 @@ const Dashboard = () => {
     netProfit: 0,
     occupancyRate: 0,
     monthlyRevenue: [],
+    dailyRevenue: [],
     expensesByCategory: [],
     monthlyGrowth: [],
     recentReservations: [],
@@ -38,7 +39,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchDashboardData();
-  }, [selectedProperties, selectedPeriod]);
+  }, [selectedProperties, selectedPeriod, selectedMonth]);
 
   const fetchProperties = async () => {
     try {
@@ -118,6 +119,9 @@ const Dashboard = () => {
       // Calcular receita mensal para o gráfico de período
       const monthlyRevenue = calculateMonthlyRevenue(reservations || [], periodMonths);
       
+      // Calcular receita diária para o mês selecionado
+      const dailyRevenue = calculateDailyRevenue(reservations || [], parseInt(selectedMonth));
+      
       // Calcular crescimento mensal
       const monthlyGrowth = calculateMonthlyGrowth(reservations || [], lastYearReservations || []);
 
@@ -147,7 +151,8 @@ const Dashboard = () => {
         totalCommission,
         netProfit,
         occupancyRate,
-        monthlyRevenue,
+        monthlyRevenue: selectedPeriod === 'daily' ? dailyRevenue : monthlyRevenue,
+        dailyRevenue,
         expensesByCategory,
         monthlyGrowth,
         recentReservations,
@@ -177,6 +182,27 @@ const Dashboard = () => {
       data.push({
         month: monthNames[month.getMonth()],
         receita: monthRevenue
+      });
+    }
+
+    return data;
+  };
+
+  const calculateDailyRevenue = (reservations: any[], monthIndex: number) => {
+    const currentYear = new Date().getFullYear();
+    const daysInMonth = new Date(currentYear, monthIndex + 1, 0).getDate();
+    const data = [];
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateKey = `${currentYear}-${(monthIndex + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+      
+      const dayRevenue = reservations
+        .filter(r => r.check_in_date === dateKey)
+        .reduce((sum, r) => sum + (r.total_revenue || 0), 0);
+
+      data.push({
+        month: `${day}`,
+        receita: dayRevenue
       });
     }
 
@@ -230,6 +256,9 @@ const Dashboard = () => {
 
   const COLORS = ['#6A6DDF', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
 
+  const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
+                     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-64">
@@ -261,6 +290,7 @@ const Dashboard = () => {
               <SelectItem value="3meses">3 Meses</SelectItem>
               <SelectItem value="6meses">6 Meses</SelectItem>
               <SelectItem value="12meses">12 Meses</SelectItem>
+              <SelectItem value="daily">Diário</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -294,7 +324,25 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="bg-white">
           <CardHeader>
-            <CardTitle className="text-gradient-primary">Receita por Período</CardTitle>
+            <div className="flex justify-between items-center">
+              <CardTitle className="text-gradient-primary">
+                {selectedPeriod === 'daily' ? 'Receita Diária' : 'Receita por Período'}
+              </CardTitle>
+              {selectedPeriod === 'daily' && (
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue placeholder="Mês" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {monthNames.map((month, index) => (
+                      <SelectItem key={index} value={index.toString()}>
+                        {month}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -321,12 +369,7 @@ const Dashboard = () => {
         />
       </div>
 
-      {/* Terceira linha: Gráfico de Receita Mensal Detalhada */}
-      <div className="w-full">
-        <MonthlyRevenueChart reservations={dashboardData.reservations} />
-      </div>
-
-      {/* Quarta linha: Gráfico de Crescimento Anual */}
+      {/* Terceira linha: Gráfico de Crescimento Anual */}
       <div className="w-full">
         <AnnualGrowthChart
           monthlyData={dashboardData.monthlyGrowth}
