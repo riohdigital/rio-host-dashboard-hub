@@ -7,13 +7,15 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 interface CashflowData {
   airbnbReceived: number;
   bookingReceived: number;
+  diretoReceived: number;
   airbnbReceivable: number;
   bookingReceivable: number;
+  diretoReceivable: number;
 }
 
 const CashflowCard = ({ data }: { data: CashflowData }) => {
-  const totalReceived = data.airbnbReceived + data.bookingReceived;
-  const totalReceivable = data.airbnbReceivable + data.bookingReceivable;
+  const totalReceived = data.airbnbReceived + data.bookingReceived + data.diretoReceived;
+  const totalReceivable = data.airbnbReceivable + data.bookingReceivable + data.diretoReceivable;
 
   const formatCurrency = (value: number) => {
     return `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -23,13 +25,15 @@ const CashflowCard = ({ data }: { data: CashflowData }) => {
 
   const receivedData = [
     { name: 'Airbnb', value: data.airbnbReceived, color: '#10B981' },
-    { name: 'Booking', value: data.bookingReceived, color: '#059669' }
-  ];
+    { name: 'Booking', value: data.bookingReceived, color: '#059669' },
+    { name: 'Direto', value: data.diretoReceived, color: '#0891B2' }
+  ].filter(item => item.value > 0);
 
   const receivableData = [
     { name: 'Airbnb', value: data.airbnbReceivable, color: '#F59E0B' },
-    { name: 'Booking', value: data.bookingReceivable, color: '#D97706' }
-  ];
+    { name: 'Booking', value: data.bookingReceivable, color: '#D97706' },
+    { name: 'Direto', value: data.diretoReceivable, color: '#0284C7' }
+  ].filter(item => item.value > 0);
 
   return (
     <Card className="bg-white card-elevated h-full gradient-hover-card smooth-transition">
@@ -70,81 +74,91 @@ const CashflowCard = ({ data }: { data: CashflowData }) => {
 
         {/* Gráficos de Barras */}
         <div className="space-y-4">
-          <div>
-            <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-green-500" />
-              Valores Recebidos
-            </h4>
-            <div className="h-20">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={receivedData} layout="horizontal">
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis type="number" hide />
-                  <YAxis dataKey="name" type="category" width={60} tick={{ fontSize: 12 }} />
-                  <Tooltip 
-                    formatter={formatTooltip}
-                    labelStyle={{ color: '#374151' }}
-                    contentStyle={{ 
-                      backgroundColor: 'white', 
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '6px',
-                      fontSize: '12px'
-                    }}
-                  />
-                  <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                    {receivedData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+          {receivedData.length > 0 && (
+            <div>
+              <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                Valores Recebidos
+              </h4>
+              <div className="h-20">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={receivedData} layout="horizontal">
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis type="number" hide />
+                    <YAxis dataKey="name" type="category" width={60} tick={{ fontSize: 12 }} />
+                    <Tooltip 
+                      formatter={formatTooltip}
+                      labelStyle={{ color: '#374151' }}
+                      contentStyle={{ 
+                        backgroundColor: 'white', 
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '6px',
+                        fontSize: '12px'
+                      }}
+                    />
+                    <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                      {receivedData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-          </div>
+          )}
 
-          <div>
-            <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-              <Clock className="h-4 w-4 text-yellow-500" />
-              Valores a Receber
-            </h4>
-            <div className="h-20">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={receivableData} layout="horizontal">
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis type="number" hide />
-                  <YAxis dataKey="name" type="category" width={60} tick={{ fontSize: 12 }} />
-                  <Tooltip 
-                    formatter={formatTooltip}
-                    labelStyle={{ color: '#374151' }}
-                    contentStyle={{ 
-                      backgroundColor: 'white', 
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '6px',
-                      fontSize: '12px'
-                    }}
-                  />
-                  <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                    {receivableData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+          {receivableData.length > 0 && (
+            <div>
+              <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                <Clock className="h-4 w-4 text-yellow-500" />
+                Valores a Receber
+              </h4>
+              <div className="h-20">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={receivableData} layout="horizontal">
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis type="number" hide />
+                    <YAxis dataKey="name" type="category" width={60} tick={{ fontSize: 12 }} />
+                    <Tooltip 
+                      formatter={formatTooltip}
+                      labelStyle={{ color: '#374151' }}
+                      contentStyle={{ 
+                        backgroundColor: 'white', 
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '6px',
+                        fontSize: '12px'
+                      }}
+                    />
+                    <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                      {receivableData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Detalhamento por Plataforma */}
-        <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-100">
+        <div className="grid grid-cols-3 gap-2 pt-2 border-t border-gray-100">
           <div className="text-center">
-            <div className="text-xs text-gray-500 mb-1">Airbnb Total</div>
+            <div className="text-xs text-gray-500 mb-1">Airbnb</div>
             <div className="font-semibold text-sm text-gray-800">
               {formatCurrency(data.airbnbReceived + data.airbnbReceivable)}
             </div>
           </div>
           <div className="text-center">
-            <div className="text-xs text-gray-500 mb-1">Booking Total</div>
+            <div className="text-xs text-gray-500 mb-1">Booking</div>
             <div className="font-semibold text-sm text-gray-800">
               {formatCurrency(data.bookingReceived + data.bookingReceivable)}
+            </div>
+          </div>
+          <div className="text-center">
+            <div className="text-xs text-gray-500 mb-1">Direto</div>
+            <div className="font-semibold text-sm text-gray-800">
+              {formatCurrency(data.diretoReceived + data.diretoReceivable)}
             </div>
           </div>
         </div>

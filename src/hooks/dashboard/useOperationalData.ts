@@ -10,8 +10,10 @@ interface OperationalData {
   cashflow: {
     airbnbReceived: number;
     bookingReceived: number;
+    diretoReceived: number;
     airbnbReceivable: number;
     bookingReceivable: number;
+    diretoReceivable: number;
   };
   upcomingReservations: Array<{
     guest_name: string;
@@ -34,8 +36,10 @@ export const useOperationalData = (
     cashflow: {
       airbnbReceived: 0,
       bookingReceived: 0,
+      diretoReceived: 0,
       airbnbReceivable: 0,
-      bookingReceivable: 0
+      bookingReceivable: 0,
+      diretoReceivable: 0
     },
     upcomingReservations: []
   });
@@ -60,13 +64,6 @@ export const useOperationalData = (
         .gte('check_in_date', startDateString)
         .lte('check_in_date', endDateString);
 
-      // Para status geral de pagamentos, também filtrar por período
-      let reservationsAllQuery = supabase
-        .from('reservations')
-        .select('payment_status')
-        .gte('check_in_date', startDateString)
-        .lte('check_in_date', endDateString);
-
       let upcomingQuery = supabase
         .from('reservations')
         .select('guest_name, check_in_date, payment_status, properties(nickname, name)')
@@ -77,49 +74,55 @@ export const useOperationalData = (
       // Apply property filter if exists
       if (propertyFilter && propertyFilter.length > 0) {
         reservationsPeriodQuery = reservationsPeriodQuery.in('property_id', propertyFilter);
-        reservationsAllQuery = reservationsAllQuery.in('property_id', propertyFilter);
         upcomingQuery = upcomingQuery.in('property_id', propertyFilter);
       }
 
-      const [reservationsPeriodRes, reservationsAllRes, upcomingRes] = await Promise.all([
+      const [reservationsPeriodRes, upcomingRes] = await Promise.all([
         reservationsPeriodQuery,
-        reservationsAllQuery,
         upcomingQuery
       ]);
 
       if (reservationsPeriodRes.error) throw reservationsPeriodRes.error;
-      if (reservationsAllRes.error) throw reservationsAllRes.error;
       if (upcomingRes.error) throw upcomingRes.error;
 
       const reservationsPeriod = reservationsPeriodRes.data || [];
-      const reservationsAll = reservationsAllRes.data || [];
       const upcoming = upcomingRes.data || [];
 
-      // Calculate payment status counts for period (for cashflow)
+      // Calculate payment status counts for period
       const paidCount = reservationsPeriod.filter(r => r.payment_status === 'Pago').length;
       const pendingCount = reservationsPeriod.length - paidCount;
 
-      // Calculate total payment status counts (agora também filtrado por período)
-      const totalPaidCount = reservationsAll.filter(r => r.payment_status === 'Pago').length;
-      const totalPendingCount = reservationsAll.length - totalPaidCount;
+      // For operational view, use the same period data for total counts
+      const totalPaidCount = paidCount;
+      const totalPendingCount = pendingCount;
 
-      // Calculate cashflow by platform and payment status (period only)
+      // Calculate cashflow by platform and payment status with proper platform classification
       const cashflow = reservationsPeriod.reduce((acc, res) => {
-        const platform = res.platform?.toLowerCase().includes('airbnb') ? 'airbnb' : 'booking';
+        const platform = res.platform?.toLowerCase();
         const netRevenue = res.net_revenue || 0;
         
+        let platformKey: 'airbnb' | 'booking' | 'direto' = 'direto';
+        
+        if (platform?.includes('airbnb')) {
+          platformKey = 'airbnb';
+        } else if (platform?.includes('booking')) {
+          platformKey = 'booking';
+        }
+        
         if (res.payment_status === 'Pago') {
-          acc[`${platform}Received`] += netRevenue;
+          acc[`${platformKey}Received`] += netRevenue;
         } else {
-          acc[`${platform}Receivable`] += netRevenue;
+          acc[`${platformKey}Receivable`] += netRevenue;
         }
         
         return acc;
       }, {
         airbnbReceived: 0,
         bookingReceived: 0,
+        diretoReceived: 0,
         airbnbReceivable: 0,
-        bookingReceivable: 0
+        bookingReceivable: 0,
+        diretoReceivable: 0
       });
 
       // Format upcoming reservations
