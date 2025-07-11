@@ -391,12 +391,12 @@ const Dashboard = () => {
         />
       </div>
 
-      {/* Segunda linha: Gráfico de Receita por Período e Últimas Reservas */}
+      {/* Segunda linha: Gráfico de Receita por Mês e Últimas Reservas */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="bg-white">
           <CardHeader>
             <div className="flex justify-between items-center mb-4">
-              <CardTitle className="text-gradient-primary">Receita por Período</CardTitle>
+              <CardTitle className="text-gradient-primary">Receita por Mês</CardTitle>
               <div className="flex gap-2">
                 <Select value={selectedMonth} onValueChange={setSelectedMonth}>
                   <SelectTrigger className="w-40">
