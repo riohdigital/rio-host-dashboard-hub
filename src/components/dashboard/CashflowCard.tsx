@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Landmark, CheckCircle2, Clock, TrendingUp, TrendingDown } from 'lucide-react';
@@ -13,13 +12,115 @@ interface CashflowData {
   diretoReceivable: number;
 }
 
+// CORREÇÃO 5: Formatação Consistente de Moeda
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(value);
+};
+
+// CORREÇÃO 6: Verificação dos Status de Pagamento
+const normalizePaymentStatus = (status: string | null | undefined) => {
+  if (!status) return 'Pendente';
+  const normalized = status.toLowerCase();
+  if (normalized.includes('pago') || normalized.includes('paid')) return 'Pago';
+  if (normalized.includes('pendente') || normalized.includes('pending')) return 'Pendente';
+  return 'Pendente'; // default
+};
+
+// CORREÇÃO 7: Validação de Datas
+const isValidDate = (dateString: string | null | undefined) => {
+  if (!dateString) return false;
+  const date = new Date(dateString);
+  return date instanceof Date && !isNaN(date.getTime());
+};
+
+// CORREÇÃO 8: Mapeamento de Plataformas
+const getPlatformKey = (platform: string | null | undefined) => {
+  if (!platform) return 'booking.com';
+  const normalized = platform.toLowerCase();
+  if (normalized.includes('airbnb')) return 'airbnb';
+  if (normalized.includes('direto') || normalized.includes('direct')) return 'direto';
+  return 'booking.com';
+};
+
+// CORREÇÃO 1: Função para calcular Cashflow (USE ESTA NO SEU DASHBOARD.tsx)
+export const calculateCashflow = (reservations: any[]) => {
+  return reservations.reduce((acc, res) => {
+    let platform = 'booking.com'; // default
+    
+    if (res.platform?.toLowerCase().includes('airbnb')) {
+      platform = 'airbnb';
+    } else if (res.platform?.toLowerCase().includes('direto')) {
+      platform = 'direto';
+    }
+    
+    const netRevenue = res.net_revenue || 0;
+    if (res.payment_status === 'Pago') {
+      acc[`${platform}Received`] += netRevenue;
+    } else {
+      acc[`${platform}Receivable`] += netRevenue;
+    }
+    return acc;
+  }, { 
+    airbnbReceived: 0, 
+    bookingReceived: 0, 
+    diretoReceived: 0,
+    airbnbReceivable: 0, 
+    bookingReceivable: 0,
+    diretoReceivable: 0
+  });
+};
+
+// CORREÇÃO 3: Cálculo da Taxa de Ocupação (USE ESTA NO SEU DASHBOARD.tsx)
+export const calculateOccupancyRate = (reservations: any[], properties: any[], startDate: Date, endDate: Date, propertyFilter?: any[]) => {
+  const filteredPropertiesCount = propertyFilter ? propertyFilter.length : properties.length;
+  
+  if (filteredPropertiesCount === 0) return 0;
+  
+  const totalDaysInPeriod = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+  const totalAvailableDays = totalDaysInPeriod * filteredPropertiesCount;
+  
+  const totalBookedDays = reservations.reduce((sum, r) => {
+    const checkIn = new Date(r.check_in_date);
+    const checkOut = new Date(r.check_out_date);
+    const days = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
+    return sum + days;
+  }, 0);
+  
+  return Math.min(100, (totalBookedDays / totalAvailableDays) * 100);
+};
+
+// CORREÇÃO 4: Validação dos Campos de Receita (USE ESTAS NO SEU DASHBOARD.tsx)
+export const calculateTotalRevenue = (reservations: any[]) => {
+  return reservations.reduce((sum, r) => {
+    // Use o campo correto da sua base de dados
+    return sum + (r.total_revenue || r.valor_total || 0);
+  }, 0);
+};
+
+export const calculateTotalNetRevenue = (reservations: any[]) => {
+  return reservations.reduce((sum, r) => {
+    // Use o campo correto da sua base de dados  
+    return sum + (r.net_revenue || r.valor_proprietario || 0);
+  }, 0);
+};
+
+export const calculateTotalCommission = (reservations: any[]) => {
+  return reservations.reduce((sum, r) => {
+    // Calcule a comissão como diferença entre total e líquido
+    const total = r.total_revenue || r.valor_total || 0;
+    const net = r.net_revenue || r.valor_proprietario || 0;
+    return sum + (total - net);
+  }, 0);
+};
+
 const CashflowCard = ({ data }: { data: CashflowData }) => {
   const totalReceived = data.airbnbReceived + data.bookingReceived + data.diretoReceived;
   const totalReceivable = data.airbnbReceivable + data.bookingReceivable + data.diretoReceivable;
-
-  const formatCurrency = (value: number) => {
-    return `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
 
   const formatTooltip = (value: number) => [formatCurrency(value), ''];
 
