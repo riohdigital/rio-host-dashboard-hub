@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import KPICard from './KPICard';
 import NetProfitKPI from './NetProfitKPI';
 import MonthlyRevenueKPI from './MonthlyRevenueKPI';
 import PropertyMultiSelect from './PropertyMultiSelect';
-import RecentReservations from './RecentReservations';
 import AnnualGrowthChart from './AnnualGrowthChart';
+import PaymentStatusCard from './PaymentStatusCard'; // Importado
+import CashflowCard from './CashflowCard';         // Importado
+import UpcomingReservations from './RecentReservations'; // Renomeado para a nova função
 import { TrendingDown, Calendar, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Property } from '@/types/property';
@@ -17,35 +19,28 @@ const Dashboard = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('12');
   const [properties, setProperties] = useState<Property[]>([]);
   const [propertySelectOpen, setPropertySelectOpen] = useState(false);
-  const [dashboardData, setDashboardData] = useState({
+  const [loading, setLoading] = useState(true);
+
+  // Estados para os dados
+  const [financialData, setFinancialData] = useState({
     totalRevenue: 0,
     totalExpenses: 0,
-    netProfit: 0,
-    occupancyRate: 0,
+    reservationsForPeriod: [],
     expensesByCategory: [],
-    reservationsForPeriod: []
+    revenueByPlatform: []
+  });
+  const [operationalData, setOperationalData] = useState({
+    paidCount: 0,
+    pendingCount: 0,
+    cashflow: { airbnbReceived: 0, bookingReceived: 0, airbnbReceivable: 0, bookingReceivable: 0 },
+    upcomingReservations: []
   });
   const [annualGrowthData, setAnnualGrowthData] = useState<{ monthlyData: any[], yearlyData: any[] }>({
     monthlyData: [],
     yearlyData: []
   });
-  const [recentReservationsData, setRecentReservationsData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  const calculateAnnualGrowth = (currentReservations: any[], previousReservations: any[], currentYear: number, previousYear: number) => {
-    const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-    const data = [];
-    for (let month = 0; month < 12; month++) {
-      const currentMonthKey = `${currentYear}-${(month + 1).toString().padStart(2, '0')}`;
-      const previousMonthKey = `${previousYear}-${(month + 1).toString().padStart(2, '0')}`;
-      const currentRevenue = currentReservations.filter(r => r.check_in_date.startsWith(currentMonthKey)).reduce((sum, r) => sum + (r.total_revenue || 0), 0);
-      const previousRevenue = previousReservations.filter(r => r.check_in_date.startsWith(previousMonthKey)).reduce((sum, r) => sum + (r.total_revenue || 0), 0);
-      data.push({ month: monthNames[month], current: currentRevenue, previous: previousRevenue });
-    }
-    return data;
-  };
-
-  const fetchDashboardData = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const now = new Date();
@@ -57,86 +52,63 @@ const Dashboard = () => {
 
       const propertyFilter = selectedProperties.includes('todas') ? null : selectedProperties.filter(id => id !== 'todas');
 
-      // Buscas paralelas para otimização
+      // --- Buscas Paralelas ---
       const [
-        { data: propertiesData, error: propertiesError },
-        { data: reservationsData, error: reservationsError },
-        { data: expensesData, error: expensesError },
-        { data: currentYearReservations, error: currentYearError },
-        { data: previousYearReservations, error: previousYearError }
+        propertiesRes,
+        reservationsRes,
+        expensesRes,
+        currentYearRes,
+        previousYearRes,
+        upcomingRes
       ] = await Promise.all([
         supabase.from('properties').select('*').order('name'),
         supabase.from('reservations').select('*, properties(name, nickname)').gte('check_in_date', startDateString).or(propertyFilter ? `property_id.in.(${propertyFilter.join(',')})` : ''),
         supabase.from('expenses').select('*').gte('expense_date', startDateString).or(propertyFilter ? `property_id.in.(${propertyFilter.join(',')})` : ''),
         supabase.from('reservations').select('total_revenue, check_in_date').gte('check_in_date', `${currentYear}-01-01`).lte('check_in_date', `${currentYear}-12-31`).or(propertyFilter ? `property_id.in.(${propertyFilter.join(',')})` : ''),
-        supabase.from('reservations').select('total_revenue, check_in_date').gte('check_in_date', `${previousYear}-01-01`).lte('check_in_date', `${previousYear}-12-31`).or(propertyFilter ? `property_id.in.(${propertyFilter.join(',')})` : '')
+        supabase.from('reservations').select('total_revenue, check_in_date').gte('check_in_date', `${previousYear}-01-01`).lte('check_in_date', `${previousYear}-12-31`).or(propertyFilter ? `property_id.in.(${propertyFilter.join(',')})` : ''),
+        supabase.from('reservations').select('*, properties(nickname, name)').gte('check_in_date', new Date().toISOString().split('T')[0]).order('check_in_date', { ascending: true }).limit(3)
       ]);
 
-      if (propertiesError) throw propertiesError;
-      if (reservationsError) throw reservationsError;
-      if (expensesError) throw expensesError;
-      if (currentYearError) throw currentYearError;
-      if (previousYearError) throw previousYearError;
+      // --- Processamento de Dados ---
+      if (propertiesRes.error) throw propertiesRes.error;
+      setProperties(propertiesRes.data || []);
+      
+      const reservations = reservationsRes.data || [];
+      const expenses = expensesRes.data || [];
 
-      // Atualiza estado das propriedades
-      setProperties(propertiesData || []);
+      // Dados Financeiros
+      const totalRevenue = reservations.reduce((sum, r) => sum + (r.total_revenue || 0), 0);
+      const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+      const expensesByCategory = Object.entries(expenses.reduce((acc, exp) => ({...acc, [exp.category || 'Outros']: (acc[exp.category || 'Outros'] || 0) + exp.amount}), {})).map(([name, value]) => ({name, value}));
+      const revenueByPlatform = Object.entries(reservations.reduce((acc, res) => ({...acc, [res.platform || 'Outros']: (acc[res.platform || 'Outros'] || 0) + res.total_revenue}), {})).map(([name, value]) => ({name, value}));
 
-      // Cálculos dos KPIs
-      const totalRevenue = (reservationsData || []).reduce((sum, r) => sum + (r.total_revenue || 0), 0);
-      const totalExpenses = (expensesData || []).reduce((sum, e) => sum + (e.amount || 0), 0);
-      const netProfit = (reservationsData || []).reduce((sum, r) => sum + (r.net_revenue || 0), 0) - totalExpenses;
-
-      // Lógica de Taxa de Ocupação
-      const totalDaysInPeriod = monthsBack * 30; // Simplificação
-      const totalBookedDays = (reservationsData || []).reduce((sum, r) => {
-          const checkIn = new Date(r.check_in_date);
-          const checkOut = new Date(r.check_out_date);
-          return sum + Math.ceil(Math.abs(checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
-      }, 0);
-      const occupancyRate = propertiesData && propertiesData.length > 0 ? (totalBookedDays / (totalDaysInPeriod * propertiesData.length)) * 100 : 0;
-
-      // Processamento para o gráfico de despesas
-      const expensesByCategory = (expensesData || []).reduce((acc: {[key: string]: number}, expense) => {
-        const category = expense.category || 'Outros';
-        acc[category] = (acc[category] || 0) + expense.amount;
-        return acc;
-      }, {});
-
-      // Processamento para o gráfico de crescimento anual
-      const monthlyGrowthData = calculateAnnualGrowth(currentYearReservations || [], previousYearReservations || [], currentYear, previousYear);
-      const currentYearTotal = (currentYearReservations || []).reduce((sum, r) => sum + (r.total_revenue || 0), 0);
-      const previousYearTotal = (previousYearReservations || []).reduce((sum, r) => sum + (r.total_revenue || 0), 0);
-      const yearlyData = [
-        { year: previousYear.toString(), revenue: previousYearTotal },
-        { year: currentYear.toString(), revenue: currentYearTotal }
-      ];
-
-      setAnnualGrowthData({ monthlyData: monthlyGrowthData, yearlyData });
-
-      // Preparar dados para o widget de reservas recentes
-      const recentReservations = (reservationsData || [])
-        .sort((a, b) => new Date(b.check_in_date).getTime() - new Date(a.check_in_date).getTime())
-        .slice(0, 8)
-        .map(r => ({
-            id: r.id || '',
-            guest_name: r.guest_name || 'N/A',
-            property_name: r.properties?.nickname || r.properties?.name || 'N/A',
-            check_in_date: r.check_in_date,
-            check_out_date: r.check_out_date || '',
-            total_revenue: r.total_revenue || 0,
-            reservation_status: r.reservation_status || 'Confirmada'
-        }));
-      setRecentReservationsData(recentReservations);
-
-      // Atualiza o estado principal do dashboard
-      setDashboardData({
+      setFinancialData({
         totalRevenue,
         totalExpenses,
-        netProfit,
-        occupancyRate: Math.min(100, occupancyRate),
-        expensesByCategory: Object.entries(expensesByCategory).map(([name, value]) => ({ name, value })),
-        reservationsForPeriod: reservationsData || [],
+        reservationsForPeriod: reservations,
+        expensesByCategory,
+        revenueByPlatform
       });
+
+      // Dados Operacionais
+      const paidCount = reservations.filter(r => r.payment_status === 'Pago').length;
+      const pendingCount = reservations.filter(r => r.payment_status !== 'Pago').length;
+      const cashflow = reservations.reduce((acc, res) => {
+        const platform = res.platform?.toLowerCase().includes('airbnb') ? 'airbnb' : 'booking';
+        if (res.payment_status === 'Pago') acc[`${platform}Received`] += res.net_revenue || 0;
+        else acc[`${platform}Receivable`] += res.net_revenue || 0;
+        return acc;
+      }, { airbnbReceived: 0, bookingReceived: 0, airbnbReceivable: 0, bookingReceivable: 0 });
+
+      setOperationalData({ paidCount, pendingCount, cashflow, upcomingReservations: upcomingRes.data || [] });
+      
+      // Dados de Crescimento Anual
+      const monthlyGrowthData = calculateAnnualGrowth(currentYearRes.data || [], previousYearRes.data || [], currentYear, previousYear);
+      const yearlyData = [
+        { year: previousYear.toString(), revenue: (previousYearRes.data || []).reduce((s, r) => s + r.total_revenue, 0) },
+        { year: currentYear.toString(), revenue: (currentYearRes.data || []).reduce((s, r) => s + r.total_revenue, 0) }
+      ];
+      setAnnualGrowthData({ monthlyData: monthlyGrowthData, yearlyData });
 
     } catch (error: any) {
       console.error('Erro ao buscar dados do dashboard:', error);
@@ -146,74 +118,48 @@ const Dashboard = () => {
   }, [selectedPeriod, selectedProperties]);
 
   useEffect(() => {
-    fetchDashboardData();
-  }, [fetchDashboardData]);
+    fetchData();
+  }, [fetchData]);
 
-  const COLORS = ['#6A6DDF', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
-
-  const periodOptions = [
-    { value: '1', label: 'Último mês' },
-    { value: '3', label: 'Últimos 3 meses' },
-    { value: '6', label: 'Últimos 6 meses' },
-    { value: '12', label: 'Últimos 12 meses' }
-  ];
+  const COLORS = ['#6A6DDF', '#F472B6', '#F59E0B', '#10B981', '#EF4444', '#06B6D4'];
+  const periodOptions = [{ value: '1', label: 'Último mês' }, { value: '3', label: 'Últimos 3 meses' }, { value: '6', label: 'Últimos 6 meses' }, { value: '12', label: 'Últimos 12 meses' }];
 
   return (
-    <div className="space-y-8 p-6">
+    <div className="p-6 space-y-8">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gradient-primary">Dashboard Analítico</h1>
         <div className="flex gap-4">
-          <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-            <SelectTrigger className="w-40"><SelectValue placeholder="Período" /></SelectTrigger>
-            <SelectContent>{periodOptions.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
-          </Select>
-          <PropertyMultiSelect
-            properties={properties}
-            selectedProperties={selectedProperties}
-            onSelectionChange={setSelectedProperties}
-            isOpen={propertySelectOpen}
-            onToggle={() => setPropertySelectOpen(!propertySelectOpen)}
-          />
+          <Select value={selectedPeriod} onValueChange={setSelectedPeriod}><SelectTrigger className="w-40"><SelectValue placeholder="Período" /></SelectTrigger><SelectContent>{periodOptions.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select>
+          <PropertyMultiSelect properties={properties} selectedProperties={selectedProperties} onSelectionChange={setSelectedProperties} isOpen={propertySelectOpen} onToggle={() => setPropertySelectOpen(!propertySelectOpen)} />
         </div>
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center min-h-[50vh]">
-          <Loader2 className="h-8 w-8 text-primary animate-spin" />
-        </div>
+        <div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="h-8 w-8 text-primary animate-spin" /></div>
       ) : (
         <>
+          {/* SEÇÃO 1: VISÃO FINANCEIRA */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <MonthlyRevenueKPI totalRevenue={dashboardData.totalRevenue} selectedPeriod={periodOptions.find(o => o.value === selectedPeriod)?.label || ''} />
-            <KPICard title="Despesas Totais" value={`R$ ${dashboardData.totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} isPositive={false} icon={<TrendingDown className="h-4 w-4" />} />
-            <NetProfitKPI reservations={dashboardData.reservationsForPeriod} />
-            <KPICard title="Taxa de Ocupação" value={`${dashboardData.occupancyRate.toFixed(1)}%`} icon={<Calendar className="h-4 w-4" />} />
+            <MonthlyRevenueKPI totalRevenue={financialData.totalRevenue} selectedPeriod={periodOptions.find(o => o.value === selectedPeriod)?.label || ''} />
+            <KPICard title="Despesas Totais" value={`R$ ${financialData.totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} isPositive={false} icon={<TrendingDown className="h-4 w-4" />} />
+            <NetProfitKPI reservations={financialData.reservationsForPeriod} />
+            <KPICard title="Taxa de Ocupação" value={`${(0).toFixed(1)}%`} icon={<Calendar className="h-4 w-4" />} />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-              <AnnualGrowthChart monthlyData={annualGrowthData.monthlyData} yearlyData={annualGrowthData.yearlyData} loading={loading} />
-            </div>
-            <div className="lg:col-span-1">
-              <RecentReservations reservations={recentReservationsData} loading={loading} />
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            <div className="lg:col-span-3"><AnnualGrowthChart monthlyData={annualGrowthData.monthlyData} yearlyData={annualGrowthData.yearlyData} loading={loading} /></div>
+            <div className="lg:col-span-2"><Card className="bg-white h-full"><CardHeader><CardTitle className="text-gradient-primary">Receita por Plataforma</CardTitle></CardHeader><CardContent><ResponsiveContainer width="100%" height={300}><PieChart><Pie data={financialData.revenueByPlatform} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} label>{financialData.revenueByPlatform.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}</Pie><Tooltip formatter={(value) => `R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} /></PieChart></ResponsiveContainer></CardContent></Card></div>
+          </div>
+
+          {/* SEÇÃO 2: VISÃO OPERACIONAL E DE CAIXA */}
+          <div className="border-t pt-8">
+            <h2 className="text-2xl font-bold text-gradient-primary mb-4">Visão Operacional</h2>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <PaymentStatusCard paidCount={operationalData.paidCount} pendingCount={operationalData.pendingCount} />
+              <CashflowCard data={operationalData.cashflow} />
+              <UpcomingReservations reservations={operationalData.upcomingReservations} loading={loading} />
             </div>
           </div>
-          
-          {dashboardData.expensesByCategory.length > 0 && (
-            <Card className="bg-white">
-              <CardHeader><CardTitle className="text-gradient-primary">Despesas por Categoria</CardTitle></CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie data={dashboardData.expensesByCategory} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} labelLine={false} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                      {dashboardData.expensesByCategory.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-                    </Pie>
-                    <Tooltip formatter={(value) => `R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          )}
         </>
       )}
     </div>
