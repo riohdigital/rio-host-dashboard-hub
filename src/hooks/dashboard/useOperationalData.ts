@@ -50,6 +50,23 @@ export const useOperationalData = (
     return selectedProperties.includes('todas') ? null : selectedProperties.filter(id => id !== 'todas');
   }, [selectedProperties]);
 
+  const classifyPlatform = useCallback((platformValue: string | null): 'airbnb' | 'booking' | 'direto' => {
+    if (!platformValue) return 'direto';
+    
+    const platform = platformValue.toLowerCase().trim();
+    console.log('Classificando plataforma:', { original: platformValue, normalized: platform });
+    
+    // Classificação mais específica
+    if (platform.includes('airbnb')) {
+      return 'airbnb';
+    } else if (platform.includes('booking')) {
+      return 'booking';
+    } else {
+      // Tudo que não for Airbnb ou Booking será classificado como Direto
+      return 'direto';
+    }
+  }, []);
+
   const fetchOperationalData = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -88,6 +105,8 @@ export const useOperationalData = (
       const reservationsPeriod = reservationsPeriodRes.data || [];
       const upcoming = upcomingRes.data || [];
 
+      console.log('Dados das reservas do período:', reservationsPeriod);
+
       // Calculate payment status counts for period
       const paidCount = reservationsPeriod.filter(r => r.payment_status === 'Pago').length;
       const pendingCount = reservationsPeriod.length - paidCount;
@@ -96,18 +115,17 @@ export const useOperationalData = (
       const totalPaidCount = paidCount;
       const totalPendingCount = pendingCount;
 
-      // Calculate cashflow by platform and payment status with proper platform classification
+      // Calculate cashflow by platform and payment status with improved platform classification
       const cashflow = reservationsPeriod.reduce((acc, res) => {
-        const platform = res.platform?.toLowerCase();
         const netRevenue = res.net_revenue || 0;
+        const platformKey = classifyPlatform(res.platform);
         
-        let platformKey: 'airbnb' | 'booking' | 'direto' = 'direto';
-        
-        if (platform?.includes('airbnb')) {
-          platformKey = 'airbnb';
-        } else if (platform?.includes('booking')) {
-          platformKey = 'booking';
-        }
+        console.log('Processando reserva:', { 
+          platform_original: res.platform, 
+          platform_classificada: platformKey, 
+          net_revenue: netRevenue,
+          payment_status: res.payment_status 
+        });
         
         if (res.payment_status === 'Pago') {
           acc[`${platformKey}Received`] += netRevenue;
@@ -124,6 +142,8 @@ export const useOperationalData = (
         bookingReceivable: 0,
         diretoReceivable: 0
       });
+
+      console.log('Cashflow final:', cashflow);
 
       // Format upcoming reservations
       const upcomingReservations = upcoming.map(res => ({
@@ -148,7 +168,7 @@ export const useOperationalData = (
     } finally {
       setLoading(false);
     }
-  }, [startDateString, endDateString, propertyFilter]);
+  }, [startDateString, endDateString, propertyFilter, classifyPlatform]);
 
   return {
     data,

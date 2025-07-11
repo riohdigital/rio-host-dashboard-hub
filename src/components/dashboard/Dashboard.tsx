@@ -29,13 +29,13 @@ import UpcomingReservations from './RecentReservations';
 const Dashboard = () => {
   // State management
   const [selectedProperties, setSelectedProperties] = useState<string[]>(['todas']);
-  const [selectedPeriod, setSelectedPeriod] = useState('3');
+  const [selectedPeriod, setSelectedPeriod] = useState('current_month');
   const [properties, setProperties] = useState<Property[]>([]);
   const [propertySelectOpen, setPropertySelectOpen] = useState(false);
   const [propertiesLoading, setPropertiesLoading] = useState(true);
 
   // Date calculations
-  const { startDateString, endDateString, totalDays } = useDateRange(selectedPeriod);
+  const { startDateString, endDateString, totalDays, periodType } = useDateRange(selectedPeriod);
 
   // Data hooks
   const financialData = useFinancialData(startDateString, endDateString, selectedProperties, totalDays);
@@ -74,11 +74,23 @@ const Dashboard = () => {
 
   // Chart configuration
   const COLORS = ['#6A6DDF', '#F472B6', '#F59E0B', '#10B981', '#EF4444', '#06B6D4'];
+  
   const periodOptions = [
-    { value: '1', label: 'Último mês' },
-    { value: '3', label: 'Últimos 3 meses' },
-    { value: '6', label: 'Últimos 6 meses' },
-    { value: '12', label: 'Ano atual' }
+    // Período Atual
+    { value: 'current_month', label: 'Mês Atual', group: 'Atual' },
+    { value: 'current_year', label: 'Ano Atual', group: 'Atual' },
+    
+    // Períodos Passados
+    { value: 'last_month', label: 'Último Mês', group: 'Passado' },
+    { value: 'last_3_months', label: 'Últimos 3 Meses', group: 'Passado' },
+    { value: 'last_6_months', label: 'Últimos 6 Meses', group: 'Passado' },
+    { value: 'last_year', label: 'Ano Passado', group: 'Passado' },
+    
+    // Períodos Futuros
+    { value: 'next_month', label: 'Próximo Mês', group: 'Futuro' },
+    { value: 'next_3_months', label: 'Próximos 3 Meses', group: 'Futuro' },
+    { value: 'next_6_months', label: 'Próximos 6 Meses', group: 'Futuro' },
+    { value: 'next_12_months', label: 'Próximos 12 Meses', group: 'Futuro' }
   ];
 
   const isLoading = financialData.loading || operationalData.loading || annualGrowthData.loading || propertiesLoading;
@@ -89,6 +101,12 @@ const Dashboard = () => {
     commission_amount: 0
   });
 
+  // Get current period label
+  const getCurrentPeriodLabel = () => {
+    const selectedOption = periodOptions.find(option => option.value === selectedPeriod);
+    return selectedOption?.label || 'Período Selecionado';
+  };
+
   return (
     <div className="p-6 space-y-8 bg-[#F8F9FA]">
       {/* Header */}
@@ -96,11 +114,35 @@ const Dashboard = () => {
         <h1 className="text-3xl font-bold text-gradient-primary">Dashboard Analítico</h1>
         <div className="flex gap-4">
           <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-48">
               <SelectValue placeholder="Período" />
             </SelectTrigger>
             <SelectContent>
-              {periodOptions.map(option => (
+              {/* Grupo Atual */}
+              <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Período Atual
+              </div>
+              {periodOptions.filter(option => option.group === 'Atual').map(option => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+              
+              {/* Grupo Passado */}
+              <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider border-t mt-1 pt-2">
+                Períodos Passados
+              </div>
+              {periodOptions.filter(option => option.group === 'Passado').map(option => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+              
+              {/* Grupo Futuro */}
+              <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider border-t mt-1 pt-2">
+                Períodos Futuros
+              </div>
+              {periodOptions.filter(option => option.group === 'Futuro').map(option => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
                 </SelectItem>
@@ -126,13 +168,15 @@ const Dashboard = () => {
         <>
           {/* Financial Vision */}
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-700">Visão Financeira</h2>
+            <h2 className="text-2xl font-bold text-gray-700">
+              Visão Financeira {periodType === 'future' && <span className="text-sm font-normal text-gray-500">(Previsão)</span>}
+            </h2>
             
             {/* Financial KPIs */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <MonthlyRevenueKPI 
                 totalRevenue={financialData.data.totalRevenue}
-                selectedPeriod={periodOptions.find(o => o.value === selectedPeriod)?.label || ''}
+                selectedPeriod={getCurrentPeriodLabel()}
               />
               <KPICard
                 title="Despesas Totais"
@@ -206,7 +250,9 @@ const Dashboard = () => {
 
           {/* Operational Vision */}
           <div className="border-t pt-8 space-y-6">
-            <h2 className="text-2xl font-bold text-gray-700">Visão Operacional</h2>
+            <h2 className="text-2xl font-bold text-gray-700">
+              Visão Operacional {periodType === 'future' && <span className="text-sm font-normal text-gray-500">(Previsão)</span>}
+            </h2>
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <PaymentSummaryCard
