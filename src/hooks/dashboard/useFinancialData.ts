@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -8,7 +7,7 @@ interface FinancialData {
   netProfit: number;
   occupancyRate: number;
   revenueByPlatform: Array<{ name: string; value: number }>;
-  reservationsCount: number;
+  reservationsForPeriod: any[];
 }
 
 export const useFinancialData = (
@@ -23,9 +22,9 @@ export const useFinancialData = (
     netProfit: 0,
     occupancyRate: 0,
     revenueByPlatform: [],
-    reservationsCount: 0
+    reservationsForPeriod: [],
   });
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const propertyFilter = useMemo(() => {
@@ -37,55 +36,59 @@ export const useFinancialData = (
     setError(null);
 
     try {
-      // Build queries with conditional property filter - usando check_in_date como critério principal
+      // CORREÇÃO: Construção de queries mais robusta
       let reservationsQuery = supabase
         .from('reservations')
-        .select('total_revenue, net_revenue, platform, check_in_date, check_out_date')
+        .select('*, properties(name, nickname)')
         .gte('check_in_date', startDateString)
         .lte('check_in_date', endDateString);
 
       let expensesQuery = supabase
         .from('expenses')
-        .select('amount')
+        .select('*')
         .gte('expense_date', startDateString)
         .lte('expense_date', endDateString);
+      
+      let propertiesQuery = supabase.from('properties').select('id');
 
-      // Apply property filter if exists
-      if (propertyFilter && propertyFilter.length > 0) {
+      if (propertyFilter) {
         reservationsQuery = reservationsQuery.in('property_id', propertyFilter);
         expensesQuery = expensesQuery.in('property_id', propertyFilter);
+        propertiesQuery = propertiesQuery.in('id', propertyFilter);
       }
-
-      const [reservationsRes, expensesRes] = await Promise.all([
+      
+      const [reservationsRes, expensesRes, propertiesRes] = await Promise.all([
         reservationsQuery,
-        expensesQuery
+        expensesQuery,
+        propertiesQuery,
       ]);
 
       if (reservationsRes.error) throw reservationsRes.error;
       if (expensesRes.error) throw expensesRes.error;
+      if (propertiesRes.error) throw propertiesRes.error;
 
       const reservations = reservationsRes.data || [];
       const expenses = expensesRes.data || [];
+      const properties = propertiesRes.data || [];
 
-      // Calculate financial KPIs
+      // Cálculos Financeiros
       const totalRevenue = reservations.reduce((sum, r) => sum + (r.total_revenue || 0), 0);
       const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-      const netRevenue = reservations.reduce((sum, r) => sum + (r.net_revenue || 0), 0);
-      const netProfit = netRevenue - totalExpenses;
+      const totalNetRevenue = reservations.reduce((sum, r) => sum + (r.net_revenue || 0), 0);
+      const netProfit = totalNetRevenue - totalExpenses;
 
-      // Calculate occupancy rate
+      // Cálculo da Taxa de Ocupação
       const totalBookedDays = reservations.reduce((sum, r) => {
         const checkIn = new Date(r.check_in_date + 'T00:00:00');
         const checkOut = new Date(r.check_out_date + 'T00:00:00');
         return sum + Math.ceil(Math.abs(checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
       }, 0);
-
-      const filteredPropertiesCount = propertyFilter ? propertyFilter.length : await getPropertiesCount();
-      const occupancyRate = (filteredPropertiesCount > 0 && totalDays > 0) 
-        ? Math.min(100, (totalBookedDays / (totalDays * filteredPropertiesCount)) * 100)
+      
+      const propertiesCount = properties.length;
+      const occupancyRate = (propertiesCount > 0 && totalDays > 0) 
+        ? Math.min(100, (totalBookedDays / (totalDays * propertiesCount)) * 100)
         : 0;
 
-      // Group revenue by platform
       const revenueByPlatform = Object.entries(
         reservations.reduce((acc, res) => {
           const platform = res.platform || 'Outros';
@@ -93,14 +96,14 @@ export const useFinancialData = (
           return acc;
         }, {} as Record<string, number>)
       ).map(([name, value]) => ({ name, value }));
-
+      
       setData({
         totalRevenue,
         totalExpenses,
         netProfit,
         occupancyRate,
         revenueByPlatform,
-        reservationsCount: reservations.length
+        reservationsForPeriod: reservations,
       });
 
     } catch (err: any) {
@@ -110,18 +113,6 @@ export const useFinancialData = (
       setLoading(false);
     }
   }, [startDateString, endDateString, propertyFilter, totalDays]);
-
-  const getPropertiesCount = async () => {
-    const { count } = await supabase
-      .from('properties')
-      .select('*', { count: 'exact', head: true });
-    return count || 0;
-  };
-
-  return {
-    data,
-    loading,
-    error,
-    fetchFinancialData
-  };
+  
+  return { data, loading, error, fetchFinancialData };
 };
