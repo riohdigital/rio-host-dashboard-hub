@@ -10,15 +10,15 @@ interface NetProfitKPIProps {
 const NetProfitKPI = ({ reservations }: NetProfitKPIProps) => {
   const [viewType, setViewType] = useState<'net' | 'commission' | 'combined'>('net');
 
-  // CORREÇÃO: Validação dos campos de receita
+  // Calcular receita líquida total do proprietário (sem subtrair despesas)
   const totalNetRevenue = reservations.reduce((sum, r) => {
-    return sum + (r.net_revenue || r.valor_proprietario || 0);
+    return sum + (r.net_revenue || 0);
   }, 0);
 
+  // Calcular comissão total como diferença entre receita total e líquida
   const totalCommission = reservations.reduce((sum, r) => {
-    // Calcular comissão como diferença entre total e líquido
-    const total = r.total_revenue || r.valor_total || 0;
-    const net = r.net_revenue || r.valor_proprietario || 0;
+    const total = r.total_revenue || 0;
+    const net = r.net_revenue || 0;
     return sum + (total - net);
   }, 0);
 

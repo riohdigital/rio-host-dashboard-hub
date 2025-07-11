@@ -74,10 +74,10 @@ export const useOperationalData = (
     try {
       const todayString = new Date().toISOString().split('T')[0];
 
-      // Build queries with conditional property filter
+      // Build queries with conditional property filter - usando check_in_date como critério
       let reservationsPeriodQuery = supabase
         .from('reservations')
-        .select('payment_status, net_revenue, platform')
+        .select('payment_status, net_revenue, platform, total_revenue')
         .gte('check_in_date', startDateString)
         .lte('check_in_date', endDateString);
 

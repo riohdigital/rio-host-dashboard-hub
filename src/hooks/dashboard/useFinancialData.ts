@@ -37,7 +37,7 @@ export const useFinancialData = (
     setError(null);
 
     try {
-      // Build queries with conditional property filter
+      // Build queries with conditional property filter - usando check_in_date como critério principal
       let reservationsQuery = supabase
         .from('reservations')
         .select('total_revenue, net_revenue, platform, check_in_date, check_out_date')

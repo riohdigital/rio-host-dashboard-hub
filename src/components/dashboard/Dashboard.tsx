@@ -94,8 +94,8 @@ const Dashboard = () => {
 
   // Create reservations array for NetProfitKPI compatibility
   const reservationsForNetProfit = Array(financialData.data.reservationsCount).fill({
-    net_revenue: financialData.data.netProfit / Math.max(financialData.data.reservationsCount, 1),
-    commission_amount: 0
+    net_revenue: financialData.data.totalRevenue / Math.max(financialData.data.reservationsCount, 1),
+    total_revenue: financialData.data.totalRevenue / Math.max(financialData.data.reservationsCount, 1)
   });
 
   // Get current period label
