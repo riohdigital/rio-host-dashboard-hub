@@ -1,5 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,6 +12,18 @@ import { Property } from '@/types/property';
 import { Expense, ExpenseCategory } from '@/types/expense';
 import RecurrenceSettings from './RecurrenceSettings';
 
+// Schema de validação com Zod
+const expenseSchema = z.object({
+  property_id: z.string().min(1, 'Propriedade é obrigatória'),
+  expense_date: z.string().min(1, 'Data é obrigatória'),
+  description: z.string().min(3, 'Descrição é obrigatória'),
+  category: z.string().min(1, 'Categoria é obrigatória'),
+  expense_type: z.string(),
+  amount: z.number().min(0.01, 'O valor deve ser maior que zero'),
+});
+
+type ExpenseFormData = z.infer<typeof expenseSchema>;
+
 interface ExpenseFormProps {
   expense?: Expense | null;
   selectedPropertyId?: string;
@@ -18,293 +32,172 @@ interface ExpenseFormProps {
 }
 
 const ExpenseForm = ({ expense, selectedPropertyId, onSuccess, onCancel }: ExpenseFormProps) => {
-  const [formData, setFormData] = useState({
-    property_id: selectedPropertyId || '',
-    expense_date: expense?.expense_date || new Date().toISOString().split('T')[0],
-    description: expense?.description || '',
-    category: expense?.category || '',
-    expense_type: expense?.expense_type || 'Variável',
-    amount: expense?.amount.toString() || '',
-  });
-
-  // Estados para recorrência
-  const [recurrenceType, setRecurrenceType] = useState('monthly');
-  const [recurrenceDuration, setRecurrenceDuration] = useState(12);
-  const [recurrenceStartDate, setRecurrenceStartDate] = useState(new Date().toISOString().split('T')[0]);
-  
   const [properties, setProperties] = useState<Property[]>([]);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
+  const [recurrenceType, setRecurrenceType] = useState('monthly');
+  const [recurrenceDuration, setRecurrenceDuration] = useState(12);
+  const [recurrenceStartDate, setRecurrenceStartDate] = useState(new Date().toISOString().split('T')[0]);
+
+  const { register, handleSubmit, control, watch, formState: { errors } } = useForm<ExpenseFormData>({
+    resolver: zodResolver(expenseSchema),
+    defaultValues: {
+      property_id: expense?.property_id || selectedPropertyId || '',
+      expense_date: expense?.expense_date || new Date().toISOString().split('T')[0],
+      description: expense?.description || '',
+      category: expense?.category || '',
+      expense_type: expense?.expense_type || 'Variável',
+      amount: expense?.amount || undefined,
+    }
+  });
+
+  const expenseType = watch('expense_type');
+
   useEffect(() => {
-    fetchProperties();
-    fetchCategories();
+    const fetchData = async () => {
+      const [propsRes, catRes] = await Promise.all([
+        supabase.from('properties').select('*').order('name'),
+        supabase.from('expense_categories').select('*').order('name')
+      ]);
+      if (propsRes.error) throw propsRes.error;
+      if (catRes.error) throw catRes.error;
+      setProperties(propsRes.data || []);
+      setCategories(catRes.data || []);
+    };
+    fetchData().catch(console.error);
   }, []);
 
-  const fetchProperties = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('properties')
-        .select('*')
-        .order('name');
-
-      if (error) throw error;
-      setProperties(data || []);
-    } catch (error) {
-      console.error('Erro ao buscar propriedades:', error);
-    }
-  };
-
-  const fetchCategories = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('expense_categories')
-        .select('*')
-        .order('name');
-
-      if (error) throw error;
-      setCategories(data || []);
-    } catch (error) {
-      console.error('Erro ao buscar categorias:', error);
-    }
-  };
-
-  const generateRecurrentExpenses = (baseExpense: any) => {
+  const generateRecurrentExpenses = (baseExpense: Omit<ExpenseFormData, 'expense_date'>) => {
     const expenses = [];
-    const startDate = new Date(recurrenceStartDate);
-    const amount = parseFloat(formData.amount);
-    
-    // Gerar UUID para o grupo de recorrência
+    const startDate = new Date(recurrenceStartDate + 'T00:00:00');
     const recurrenceGroupId = crypto.randomUUID();
     
     for (let i = 0; i < recurrenceDuration; i++) {
       const expenseDate = new Date(startDate);
-      
-      // Calcular a data baseada no tipo de recorrência
-      if (recurrenceType === 'monthly') {
-        expenseDate.setMonth(startDate.getMonth() + i);
-      } else if (recurrenceType === 'quarterly') {
-        expenseDate.setMonth(startDate.getMonth() + (i * 3));
-      } else if (recurrenceType === 'annually') {
-        expenseDate.setFullYear(startDate.getFullYear() + i);
-      }
+      if (recurrenceType === 'monthly') expenseDate.setMonth(startDate.getMonth() + i);
+      else if (recurrenceType === 'quarterly') expenseDate.setMonth(startDate.getMonth() + (i * 3));
+      else if (recurrenceType === 'annually') expenseDate.setFullYear(startDate.getFullYear() + i);
 
       expenses.push({
         ...baseExpense,
         expense_date: expenseDate.toISOString().split('T')[0],
-        amount: amount,
         recurrence_group_id: recurrenceGroupId,
-        recurrence_index: i,
         is_recurrent: true
       });
     }
-    
     return expenses;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (data: ExpenseFormData) => {
     setLoading(true);
-
     try {
-      const baseExpenseData = {
-        property_id: formData.property_id,
-        expense_date: formData.expense_date,
-        description: formData.description,
-        category: formData.category,
-        expense_type: formData.expense_type,
-        amount: parseFloat(formData.amount),
-      };
-
       if (expense) {
         // Editando despesa existente
-        const { error } = await supabase
-          .from('expenses')
-          .update(baseExpenseData)
-          .eq('id', expense.id);
-
+        const { error } = await supabase.from('expenses').update(data).eq('id', expense.id);
         if (error) throw error;
-
-        toast({
-          title: "Sucesso",
-          description: "Despesa atualizada com sucesso.",
-        });
+        toast({ title: "Sucesso", description: "Despesa atualizada com sucesso." });
       } else {
         // Criando nova despesa
-        if (formData.expense_type === 'Fixo') {
-          // Criar despesas recorrentes
-          const recurrentExpenses = generateRecurrentExpenses(baseExpenseData);
-          
-          const { error } = await supabase
-            .from('expenses')
-            .insert(recurrentExpenses);
-
+        if (data.expense_type === 'Fixo') {
+          const recurrentExpenses = generateRecurrentExpenses(data);
+          const { error } = await supabase.from('expenses').insert(recurrentExpenses);
           if (error) throw error;
-
-          toast({
-            title: "Sucesso",
-            description: `${recurrentExpenses.length} despesas recorrentes criadas com sucesso.`,
-          });
+          toast({ title: "Sucesso", description: `${recurrentExpenses.length} despesas recorrentes criadas.` });
         } else {
-          // Criar despesa única
-          const { error } = await supabase
-            .from('expenses')
-            .insert([baseExpenseData]);
-
+          const { error } = await supabase.from('expenses').insert([data]);
           if (error) throw error;
-
-          toast({
-            title: "Sucesso",
-            description: "Despesa criada com sucesso.",
-          });
+          toast({ title: "Sucesso", description: "Despesa criada com sucesso." });
         }
       }
-
       onSuccess();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao salvar despesa:', error);
       toast({
         title: "Erro",
-        description: "Não foi possível salvar a despesa.",
+        // CORREÇÃO: Tratamento de erro mais seguro
+        description: `Não foi possível salvar a despesa: ${error?.message || 'Erro desconhecido.'}`,
         variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
   };
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  const isFixedExpense = formData.expense_type === 'Fixo';
-  const showRecurrenceSettings = isFixedExpense && !expense; // Só mostra ao criar nova despesa fixa
+  
+  const showRecurrenceSettings = expenseType === 'Fixo' && !expense;
 
   return (
     <div className="space-y-6">
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Controller name="property_id" control={control} render={({ field }) => (
+            <div className="space-y-2">
+              <Label>Propriedade *</Label>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <SelectTrigger><SelectValue placeholder="Selecionar propriedade" /></SelectTrigger>
+                <SelectContent>{properties.map(p => <SelectItem key={p.id} value={p.id}>{p.nickname || p.name}</SelectItem>)}</SelectContent>
+              </Select>
+              {errors.property_id && <p className="text-sm text-red-600">{errors.property_id.message}</p>}
+            </div>
+          )} />
           <div className="space-y-2">
-            <Label htmlFor="property_id">Propriedade *</Label>
-            <Select 
-              value={formData.property_id} 
-              onValueChange={(value) => handleInputChange('property_id', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecionar propriedade" />
-              </SelectTrigger>
-              <SelectContent>
-                {properties.map((property) => (
-                  <SelectItem key={property.id} value={property.id}>
-                    {property.nickname || property.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="expense_date">Data da Despesa *</Label>
-            <Input
-              id="expense_date"
-              type="date"
-              value={formData.expense_date}
-              onChange={(e) => handleInputChange('expense_date', e.target.value)}
-              required
-            />
+            <Label>Data da Despesa *</Label>
+            <Input type="date" {...register('expense_date')} />
+            {errors.expense_date && <p className="text-sm text-red-600">{errors.expense_date.message}</p>}
           </div>
         </div>
-
         <div className="space-y-2">
-          <Label htmlFor="description">Descrição *</Label>
-          <Input
-            id="description"
-            value={formData.description}
-            onChange={(e) => handleInputChange('description', e.target.value)}
-            placeholder="Ex: Taxa de limpeza, Reparo na torneira..."
-            required
-          />
+          <Label>Descrição *</Label>
+          <Input placeholder="Ex: Taxa de limpeza, Reparo..." {...register('description')} />
+          {errors.description && <p className="text-sm text-red-600">{errors.description.message}</p>}
         </div>
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="category">Categoria *</Label>
-            <Select 
-              value={formData.category} 
-              onValueChange={(value) => handleInputChange('category', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecionar categoria" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((category) => (
-                  <SelectItem key={category.id} value={category.name}>
-                    {category.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="expense_type">Tipo *</Label>
-            <Select 
-              value={formData.expense_type} 
-              onValueChange={(value) => handleInputChange('expense_type', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecionar tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Fixo">Fixo</SelectItem>
-                <SelectItem value="Variável">Variável</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <Controller name="category" control={control} render={({ field }) => (
+            <div className="space-y-2">
+              <Label>Categoria *</Label>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <SelectTrigger><SelectValue placeholder="Selecionar categoria" /></SelectTrigger>
+                <SelectContent>{categories.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
+              </Select>
+              {errors.category && <p className="text-sm text-red-600">{errors.category.message}</p>}
+            </div>
+          )} />
+          <Controller name="expense_type" control={control} render={({ field }) => (
+            <div className="space-y-2">
+              <Label>Tipo *</Label>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <SelectTrigger><SelectValue placeholder="Selecionar tipo" /></SelectTrigger>
+                <SelectContent><SelectItem value="Fixo">Fixo</SelectItem><SelectItem value="Variável">Variável</SelectItem></SelectContent>
+              </Select>
+            </div>
+          )} />
         </div>
-
         <div className="space-y-2">
-          <Label htmlFor="amount">Valor (R$) *</Label>
-          <Input
-            id="amount"
-            type="number"
-            step="0.01"
-            min="0"
-            value={formData.amount}
-            onChange={(e) => handleInputChange('amount', e.target.value)}
-            placeholder="0,00"
-            required
-          />
+          <Label>Valor (R$) *</Label>
+          <Input type="number" step="0.01" min="0" placeholder="0.00" {...register('amount', { valueAsNumber: true })} />
+          {errors.amount && <p className="text-sm text-red-600">{errors.amount.message}</p>}
         </div>
-
-        <div className="flex gap-4 justify-end">
-          <Button type="button" variant="outline" onClick={onCancel}>
-            Cancelar
-          </Button>
-          <Button 
-            type="submit" 
-            disabled={loading}
-            className="bg-[#6A6DDF] hover:bg-[#5A5BCF] text-white"
-          >
-            {loading ? 'Salvando...' : (expense ? 'Atualizar' : 'Salvar')} Despesa
+        
+        {showRecurrenceSettings && (
+          <RecurrenceSettings
+            isVisible={showRecurrenceSettings}
+            recurrenceType={recurrenceType}
+            recurrenceDuration={recurrenceDuration}
+            startDate={recurrenceStartDate}
+            onRecurrenceTypeChange={setRecurrenceType}
+            onRecurrenceDurationChange={setRecurrenceDuration}
+            onStartDateChange={setRecurrenceStartDate}
+          />
+        )}
+        
+        <div className="flex gap-4 justify-end pt-4">
+          <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
+          <Button type="submit" disabled={loading} className="bg-[#6A6DDF] hover:bg-[#5A5BCF] text-white">
+            {loading ? 'Salvando...' : (expense ? 'Atualizar' : 'Salvar')}
           </Button>
         </div>
       </form>
-
-      {/* Configurações de Recorrência */}
-      <RecurrenceSettings
-        isVisible={showRecurrenceSettings}
-        recurrenceType={recurrenceType}
-        recurrenceDuration={recurrenceDuration}
-        startDate={recurrenceStartDate}
-        onRecurrenceTypeChange={setRecurrenceType}
-        onRecurrenceDurationChange={setRecurrenceDuration}
-        onStartDateChange={setRecurrenceStartDate}
-      />
     </div>
   );
 };
