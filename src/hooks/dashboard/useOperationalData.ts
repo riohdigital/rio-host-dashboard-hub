@@ -5,6 +5,8 @@ import { supabase } from '@/integrations/supabase/client';
 interface OperationalData {
   paidCount: number;
   pendingCount: number;
+  totalPaidCount: number;
+  totalPendingCount: number;
   cashflow: {
     airbnbReceived: number;
     bookingReceived: number;
@@ -27,6 +29,8 @@ export const useOperationalData = (
   const [data, setData] = useState<OperationalData>({
     paidCount: 0,
     pendingCount: 0,
+    totalPaidCount: 0,
+    totalPendingCount: 0,
     cashflow: {
       airbnbReceived: 0,
       bookingReceived: 0,
@@ -50,11 +54,15 @@ export const useOperationalData = (
       const todayString = new Date().toISOString().split('T')[0];
 
       // Build queries with conditional property filter
-      let reservationsQuery = supabase
+      let reservationsPeriodQuery = supabase
         .from('reservations')
         .select('payment_status, net_revenue, platform')
         .gte('check_in_date', startDateString)
         .lte('check_in_date', endDateString);
+
+      let reservationsAllQuery = supabase
+        .from('reservations')
+        .select('payment_status');
 
       let upcomingQuery = supabase
         .from('reservations')
@@ -65,27 +73,35 @@ export const useOperationalData = (
 
       // Apply property filter if exists
       if (propertyFilter && propertyFilter.length > 0) {
-        reservationsQuery = reservationsQuery.in('property_id', propertyFilter);
+        reservationsPeriodQuery = reservationsPeriodQuery.in('property_id', propertyFilter);
+        reservationsAllQuery = reservationsAllQuery.in('property_id', propertyFilter);
         upcomingQuery = upcomingQuery.in('property_id', propertyFilter);
       }
 
-      const [reservationsRes, upcomingRes] = await Promise.all([
-        reservationsQuery,
+      const [reservationsPeriodRes, reservationsAllRes, upcomingRes] = await Promise.all([
+        reservationsPeriodQuery,
+        reservationsAllQuery,
         upcomingQuery
       ]);
 
-      if (reservationsRes.error) throw reservationsRes.error;
+      if (reservationsPeriodRes.error) throw reservationsPeriodRes.error;
+      if (reservationsAllRes.error) throw reservationsAllRes.error;
       if (upcomingRes.error) throw upcomingRes.error;
 
-      const reservations = reservationsRes.data || [];
+      const reservationsPeriod = reservationsPeriodRes.data || [];
+      const reservationsAll = reservationsAllRes.data || [];
       const upcoming = upcomingRes.data || [];
 
-      // Calculate payment status counts
-      const paidCount = reservations.filter(r => r.payment_status === 'Pago').length;
-      const pendingCount = reservations.length - paidCount;
+      // Calculate payment status counts for period (for cashflow)
+      const paidCount = reservationsPeriod.filter(r => r.payment_status === 'Pago').length;
+      const pendingCount = reservationsPeriod.length - paidCount;
 
-      // Calculate cashflow by platform and payment status
-      const cashflow = reservations.reduce((acc, res) => {
+      // Calculate total payment status counts (for overall status)
+      const totalPaidCount = reservationsAll.filter(r => r.payment_status === 'Pago').length;
+      const totalPendingCount = reservationsAll.length - totalPaidCount;
+
+      // Calculate cashflow by platform and payment status (period only)
+      const cashflow = reservationsPeriod.reduce((acc, res) => {
         const platform = res.platform?.toLowerCase().includes('airbnb') ? 'airbnb' : 'booking';
         const netRevenue = res.net_revenue || 0;
         
@@ -114,6 +130,8 @@ export const useOperationalData = (
       setData({
         paidCount,
         pendingCount,
+        totalPaidCount,
+        totalPendingCount,
         cashflow,
         upcomingReservations
       });

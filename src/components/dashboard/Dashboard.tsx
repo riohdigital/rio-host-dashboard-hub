@@ -22,6 +22,7 @@ import MonthlyRevenueKPI from './MonthlyRevenueKPI';
 import PropertyMultiSelect from './PropertyMultiSelect';
 import AnnualGrowthChart from './AnnualGrowthChart';
 import PaymentStatusCard from './PaymentStatusCard';
+import PaymentSummaryCard from './PaymentSummaryCard';
 import CashflowCard from './CashflowCard';
 import UpcomingReservations from './RecentReservations';
 
@@ -195,7 +196,11 @@ const Dashboard = () => {
           <div className="border-t pt-8 space-y-6">
             <h2 className="text-2xl font-bold text-gray-700">Visão Operacional</h2>
             
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+              <PaymentSummaryCard
+                totalPaidCount={operationalData.data.totalPaidCount}
+                totalPendingCount={operationalData.data.totalPendingCount}
+              />
               <PaymentStatusCard
                 paidCount={operationalData.data.paidCount}
                 pendingCount={operationalData.data.pendingCount}
