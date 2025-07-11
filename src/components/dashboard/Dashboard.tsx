@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
@@ -8,355 +8,165 @@ import MonthlyRevenueKPI from './MonthlyRevenueKPI';
 import PropertyMultiSelect from './PropertyMultiSelect';
 import RecentReservations from './RecentReservations';
 import AnnualGrowthChart from './AnnualGrowthChart';
-import { TrendingDown, Calendar } from 'lucide-react';
+import { TrendingDown, Calendar, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Property } from '@/types/property';
 
 const Dashboard = () => {
   const [selectedProperties, setSelectedProperties] = useState<string[]>(['todas']);
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth().toString());
-  const [selectedPeriod, setSelectedPeriod] = useState('12'); // Período padrão de 3 meses
+  const [selectedPeriod, setSelectedPeriod] = useState('12');
   const [properties, setProperties] = useState<Property[]>([]);
   const [propertySelectOpen, setPropertySelectOpen] = useState(false);
   const [dashboardData, setDashboardData] = useState({
     totalRevenue: 0,
     totalExpenses: 0,
-    totalCommission: 0,
     netProfit: 0,
     occupancyRate: 0,
-    monthlyRevenue: [],
-    dailyRevenue: [],
     expensesByCategory: [],
-    monthlyGrowth: [],
-    recentReservations: [],
-    reservations: []
+    reservationsForPeriod: []
   });
-  const [annualGrowthData, setAnnualGrowthData] = useState({
+  const [annualGrowthData, setAnnualGrowthData] = useState<{ monthlyData: any[], yearlyData: any[] }>({
     monthlyData: [],
     yearlyData: []
   });
+  const [recentReservationsData, setRecentReservationsData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchProperties();
-  }, []);
-
-  useEffect(() => {
-    fetchDashboardData();
-  }, [selectedProperties, selectedMonth, selectedPeriod]);
-
-  useEffect(() => {
-    fetchAnnualGrowthData();
-  }, [selectedProperties]);
-
-  const fetchProperties = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('properties')
-        .select('*')
-        .order('name');
-
-      if (error) throw error;
-      setProperties(data || []);
-    } catch (error) {
-      console.error('Erro ao buscar propriedades:', error);
-    }
-  };
-
-  const fetchAnnualGrowthData = async () => {
-    try {
-      const currentYear = new Date().getFullYear();
-      const previousYear = currentYear - 1;
-
-      // Construir condições de filtro de propriedades
-      const propertyFilter = selectedProperties.includes('todas') && selectedProperties.length === 1 
-        ? null 
-        : selectedProperties.filter(id => id !== 'todas');
-
-      // Buscar receitas do ano atual (janeiro a dezembro)
-      let currentYearQuery = supabase
-        .from('reservations')
-        .select('total_revenue, check_in_date')
-        .gte('check_in_date', `${currentYear}-01-01`)
-        .lte('check_in_date', `${currentYear}-12-31`);
-
-      if (propertyFilter && propertyFilter.length > 0) {
-        currentYearQuery = currentYearQuery.in('property_id', propertyFilter);
-      }
-
-      const { data: currentYearReservations, error: currentYearError } = await currentYearQuery;
-      if (currentYearError) throw currentYearError;
-
-      // Buscar receitas do ano anterior (janeiro a dezembro)
-      let previousYearQuery = supabase
-        .from('reservations')
-        .select('total_revenue, check_in_date')
-        .gte('check_in_date', `${previousYear}-01-01`)
-        .lte('check_in_date', `${previousYear}-12-31`);
-
-      if (propertyFilter && propertyFilter.length > 0) {
-        previousYearQuery = previousYearQuery.in('property_id', propertyFilter);
-      }
-
-      const { data: previousYearReservations, error: previousYearError } = await previousYearQuery;
-      if (previousYearError) throw previousYearError;
-
-      // Calcular crescimento mensal para todos os meses do ano
-      const monthlyGrowth = calculateAnnualGrowth(currentYearReservations || [], previousYearReservations || [], currentYear, previousYear);
-
-      // Calcular dados anuais
-      const currentYearTotal = (currentYearReservations || []).reduce((sum, r) => sum + (r.total_revenue || 0), 0);
-      const previousYearTotal = (previousYearReservations || []).reduce((sum, r) => sum + (r.total_revenue || 0), 0);
-
-      const yearlyData = [
-        { year: previousYear.toString(), revenue: previousYearTotal, growth: 0 },
-        { year: currentYear.toString(), revenue: currentYearTotal, growth: previousYearTotal > 0 ? ((currentYearTotal - previousYearTotal) / previousYearTotal) * 100 : 0 }
-      ];
-
-      setAnnualGrowthData({
-        monthlyData: monthlyGrowth,
-        yearlyData
-      });
-    } catch (error) {
-      console.error('Erro ao buscar dados de crescimento anual:', error);
-    }
-  };
-
   const calculateAnnualGrowth = (currentReservations: any[], previousReservations: any[], currentYear: number, previousYear: number) => {
-    const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 
-                       'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
     const data = [];
-
     for (let month = 0; month < 12; month++) {
       const currentMonthKey = `${currentYear}-${(month + 1).toString().padStart(2, '0')}`;
       const previousMonthKey = `${previousYear}-${(month + 1).toString().padStart(2, '0')}`;
-
-      const currentRevenue = currentReservations
-        .filter(r => r.check_in_date.startsWith(currentMonthKey))
-        .reduce((sum, r) => sum + (r.total_revenue || 0), 0);
-
-      const previousRevenue = previousReservations
-        .filter(r => r.check_in_date.startsWith(previousMonthKey))
-        .reduce((sum, r) => sum + (r.total_revenue || 0), 0);
-
-      const growth = previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : 0;
-
-      data.push({
-        month: monthNames[month],
-        current: currentRevenue,
-        previous: previousRevenue,
-        growth: growth
-      });
+      const currentRevenue = currentReservations.filter(r => r.check_in_date.startsWith(currentMonthKey)).reduce((sum, r) => sum + (r.total_revenue || 0), 0);
+      const previousRevenue = previousReservations.filter(r => r.check_in_date.startsWith(previousMonthKey)).reduce((sum, r) => sum + (r.total_revenue || 0), 0);
+      data.push({ month: monthNames[month], current: currentRevenue, previous: previousRevenue });
     }
-
     return data;
   };
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     setLoading(true);
     try {
       const now = new Date();
-      const monthsBack = parseInt(selectedPeriod);
+      const currentYear = now.getFullYear();
+      const previousYear = currentYear - 1;
+      const monthsBack = parseInt(selectedPeriod, 10);
       const startDate = new Date(now.getFullYear(), now.getMonth() - monthsBack + 1, 1);
+      const startDateString = startDate.toISOString().split('T')[0];
 
-      // Construir condições de filtro de propriedades
-      const propertyFilter = selectedProperties.includes('todas') && selectedProperties.length === 1 
-        ? null 
-        : selectedProperties.filter(id => id !== 'todas');
+      const propertyFilter = selectedProperties.includes('todas') ? null : selectedProperties.filter(id => id !== 'todas');
 
-      // Buscar receitas
-      let revenueQuery = supabase
-        .from('reservations')
-        .select('id, total_revenue, net_revenue, commission_amount, check_in_date, check_out_date, property_id, guest_name, reservation_status, properties(name, nickname)')
-        .gte('check_in_date', startDate.toISOString().split('T')[0]);
+      // Buscas paralelas para otimização
+      const [
+        { data: propertiesData, error: propertiesError },
+        { data: reservationsData, error: reservationsError },
+        { data: expensesData, error: expensesError },
+        { data: currentYearReservations, error: currentYearError },
+        { data: previousYearReservations, error: previousYearError }
+      ] = await Promise.all([
+        supabase.from('properties').select('*').order('name'),
+        supabase.from('reservations').select('*, properties(name, nickname)').gte('check_in_date', startDateString).or(propertyFilter ? `property_id.in.(${propertyFilter.join(',')})` : ''),
+        supabase.from('expenses').select('*').gte('expense_date', startDateString).or(propertyFilter ? `property_id.in.(${propertyFilter.join(',')})` : ''),
+        supabase.from('reservations').select('total_revenue, check_in_date').gte('check_in_date', `${currentYear}-01-01`).lte('check_in_date', `${currentYear}-12-31`).or(propertyFilter ? `property_id.in.(${propertyFilter.join(',')})` : ''),
+        supabase.from('reservations').select('total_revenue, check_in_date').gte('check_in_date', `${previousYear}-01-01`).lte('check_in_date', `${previousYear}-12-31`).or(propertyFilter ? `property_id.in.(${propertyFilter.join(',')})` : '')
+      ]);
 
-      if (propertyFilter && propertyFilter.length > 0) {
-        revenueQuery = revenueQuery.in('property_id', propertyFilter);
-      }
+      if (propertiesError) throw propertiesError;
+      if (reservationsError) throw reservationsError;
+      if (expensesError) throw expensesError;
+      if (currentYearError) throw currentYearError;
+      if (previousYearError) throw previousYearError;
 
-      const { data: reservations, error: revenueError } = await revenueQuery;
-      if (revenueError) throw revenueError;
+      // Atualiza estado das propriedades
+      setProperties(propertiesData || []);
 
-      // Buscar receitas do período anterior para crescimento
-      const lastPeriodStart = new Date(now.getFullYear(), now.getMonth() - (monthsBack * 2) + 1, 1);
-      const lastPeriodEnd = new Date(now.getFullYear(), now.getMonth() - monthsBack, 0);
+      // Cálculos dos KPIs
+      const totalRevenue = (reservationsData || []).reduce((sum, r) => sum + (r.total_revenue || 0), 0);
+      const totalExpenses = (expensesData || []).reduce((sum, e) => sum + (e.amount || 0), 0);
+      const netProfit = (reservationsData || []).reduce((sum, r) => sum + (r.net_revenue || 0), 0) - totalExpenses;
 
-      let lastPeriodQuery = supabase
-        .from('reservations')
-        .select('total_revenue, check_in_date')
-        .gte('check_in_date', lastPeriodStart.toISOString().split('T')[0])
-        .lte('check_in_date', lastPeriodEnd.toISOString().split('T')[0]);
+      // Lógica de Taxa de Ocupação
+      const totalDaysInPeriod = monthsBack * 30; // Simplificação
+      const totalBookedDays = (reservationsData || []).reduce((sum, r) => {
+          const checkIn = new Date(r.check_in_date);
+          const checkOut = new Date(r.check_out_date);
+          return sum + Math.ceil(Math.abs(checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
+      }, 0);
+      const occupancyRate = propertiesData && propertiesData.length > 0 ? (totalBookedDays / (totalDaysInPeriod * propertiesData.length)) * 100 : 0;
 
-      if (propertyFilter && propertyFilter.length > 0) {
-        lastPeriodQuery = lastPeriodQuery.in('property_id', propertyFilter);
-      }
+      // Processamento para o gráfico de despesas
+      const expensesByCategory = (expensesData || []).reduce((acc: {[key: string]: number}, expense) => {
+        const category = expense.category || 'Outros';
+        acc[category] = (acc[category] || 0) + expense.amount;
+        return acc;
+      }, {});
 
-      const { data: lastPeriodReservations, error: lastPeriodError } = await lastPeriodQuery;
-      if (lastPeriodError) throw lastPeriodError;
+      // Processamento para o gráfico de crescimento anual
+      const monthlyGrowthData = calculateAnnualGrowth(currentYearReservations || [], previousYearReservations || [], currentYear, previousYear);
+      const currentYearTotal = (currentYearReservations || []).reduce((sum, r) => sum + (r.total_revenue || 0), 0);
+      const previousYearTotal = (previousYearReservations || []).reduce((sum, r) => sum + (r.total_revenue || 0), 0);
+      const yearlyData = [
+        { year: previousYear.toString(), revenue: previousYearTotal },
+        { year: currentYear.toString(), revenue: currentYearTotal }
+      ];
 
-      // Buscar despesas
-      let expenseQuery = supabase
-        .from('expenses')
-        .select('amount, expense_date, category, property_id')
-        .gte('expense_date', startDate.toISOString().split('T')[0]);
+      setAnnualGrowthData({ monthlyData: monthlyGrowthData, yearlyData });
 
-      if (propertyFilter && propertyFilter.length > 0) {
-        expenseQuery = expenseQuery.in('property_id', propertyFilter);
-      }
-
-      const { data: expenses, error: expenseError } = await expenseQuery;
-      if (expenseError) throw expenseError;
-
-      // Calcular KPIs
-      const totalRevenue = (reservations || []).reduce((sum, r) => sum + (r.total_revenue || 0), 0);
-      const totalCommission = (reservations || []).reduce((sum, r) => sum + (r.commission_amount || 0), 0);
-      const totalExpenses = (expenses || []).reduce((sum, e) => sum + (e.amount || 0), 0);
-      const netProfit = totalRevenue - totalExpenses - totalCommission;
-
-      // Calcular receita diária para o mês selecionado
-      const dailyData = calculateDailyRevenue(reservations || [], parseInt(selectedMonth));
-
-      // Calcular receita mensal para o período selecionado
-      const monthlyData = calculateMonthlyRevenue(reservations || [], monthsBack);
-
-      // Calcular despesas por categoria
-      const expensesByCategory = calculateExpensesByCategory(expenses || []);
-
-      // Preparar reservas recentes
-      const recentReservations = (reservations || [])
+      // Preparar dados para o widget de reservas recentes
+      const recentReservations = (reservationsData || [])
         .sort((a, b) => new Date(b.check_in_date).getTime() - new Date(a.check_in_date).getTime())
         .slice(0, 8)
         .map(r => ({
-          id: r.id || '',
-          guest_name: r.guest_name || '',
-          property_name: r.properties?.nickname || r.properties?.name || 'Propriedade não informada',
-          check_in_date: r.check_in_date,
-          check_out_date: r.check_out_date || '',
-          total_revenue: r.total_revenue || 0,
-          reservation_status: r.reservation_status || 'Confirmada'
+            id: r.id || '',
+            guest_name: r.guest_name || 'N/A',
+            property_name: r.properties?.nickname || r.properties?.name || 'N/A',
+            check_in_date: r.check_in_date,
+            check_out_date: r.check_out_date || '',
+            total_revenue: r.total_revenue || 0,
+            reservation_status: r.reservation_status || 'Confirmada'
         }));
+      setRecentReservationsData(recentReservations);
 
-      // Taxa de ocupação simplificada
-      const occupancyRate = Math.min(((reservations || []).length / (monthsBack * 4)) * 10, 100);
-
+      // Atualiza o estado principal do dashboard
       setDashboardData({
         totalRevenue,
         totalExpenses,
-        totalCommission,
         netProfit,
-        occupancyRate,
-        monthlyRevenue: monthlyData,
-        dailyRevenue: dailyData,
-        expensesByCategory,
-        monthlyGrowth: [],
-        recentReservations,
-        reservations: reservations || []
+        occupancyRate: Math.min(100, occupancyRate),
+        expensesByCategory: Object.entries(expensesByCategory).map(([name, value]) => ({ name, value })),
+        reservationsForPeriod: reservationsData || [],
       });
-    } catch (error) {
+
+    } catch (error: any) {
       console.error('Erro ao buscar dados do dashboard:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedPeriod, selectedProperties]);
 
-  const calculateMonthlyRevenue = (reservations: any[], months: number) => {
-    const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 
-                       'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-    const now = new Date();
-    const data = [];
-
-    for (let i = months - 1; i >= 0; i--) {
-      const month = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const monthKey = `${month.getFullYear()}-${(month.getMonth() + 1).toString().padStart(2, '0')}`;
-      
-      const monthRevenue = reservations
-        .filter(r => r.check_in_date.startsWith(monthKey))
-        .reduce((sum, r) => sum + (r.total_revenue || 0), 0);
-
-      data.push({
-        month: monthNames[month.getMonth()],
-        receita: monthRevenue
-      });
-    }
-
-    return data;
-  };
-
-  const calculateDailyRevenue = (reservations: any[], monthIndex: number) => {
-    const currentYear = new Date().getFullYear();
-    const daysInMonth = new Date(currentYear, monthIndex + 1, 0).getDate();
-    const data = [];
-
-    for (let day = 1; day <= daysInMonth; day++) {
-      const dateKey = `${currentYear}-${(monthIndex + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-      
-      const dayRevenue = reservations
-        .filter(r => r.check_in_date === dateKey)
-        .reduce((sum, r) => sum + (r.total_revenue || 0), 0);
-
-      data.push({
-        month: `${day}`,
-        receita: dayRevenue
-      });
-    }
-
-    return data;
-  };
-
-  const calculateExpensesByCategory = (expenses: any[]) => {
-    const categoryData: { [key: string]: number } = {};
-    
-    expenses.forEach(e => {
-      const category = e.category || 'Outros';
-      categoryData[category] = (categoryData[category] || 0) + (e.amount || 0);
-    });
-
-    return Object.entries(categoryData).map(([name, value]) => ({
-      name,
-      value
-    }));
-  };
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
   const COLORS = ['#6A6DDF', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
-  const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
-                     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-  const monthNamesShort = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 
-                           'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
   const periodOptions = [
-    { value: '1', label: '1 mês' },
-    { value: '3', label: '3 meses' },
-    { value: '6', label: '6 meses' },
-    { value: '12', label: '12 meses' }
+    { value: '1', label: 'Último mês' },
+    { value: '3', label: 'Últimos 3 meses' },
+    { value: '6', label: 'Últimos 6 meses' },
+    { value: '12', label: 'Últimos 12 meses' }
   ];
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className="text-gradient-primary text-lg">Carregando dashboard...</div>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-8">
-      {/* Cabeçalho */}
+    <div className="space-y-8 p-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gradient-primary">Dashboard Analítico</h1>
         <div className="flex gap-4">
           <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-            <SelectTrigger className="w-32">
-              <SelectValue placeholder="Período" />
-            </SelectTrigger>
-            <SelectContent>
-              {periodOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
+            <SelectTrigger className="w-40"><SelectValue placeholder="Período" /></SelectTrigger>
+            <SelectContent>{periodOptions.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
           </Select>
-          
           <PropertyMultiSelect
             properties={properties}
             selectedProperties={selectedProperties}
@@ -367,114 +177,44 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <MonthlyRevenueKPI 
-          totalRevenue={dashboardData.totalRevenue} 
-          selectedPeriod={`${selectedPeriod} ${selectedPeriod === '1' ? 'mês' : 'meses'}`}
-        />
-        
-        <KPICard
-          title="Despesas Totais"
-          value={`R$ ${dashboardData.totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-          isPositive={false}
-          icon={<TrendingDown className="h-4 w-4" />}
-        />
-        
-        <NetProfitKPI reservations={dashboardData.reservations} />
-        
-        <KPICard
-          title="Taxa de Ocupação"
-          value={`${dashboardData.occupancyRate.toFixed(1)}%`}
-          isPositive={true}
-          icon={<Calendar className="h-4 w-4" />}
-        />
-      </div>
+      {loading ? (
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <Loader2 className="h-8 w-8 text-primary animate-spin" />
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <MonthlyRevenueKPI totalRevenue={dashboardData.totalRevenue} selectedPeriod={periodOptions.find(o => o.value === selectedPeriod)?.label || ''} />
+            <KPICard title="Despesas Totais" value={`R$ ${dashboardData.totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} isPositive={false} icon={<TrendingDown className="h-4 w-4" />} />
+            <NetProfitKPI reservations={dashboardData.reservationsForPeriod} />
+            <KPICard title="Taxa de Ocupação" value={`${dashboardData.occupancyRate.toFixed(1)}%`} icon={<Calendar className="h-4 w-4" />} />
+          </div>
 
-      {/* Segunda linha: Gráfico de Receita por Mês e Últimas Reservas */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="bg-white">
-          <CardHeader>
-            <div className="flex justify-between items-center mb-4">
-              <CardTitle className="text-gradient-primary">Receita por Mês</CardTitle>
-              <div className="flex gap-2">
-                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                  <SelectTrigger className="w-40">
-                    <SelectValue placeholder="Selecione o mês" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {monthNames.map((month, index) => (
-                      <SelectItem key={index} value={index.toString()}>
-                        {month}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <AnnualGrowthChart monthlyData={annualGrowthData.monthlyData} yearlyData={annualGrowthData.yearlyData} loading={loading} />
             </div>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={dashboardData.dailyRevenue}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip formatter={(value) => [`R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Receita']} />
-                <Line 
-                  type="monotone" 
-                  dataKey="receita" 
-                  stroke="#6A6DDF" 
-                  strokeWidth={3}
-                  dot={{ fill: '#6A6DDF', strokeWidth: 2 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <RecentReservations
-          reservations={dashboardData.recentReservations}
-          loading={loading}
-        />
-      </div>
-
-      {/* Terceira linha: Gráfico de Crescimento Anual */}
-      <div className="w-full">
-        <AnnualGrowthChart
-          monthlyData={annualGrowthData.monthlyData}
-          yearlyData={annualGrowthData.yearlyData}
-          loading={loading}
-        />
-      </div>
-
-      {/* Despesas por Categoria */}
-      {dashboardData.expensesByCategory.length > 0 && (
-        <Card className="bg-white">
-          <CardHeader>
-            <CardTitle className="text-gradient-primary">Despesas por Categoria</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={dashboardData.expensesByCategory}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {dashboardData.expensesByCategory.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value) => [`R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Valor']} />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+            <div className="lg:col-span-1">
+              <RecentReservations reservations={recentReservationsData} loading={loading} />
+            </div>
+          </div>
+          
+          {dashboardData.expensesByCategory.length > 0 && (
+            <Card className="bg-white">
+              <CardHeader><CardTitle className="text-gradient-primary">Despesas por Categoria</CardTitle></CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie data={dashboardData.expensesByCategory} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} labelLine={false} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                      {dashboardData.expensesByCategory.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip formatter={(value) => `R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
+        </>
       )}
     </div>
   );
