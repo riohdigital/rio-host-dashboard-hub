@@ -28,16 +28,17 @@ interface InvestmentFormProps {
   properties: Property[];
   onSubmit: (data: InvestmentFormData) => Promise<void>;
   loading?: boolean;
+  defaultPropertyId?: string;
 }
 
-const InvestmentForm = ({ properties, onSubmit, loading }: InvestmentFormProps) => {
+const InvestmentForm = ({ properties, onSubmit, loading, defaultPropertyId }: InvestmentFormProps) => {
   const { categories } = useInvestmentCategories();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<InvestmentFormData>({
     resolver: zodResolver(investmentSchema),
     defaultValues: {
-      property_id: '',
+      property_id: defaultPropertyId || '',
       category_id: '',
       description: '',
       amount: 0,
@@ -76,7 +77,7 @@ const InvestmentForm = ({ properties, onSubmit, loading }: InvestmentFormProps) 
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Propriedade</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} defaultValue={defaultPropertyId || field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione uma propriedade" />

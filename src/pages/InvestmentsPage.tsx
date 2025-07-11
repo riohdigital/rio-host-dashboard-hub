@@ -4,11 +4,11 @@ import { TrendingUp, DollarSign, Plus, BarChart3 } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import InvestmentForm from '@/components/investments/InvestmentForm';
 import InvestmentsList from '@/components/investments/InvestmentsList';
-import ROICard from '@/components/investments/ROICard';
+import PropertyInvestmentSummaryTable from '@/components/investments/PropertyInvestmentSummaryTable';
+import PropertySelector from '@/components/investments/PropertySelector';
 import { usePropertyInvestments } from '@/hooks/investments/usePropertyInvestments';
 import { useROICalculations } from '@/hooks/investments/useROICalculations';
 import { supabase } from '@/integrations/supabase/client';
@@ -18,6 +18,7 @@ const InvestmentsPage = () => {
   const [properties, setProperties] = useState<Property[]>([]);
   const [propertiesLoading, setPropertiesLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
+  const [selectedPropertyId, setSelectedPropertyId] = useState<string | undefined>();
 
   const { investments, loading: investmentsLoading, createInvestment, deleteInvestment } = usePropertyInvestments();
   const { roiData, loading: roiLoading, refetch: refetchROI } = useROICalculations();
@@ -54,13 +55,22 @@ const InvestmentsPage = () => {
     await refetchROI();
   };
 
-  // Calcular estatísticas gerais
-  const totalInvestment = investments.reduce((sum, inv) => sum + Number(inv.amount), 0);
-  const totalROIValue = roiData.reduce((sum, roi) => sum + roi.net_revenue, 0);
-  const averageROI = roiData.length > 0 
-    ? roiData.reduce((sum, roi) => sum + roi.roi_percentage, 0) / roiData.length 
+  // Filtrar dados por propriedade selecionada
+  const filteredROIData = selectedPropertyId 
+    ? roiData.filter(roi => roi.property_id === selectedPropertyId)
+    : roiData;
+
+  const filteredInvestments = selectedPropertyId
+    ? investments.filter(inv => inv.property_id === selectedPropertyId)
+    : investments;
+
+  // Calcular estatísticas gerais (baseadas nos dados filtrados)
+  const totalInvestment = filteredInvestments.reduce((sum, inv) => sum + Number(inv.amount), 0);
+  const totalROIValue = filteredROIData.reduce((sum, roi) => sum + roi.net_revenue, 0);
+  const averageROI = filteredROIData.length > 0 
+    ? filteredROIData.reduce((sum, roi) => sum + roi.roi_percentage, 0) / filteredROIData.length 
     : 0;
-  const profitableProperties = roiData.filter(roi => roi.is_profitable).length;
+  const profitableProperties = filteredROIData.filter(roi => roi.is_profitable).length;
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -81,24 +91,33 @@ const InvestmentsPage = () => {
             </p>
           </div>
           
-          <Dialog open={formOpen} onOpenChange={setFormOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Investimento
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Adicionar Investimento</DialogTitle>
-              </DialogHeader>
-              <InvestmentForm
-                properties={properties}
-                onSubmit={handleCreateInvestment}
-                loading={propertiesLoading}
-              />
-            </DialogContent>
-          </Dialog>
+          <div className="flex gap-3 items-center">
+            <PropertySelector
+              properties={properties}
+              selectedPropertyId={selectedPropertyId}
+              onPropertyChange={setSelectedPropertyId}
+              loading={propertiesLoading}
+            />
+            
+            <Dialog open={formOpen} onOpenChange={setFormOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Novo Investimento
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Adicionar Investimento</DialogTitle>
+                </DialogHeader>
+                <InvestmentForm
+                  properties={properties}
+                  onSubmit={handleCreateInvestment}
+                  loading={propertiesLoading}
+                />
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         {/* KPIs Gerais */}
@@ -161,56 +180,37 @@ const InvestmentsPage = () => {
               <div className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-green-500" />
                 <span className="text-2xl font-bold">
-                  {profitableProperties}/{roiData.length}
+                  {profitableProperties}/{filteredROIData.length}
                 </span>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Tabs */}
-        <Tabs defaultValue="roi" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="roi">ROI por Propriedade</TabsTrigger>
-            <TabsTrigger value="investments">Histórico de Investimentos</TabsTrigger>
-          </TabsList>
+        {/* Resumo por Propriedade */}
+        <PropertyInvestmentSummaryTable
+          roiData={filteredROIData}
+          loading={roiLoading}
+        />
 
-          <TabsContent value="roi" className="space-y-6">
-            {roiLoading ? (
-              <div className="text-center py-8">
-                <div className="text-lg">Calculando ROI...</div>
-              </div>
-            ) : roiData.length === 0 ? (
-              <Card>
-                <CardContent className="p-8">
-                  <div className="text-center text-gray-500">
-                    <BarChart3 className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                    <h3 className="text-lg font-medium mb-2">Nenhum dado de ROI disponível</h3>
-                    <p className="mb-4">Adicione investimentos para começar a acompanhar o ROI.</p>
-                    <Button onClick={() => setFormOpen(true)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Adicionar Primeiro Investimento
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {roiData.map((roi) => (
-                  <ROICard key={roi.property_id} roi={roi} />
-                ))}
-              </div>
+        {/* Histórico de Investimentos */}
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold">
+            Histórico de Investimentos
+            {selectedPropertyId && (
+              <span className="text-base font-normal text-gray-600 ml-2">
+                - {properties.find(p => p.id === selectedPropertyId)?.name}
+              </span>
             )}
-          </TabsContent>
-
-          <TabsContent value="investments" className="space-y-6">
-            <InvestmentsList
-              investments={investments}
-              onDelete={handleDeleteInvestment}
-              loading={investmentsLoading}
-            />
-          </TabsContent>
-        </Tabs>
+          </h2>
+          
+          <InvestmentsList
+            investments={filteredInvestments}
+            onDelete={handleDeleteInvestment}
+            loading={investmentsLoading}
+            showPropertyColumn={!selectedPropertyId}
+          />
+        </div>
       </div>
     </MainLayout>
   );

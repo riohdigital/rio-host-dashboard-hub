@@ -11,6 +11,7 @@ import ReservasPage from "./pages/ReservasPage";
 import DespesasPage from "./pages/DespesasPage";
 import PropriedadesPage from "./pages/PropriedadesPage";
 import InvestmentsPage from "./pages/InvestmentsPage";
+import PropertyInvestmentDetailPage from "./pages/PropertyInvestmentDetailPage";
 import ConfiguracoesPage from "./pages/ConfiguracoesPage";
 import NotFound from "./pages/NotFound";
 
@@ -47,6 +48,7 @@ const App = () => {
                 <Route path="/despesas" element={<DespesasPage />} />
                 <Route path="/propriedades" element={<PropriedadesPage />} />
                 <Route path="/investimentos" element={<InvestmentsPage />} />
+                <Route path="/investimentos/:propertyId" element={<PropertyInvestmentDetailPage />} />
                 <Route path="/configuracoes" element={<ConfiguracoesPage />} />
                 <Route path="/auth" element={<Navigate to="/dashboard" replace />} />
                 <Route path="*" element={<NotFound />} />
