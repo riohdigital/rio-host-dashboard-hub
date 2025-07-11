@@ -10,27 +10,38 @@ interface NetProfitKPIProps {
 const NetProfitKPI = ({ reservations }: NetProfitKPIProps) => {
   const [viewType, setViewType] = useState<'net' | 'commission' | 'combined'>('net');
 
-  const totalNetRevenue = reservations.reduce((sum, r) => sum + (r.net_revenue || 0), 0);
-  const totalCommission = reservations.reduce((sum, r) => sum + (r.commission_amount || 0), 0);
-  
-  // Função que será ajustada
-  const getValue = () => {
-    // Opções de formatação para garantir duas casas decimais
-    const formatOptions = { 
-      minimumFractionDigits: 2, 
-      maximumFractionDigits: 2 
-    };
+  // CORREÇÃO: Validação dos campos de receita
+  const totalNetRevenue = reservations.reduce((sum, r) => {
+    return sum + (r.net_revenue || r.valor_proprietario || 0);
+  }, 0);
 
+  const totalCommission = reservations.reduce((sum, r) => {
+    // Calcular comissão como diferença entre total e líquido
+    const total = r.total_revenue || r.valor_total || 0;
+    const net = r.net_revenue || r.valor_proprietario || 0;
+    return sum + (total - net);
+  }, 0);
+
+  // CORREÇÃO: Função para formatação consistente
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(value);
+  };
+
+  const getValue = () => {
     switch (viewType) {
       case 'net':
-        return `R$ ${totalNetRevenue.toLocaleString('pt-BR', formatOptions)}`;
+        return formatCurrency(totalNetRevenue);
       case 'commission':
-        return `R$ ${totalCommission.toLocaleString('pt-BR', formatOptions)}`;
+        return formatCurrency(totalCommission);
       case 'combined':
-        // A receita total já deve estar formatada corretamente, mas podemos garantir
-        return `R$ ${(totalNetRevenue + totalCommission).toLocaleString('pt-BR', formatOptions)}`;
+        return formatCurrency(totalNetRevenue + totalCommission);
       default:
-        return `R$ ${totalNetRevenue.toLocaleString('pt-BR', formatOptions)}`;
+        return formatCurrency(totalNetRevenue);
     }
   };
 
