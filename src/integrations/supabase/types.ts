@@ -73,6 +73,27 @@ export type Database = {
           },
         ]
       }
+      investment_categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       properties: {
         Row: {
           address: string | null
@@ -123,6 +144,60 @@ export type Database = {
           status?: string
         }
         Relationships: []
+      }
+      property_investments: {
+        Row: {
+          amount: number
+          category_id: string
+          created_at: string
+          description: string
+          id: string
+          investment_date: string
+          notes: string | null
+          property_id: string
+          receipt_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          category_id: string
+          created_at?: string
+          description: string
+          id?: string
+          investment_date: string
+          notes?: string | null
+          property_id: string
+          receipt_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category_id?: string
+          created_at?: string
+          description?: string
+          id?: string
+          investment_date?: string
+          notes?: string | null
+          property_id?: string
+          receipt_url?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_investments_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "investment_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_investments_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reservations: {
         Row: {

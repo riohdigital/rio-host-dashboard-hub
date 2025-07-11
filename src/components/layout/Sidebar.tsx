@@ -7,7 +7,8 @@ import {
   Tag, 
   Home, 
   Settings, 
-  LogOut 
+  LogOut,
+  TrendingUp
 } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -31,6 +32,7 @@ const Sidebar = () => {
     { name: 'Reservas', icon: Calendar, path: '/reservas' },
     { name: 'Despesas', icon: Tag, path: '/despesas' },
     { name: 'Propriedades', icon: Home, path: '/propriedades' },
+    { name: 'Investimentos & ROI', icon: TrendingUp, path: '/investimentos' },
     { name: 'Configurações', icon: Settings, path: '/configuracoes' },
   ];
 
