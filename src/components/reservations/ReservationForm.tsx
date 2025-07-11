@@ -564,7 +564,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                 <span className="mx-2">•</span>
                 <span className="font-medium">Taxa Limpeza:</span>
                 <span className="font-semibold text-slate-800">
-                  R$ {(selectedProperty.cleaningFee || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  R$ {(selectedProperty.cleaning_fee || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </span>
               </div>
             </div>
