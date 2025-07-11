@@ -15,7 +15,7 @@ import { Property } from '@/types/property';
 const Dashboard = () => {
   const [selectedProperties, setSelectedProperties] = useState<string[]>(['todas']);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth().toString());
-  const [selectedPeriod, setSelectedPeriod] = useState('3'); // Período padrão de 3 meses
+  const [selectedPeriod, setSelectedPeriod] = useState('12'); // Período padrão de 3 meses
   const [properties, setProperties] = useState<Property[]>([]);
   const [propertySelectOpen, setPropertySelectOpen] = useState(false);
   const [dashboardData, setDashboardData] = useState({
