@@ -1,7 +1,7 @@
-
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button"; // Importe o componente de Botão
 import { Property } from '@/types/property';
 
 interface PropertyMultiSelectProps {
@@ -19,35 +19,61 @@ const PropertyMultiSelect = ({
   isOpen, 
   onToggle 
 }: PropertyMultiSelectProps) => {
+  // Estado local para guardar as seleções antes de "Aplicar"
+  const [localSelection, setLocalSelection] = useState(selectedProperties);
+  const wrapperRef = useRef<HTMLDivElement>(null); // Ref para detectar cliques fora
+
+  // Sincroniza o estado local se o estado global mudar por outro motivo
+  useEffect(() => {
+    setLocalSelection(selectedProperties);
+  }, [selectedProperties]);
+
+  // Efeito para detectar cliques fora do componente e fechar o menu
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+        if (isOpen) {
+          // Ao fechar, aplica as seleções que estavam pendentes
+          onSelectionChange(localSelection);
+          onToggle();
+        }
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen, localSelection, onToggle, onSelectionChange]);
+
   const handleSelectAll = () => {
-    if (selectedProperties.length === properties.length + 1) {
-      onSelectionChange([]);
+    if (localSelection.includes('todas')) {
+      setLocalSelection([]);
     } else {
-      onSelectionChange(['todas', ...properties.map(p => p.id)]);
+      setLocalSelection(['todas', ...properties.map(p => p.id)]);
     }
   };
 
   const handlePropertyToggle = (propertyId: string) => {
-    if (propertyId === 'todas') {
-      if (selectedProperties.includes('todas')) {
-        onSelectionChange(selectedProperties.filter(id => id !== 'todas'));
-      } else {
-        onSelectionChange([...selectedProperties, 'todas']);
-      }
+    const newSelection = localSelection.includes(propertyId)
+      ? localSelection.filter(id => id !== propertyId)
+      : [...localSelection, propertyId];
+
+    // Se "todas" for desmarcado, remove-a da seleção
+    if (propertyId !== 'todas' && newSelection.includes('todas')) {
+      setLocalSelection(newSelection.filter(id => id !== 'todas'));
     } else {
-      if (selectedProperties.includes(propertyId)) {
-        onSelectionChange(selectedProperties.filter(id => id !== propertyId));
-      } else {
-        onSelectionChange([...selectedProperties, propertyId]);
-      }
+      setLocalSelection(newSelection);
     }
+  };
+  
+  const handleApply = () => {
+    onSelectionChange(localSelection); // Envia o estado local para o componente pai
+    onToggle(); // Fecha o menu
   };
 
   const getSelectedText = () => {
+    // A lógica para exibir o texto permanece a mesma
     if (selectedProperties.length === 0) return "Selecionar Propriedades";
-    if (selectedProperties.includes('todas') && selectedProperties.length > 1) {
-      return "Todas + outras selecionadas";
-    }
     if (selectedProperties.includes('todas')) return "Todas as Propriedades";
     if (selectedProperties.length === 1) {
       const property = properties.find(p => p.id === selectedProperties[0]);
@@ -57,66 +83,33 @@ const PropertyMultiSelect = ({
   };
 
   return (
-    <div className="relative">
+    <div className="relative" ref={wrapperRef}>
       <button
         onClick={onToggle}
         className="w-48 px-4 py-2 text-left bg-white border border-gray-300 rounded-md hover:bg-gray-50 flex items-center justify-between transition-all duration-200 hover:border-primary/50"
       >
         <span className="text-gradient-primary font-medium">{getSelectedText()}</span>
-        <svg
-          className={`w-4 h-4 transition-transform text-gradient-primary ${isOpen ? 'rotate-180' : ''}`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
+        <svg className={`w-4 h-4 transition-transform text-gradient-primary ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
       </button>
 
       {isOpen && (
         <Card className="absolute top-full left-0 w-64 mt-1 z-50 shadow-lg bg-white">
-          <CardContent className="p-4">
+          <CardContent className="p-4 space-y-4">
             <div className="space-y-3">
               <div className="flex items-center space-x-2 pb-2 border-b">
-                <Checkbox
-                  id="select-all"
-                  checked={selectedProperties.length === properties.length + 1}
-                  onCheckedChange={handleSelectAll}
-                />
-                <label htmlFor="select-all" className="text-sm font-medium text-gradient-primary cursor-pointer">
-                  Selecionar Todas
-                </label>
+                <Checkbox id="select-all" checked={localSelection.includes('todas')} onCheckedChange={handleSelectAll} />
+                <label htmlFor="select-all" className="text-sm font-medium text-gradient-primary cursor-pointer">Selecionar Todas</label>
               </div>
-
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="todas"
-                  checked={selectedProperties.includes('todas')}
-                  onCheckedChange={() => handlePropertyToggle('todas')}
-                />
-                <label htmlFor="todas" className="text-sm text-gradient-accent cursor-pointer">
-                  Todas as Propriedades
-                </label>
-              </div>
-
-              <div className="space-y-2 max-h-48 overflow-y-auto">
+              <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-2">
                 {properties.map((property) => (
                   <div key={property.id} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={property.id}
-                      checked={selectedProperties.includes(property.id)}
-                      onCheckedChange={() => handlePropertyToggle(property.id)}
-                    />
-                    <label 
-                      htmlFor={property.id} 
-                      className="text-sm cursor-pointer hover:text-gradient-primary transition-colors text-gray-700"
-                    >
-                      {property.nickname || property.name}
-                    </label>
+                    <Checkbox id={property.id} checked={localSelection.includes(property.id)} onCheckedChange={() => handlePropertyToggle(property.id)} />
+                    <label htmlFor={property.id} className="text-sm cursor-pointer hover:text-gradient-primary transition-colors text-gray-700">{property.nickname || property.name}</label>
                   </div>
                 ))}
               </div>
             </div>
+            <Button onClick={handleApply} className="w-full bg-primary hover:bg-primary/90">Aplicar</Button>
           </CardContent>
         </Card>
       )}
