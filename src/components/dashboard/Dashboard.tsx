@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -21,6 +23,7 @@ const Dashboard = () => {
   const [propertySelectOpen, setPropertySelectOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // Estados para os dados, bem segmentados
   const [financialData, setFinancialData] = useState({
     totalRevenue: 0,
     totalExpenses: 0,
@@ -62,30 +65,28 @@ const Dashboard = () => {
       const monthsBack = parseInt(selectedPeriod, 10);
       const startDate = new Date(now.getFullYear(), now.getMonth() - monthsBack + 1, 1);
       const startDateString = startDate.toISOString().split('T')[0];
+      const todayString = now.toISOString().split('T')[0];
 
       const propertyFilter = selectedProperties.includes('todas') ? null : selectedProperties.filter(id => id !== 'todas');
 
       // --- CORREÇÃO DA LÓGICA DE CONSULTA ---
-      const propertiesQuery = supabase.from('properties').select('*').order('name');
+      let propertiesQuery = supabase.from('properties').select('*').order('name');
       let reservationsQuery = supabase.from('reservations').select('*, properties(name, nickname)').gte('check_in_date', startDateString);
       let expensesQuery = supabase.from('expenses').select('*').gte('expense_date', startDateString);
       let currentYearQuery = supabase.from('reservations').select('total_revenue, check_in_date').gte('check_in_date', `${currentYear}-01-01`).lte('check_in_date', `${currentYear}-12-31`);
       let previousYearQuery = supabase.from('reservations').select('total_revenue, check_in_date').gte('check_in_date', `${previousYear}-01-01`).lte('check_in_date', `${previousYear}-12-31`);
-      
+      let upcomingQuery = supabase.from('reservations').select('*, properties(nickname, name)').gte('check_in_date', todayString).order('check_in_date', { ascending: true }).limit(3);
+
       if (propertyFilter && propertyFilter.length > 0) {
         reservationsQuery = reservationsQuery.in('property_id', propertyFilter);
         expensesQuery = expensesQuery.in('property_id', propertyFilter);
         currentYearQuery = currentYearQuery.in('property_id', propertyFilter);
         previousYearQuery = previousYearQuery.in('property_id', propertyFilter);
+        upcomingQuery = upcomingQuery.in('property_id', propertyFilter);
       }
-      
+
       const [ propertiesRes, reservationsRes, expensesRes, currentYearRes, previousYearRes, upcomingRes ] = await Promise.all([
-        propertiesQuery,
-        reservationsQuery,
-        expensesQuery,
-        currentYearQuery,
-        previousYearQuery,
-        supabase.from('reservations').select('*, properties(nickname, name)').gte('check_in_date', new Date().toISOString().split('T')[0]).order('check_in_date', { ascending: true }).limit(3)
+        propertiesQuery, reservationsQuery, expensesQuery, currentYearQuery, previousYearQuery, upcomingQuery
       ]);
 
       if (propertiesRes.error) throw propertiesRes.error;
@@ -94,40 +95,34 @@ const Dashboard = () => {
       if (currentYearRes.error) throw currentYearRes.error;
       if (previousYearRes.error) throw previousYearRes.error;
       if (upcomingRes.error) throw upcomingRes.error;
-
-      // --- PROCESSAMENTO DE DADOS COM VALORES ATUALIZADOS ---
+      
       const properties = propertiesRes.data || [];
       const reservations = reservationsRes.data || [];
       const expenses = expensesRes.data || [];
-
+      
       setProperties(properties);
 
-      // Dados Financeiros
+      // --- CÁLCULOS FINANCEIROS CORRIGIDOS ---
       const totalRevenue = reservations.reduce((sum, r) => sum + (r.total_revenue || 0), 0);
       const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-      
-      // Taxa de Ocupação Corrigida
-      const totalDaysInPeriod = monthsBack * 30.44; // Média de dias no mês
+      const totalDaysInPeriod = Math.round((new Date().getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
       const totalBookedDays = reservations.reduce((sum, r) => {
         const checkIn = new Date(r.check_in_date + 'T00:00:00');
         const checkOut = new Date(r.check_out_date + 'T00:00:00');
-        const diffTime = Math.abs(checkOut.getTime() - checkIn.getTime());
-        return sum + Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return sum + Math.ceil(Math.abs(checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
       }, 0);
       
-      let occupancyRate = 0;
-      if (properties.length > 0 && totalDaysInPeriod > 0) {
-        occupancyRate = (totalBookedDays / (totalDaysInPeriod * properties.length)) * 100;
-      }
+      const filteredPropertiesCount = propertyFilter ? propertyFilter.length : properties.length;
+      const occupancyRate = (filteredPropertiesCount > 0 && totalDaysInPeriod > 0) ? (totalBookedDays / (totalDaysInPeriod * filteredPropertiesCount)) * 100 : 0;
       
       const expensesByCategory = Object.entries(expenses.reduce((acc, exp) => ({...acc, [exp.category || 'Outros']: (acc[exp.category || 'Outros'] || 0) + exp.amount}), {})).map(([name, value]) => ({name, value}));
       const revenueByPlatform = Object.entries(reservations.reduce((acc, res) => ({...acc, [res.platform || 'Outros']: (acc[res.platform || 'Outros'] || 0) + res.total_revenue}), {})).map(([name, value]) => ({name, value}));
 
       setFinancialData({ totalRevenue, totalExpenses, reservationsForPeriod: reservations, expensesByCategory, revenueByPlatform, occupancyRate: Math.min(100, occupancyRate) });
 
-      // Dados Operacionais
+      // --- CÁLCULOS OPERACIONAIS ---
       const paidCount = reservations.filter(r => r.payment_status === 'Pago').length;
-      const pendingCount = reservations.filter(r => r.payment_status !== 'Pago').length;
+      const pendingCount = reservations.length - paidCount;
       const cashflow = reservations.reduce((acc, res) => {
         const platform = res.platform?.toLowerCase().includes('airbnb') ? 'airbnb' : 'booking';
         const netRevenue = res.net_revenue || 0;
@@ -135,10 +130,10 @@ const Dashboard = () => {
         else acc[`${platform}Receivable`] += netRevenue;
         return acc;
       }, { airbnbReceived: 0, bookingReceived: 0, airbnbReceivable: 0, bookingReceivable: 0 });
-
+      
       setOperationalData({ paidCount, pendingCount, cashflow, upcomingReservations: upcomingRes.data || [] });
       
-      // Dados de Crescimento Anual
+      // --- DADOS PARA GRÁFICO DE CRESCIMENTO ---
       const monthlyGrowthData = calculateAnnualGrowth(currentYearRes.data || [], previousYearRes.data || [], currentYear, previousYear);
       const yearlyData = [
         { year: previousYear.toString(), revenue: (previousYearRes.data || []).reduce((s, r) => s + r.total_revenue, 0) },
@@ -174,6 +169,7 @@ const Dashboard = () => {
         <div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="h-8 w-8 text-primary animate-spin" /></div>
       ) : (
         <>
+          <h2 className="text-2xl font-bold text-gray-700 -mb-4">Visão Financeira</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <MonthlyRevenueKPI totalRevenue={financialData.totalRevenue} selectedPeriod={periodOptions.find(o => o.value === selectedPeriod)?.label || ''} />
             <KPICard title="Despesas Totais" value={`R$ ${financialData.totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} isPositive={false} icon={<TrendingDown className="h-4 w-4" />} />
@@ -187,7 +183,7 @@ const Dashboard = () => {
           </div>
 
           <div className="border-t pt-8">
-            <h2 className="text-2xl font-bold text-gradient-primary mb-4">Visão Operacional</h2>
+            <h2 className="text-2xl font-bold text-gray-700 mb-4">Visão Operacional</h2>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <PaymentStatusCard paidCount={operationalData.paidCount} pendingCount={operationalData.pendingCount} />
               <CashflowCard data={operationalData.cashflow} />
