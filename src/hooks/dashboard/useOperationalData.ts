@@ -60,16 +60,19 @@ export const useOperationalData = (
         .gte('check_in_date', startDateString)
         .lte('check_in_date', endDateString);
 
+      // Para status geral de pagamentos, também filtrar por período
       let reservationsAllQuery = supabase
         .from('reservations')
-        .select('payment_status');
+        .select('payment_status')
+        .gte('check_in_date', startDateString)
+        .lte('check_in_date', endDateString);
 
       let upcomingQuery = supabase
         .from('reservations')
         .select('guest_name, check_in_date, payment_status, properties(nickname, name)')
         .gte('check_in_date', todayString)
         .order('check_in_date', { ascending: true })
-        .limit(3);
+        .limit(4);
 
       // Apply property filter if exists
       if (propertyFilter && propertyFilter.length > 0) {
@@ -96,7 +99,7 @@ export const useOperationalData = (
       const paidCount = reservationsPeriod.filter(r => r.payment_status === 'Pago').length;
       const pendingCount = reservationsPeriod.length - paidCount;
 
-      // Calculate total payment status counts (for overall status)
+      // Calculate total payment status counts (agora também filtrado por período)
       const totalPaidCount = reservationsAll.filter(r => r.payment_status === 'Pago').length;
       const totalPendingCount = reservationsAll.length - totalPaidCount;
 

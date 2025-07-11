@@ -78,7 +78,7 @@ const Dashboard = () => {
     { value: '1', label: 'Último mês' },
     { value: '3', label: 'Últimos 3 meses' },
     { value: '6', label: 'Últimos 6 meses' },
-    { value: '12', label: 'Últimos 12 meses' }
+    { value: '12', label: 'Ano atual' }
   ];
 
   const isLoading = financialData.loading || operationalData.loading || annualGrowthData.loading || propertiesLoading;

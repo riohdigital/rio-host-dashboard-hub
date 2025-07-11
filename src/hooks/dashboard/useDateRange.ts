@@ -4,13 +4,20 @@ import { useMemo } from 'react';
 export const useDateRange = (selectedPeriod: string) => {
   return useMemo(() => {
     const now = new Date();
-    const monthsBack = parseInt(selectedPeriod, 10);
+    let startDate: Date;
+    let endDate: Date;
     
-    // Primeiro dia do período (início do mês)
-    const startDate = new Date(now.getFullYear(), now.getMonth() - monthsBack + 1, 1);
-    
-    // Data atual como fim do período
-    const endDate = now;
+    if (selectedPeriod === '12') {
+      // Para 12 meses, usar o ano atual completo (janeiro a dezembro)
+      startDate = new Date(now.getFullYear(), 0, 1); // 1º de janeiro do ano atual
+      endDate = new Date(now.getFullYear(), 11, 31); // 31 de dezembro do ano atual
+    } else {
+      const monthsBack = parseInt(selectedPeriod, 10);
+      // Primeiro dia do período (início do mês)
+      startDate = new Date(now.getFullYear(), now.getMonth() - monthsBack + 1, 1);
+      // Data atual como fim do período
+      endDate = now;
+    }
     
     const startDateString = startDate.toISOString().split('T')[0];
     const endDateString = endDate.toISOString().split('T')[0];
