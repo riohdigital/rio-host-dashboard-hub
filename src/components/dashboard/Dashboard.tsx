@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -77,20 +76,20 @@ const Dashboard = () => {
   
   const periodOptions = [
     // Período Atual
-    { value: 'current_month', label: 'Mês Atual', group: 'Atual' },
-    { value: 'current_year', label: 'Ano Atual', group: 'Atual' },
+    { value: 'current_month', label: 'Mês Atual (Julho)', group: 'Atual' },
+    { value: 'current_year', label: 'Ano Atual (2025)', group: 'Atual' },
     
     // Períodos Passados
-    { value: 'last_month', label: 'Último Mês', group: 'Passado' },
-    { value: 'last_3_months', label: 'Últimos 3 Meses', group: 'Passado' },
-    { value: 'last_6_months', label: 'Últimos 6 Meses', group: 'Passado' },
-    { value: 'last_year', label: 'Ano Passado', group: 'Passado' },
+    { value: 'last_month', label: 'Último Mês (Junho)', group: 'Passado' },
+    { value: 'last_3_months', label: 'Últimos 3 Meses (Jun/Mai/Abr)', group: 'Passado' },
+    { value: 'last_6_months', label: 'Últimos 6 Meses (Jun-Jan)', group: 'Passado' },
+    { value: 'last_year', label: 'Ano Passado (2024)', group: 'Passado' },
     
     // Períodos Futuros
-    { value: 'next_month', label: 'Próximo Mês', group: 'Futuro' },
-    { value: 'next_3_months', label: 'Próximos 3 Meses', group: 'Futuro' },
-    { value: 'next_6_months', label: 'Próximos 6 Meses', group: 'Futuro' },
-    { value: 'next_12_months', label: 'Próximos 12 Meses', group: 'Futuro' }
+    { value: 'next_month', label: 'Próximo Mês (Agosto)', group: 'Futuro' },
+    { value: 'next_3_months', label: 'Próximos 3 Meses (Ago/Set/Out)', group: 'Futuro' },
+    { value: 'next_6_months', label: 'Próximos 6 Meses (Ago-Jan)', group: 'Futuro' },
+    { value: 'next_12_months', label: 'Próximos 12 Meses (Ago-Jul)', group: 'Futuro' }
   ];
 
   const isLoading = financialData.loading || operationalData.loading || annualGrowthData.loading || propertiesLoading;
