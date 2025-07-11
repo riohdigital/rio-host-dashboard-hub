@@ -26,7 +26,7 @@ import UpcomingReservations from './RecentReservations';
 const Dashboard = () => {
   // State management
   const [selectedProperties, setSelectedProperties] = useState<string[]>(['todas']);
-  const [selectedPeriod, setSelectedPeriod] = useState('current_month');
+  const [selectedPeriod, setSelectedPeriod] = useState('current_year'); // Definido para 'current_year' para corresponder ao seu caso
   const [properties, setProperties] = useState<Property[]>([]);
   const [propertySelectOpen, setPropertySelectOpen] = useState(false);
   const [propertiesLoading, setPropertiesLoading] = useState(true);
@@ -73,17 +73,12 @@ const Dashboard = () => {
   const COLORS = ['#6A6DDF', '#F472B6', '#F59E0B', '#10B981', '#EF4444', '#06B6D4'];
   
   const periodOptions = [
-    // Período Atual
     { value: 'current_month', label: 'Mês Atual (Julho)', group: 'Atual' },
     { value: 'current_year', label: 'Ano Atual (2025)', group: 'Atual' },
-    
-    // Períodos Passados
     { value: 'last_month', label: 'Último Mês (Junho)', group: 'Passado' },
     { value: 'last_3_months', label: 'Últimos 3 Meses (Jun/Mai/Abr)', group: 'Passado' },
     { value: 'last_6_months', label: 'Últimos 6 Meses (Jun-Jan)', group: 'Passado' },
     { value: 'last_year', label: 'Ano Passado (2024)', group: 'Passado' },
-    
-    // Períodos Futuros
     { value: 'next_month', label: 'Próximo Mês (Agosto)', group: 'Futuro' },
     { value: 'next_3_months', label: 'Próximos 3 Meses (Ago/Set/Out)', group: 'Futuro' },
     { value: 'next_6_months', label: 'Próximos 6 Meses (Ago-Jan)', group: 'Futuro' },
@@ -92,13 +87,9 @@ const Dashboard = () => {
 
   const isLoading = financialData.loading || operationalData.loading || annualGrowthData.loading || propertiesLoading;
 
-  // Create reservations array for NetProfitKPI compatibility
-  const reservationsForNetProfit = Array(financialData.data.reservationsCount).fill({
-    net_revenue: financialData.data.totalRevenue / Math.max(financialData.data.reservationsCount, 1),
-    total_revenue: financialData.data.totalRevenue / Math.max(financialData.data.reservationsCount, 1)
-  });
+  // REMOVIDO: Bloco que criava dados "fake" para o KPI de Lucro.
+  // const reservationsForNetProfit = Array(financialData.data.reservationsCount).fill({...});
 
-  // Get current period label
   const getCurrentPeriodLabel = () => {
     const selectedOption = periodOptions.find(option => option.value === selectedPeriod);
     return selectedOption?.label || 'Período Selecionado';
@@ -115,35 +106,12 @@ const Dashboard = () => {
               <SelectValue placeholder="Período" />
             </SelectTrigger>
             <SelectContent>
-              {/* Grupo Atual */}
-              <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Período Atual
-              </div>
-              {periodOptions.filter(option => option.group === 'Atual').map(option => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-              
-              {/* Grupo Passado */}
-              <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider border-t mt-1 pt-2">
-                Períodos Passados
-              </div>
-              {periodOptions.filter(option => option.group === 'Passado').map(option => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-              
-              {/* Grupo Futuro */}
-              <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider border-t mt-1 pt-2">
-                Períodos Futuros
-              </div>
-              {periodOptions.filter(option => option.group === 'Futuro').map(option => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
+              <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Período Atual</div>
+              {periodOptions.filter(option => option.group === 'Atual').map(option => (<SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>))}
+              <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider border-t mt-1 pt-2">Períodos Passados</div>
+              {periodOptions.filter(option => option.group === 'Passado').map(option => (<SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>))}
+              <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider border-t mt-1 pt-2">Períodos Futuros</div>
+              {periodOptions.filter(option => option.group === 'Futuro').map(option => (<SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>))}
             </SelectContent>
           </Select>
           <PropertyMultiSelect
@@ -181,7 +149,10 @@ const Dashboard = () => {
                 isPositive={false}
                 icon={<TrendingDown className="h-4 w-4" />}
               />
-              <NetProfitKPI reservations={reservationsForNetProfit} />
+              {/* CORREÇÃO: Passando o array de reservas real, não o "fake". */}
+              {/* O `|| []` é uma boa prática para evitar erros se `reservations` for undefined. */}
+              <NetProfitKPI reservations={financialData.data.reservations || []} />
+              
               <KPICard
                 title="Taxa de Ocupação"
                 value={`${financialData.data.occupancyRate.toFixed(1)}%`}
@@ -201,9 +172,7 @@ const Dashboard = () => {
               
               <div className="lg:col-span-2">
                 <Card className="bg-white h-full">
-                  <CardHeader>
-                    <CardTitle className="text-gradient-primary">Receita por Plataforma</CardTitle>
-                  </CardHeader>
+                  <CardHeader><CardTitle className="text-gradient-primary">Receita por Plataforma</CardTitle></CardHeader>
                   <CardContent>
                     <ResponsiveContainer width="100%" height={300}>
                       <PieChart>
