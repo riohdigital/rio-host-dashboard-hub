@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -11,20 +10,27 @@ interface NetProfitKPIProps {
 const NetProfitKPI = ({ reservations }: NetProfitKPIProps) => {
   const [viewType, setViewType] = useState<'net' | 'commission' | 'combined'>('net');
 
-  // Calcular valores baseados nas reservations
   const totalNetRevenue = reservations.reduce((sum, r) => sum + (r.net_revenue || 0), 0);
   const totalCommission = reservations.reduce((sum, r) => sum + (r.commission_amount || 0), 0);
   
+  // Função que será ajustada
   const getValue = () => {
+    // Opções de formatação para garantir duas casas decimais
+    const formatOptions = { 
+      minimumFractionDigits: 2, 
+      maximumFractionDigits: 2 
+    };
+
     switch (viewType) {
       case 'net':
-        return `R$ ${totalNetRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+        return `R$ ${totalNetRevenue.toLocaleString('pt-BR', formatOptions)}`;
       case 'commission':
-        return `R$ ${totalCommission.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+        return `R$ ${totalCommission.toLocaleString('pt-BR', formatOptions)}`;
       case 'combined':
-        return `R$ ${(totalNetRevenue + totalCommission).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+        // A receita total já deve estar formatada corretamente, mas podemos garantir
+        return `R$ ${(totalNetRevenue + totalCommission).toLocaleString('pt-BR', formatOptions)}`;
       default:
-        return `R$ ${totalNetRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+        return `R$ ${totalNetRevenue.toLocaleString('pt-BR', formatOptions)}`;
     }
   };
 
