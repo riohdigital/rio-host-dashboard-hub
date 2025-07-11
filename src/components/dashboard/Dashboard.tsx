@@ -23,7 +23,7 @@ const Dashboard = () => {
   const [propertySelectOpen, setPropertySelectOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Estados para os dados, bem segmentados
+  // Estados segmentados para os dados do dashboard
   const [financialData, setFinancialData] = useState({
     totalRevenue: 0,
     totalExpenses: 0,
@@ -66,17 +66,19 @@ const Dashboard = () => {
       const startDate = new Date(now.getFullYear(), now.getMonth() - monthsBack + 1, 1);
       const startDateString = startDate.toISOString().split('T')[0];
       const todayString = now.toISOString().split('T')[0];
-
+      
       const propertyFilter = selectedProperties.includes('todas') ? null : selectedProperties.filter(id => id !== 'todas');
 
-      // --- CORREÇÃO DA LÓGICA DE CONSULTA ---
+      // --- CORREÇÃO DA LÓGICA DE CONSTRUÇÃO DAS QUERIES ---
       let propertiesQuery = supabase.from('properties').select('*').order('name');
+      
       let reservationsQuery = supabase.from('reservations').select('*, properties(name, nickname)').gte('check_in_date', startDateString);
       let expensesQuery = supabase.from('expenses').select('*').gte('expense_date', startDateString);
       let currentYearQuery = supabase.from('reservations').select('total_revenue, check_in_date').gte('check_in_date', `${currentYear}-01-01`).lte('check_in_date', `${currentYear}-12-31`);
       let previousYearQuery = supabase.from('reservations').select('total_revenue, check_in_date').gte('check_in_date', `${previousYear}-01-01`).lte('check_in_date', `${previousYear}-12-31`);
       let upcomingQuery = supabase.from('reservations').select('*, properties(nickname, name)').gte('check_in_date', todayString).order('check_in_date', { ascending: true }).limit(3);
 
+      // Aplica o filtro de propriedade SE ele existir
       if (propertyFilter && propertyFilter.length > 0) {
         reservationsQuery = reservationsQuery.in('property_id', propertyFilter);
         expensesQuery = expensesQuery.in('property_id', propertyFilter);
@@ -88,6 +90,7 @@ const Dashboard = () => {
       const [ propertiesRes, reservationsRes, expensesRes, currentYearRes, previousYearRes, upcomingRes ] = await Promise.all([
         propertiesQuery, reservationsQuery, expensesQuery, currentYearQuery, previousYearQuery, upcomingQuery
       ]);
+      // --- FIM DA CORREÇÃO ---
 
       if (propertiesRes.error) throw propertiesRes.error;
       if (reservationsRes.error) throw reservationsRes.error;
@@ -102,9 +105,10 @@ const Dashboard = () => {
       
       setProperties(properties);
 
-      // --- CÁLCULOS FINANCEIROS CORRIGIDOS ---
+      // --- CÁLCULOS FINANCEIROS (Agora corretos) ---
       const totalRevenue = reservations.reduce((sum, r) => sum + (r.total_revenue || 0), 0);
       const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+      
       const totalDaysInPeriod = Math.round((new Date().getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
       const totalBookedDays = reservations.reduce((sum, r) => {
         const checkIn = new Date(r.check_in_date + 'T00:00:00');
@@ -120,11 +124,11 @@ const Dashboard = () => {
 
       setFinancialData({ totalRevenue, totalExpenses, reservationsForPeriod: reservations, expensesByCategory, revenueByPlatform, occupancyRate: Math.min(100, occupancyRate) });
 
-      // --- CÁLCULOS OPERACIONAIS ---
+      // --- CÁLCULOS OPERACIONAIS (Corretos) ---
       const paidCount = reservations.filter(r => r.payment_status === 'Pago').length;
       const pendingCount = reservations.length - paidCount;
       const cashflow = reservations.reduce((acc, res) => {
-        const platform = res.platform?.toLowerCase().includes('airbnb') ? 'airbnb' : 'booking';
+        const platform = res.platform?.toLowerCase().includes('airbnb') ? 'airbnb' : 'booking.com';
         const netRevenue = res.net_revenue || 0;
         if (res.payment_status === 'Pago') acc[`${platform}Received`] += netRevenue;
         else acc[`${platform}Receivable`] += netRevenue;
@@ -133,7 +137,6 @@ const Dashboard = () => {
       
       setOperationalData({ paidCount, pendingCount, cashflow, upcomingReservations: upcomingRes.data || [] });
       
-      // --- DADOS PARA GRÁFICO DE CRESCIMENTO ---
       const monthlyGrowthData = calculateAnnualGrowth(currentYearRes.data || [], previousYearRes.data || [], currentYear, previousYear);
       const yearlyData = [
         { year: previousYear.toString(), revenue: (previousYearRes.data || []).reduce((s, r) => s + r.total_revenue, 0) },
@@ -156,7 +159,7 @@ const Dashboard = () => {
   const periodOptions = [{ value: '1', label: 'Último mês' }, { value: '3', label: 'Últimos 3 meses' }, { value: '6', label: 'Últimos 6 meses' }, { value: '12', label: 'Últimos 12 meses' }];
 
   return (
-    <div className="p-6 space-y-8">
+    <div className="p-6 space-y-8 bg-[#F8F9FA]">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gradient-primary">Dashboard Analítico</h1>
         <div className="flex gap-4">
