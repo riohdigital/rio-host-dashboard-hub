@@ -8,7 +8,7 @@ interface StatusSelectorProps {
   reservationId: string;
   currentStatus: string;
   statusType: 'reservation_status' | 'payment_status';
-  onUpdate: () => void; // Para recarregar os dados na página principal
+  onUpdate: () => void;
 }
 
 const StatusSelector = ({ reservationId, currentStatus, statusType, onUpdate }: StatusSelectorProps) => {
@@ -20,43 +20,41 @@ const StatusSelector = ({ reservationId, currentStatus, statusType, onUpdate }: 
     ? ['Confirmada', 'Em andamento', 'Finalizada', 'Cancelada']
     : ['Pago', 'Pendente', 'Atrasado'];
 
-  const getStatusColor = (status: string) => {
+  // ALTERAÇÃO PRINCIPAL: A função agora retorna a classe de gradiente do seu `index.css`
+  const getGradientClass = (status: string) => {
     switch (status?.toLowerCase()) {
       case 'confirmada':
       case 'pago':
-        return 'bg-green-100 text-green-800';
+        return 'gradient-success'; // Usa a classe que você já definiu
       case 'em andamento':
-        return 'bg-blue-100 text-blue-800';
+        return 'gradient-info'; // Usa a classe que você já definiu
       case 'pendente':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'gradient-warning'; // Usa a classe que você já definiu
       case 'finalizada':
-        return 'bg-gray-100 text-gray-800';
+        return 'gradient-muted'; // Usa a classe que você já definiu
       case 'cancelada':
       case 'atrasado':
-        return 'bg-red-100 text-red-800';
+        return 'gradient-danger'; // Usa a classe que você já definiu
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'gradient-muted';
     }
   };
 
   const handleStatusChange = async (newStatus: string) => {
     if (newStatus === status) return;
-
     setLoading(true);
     try {
       const { error } = await supabase
         .from('reservations')
         .update({ [statusType]: newStatus })
         .eq('id', reservationId);
-
       if (error) throw error;
-
       setStatus(newStatus);
       toast({
         title: "Sucesso!",
         description: `Status atualizado para ${newStatus}.`,
       });
-      onUpdate(); // Avisa o componente pai para recarregar os dados
+      onUpdate();
     } catch (error: any) {
       toast({
         title: "Erro ao atualizar",
@@ -71,8 +69,12 @@ const StatusSelector = ({ reservationId, currentStatus, statusType, onUpdate }: 
   return (
     <div className="flex items-center">
       <Select value={status} onValueChange={handleStatusChange} disabled={loading}>
-        <SelectTrigger className={`w-full h-8 text-xs border-none shadow-none ${getStatusColor(status)}`}>
-          <SelectValue />
+        {/* A classe de gradiente é aplicada aqui */}
+        <SelectTrigger 
+          className={`w-full h-9 text-xs font-semibold text-white border-none shadow-sm transition-all duration-300 hover:brightness-105 ${getGradientClass(status)}`}
+        >
+          {/* O SelectValue precisa estar dentro de um span para que o 'text-white' funcione bem */}
+          <span><SelectValue /></span>
         </SelectTrigger>
         <SelectContent>
           {options.map(option => (
@@ -80,7 +82,7 @@ const StatusSelector = ({ reservationId, currentStatus, statusType, onUpdate }: 
           ))}
         </SelectContent>
       </Select>
-      {loading && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
+      {loading && <Loader2 className="h-4 w-4 animate-spin ml-2 text-primary" />}
     </div>
   );
 };
