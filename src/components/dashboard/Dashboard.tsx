@@ -7,9 +7,9 @@ import NetProfitKPI from './NetProfitKPI';
 import MonthlyRevenueKPI from './MonthlyRevenueKPI';
 import PropertyMultiSelect from './PropertyMultiSelect';
 import AnnualGrowthChart from './AnnualGrowthChart';
-import PaymentStatusCard from './PaymentStatusCard'; // Importado
-import CashflowCard from './CashflowCard';         // Importado
-import UpcomingReservations from './RecentReservations'; // Renomeado para a nova função
+import PaymentStatusCard from './PaymentStatusCard';
+import CashflowCard from './CashflowCard';
+import UpcomingReservations from './RecentReservations';
 import { TrendingDown, Calendar, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Property } from '@/types/property';
@@ -21,13 +21,13 @@ const Dashboard = () => {
   const [propertySelectOpen, setPropertySelectOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Estados para os dados
   const [financialData, setFinancialData] = useState({
     totalRevenue: 0,
     totalExpenses: 0,
     reservationsForPeriod: [],
     expensesByCategory: [],
-    revenueByPlatform: []
+    revenueByPlatform: [],
+    occupancyRate: 0
   });
   const [operationalData, setOperationalData] = useState({
     paidCount: 0,
@@ -39,6 +39,19 @@ const Dashboard = () => {
     monthlyData: [],
     yearlyData: []
   });
+
+  const calculateAnnualGrowth = (currentReservations: any[], previousReservations: any[], currentYear: number, previousYear: number) => {
+    const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const data = [];
+    for (let month = 0; month < 12; month++) {
+      const currentMonthKey = `${currentYear}-${(month + 1).toString().padStart(2, '0')}`;
+      const previousMonthKey = `${previousYear}-${(month + 1).toString().padStart(2, '0')}`;
+      const currentRevenue = currentReservations.filter(r => r.check_in_date.startsWith(currentMonthKey)).reduce((sum, r) => sum + (r.total_revenue || 0), 0);
+      const previousRevenue = previousReservations.filter(r => r.check_in_date.startsWith(previousMonthKey)).reduce((sum, r) => sum + (r.total_revenue || 0), 0);
+      data.push({ month: monthNames[month], current: currentRevenue, previous: previousRevenue });
+    }
+    return data;
+  };
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -52,51 +65,74 @@ const Dashboard = () => {
 
       const propertyFilter = selectedProperties.includes('todas') ? null : selectedProperties.filter(id => id !== 'todas');
 
-      // --- Buscas Paralelas ---
-      const [
-        propertiesRes,
-        reservationsRes,
-        expensesRes,
-        currentYearRes,
-        previousYearRes,
-        upcomingRes
-      ] = await Promise.all([
-        supabase.from('properties').select('*').order('name'),
-        supabase.from('reservations').select('*, properties(name, nickname)').gte('check_in_date', startDateString).or(propertyFilter ? `property_id.in.(${propertyFilter.join(',')})` : ''),
-        supabase.from('expenses').select('*').gte('expense_date', startDateString).or(propertyFilter ? `property_id.in.(${propertyFilter.join(',')})` : ''),
-        supabase.from('reservations').select('total_revenue, check_in_date').gte('check_in_date', `${currentYear}-01-01`).lte('check_in_date', `${currentYear}-12-31`).or(propertyFilter ? `property_id.in.(${propertyFilter.join(',')})` : ''),
-        supabase.from('reservations').select('total_revenue, check_in_date').gte('check_in_date', `${previousYear}-01-01`).lte('check_in_date', `${previousYear}-12-31`).or(propertyFilter ? `property_id.in.(${propertyFilter.join(',')})` : ''),
+      // --- CORREÇÃO DA LÓGICA DE CONSULTA ---
+      const propertiesQuery = supabase.from('properties').select('*').order('name');
+      let reservationsQuery = supabase.from('reservations').select('*, properties(name, nickname)').gte('check_in_date', startDateString);
+      let expensesQuery = supabase.from('expenses').select('*').gte('expense_date', startDateString);
+      let currentYearQuery = supabase.from('reservations').select('total_revenue, check_in_date').gte('check_in_date', `${currentYear}-01-01`).lte('check_in_date', `${currentYear}-12-31`);
+      let previousYearQuery = supabase.from('reservations').select('total_revenue, check_in_date').gte('check_in_date', `${previousYear}-01-01`).lte('check_in_date', `${previousYear}-12-31`);
+      
+      if (propertyFilter && propertyFilter.length > 0) {
+        reservationsQuery = reservationsQuery.in('property_id', propertyFilter);
+        expensesQuery = expensesQuery.in('property_id', propertyFilter);
+        currentYearQuery = currentYearQuery.in('property_id', propertyFilter);
+        previousYearQuery = previousYearQuery.in('property_id', propertyFilter);
+      }
+      
+      const [ propertiesRes, reservationsRes, expensesRes, currentYearRes, previousYearRes, upcomingRes ] = await Promise.all([
+        propertiesQuery,
+        reservationsQuery,
+        expensesQuery,
+        currentYearQuery,
+        previousYearQuery,
         supabase.from('reservations').select('*, properties(nickname, name)').gte('check_in_date', new Date().toISOString().split('T')[0]).order('check_in_date', { ascending: true }).limit(3)
       ]);
 
-      // --- Processamento de Dados ---
       if (propertiesRes.error) throw propertiesRes.error;
-      setProperties(propertiesRes.data || []);
-      
+      if (reservationsRes.error) throw reservationsRes.error;
+      if (expensesRes.error) throw expensesRes.error;
+      if (currentYearRes.error) throw currentYearRes.error;
+      if (previousYearRes.error) throw previousYearRes.error;
+      if (upcomingRes.error) throw upcomingRes.error;
+
+      // --- PROCESSAMENTO DE DADOS COM VALORES ATUALIZADOS ---
+      const properties = propertiesRes.data || [];
       const reservations = reservationsRes.data || [];
       const expenses = expensesRes.data || [];
+
+      setProperties(properties);
 
       // Dados Financeiros
       const totalRevenue = reservations.reduce((sum, r) => sum + (r.total_revenue || 0), 0);
       const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+      
+      // Taxa de Ocupação Corrigida
+      const totalDaysInPeriod = monthsBack * 30.44; // Média de dias no mês
+      const totalBookedDays = reservations.reduce((sum, r) => {
+        const checkIn = new Date(r.check_in_date + 'T00:00:00');
+        const checkOut = new Date(r.check_out_date + 'T00:00:00');
+        const diffTime = Math.abs(checkOut.getTime() - checkIn.getTime());
+        return sum + Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      }, 0);
+      
+      let occupancyRate = 0;
+      if (properties.length > 0 && totalDaysInPeriod > 0) {
+        occupancyRate = (totalBookedDays / (totalDaysInPeriod * properties.length)) * 100;
+      }
+      
       const expensesByCategory = Object.entries(expenses.reduce((acc, exp) => ({...acc, [exp.category || 'Outros']: (acc[exp.category || 'Outros'] || 0) + exp.amount}), {})).map(([name, value]) => ({name, value}));
       const revenueByPlatform = Object.entries(reservations.reduce((acc, res) => ({...acc, [res.platform || 'Outros']: (acc[res.platform || 'Outros'] || 0) + res.total_revenue}), {})).map(([name, value]) => ({name, value}));
 
-      setFinancialData({
-        totalRevenue,
-        totalExpenses,
-        reservationsForPeriod: reservations,
-        expensesByCategory,
-        revenueByPlatform
-      });
+      setFinancialData({ totalRevenue, totalExpenses, reservationsForPeriod: reservations, expensesByCategory, revenueByPlatform, occupancyRate: Math.min(100, occupancyRate) });
 
       // Dados Operacionais
       const paidCount = reservations.filter(r => r.payment_status === 'Pago').length;
       const pendingCount = reservations.filter(r => r.payment_status !== 'Pago').length;
       const cashflow = reservations.reduce((acc, res) => {
         const platform = res.platform?.toLowerCase().includes('airbnb') ? 'airbnb' : 'booking';
-        if (res.payment_status === 'Pago') acc[`${platform}Received`] += res.net_revenue || 0;
-        else acc[`${platform}Receivable`] += res.net_revenue || 0;
+        const netRevenue = res.net_revenue || 0;
+        if (res.payment_status === 'Pago') acc[`${platform}Received`] += netRevenue;
+        else acc[`${platform}Receivable`] += netRevenue;
         return acc;
       }, { airbnbReceived: 0, bookingReceived: 0, airbnbReceivable: 0, bookingReceivable: 0 });
 
@@ -138,20 +174,18 @@ const Dashboard = () => {
         <div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="h-8 w-8 text-primary animate-spin" /></div>
       ) : (
         <>
-          {/* SEÇÃO 1: VISÃO FINANCEIRA */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <MonthlyRevenueKPI totalRevenue={financialData.totalRevenue} selectedPeriod={periodOptions.find(o => o.value === selectedPeriod)?.label || ''} />
             <KPICard title="Despesas Totais" value={`R$ ${financialData.totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} isPositive={false} icon={<TrendingDown className="h-4 w-4" />} />
             <NetProfitKPI reservations={financialData.reservationsForPeriod} />
-            <KPICard title="Taxa de Ocupação" value={`${(0).toFixed(1)}%`} icon={<Calendar className="h-4 w-4" />} />
+            <KPICard title="Taxa de Ocupação" value={`${financialData.occupancyRate.toFixed(1)}%`} icon={<Calendar className="h-4 w-4" />} />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
             <div className="lg:col-span-3"><AnnualGrowthChart monthlyData={annualGrowthData.monthlyData} yearlyData={annualGrowthData.yearlyData} loading={loading} /></div>
-            <div className="lg:col-span-2"><Card className="bg-white h-full"><CardHeader><CardTitle className="text-gradient-primary">Receita por Plataforma</CardTitle></CardHeader><CardContent><ResponsiveContainer width="100%" height={300}><PieChart><Pie data={financialData.revenueByPlatform} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} label>{financialData.revenueByPlatform.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}</Pie><Tooltip formatter={(value) => `R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} /></PieChart></ResponsiveContainer></CardContent></Card></div>
+            <div className="lg:col-span-2"><Card className="bg-white h-full"><CardHeader><CardTitle className="text-gradient-primary">Receita por Plataforma</CardTitle></CardHeader><CardContent><ResponsiveContainer width="100%" height={300}><PieChart><Pie data={financialData.revenueByPlatform} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>{financialData.revenueByPlatform.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}</Pie><Tooltip formatter={(value) => `R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} /></PieChart></ResponsiveContainer></CardContent></Card></div>
           </div>
 
-          {/* SEÇÃO 2: VISÃO OPERACIONAL E DE CAIXA */}
           <div className="border-t pt-8">
             <h2 className="text-2xl font-bold text-gradient-primary mb-4">Visão Operacional</h2>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
