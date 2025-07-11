@@ -18,7 +18,7 @@ const InvestmentsList = ({ investments, onEdit, onDelete, loading }: Investments
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormatm('pt-BR', {
+    return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL'
     }).format(value);
