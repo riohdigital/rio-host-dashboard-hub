@@ -23,7 +23,8 @@ import AnnualGrowthChart from './AnnualGrowthChart';
 import PaymentStatusCard from './PaymentStatusCard';
 import PaymentSummaryCard from './PaymentSummaryCard';
 import CashflowCard from './CashflowCard';
-import UpcomingReservations from './RecentReservations';
+import UpcomingReservations from './UpcomingReservations';
+import RecentReservations from './RecentReservations';
 
 const Dashboard = () => {
   const [selectedProperties, setSelectedProperties] = useState<string[]>(['todas']);
@@ -114,14 +115,27 @@ const Dashboard = () => {
             <div className="lg:col-span-2"><Card className="bg-white h-full"><CardHeader><CardTitle className="text-gradient-primary">Receita por Plataforma</CardTitle></CardHeader><CardContent><ResponsiveContainer width="100%" height={300}><PieChart><Pie data={financialData.revenueByPlatform} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>{financialData.revenueByPlatform.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}</Pie><Tooltip formatter={(value) => `R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} /></PieChart></ResponsiveContainer></CardContent></Card></div>
           </div>
 
-          <div className="border-t pt-8">
-            <h2 className="text-2xl font-bold text-gray-700 mb-4">Visão Operacional</h2>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <PaymentSummaryCard totalPaidCount={operationalData.totalPaidCount} totalPendingCount={operationalData.totalPendingCount} />
-              <PaymentStatusCard paidCount={operationalData.paidCount} pendingCount={operationalData.pendingCount} />
-              <UpcomingReservations reservations={operationalData.upcomingReservations} loading={operationalData.loading} />
+          <div className="border-t pt-8 space-y-6">
+            {/* Payment Summary Cards */}
+            <div>
+              <h2 className="text-2xl font-bold text-gray-700 mb-4">Resumo de Pagamentos</h2>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <PaymentSummaryCard totalPaidCount={operationalData.totalPaidCount} totalPendingCount={operationalData.totalPendingCount} />
+                <PaymentStatusCard paidCount={operationalData.paidCount} pendingCount={operationalData.pendingCount} />
+              </div>
             </div>
-            <div className="mt-6">
+
+            {/* Events Section */}
+            <div>
+              <h2 className="text-2xl font-bold text-gray-700 mb-4">Eventos</h2>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <UpcomingReservations reservations={operationalData.upcomingReservations} loading={operationalData.loading} />
+                <RecentReservations reservations={operationalData.recentReservations} loading={operationalData.loading} />
+              </div>
+            </div>
+
+            {/* Cashflow */}
+            <div>
               <CashflowCard data={operationalData.cashflow} />
             </div>
           </div>
