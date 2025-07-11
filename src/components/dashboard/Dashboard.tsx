@@ -1,347 +1,266 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
+import { Loader2, DollarSign, TrendingDown, TrendingUp, Calendar } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { Property } from '@/types/property';
+
+// Import hooks
+import { useDateRange } from '@/hooks/dashboard/useDateRange';
+import { useFinancialData } from '@/hooks/dashboard/useFinancialData';
+import { useOperationalData } from '@/hooks/dashboard/useOperationalData';
+import { useAnnualGrowthData } from '@/hooks/dashboard/useAnnualGrowthData';
+
+// Import components
 import KPICard from './KPICard';
 import NetProfitKPI from './NetProfitKPI';
 import MonthlyRevenueKPI from './MonthlyRevenueKPI';
 import PropertyMultiSelect from './PropertyMultiSelect';
 import AnnualGrowthChart from './AnnualGrowthChart';
 import PaymentStatusCard from './PaymentStatusCard';
+import PaymentSummaryCard from './PaymentSummaryCard';
 import CashflowCard from './CashflowCard';
 import UpcomingReservations from './RecentReservations';
-import { TrendingDown, Calendar, Loader2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { Property } from '@/types/property';
 
 const Dashboard = () => {
+  // State management
   const [selectedProperties, setSelectedProperties] = useState<string[]>(['todas']);
-  const [selectedPeriod, setSelectedPeriod] = useState('12');
+  const [selectedPeriod, setSelectedPeriod] = useState('current_month');
   const [properties, setProperties] = useState<Property[]>([]);
   const [propertySelectOpen, setPropertySelectOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [propertiesLoading, setPropertiesLoading] = useState(true);
 
-  // Estados segmentados para os dados do dashboard
-  const [financialData, setFinancialData] = useState({
-    totalRevenue: 0,
-    totalExpenses: 0,
-    reservationsForPeriod: [],
-    expensesByCategory: [],
-    revenueByPlatform: [],
-    occupancyRate: 0
-  });
-  const [operationalData, setOperationalData] = useState({
-    paidCount: 0,
-    pendingCount: 0,
-    cashflow: { 
-      airbnbReceived: 0, 
-      bookingReceived: 0, 
-      diretoReceived: 0,
-      airbnbReceivable: 0, 
-      bookingReceivable: 0,
-      diretoReceivable: 0
-    },
-    upcomingReservations: []
-  });
-  const [annualGrowthData, setAnnualGrowthData] = useState<{ monthlyData: any[], yearlyData: any[] }>({
-    monthlyData: [],
-    yearlyData: []
-  });
+  // Date calculations
+  const { startDateString, endDateString, totalDays, periodType } = useDateRange(selectedPeriod);
 
-  // CORREÇÃO: Função utilitária para formatação consistente de moeda
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(value);
-  };
+  // Data hooks
+  const financialData = useFinancialData(startDateString, endDateString, selectedProperties, totalDays);
+  const operationalData = useOperationalData(startDateString, endDateString, selectedProperties);
+  const annualGrowthData = useAnnualGrowthData(selectedProperties);
 
-  // CORREÇÃO: Função para padronizar status de pagamento
-  const normalizePaymentStatus = (status: string) => {
-    if (!status) return 'Pendente';
-    const normalized = status.toLowerCase();
-    if (normalized.includes('pago') || normalized.includes('paid')) return 'Pago';
-    if (normalized.includes('pendente') || normalized.includes('pending')) return 'Pendente';
-    return 'Pendente'; // default
-  };
-
-  // CORREÇÃO: Função para validação de datas
-  const isValidDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date instanceof Date && !isNaN(date.getTime());
-  };
-
-  // CORREÇÃO: Função para mapeamento de plataformas
-  const getPlatformKey = (platform: string) => {
-    if (!platform) return 'booking.com';
-    const normalized = platform.toLowerCase();
-    if (normalized.includes('airbnb')) return 'airbnb';
-    if (normalized.includes('direto') || normalized.includes('direct')) return 'direto';
-    return 'booking.com';
-  };
-
-  const calculateAnnualGrowth = (currentReservations: any[], previousReservations: any[], currentYear: number, previousYear: number) => {
-    const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-    const data = [];
-    for (let month = 0; month < 12; month++) {
-      const currentMonthKey = `${currentYear}-${(month + 1).toString().padStart(2, '0')}`;
-      const previousMonthKey = `${previousYear}-${(month + 1).toString().padStart(2, '0')}`;
-      const currentRevenue = currentReservations.filter(r => r.check_in_date.startsWith(currentMonthKey)).reduce((sum, r) => sum + (r.total_revenue || 0), 0);
-      const previousRevenue = previousReservations.filter(r => r.check_in_date.startsWith(previousMonthKey)).reduce((sum, r) => sum + (r.total_revenue || 0), 0);
-      data.push({ month: monthNames[month], current: currentRevenue, previous: previousRevenue });
-    }
-    return data;
-  };
-
-  // CORREÇÃO: Função para calcular taxa de ocupação
-  const calculateOccupancyRate = (reservations: any[], properties: Property[], startDate: Date, endDate: Date) => {
-    const propertyFilter = selectedProperties.includes('todas') ? null : selectedProperties.filter(id => id !== 'todas');
-    const filteredPropertiesCount = propertyFilter ? propertyFilter.length : properties.length;
-    
-    if (filteredPropertiesCount === 0) return 0;
-    
-    const totalDaysInPeriod = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-    const totalAvailableDays = totalDaysInPeriod * filteredPropertiesCount;
-    
-    const totalBookedDays = reservations.reduce((sum, r) => {
-      const checkIn = new Date(r.check_in_date);
-      const checkOut = new Date(r.check_out_date);
-      const days = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
-      return sum + days;
-    }, 0);
-    
-    return Math.min(100, (totalBookedDays / totalAvailableDays) * 100);
-  };
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const now = new Date();
-      const currentYear = now.getFullYear();
-      const previousYear = currentYear - 1;
-      const monthsBack = parseInt(selectedPeriod, 10);
-      const startDate = new Date(now.getFullYear(), now.getMonth() - monthsBack + 1, 1);
-      const endDate = new Date(); // Para o cálculo da taxa de ocupação
-      const startDateString = startDate.toISOString().split('T')[0];
-      const todayString = now.toISOString().split('T')[0];
-      
-      const propertyFilter = selectedProperties.includes('todas') ? null : selectedProperties.filter(id => id !== 'todas');
-
-      // Construção das queries
-      let propertiesQuery = supabase.from('properties').select('*').order('name');
-      
-      let reservationsQuery = supabase.from('reservations').select('*, properties(name, nickname)').gte('check_in_date', startDateString);
-      let expensesQuery = supabase.from('expenses').select('*').gte('expense_date', startDateString);
-      let currentYearQuery = supabase.from('reservations').select('total_revenue, check_in_date').gte('check_in_date', `${currentYear}-01-01`).lte('check_in_date', `${currentYear}-12-31`);
-      let previousYearQuery = supabase.from('reservations').select('total_revenue, check_in_date').gte('check_in_date', `${previousYear}-01-01`).lte('check_in_date', `${previousYear}-12-31`);
-      let upcomingQuery = supabase.from('reservations').select('*, properties(nickname, name)').gte('check_in_date', todayString).order('check_in_date', { ascending: true }).limit(3);
-
-      // Aplicar filtro de propriedade se existir
-      if (propertyFilter && propertyFilter.length > 0) {
-        reservationsQuery = reservationsQuery.in('property_id', propertyFilter);
-        expensesQuery = expensesQuery.in('property_id', propertyFilter);
-        currentYearQuery = currentYearQuery.in('property_id', propertyFilter);
-        previousYearQuery = previousYearQuery.in('property_id', propertyFilter);
-        upcomingQuery = upcomingQuery.in('property_id', propertyFilter);
-      }
-
-      const [propertiesRes, reservationsRes, expensesRes, currentYearRes, previousYearRes, upcomingRes] = await Promise.all([
-        propertiesQuery, reservationsQuery, expensesQuery, currentYearQuery, previousYearQuery, upcomingQuery
-      ]);
-
-      if (propertiesRes.error) throw propertiesRes.error;
-      if (reservationsRes.error) throw reservationsRes.error;
-      if (expensesRes.error) throw expensesRes.error;
-      if (currentYearRes.error) throw currentYearRes.error;
-      if (previousYearRes.error) throw previousYearRes.error;
-      if (upcomingRes.error) throw upcomingRes.error;
-      
-      const properties = propertiesRes.data || [];
-      const reservations = reservationsRes.data || [];
-      const expenses = expensesRes.data || [];
-      
-      setProperties(properties);
-
-      // CORREÇÃO: Filtrar reservas com datas válidas
-      const validReservations = reservations.filter(r => 
-        isValidDate(r.check_in_date) && isValidDate(r.check_out_date)
-      );
-
-      // CORREÇÃO: Cálculos financeiros com validação dos campos
-      const totalRevenue = validReservations.reduce((sum, r) => {
-        return sum + (r.total_revenue || r.valor_total || 0);
-      }, 0);
-
-      const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-      
-      // CORREÇÃO: Usar a função corrigida para calcular taxa de ocupação
-      const occupancyRate = calculateOccupancyRate(validReservations, properties, startDate, endDate);
-      
-      const expensesByCategory = Object.entries(expenses.reduce((acc, exp) => ({...acc, [exp.category || 'Outros']: (acc[exp.category || 'Outros'] || 0) + exp.amount}), {})).map(([name, value]) => ({name, value}));
-      const revenueByPlatform = Object.entries(validReservations.reduce((acc, res) => ({...acc, [res.platform || 'Outros']: (acc[res.platform || 'Outros'] || 0) + res.total_revenue}), {})).map(([name, value]) => ({name, value}));
-
-      setFinancialData({ totalRevenue, totalExpenses, reservationsForPeriod: validReservations, expensesByCategory, revenueByPlatform, occupancyRate });
-
-      // CORREÇÃO: Cálculos operacionais com status normalizado
-      const paidCount = validReservations.filter(r => 
-        normalizePaymentStatus(r.payment_status) === 'Pago'
-      ).length;
-      const pendingCount = validReservations.length - paidCount;
-      
-      // CORREÇÃO: Cashflow com suporte a 3 plataformas
-      const cashflow = validReservations.reduce((acc, res) => {
-        const platform = getPlatformKey(res.platform);
-        const netRevenue = res.net_revenue || res.valor_proprietario || 0;
-        
-        if (normalizePaymentStatus(res.payment_status) === 'Pago') {
-          acc[`${platform}Received`] += netRevenue;
-        } else {
-          acc[`${platform}Receivable`] += netRevenue;
-        }
-        return acc;
-      }, { 
-        airbnbReceived: 0, 
-        bookingReceived: 0, 
-        diretoReceived: 0,
-        airbnbReceivable: 0, 
-        bookingReceivable: 0,
-        diretoReceivable: 0
-      });
-      
-      setOperationalData({ paidCount, pendingCount, cashflow, upcomingReservations: upcomingRes.data || [] });
-      
-      const monthlyGrowthData = calculateAnnualGrowth(currentYearRes.data || [], previousYearRes.data || [], currentYear, previousYear);
-      const yearlyData = [
-        { year: previousYear.toString(), revenue: (previousYearRes.data || []).reduce((s, r) => s + r.total_revenue, 0) },
-        { year: currentYear.toString(), revenue: (currentYearRes.data || []).reduce((s, r) => s + r.total_revenue, 0) }
-      ];
-      setAnnualGrowthData({ monthlyData: monthlyGrowthData, yearlyData });
-
-    } catch (error: any) {
-      console.error('Erro ao buscar dados do dashboard:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedPeriod, selectedProperties]);
-
+  // Load properties on mount
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    const fetchProperties = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('properties')
+          .select('*')
+          .order('name');
 
+        if (error) throw error;
+        setProperties(data || []);
+      } catch (error) {
+        console.error('Erro ao carregar propriedades:', error);
+      } finally {
+        setPropertiesLoading(false);
+      }
+    };
+
+    fetchProperties();
+  }, []);
+
+  // Fetch data when dependencies change
+  useEffect(() => {
+    if (!propertiesLoading) {
+      financialData.fetchFinancialData();
+      operationalData.fetchOperationalData();
+      annualGrowthData.fetchAnnualGrowthData();
+    }
+  }, [selectedPeriod, selectedProperties, propertiesLoading]);
+
+  // Chart configuration
   const COLORS = ['#6A6DDF', '#F472B6', '#F59E0B', '#10B981', '#EF4444', '#06B6D4'];
+  
   const periodOptions = [
-    { value: '1', label: 'Último mês' }, 
-    { value: '3', label: 'Últimos 3 meses' }, 
-    { value: '6', label: 'Últimos 6 meses' }, 
-    { value: '12', label: 'Últimos 12 meses' }
+    // Período Atual
+    { value: 'current_month', label: 'Mês Atual (Julho)', group: 'Atual' },
+    { value: 'current_year', label: 'Ano Atual (2025)', group: 'Atual' },
+    
+    // Períodos Passados
+    { value: 'last_month', label: 'Último Mês (Junho)', group: 'Passado' },
+    { value: 'last_3_months', label: 'Últimos 3 Meses (Jun/Mai/Abr)', group: 'Passado' },
+    { value: 'last_6_months', label: 'Últimos 6 Meses (Jun-Jan)', group: 'Passado' },
+    { value: 'last_year', label: 'Ano Passado (2024)', group: 'Passado' },
+    
+    // Períodos Futuros
+    { value: 'next_month', label: 'Próximo Mês (Agosto)', group: 'Futuro' },
+    { value: 'next_3_months', label: 'Próximos 3 Meses (Ago/Set/Out)', group: 'Futuro' },
+    { value: 'next_6_months', label: 'Próximos 6 Meses (Ago-Jan)', group: 'Futuro' },
+    { value: 'next_12_months', label: 'Próximos 12 Meses (Ago-Jul)', group: 'Futuro' }
   ];
+
+  const isLoading = financialData.loading || operationalData.loading || annualGrowthData.loading || propertiesLoading;
+
+  // Create reservations array for NetProfitKPI compatibility
+  const reservationsForNetProfit = Array(financialData.data.reservationsCount).fill({
+    net_revenue: financialData.data.netProfit / Math.max(financialData.data.reservationsCount, 1),
+    commission_amount: 0
+  });
+
+  // Get current period label
+  const getCurrentPeriodLabel = () => {
+    const selectedOption = periodOptions.find(option => option.value === selectedPeriod);
+    return selectedOption?.label || 'Período Selecionado';
+  };
 
   return (
     <div className="p-6 space-y-8 bg-[#F8F9FA]">
+      {/* Header */}
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gradient-primary">Dashboard Analítico</h1>
         <div className="flex gap-4">
           <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-48">
               <SelectValue placeholder="Período" />
             </SelectTrigger>
             <SelectContent>
-              {periodOptions.map(o => (
-                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              {/* Grupo Atual */}
+              <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Período Atual
+              </div>
+              {periodOptions.filter(option => option.group === 'Atual').map(option => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+              
+              {/* Grupo Passado */}
+              <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider border-t mt-1 pt-2">
+                Períodos Passados
+              </div>
+              {periodOptions.filter(option => option.group === 'Passado').map(option => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+              
+              {/* Grupo Futuro */}
+              <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider border-t mt-1 pt-2">
+                Períodos Futuros
+              </div>
+              {periodOptions.filter(option => option.group === 'Futuro').map(option => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <PropertyMultiSelect 
-            properties={properties} 
-            selectedProperties={selectedProperties} 
-            onSelectionChange={setSelectedProperties} 
-            isOpen={propertySelectOpen} 
-            onToggle={() => setPropertySelectOpen(!propertySelectOpen)} 
+          <PropertyMultiSelect
+            properties={properties}
+            selectedProperties={selectedProperties}
+            onSelectionChange={setSelectedProperties}
+            isOpen={propertySelectOpen}
+            onToggle={() => setPropertySelectOpen(!propertySelectOpen)}
           />
         </div>
       </div>
 
-      {loading ? (
+      {/* Loading State */}
+      {isLoading ? (
         <div className="flex items-center justify-center min-h-[60vh]">
           <Loader2 className="h-8 w-8 text-primary animate-spin" />
         </div>
       ) : (
         <>
-          <h2 className="text-2xl font-bold text-gray-700 -mb-4">Visão Financeira</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <MonthlyRevenueKPI 
-              totalRevenue={financialData.totalRevenue} 
-              selectedPeriod={periodOptions.find(o => o.value === selectedPeriod)?.label || ''} 
-            />
-            <KPICard 
-              title="Despesas Totais" 
-              value={formatCurrency(financialData.totalExpenses)} 
-              isPositive={false} 
-              icon={<TrendingDown className="h-4 w-4" />} 
-            />
-            <NetProfitKPI reservations={financialData.reservationsForPeriod} />
-            <KPICard 
-              title="Taxa de Ocupação" 
-              value={`${financialData.occupancyRate.toFixed(1)}%`} 
-              icon={<Calendar className="h-4 w-4" />} 
-            />
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-            <div className="lg:col-span-3">
-              <AnnualGrowthChart 
-                monthlyData={annualGrowthData.monthlyData} 
-                yearlyData={annualGrowthData.yearlyData} 
-                loading={loading} 
+          {/* Financial Vision */}
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-gray-700">
+              Visão Financeira {periodType === 'future' && <span className="text-sm font-normal text-gray-500">(Previsão)</span>}
+            </h2>
+            
+            {/* Financial KPIs */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <MonthlyRevenueKPI 
+                totalRevenue={financialData.data.totalRevenue}
+                selectedPeriod={getCurrentPeriodLabel()}
+              />
+              <KPICard
+                title="Despesas Totais"
+                value={`R$ ${financialData.data.totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                isPositive={false}
+                icon={<TrendingDown className="h-4 w-4" />}
+              />
+              <NetProfitKPI reservations={reservationsForNetProfit} />
+              <KPICard
+                title="Taxa de Ocupação"
+                value={`${financialData.data.occupancyRate.toFixed(1)}%`}
+                icon={<Calendar className="h-4 w-4" />}
               />
             </div>
-            <div className="lg:col-span-2">
-              <Card className="bg-white h-full">
-                <CardHeader>
-                  <CardTitle className="text-gradient-primary">Receita por Plataforma</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie 
-                        data={financialData.revenueByPlatform} 
-                        dataKey="value" 
-                        nameKey="name" 
-                        cx="50%" 
-                        cy="50%" 
-                        innerRadius={60} 
-                        outerRadius={80} 
-                        paddingAngle={5} 
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                      >
-                        {financialData.revenueByPlatform.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip 
-                        formatter={(value) => formatCurrency(Number(value))} 
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
+
+            {/* Charts */}
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+              <div className="lg:col-span-3">
+                <AnnualGrowthChart
+                  monthlyData={annualGrowthData.data.monthlyData}
+                  yearlyData={annualGrowthData.data.yearlyData}
+                  loading={annualGrowthData.loading}
+                />
+              </div>
+              
+              <div className="lg:col-span-2">
+                <Card className="bg-white h-full">
+                  <CardHeader>
+                    <CardTitle className="text-gradient-primary">Receita por Plataforma</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <PieChart>
+                        <Pie
+                          data={financialData.data.revenueByPlatform}
+                          dataKey="value"
+                          nameKey="name"
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={80}
+                          paddingAngle={5}
+                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        >
+                          {financialData.data.revenueByPlatform.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          formatter={(value) => `R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           </div>
 
-          <div className="border-t pt-8">
-            <h2 className="text-2xl font-bold text-gray-700 mb-4">Visão Operacional</h2>
+          {/* Upcoming Events Section */}
+          <div className="border-t pt-8 space-y-6">
+            <h2 className="text-2xl font-bold text-gray-700">Próximos Eventos</h2>
+            
+            <div className="max-w-4xl">
+              <UpcomingReservations
+                reservations={operationalData.data.upcomingReservations}
+                loading={operationalData.loading}
+              />
+            </div>
+          </div>
+
+          {/* Operational Vision */}
+          <div className="border-t pt-8 space-y-6">
+            <h2 className="text-2xl font-bold text-gray-700">
+              Visão Operacional {periodType === 'future' && <span className="text-sm font-normal text-gray-500">(Previsão)</span>}
+            </h2>
+            
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <PaymentStatusCard 
-                paidCount={operationalData.paidCount} 
-                pendingCount={operationalData.pendingCount} 
+              <PaymentSummaryCard
+                totalPaidCount={operationalData.data.totalPaidCount}
+                totalPendingCount={operationalData.data.totalPendingCount}
               />
-              <CashflowCard data={operationalData.cashflow} />
-              <UpcomingReservations 
-                reservations={operationalData.upcomingReservations} 
-                loading={loading} 
+              <PaymentStatusCard
+                paidCount={operationalData.data.paidCount}
+                pendingCount={operationalData.data.pendingCount}
               />
+              <CashflowCard data={operationalData.data.cashflow} />
             </div>
           </div>
         </>
