@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Search, UserPlus, RefreshCw } from 'lucide-react';
+import { Search, UserPlus, RefreshCw, Loader2 } from 'lucide-react'; // Importado o Loader2
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
@@ -23,17 +23,18 @@ const UserManagementSection = () => {
   const [userToDelete, setUserToDelete] = useState<UserProfile | null>(null);
   const [showInviteForm, setShowInviteForm] = useState(false);
   
-  const { hasPermission, isMaster } = useUserPermissions();
+  // CORREÇÃO 1: Acessando o estado de loading do hook de permissões
+  const { hasPermission, isMaster, loading: permissionsLoading } = useUserPermissions();
   const { toast } = useToast();
 
   useEffect(() => {
-    if (hasPermission('users_manage')) {
+    // A verificação de permissão agora acontece apenas quando o loading de permissões termina
+    if (!permissionsLoading && hasPermission('users_manage')) {
       fetchUsers();
     }
-  }, [hasPermission]);
+  }, [permissionsLoading, hasPermission]);
 
   useEffect(() => {
-    // Filtrar usuários baseado na busca
     if (searchTerm) {
       const filtered = users.filter(user => 
         user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -109,23 +110,9 @@ const UserManagementSection = () => {
     if (!userToDelete) return;
 
     try {
-      // Deletar relacionamentos primeiro
-      await supabase
-        .from('user_permissions')
-        .delete()
-        .eq('user_id', userToDelete.user_id);
-
-      await supabase
-        .from('user_property_access')
-        .delete()
-        .eq('user_id', userToDelete.user_id);
-
-      // Deletar perfil do usuário
-      const { error } = await supabase
-        .from('user_profiles')
-        .delete()
-        .eq('user_id', userToDelete.user_id);
-
+      await supabase.from('user_permissions').delete().eq('user_id', userToDelete.user_id);
+      await supabase.from('user_property_access').delete().eq('user_id', userToDelete.user_id);
+      const { error } = await supabase.from('user_profiles').delete().eq('user_id', userToDelete.user_id);
       if (error) throw error;
 
       toast({
@@ -147,7 +134,16 @@ const UserManagementSection = () => {
     }
   };
 
-  // Verificar se o usuário tem permissão para gerenciar usuários
+  // CORREÇÃO 2: Adicionando a verificação do estado de loading ANTES de verificar as permissões.
+  if (permissionsLoading) {
+    return (
+      <div className="flex justify-center items-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <span className="ml-2 text-muted-foreground">Verificando permissões...</span>
+      </div>
+    );
+  }
+
   if (!hasPermission('users_manage')) {
     return (
       <div className="text-center py-8">
@@ -167,7 +163,6 @@ const UserManagementSection = () => {
         </p>
       </div>
 
-      {/* Ações principais */}
       <div className="flex flex-col sm:flex-row gap-4 justify-between">
         <div className="flex gap-2">
           <Button onClick={() => setShowInviteForm(!showInviteForm)}>
@@ -180,7 +175,6 @@ const UserManagementSection = () => {
           </Button>
         </div>
 
-        {/* Busca */}
         <div className="relative w-full sm:w-80">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input
@@ -192,7 +186,6 @@ const UserManagementSection = () => {
         </div>
       </div>
 
-      {/* Formulário de convite */}
       {showInviteForm && (
         <UserInviteForm onUserInvited={() => {
           fetchUsers();
@@ -200,7 +193,6 @@ const UserManagementSection = () => {
         }} />
       )}
 
-      {/* Lista de usuários */}
       <Card>
         <CardHeader>
           <CardTitle>Usuários Cadastrados</CardTitle>
@@ -219,7 +211,6 @@ const UserManagementSection = () => {
         </CardContent>
       </Card>
 
-      {/* Modal de edição */}
       <UserEditModal
         user={selectedUser}
         open={editModalOpen}
@@ -230,7 +221,6 @@ const UserManagementSection = () => {
         onUserUpdated={fetchUsers}
       />
 
-      {/* Dialog de confirmação de exclusão */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
