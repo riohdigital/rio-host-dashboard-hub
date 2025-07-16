@@ -77,6 +77,7 @@ const PropertyInvestmentSummaryTable = ({ roiData, loading }: PropertyInvestment
           <TableHeader>
             <TableRow>
               <TableHead>Propriedade</TableHead>
+              <TableHead className="text-right">Receita Bruta</TableHead>
               <TableHead className="text-right">Investimento</TableHead>
               <TableHead className="text-right">Receita Líquida</TableHead>
               <TableHead className="text-center">ROI</TableHead>
@@ -94,6 +95,9 @@ const PropertyInvestmentSummaryTable = ({ roiData, loading }: PropertyInvestment
                       <div className="text-sm text-gray-500">{roi.property_nickname}</div>
                     )}
                   </div>
+                </TableCell>
+                <TableCell className="text-right font-medium text-blue-600">
+                  {formatCurrency(roi.total_revenue)}
                 </TableCell>
                 <TableCell className="text-right font-medium text-red-600">
                   {formatCurrency(roi.total_investment)}
