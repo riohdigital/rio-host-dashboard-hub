@@ -73,13 +73,21 @@ const ExpenseForm = ({ expense, selectedPropertyId, onSuccess, onCancel }: Expen
         filteredProperties = propsRes.data?.filter(property => 
           accessiblePropertyIds.includes(property.id)
         ) || [];
+        
+        // When editing, ensure the expense's property is available even if not in accessible list
+        if (expense && expense.property_id) {
+          const expenseProperty = propsRes.data?.find(p => p.id === expense.property_id);
+          if (expenseProperty && !filteredProperties.find(p => p.id === expense.property_id)) {
+            filteredProperties.push(expenseProperty);
+          }
+        }
       }
       
       setProperties(filteredProperties);
       setCategories(catRes.data || []);
     };
     fetchData().catch(console.error);
-  }, [isMaster, hasPermission, getAccessibleProperties]);
+  }, [isMaster, hasPermission, getAccessibleProperties, expense]);
 
   const generateRecurrentExpenses = (baseExpense: Omit<ExpenseFormData, 'expense_date'>) => {
     const expenses = [];
