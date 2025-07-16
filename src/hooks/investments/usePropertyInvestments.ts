@@ -3,13 +3,17 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { PropertyInvestment } from '@/types/investment';
 import { useToast } from '@/hooks/use-toast';
+import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 
 export const usePropertyInvestments = (propertyId?: string) => {
   const [investments, setInvestments] = useState<PropertyInvestment[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { isMaster, getAccessibleProperties, loading: permissionsLoading } = useUserPermissions();
 
   const fetchInvestments = async () => {
+    if (permissionsLoading) return;
+    
     try {
       setLoading(true);
       let query = supabase
@@ -23,6 +27,14 @@ export const usePropertyInvestments = (propertyId?: string) => {
 
       if (propertyId) {
         query = query.eq('property_id', propertyId);
+      } else if (!isMaster()) {
+        const accessibleProperties = getAccessibleProperties();
+        if (accessibleProperties.length === 0) {
+          setInvestments([]);
+          setLoading(false);
+          return;
+        }
+        query = query.in('property_id', accessibleProperties);
       }
 
       const { data, error } = await query;
@@ -125,8 +137,10 @@ export const usePropertyInvestments = (propertyId?: string) => {
   };
 
   useEffect(() => {
-    fetchInvestments();
-  }, [propertyId]);
+    if (!permissionsLoading) {
+      fetchInvestments();
+    }
+  }, [propertyId, permissionsLoading]);
 
   return {
     investments,

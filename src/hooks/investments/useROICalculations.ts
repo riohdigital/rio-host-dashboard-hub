@@ -2,19 +2,35 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { PropertyROI } from '@/types/investment';
+import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 
 export const useROICalculations = () => {
   const [roiData, setRoiData] = useState<PropertyROI[]>([]);
   const [loading, setLoading] = useState(true);
+  const { isMaster, getAccessibleProperties, loading: permissionsLoading } = useUserPermissions();
 
   const calculateROI = async () => {
+    if (permissionsLoading) return;
+    
     try {
       setLoading(true);
 
-      // Buscar todas as propriedades
-      const { data: properties, error: propertiesError } = await supabase
+      // Buscar propriedades baseado nas permissões
+      let propertiesQuery = supabase
         .from('properties')
         .select('id, name, nickname');
+
+      if (!isMaster()) {
+        const accessibleProperties = getAccessibleProperties();
+        if (accessibleProperties.length === 0) {
+          setRoiData([]);
+          setLoading(false);
+          return;
+        }
+        propertiesQuery = propertiesQuery.in('id', accessibleProperties);
+      }
+
+      const { data: properties, error: propertiesError } = await propertiesQuery;
 
       if (propertiesError) throw propertiesError;
 
@@ -85,8 +101,10 @@ export const useROICalculations = () => {
   };
 
   useEffect(() => {
-    calculateROI();
-  }, []);
+    if (!permissionsLoading) {
+      calculateROI();
+    }
+  }, [permissionsLoading]);
 
   return {
     roiData,
