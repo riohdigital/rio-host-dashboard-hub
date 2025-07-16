@@ -3,31 +3,31 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Edit, Trash2, Plus, Search } from 'lucide-react';
+import { Edit, Trash2, Plus, Search, Loader2 } from 'lucide-react';
 import ReservationForm from '@/components/reservations/ReservationForm';
 import StatusSelector from '@/components/reservations/StatusSelector';
 import { supabase } from '@/integrations/supabase/client';
 import { Reservation } from '@/types/reservation';
 import { Property } from '@/types/property';
 import { useToast } from '@/hooks/use-toast';
+import MainLayout from '@/components/layout/MainLayout'; // Importando o MainLayout
 
-// --- CORREÇÃO APLICADA AQUI ---
-// A função agora trata a data como uma string para evitar problemas de fuso horário.
+// CORREÇÃO DA DATA: Função que trata a data como string para evitar bugs de fuso horário.
 const formatDate = (dateString: string | null): string => {
   if (!dateString) return '';
   const parts = dateString.split('-'); // Ex: '2025-07-18'
-  if (parts.length !== 3) return dateString; // Retorna original se o formato for inválido
+  if (parts.length !== 3) return dateString; // Fallback para formatos inesperados
   const [year, month, day] = parts;
   return `${day}/${month}/${year}`; // Retorna '18/07/2025'
 };
 
 const formatTime = (timeString: string | null): string => {
   if (!timeString) return '';
-  return timeString.slice(0, 5); // Remove seconds
+  return timeString.slice(0, 5);
 };
 
 const ReservasPage = () => {
@@ -160,243 +160,172 @@ const ReservasPage = () => {
 
   if (loading) {
     return (
-      <div className="container mx-auto py-8 px-4">
+      <MainLayout>
         <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">Carregando...</div>
+          <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
         </div>
-      </div>
+      </MainLayout>
     );
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Reservas</h1>
-          <p className="text-gray-600 mt-1">Gerencie suas reservas e acompanhe o status</p>
+    // REINTEGRAÇÃO DO MAINLAYOUT
+    <MainLayout>
+      <div className="container mx-auto py-8 px-4">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Reservas</h1>
+            <p className="text-gray-600 mt-1">Gerencie suas reservas e acompanhe o status</p>
+          </div>
+          <Button 
+            onClick={() => {
+              setEditingReservation(null);
+              setShowForm(true);
+            }}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Adicionar Nova Reserva
+          </Button>
         </div>
-        <Button 
-          onClick={() => setShowForm(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Adicionar Nova Reserva
-        </Button>
+
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Buscar por código, hóspede ou propriedade..."
+                  className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              
+              <Select value={selectedProperty} onValueChange={setSelectedProperty}>
+                <SelectTrigger className="w-full sm:w-[220px] border-gray-300">
+                  <SelectValue placeholder="Todas as propriedades" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as propriedades</SelectItem>
+                  {properties.map((property) => (
+                    <SelectItem key={property.id} value={property.id}>
+                      {property.nickname || property.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                <SelectTrigger className="w-full sm:w-[180px] border-gray-300">
+                  <SelectValue placeholder="Todos os status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os status</SelectItem>
+                  <SelectItem value="Confirmada">Confirmada</SelectItem>
+                  <SelectItem value="Em Andamento">Em Andamento</SelectItem>
+                  <SelectItem value="Finalizada">Finalizada</SelectItem>
+                  <SelectItem value="Cancelada">Cancelada</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-gray-50">
+                    <TableHead className="font-semibold text-gray-900">Código</TableHead>
+                    <TableHead className="font-semibold text-gray-900">Propriedade</TableHead>
+                    <TableHead className="font-semibold text-gray-900">Hóspede</TableHead>
+                    <TableHead className="font-semibold text-gray-900">Check-in</TableHead>
+                    <TableHead className="font-semibold text-gray-900">Check-out</TableHead>
+                    <TableHead className="font-semibold text-gray-900">Plataforma</TableHead>
+                    <TableHead className="font-semibold text-gray-900">Status</TableHead>
+                    <TableHead className="font-semibold text-gray-900">Pagamento</TableHead>
+                    <TableHead className="font-semibold text-gray-900">Valores</TableHead>
+                    <TableHead className="font-semibold text-gray-900">Comunicado</TableHead>
+                    <TableHead className="font-semibold text-gray-900">Recibo</TableHead>
+                    <TableHead className="font-semibold text-gray-900">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredReservations.map((reservation) => {
+                    const property = properties.find(p => p.id === reservation.property_id);
+                    return (
+                      <TableRow key={reservation.id} className="hover:bg-gray-50">
+                        <TableCell className="font-medium text-blue-600">{reservation.reservation_code}</TableCell>
+                        <TableCell className="font-medium">{property?.nickname || property?.name}</TableCell>
+                        <TableCell>{reservation.guest_name || '-'}</TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            <div className="font-medium">{formatDate(reservation.check_in_date)}</div>
+                            {reservation.checkin_time && (<div className="text-sm text-gray-500">{formatTime(reservation.checkin_time)}</div>)}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            <div className="font-medium">{formatDate(reservation.check_out_date)}</div>
+                            {reservation.checkout_time && (<div className="text-sm text-gray-500">{formatTime(reservation.checkout_time)}</div>)}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary" className="bg-blue-100 text-blue-700">{reservation.platform}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <StatusSelector reservationId={reservation.id} currentStatus={reservation.reservation_status} statusType="reservation_status" onUpdate={fetchAllData} />
+                        </TableCell>
+                        <TableCell>
+                          <StatusSelector reservationId={reservation.id} currentStatus={reservation.payment_status || 'Pendente'} statusType="payment_status" onUpdate={fetchAllData} />
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            <div className="font-bold text-green-700 text-base">R$ {reservation.net_revenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}</div>
+                            <div className="text-sm text-gray-600">Total: R$ {reservation.total_revenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center space-x-2"><Checkbox checked={reservation.is_communicated || false} onCheckedChange={(checked) => handleCheckboxChange(reservation.id, 'is_communicated', checked as boolean)} /><span className="text-sm text-gray-600">{reservation.is_communicated ? 'Sim' : 'Não'}</span></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center space-x-2"><Checkbox checked={reservation.receipt_sent || false} onCheckedChange={(checked) => handleCheckboxChange(reservation.id, 'receipt_sent', checked as boolean)} /><span className="text-sm text-gray-600">{reservation.receipt_sent ? 'Sim' : 'Não'}</span></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Button variant="outline" size="sm" onClick={() => handleEdit(reservation)} className="text-blue-600 border-blue-600 hover:bg-blue-50"><Edit className="h-4 w-4" /></Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild><Button variant="outline" size="sm" className="text-red-600 border-red-600 hover:bg-red-50"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader><AlertDialogTitle>Confirmar exclusão</AlertDialogTitle><AlertDialogDescription>Tem certeza que deseja excluir esta reserva? Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
+                                <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(reservation.id)} className="bg-red-600 hover:bg-red-700">Excluir</AlertDialogAction></AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+
+        {showForm && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <h2 className="text-xl font-semibold mb-4 text-gray-900">{editingReservation ? 'Editar Reserva' : 'Nova Reserva'}</h2>
+                <ReservationForm reservation={editingReservation} onSuccess={handleFormSuccess} onCancel={() => { setShowForm(false); setEditingReservation(null); }} />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-
-      <Card className="mb-6">
-        <CardContent className="pt-6">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Buscar por código, hóspede ou propriedade..."
-                className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            
-            <Select value={selectedProperty} onValueChange={setSelectedProperty}>
-              <SelectTrigger className="w-full sm:w-[220px] border-gray-300">
-                <SelectValue placeholder="Todas as propriedades" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as propriedades</SelectItem>
-                {properties.map((property) => (
-                  <SelectItem key={property.id} value={property.id}>
-                    {property.nickname || property.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-              <SelectTrigger className="w-full sm:w-[180px] border-gray-300">
-                <SelectValue placeholder="Todos os status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os status</SelectItem>
-                <SelectItem value="Confirmada">Confirmada</SelectItem>
-                <SelectItem value="Em Andamento">Em Andamento</SelectItem>
-                <SelectItem value="Finalizada">Finalizada</SelectItem>
-                <SelectItem value="Cancelada">Cancelada</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-gray-50">
-                  <TableHead className="font-semibold text-gray-900">Código</TableHead>
-                  <TableHead className="font-semibold text-gray-900">Propriedade</TableHead>
-                  <TableHead className="font-semibold text-gray-900">Hóspede</TableHead>
-                  <TableHead className="font-semibold text-gray-900">Check-in</TableHead>
-                  <TableHead className="font-semibold text-gray-900">Check-out</TableHead>
-                  <TableHead className="font-semibold text-gray-900">Plataforma</TableHead>
-                  <TableHead className="font-semibold text-gray-900">Status</TableHead>
-                  <TableHead className="font-semibold text-gray-900">Pagamento</TableHead>
-                  <TableHead className="font-semibold text-gray-900">Valores</TableHead>
-                  <TableHead className="font-semibold text-gray-900">Comunicado</TableHead>
-                  <TableHead className="font-semibold text-gray-900">Recibo</TableHead>
-                  <TableHead className="font-semibold text-gray-900">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredReservations.map((reservation) => {
-                  const property = properties.find(p => p.id === reservation.property_id);
-                  return (
-                    <TableRow key={reservation.id} className="hover:bg-gray-50">
-                      <TableCell className="font-medium text-blue-600">{reservation.reservation_code}</TableCell>
-                      <TableCell className="font-medium">{property?.nickname || property?.name}</TableCell>
-                      <TableCell>{reservation.guest_name || '-'}</TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          <div className="font-medium">{formatDate(reservation.check_in_date)}</div>
-                          {reservation.checkin_time && (
-                            <div className="text-sm text-gray-500">{formatTime(reservation.checkin_time)}</div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          <div className="font-medium">{formatDate(reservation.check_out_date)}</div>
-                          {reservation.checkout_time && (
-                            <div className="text-sm text-gray-500">{formatTime(reservation.checkout_time)}</div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary" className="bg-blue-100 text-blue-700">
-                          {reservation.platform}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <StatusSelector 
-                          reservationId={reservation.id}
-                          currentStatus={reservation.reservation_status}
-                          statusType="reservation_status"
-                          onUpdate={fetchAllData}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <StatusSelector 
-                          reservationId={reservation.id}
-                          currentStatus={reservation.payment_status || 'Pendente'}
-                          statusType="payment_status"
-                          onUpdate={fetchAllData}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          <div className="font-bold text-green-700 text-base">
-                            R$ {reservation.net_revenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}
-                          </div>
-                          <div className="text-sm text-gray-600">
-                            Total: R$ {reservation.total_revenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            checked={reservation.is_communicated || false}
-                            onCheckedChange={(checked) => 
-                              handleCheckboxChange(reservation.id, 'is_communicated', checked as boolean)
-                            }
-                          />
-                          <span className="text-sm text-gray-600">
-                            {reservation.is_communicated ? 'Sim' : 'Não'}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            checked={reservation.receipt_sent || false}
-                            onCheckedChange={(checked) => 
-                              handleCheckboxChange(reservation.id, 'receipt_sent', checked as boolean)
-                            }
-                          />
-                          <span className="text-sm text-gray-600">
-                            {reservation.receipt_sent ? 'Sim' : 'Não'}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEdit(reservation)}
-                            className="text-blue-600 border-blue-600 hover:bg-blue-50"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                className="text-red-600 border-red-600 hover:bg-red-50"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Tem certeza que deseja excluir esta reserva? Esta ação não pode ser desfeita.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction 
-                                  onClick={() => handleDelete(reservation.id)}
-                                  className="bg-red-600 hover:bg-red-700"
-                                >
-                                  Excluir
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
-
-      {showForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <h2 className="text-xl font-semibold mb-4 text-gray-900">
-                {editingReservation ? 'Editar Reserva' : 'Nova Reserva'}
-              </h2>
-              <ReservationForm
-                reservation={editingReservation}
-                onSuccess={handleFormSuccess}
-                onCancel={() => {
-                  setShowForm(false);
-                  setEditingReservation(null);
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+    </MainLayout>
   );
 };
 
