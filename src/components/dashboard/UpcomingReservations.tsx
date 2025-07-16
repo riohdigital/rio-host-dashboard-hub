@@ -102,7 +102,7 @@ const UpcomingReservations = ({ reservations, loading }: { reservations: Upcomin
         )}
       </CardContent>
       {/* Estilos para a barra de rolagem customizada */}
-      <style jsx global>{`
+      <style>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 8px;
         }

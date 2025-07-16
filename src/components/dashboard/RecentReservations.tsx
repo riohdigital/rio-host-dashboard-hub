@@ -120,7 +120,7 @@ const RecentReservations = ({ reservations, loading }: RecentReservationsProps) 
       </CardContent>
       {/* ETAPA 2: ESTILOS DA BARRA DE ROLAGEM */ }
       {/* Este bloco de CSS (usando a sintaxe do Next.js/Styled-JSX) estiliza a barra de rolagem. */}
-      <style jsx global>{`
+      <style>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 8px;
         }

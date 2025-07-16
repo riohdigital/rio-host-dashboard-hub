@@ -175,7 +175,15 @@ const ExpensesList = () => {
         ))}
       </div>
 
-      <RecurrenceDetailModal isOpen={detailModalOpen} onClose={() => setDetailModalOpen(false)} group={selectedGroup} onDeleteAll={handleDeleteAllRecurrent} onDeleteSingle={(id) => handleDeleteSingle(id, true)} />
+      <RecurrenceDetailModal 
+        isOpen={detailModalOpen} 
+        onClose={() => setDetailModalOpen(false)} 
+        group={selectedGroup} 
+        onEditGroup={() => {}} 
+        onDeleteAll={handleDeleteAllRecurrent} 
+        onDeleteSingle={(id) => handleDeleteSingle(id, true)}
+        onMarkAsPaid={() => {}}
+      />
     </div>
   );
 };

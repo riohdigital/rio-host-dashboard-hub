@@ -8,6 +8,9 @@ export interface Expense {
   expense_type: string;
   amount: number;
   created_at: string;
+  is_recurrent?: boolean;
+  recurrence_group_id?: string;
+  payment_status?: string;
   properties?: {
     name: string;
     nickname?: string;

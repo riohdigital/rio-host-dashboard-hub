@@ -106,7 +106,15 @@ const ExpenseForm = ({ expense, selectedPropertyId, onSuccess, onCancel }: Expen
           if (error) throw error;
           toast({ title: "Sucesso", description: `${recurrentExpenses.length} despesas recorrentes criadas.` });
         } else {
-          const { error } = await supabase.from('expenses').insert([data]);
+          const { error } = await supabase.from('expenses').insert([{
+            property_id: data.property_id,
+            expense_date: data.expense_date,
+            description: data.description,
+            category: data.category,
+            expense_type: data.expense_type,
+            amount: Number(data.amount),
+            is_recurrent: false
+          }]);
           if (error) throw error;
           toast({ title: "Sucesso", description: "Despesa criada com sucesso." });
         }
