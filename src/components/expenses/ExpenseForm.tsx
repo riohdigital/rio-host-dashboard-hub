@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useUserPermissions } from '@/hooks/useUserPermissions';
+import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import { Property } from '@/types/property';
 import { Expense, ExpenseCategory } from '@/types/expense';
 import RecurrenceSettings from './RecurrenceSettings';

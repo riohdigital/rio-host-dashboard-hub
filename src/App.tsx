@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./hooks/useAuth";
+import { UserPermissionsProvider } from "@/contexts/UserPermissionsContext";
 import AuthPage from "./components/auth/AuthPage";
 import DashboardPage from "./pages/DashboardPage";
 import ReservasPage from "./pages/ReservasPage";
@@ -34,14 +35,14 @@ const App = () => {
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <Routes>
-            {!user ? (
-              <>
-                <Route path="/auth" element={<AuthPage />} />
-                <Route path="*" element={<Navigate to="/auth" replace />} />
-              </>
-            ) : (
-              <>
+          {!user ? (
+            <Routes>
+              <Route path="/auth" element={<AuthPage />} />
+              <Route path="*" element={<Navigate to="/auth" replace />} />
+            </Routes>
+          ) : (
+            <UserPermissionsProvider>
+              <Routes>
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/reservas" element={<ReservasPage />} />
@@ -52,9 +53,9 @@ const App = () => {
                 <Route path="/configuracoes" element={<ConfiguracoesPage />} />
                 <Route path="/auth" element={<Navigate to="/dashboard" replace />} />
                 <Route path="*" element={<NotFound />} />
-              </>
-            )}
-          </Routes>
+              </Routes>
+            </UserPermissionsProvider>
+          )}
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>

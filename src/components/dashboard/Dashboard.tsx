@@ -15,7 +15,7 @@ import { useDateRange } from '@/hooks/dashboard/useDateRange';
 import { useFinancialData } from '@/hooks/dashboard/useFinancialData';
 import { useOperationalData } from '@/hooks/dashboard/useOperationalData';
 import { useAnnualGrowthData } from '@/hooks/dashboard/useAnnualGrowthData';
-import { useUserPermissions } from '@/hooks/useUserPermissions';
+import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 
 // Importando os componentes de UI
 import KPICard from './KPICard';
@@ -148,10 +148,10 @@ const Dashboard = () => {
             <SelectTrigger className="w-48"><SelectValue placeholder="Período" /></SelectTrigger>
             <SelectContent>
               {['Atual', 'Passado', 'Futuro'].map(group => (
-                <React.Fragment key={group}>
+                <div key={group}>
                   <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider border-t mt-1 pt-2 first:mt-0 first:border-t-0">{group}</div>
                   {periodOptions.filter(o => o.group === group).map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                </React.Fragment>
+                </div>
               ))}
             </SelectContent>
           </Select>

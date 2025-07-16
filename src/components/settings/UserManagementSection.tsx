@@ -6,7 +6,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Search, UserPlus, RefreshCw, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useUserPermissions } from '@/hooks/useUserPermissions';
+import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import UserListTable from '@/components/user-management/UserListTable';
 import UserEditModal from '@/components/user-management/UserEditModal';
 import UserInviteForm from '@/components/user-management/UserInviteForm';

@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, MapPin, Users, DollarSign, Link2, Trash2, Edit } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useUserPermissions } from '@/hooks/useUserPermissions';
+import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import PropertyForm from './PropertyForm';
 import { Property } from '@/types/property';
 

@@ -15,7 +15,7 @@ import { Reservation } from '@/types/reservation';
 import { Property } from '@/types/property';
 import { useToast } from '@/hooks/use-toast';
 import MainLayout from '@/components/layout/MainLayout';
-import { useUserPermissions } from '@/hooks/useUserPermissions';
+import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 // CORREÇÃO DA DATA: Função que trata a data como string para evitar bugs de fuso horário.

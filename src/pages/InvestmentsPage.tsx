@@ -13,7 +13,7 @@ import { usePropertyInvestments } from '@/hooks/investments/usePropertyInvestmen
 import { useROICalculations } from '@/hooks/investments/useROICalculations';
 import { supabase } from '@/integrations/supabase/client';
 import { Property } from '@/types/property';
-import { useUserPermissions } from '@/hooks/useUserPermissions';
+import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const InvestmentsPage = () => {

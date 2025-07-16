@@ -1,9 +1,26 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import type { UserProfile, UserPermission, UserPropertyAccess, PermissionType } from '@/types/user-management';
 
-export const useUserPermissions = () => {
+interface UserPermissionsContextType {
+  userProfile: UserProfile | null;
+  permissions: UserPermission[];
+  propertyAccess: UserPropertyAccess[];
+  loading: boolean;
+  hasPermission: (permissionType: PermissionType, resourceId?: string) => boolean;
+  canAccessProperty: (propertyId: string) => 'full' | 'read_only' | 'restricted' | null;
+  isMaster: () => boolean;
+  isOwner: () => boolean;
+  isEditor: () => boolean;
+  isViewer: () => boolean;
+  getAccessibleProperties: () => string[];
+  refetch: () => Promise<void>;
+}
+
+const UserPermissionsContext = createContext<UserPermissionsContextType | undefined>(undefined);
+
+export const UserPermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [permissions, setPermissions] = useState<UserPermission[]>([]);
@@ -12,9 +29,12 @@ export const useUserPermissions = () => {
 
   const fetchUserData = useCallback(async () => {
     if (!user) {
+      setUserProfile(null);
+      setPermissions([]);
+      setPropertyAccess([]);
       setLoading(false);
       return;
-    };
+    }
 
     try {
       setLoading(true);
@@ -96,7 +116,7 @@ export const useUserPermissions = () => {
     return propertyAccess.map(pa => pa.property_id).filter(Boolean);
   };
 
-  return {
+  const value = {
     userProfile,
     permissions,
     propertyAccess,
@@ -110,4 +130,18 @@ export const useUserPermissions = () => {
     getAccessibleProperties,
     refetch: fetchUserData
   };
+
+  return (
+    <UserPermissionsContext.Provider value={value}>
+      {children}
+    </UserPermissionsContext.Provider>
+  );
+};
+
+export const useUserPermissions = () => {
+  const context = useContext(UserPermissionsContext);
+  if (context === undefined) {
+    throw new Error('useUserPermissions must be used within a UserPermissionsProvider');
+  }
+  return context;
 };
