@@ -17,13 +17,26 @@ const Sidebar = () => {
   const { toast } = useToast();
 
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      toast({
-        title: "Erro ao sair",
-        description: error.message,
-        variant: "destructive",
-      });
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session) {
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+          toast({
+            title: "Erro ao sair",
+            description: error.message,
+            variant: "destructive",
+          });
+        }
+      } else {
+        // Se não há sessão ativa, apenas limpe o estado localmente
+        window.location.href = '/auth';
+      }
+    } catch (error) {
+      console.error('Erro durante logout:', error);
+      // Em caso de erro, redirecione para auth
+      window.location.href = '/auth';
     }
   };
 
