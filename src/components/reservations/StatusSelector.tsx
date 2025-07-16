@@ -31,7 +31,7 @@ const StatusSelector = ({ reservationId, currentStatus, statusType, onUpdate }: 
       case 'pendente':
         return 'gradient-warning'; // Usa a classe que você já definiu
       case 'finalizada':
-        return 'gradient-muted'; // Usa a classe que você já definiu
+        return 'bg-gray-600 text-white'; // Fundo cinza escuro com texto branco para melhor contraste
       case 'cancelada':
       case 'atrasado':
         return 'gradient-danger'; // Usa a classe que você já definiu

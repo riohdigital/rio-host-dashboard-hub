@@ -239,7 +239,8 @@ const ReservasPage = () => {
                   <TableHead className="font-semibold text-gray-900">Check-out</TableHead>
                   <TableHead className="font-semibold text-gray-900">Plataforma</TableHead>
                   <TableHead className="font-semibold text-gray-900">Status</TableHead>
-                  <TableHead className="font-semibold text-gray-900">Receita Total</TableHead>
+                  <TableHead className="font-semibold text-gray-900">Pagamento</TableHead>
+                  <TableHead className="font-semibold text-gray-900">Valores</TableHead>
                   <TableHead className="font-semibold text-gray-900">Comunicado</TableHead>
                   <TableHead className="font-semibold text-gray-900">Recibo</TableHead>
                   <TableHead className="font-semibold text-gray-900">Ações</TableHead>
@@ -282,8 +283,23 @@ const ReservasPage = () => {
                           onUpdate={fetchAllData}
                         />
                       </TableCell>
-                      <TableCell className="font-semibold text-green-600">
-                        R$ {reservation.total_revenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      <TableCell>
+                        <StatusSelector 
+                          reservationId={reservation.id}
+                          currentStatus={reservation.payment_status || 'Pendente'}
+                          statusType="payment_status"
+                          onUpdate={fetchAllData}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <div className="font-bold text-green-700 text-base">
+                            R$ {reservation.net_revenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            Total: R$ {reservation.total_revenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </div>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-2">
