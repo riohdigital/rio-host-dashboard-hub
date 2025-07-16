@@ -13,12 +13,15 @@ import { usePropertyInvestments } from '@/hooks/investments/usePropertyInvestmen
 import { useROICalculations } from '@/hooks/investments/useROICalculations';
 import { supabase } from '@/integrations/supabase/client';
 import { Property } from '@/types/property';
+import { Reservation } from '@/types/reservation';
 import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const InvestmentsPage = () => {
   const [properties, setProperties] = useState<Property[]>([]);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
   const [propertiesLoading, setPropertiesLoading] = useState(true);
+  const [reservationsLoading, setReservationsLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | undefined>();
 
@@ -58,6 +61,38 @@ const InvestmentsPage = () => {
     }
   }, [permissionsLoading, getAccessibleProperties]);
 
+  // Carregar reservations
+  useEffect(() => {
+    const fetchReservations = async () => {
+      try {
+        const accessibleProperties = getAccessibleProperties();
+        
+        let query = supabase
+          .from('reservations')
+          .select('*')
+          .order('check_in_date', { ascending: false });
+
+        // Apply filters based on permissions
+        if (accessibleProperties.length > 0) {
+          query = query.in('property_id', accessibleProperties);
+        }
+
+        const { data, error } = await query;
+
+        if (error) throw error;
+        setReservations(data || []);
+      } catch (error) {
+        console.error('Erro ao carregar reservations:', error);
+      } finally {
+        setReservationsLoading(false);
+      }
+    };
+
+    if (!permissionsLoading) {
+      fetchReservations();
+    }
+  }, [permissionsLoading, getAccessibleProperties]);
+
   const handleCreateInvestment = async (investmentData: any) => {
     await createInvestment(investmentData);
     await refetchROI();
@@ -78,8 +113,12 @@ const InvestmentsPage = () => {
     ? investments.filter(inv => inv.property_id === selectedPropertyId)
     : investments;
 
+  const filteredReservations = selectedPropertyId
+    ? reservations.filter(res => res.property_id === selectedPropertyId)
+    : reservations;
+
   // Calcular estatísticas gerais (baseadas nos dados filtrados)
-  const totalGrossRevenue = filteredROIData.reduce((sum, roi) => sum + roi.total_revenue, 0);
+  const totalGrossRevenue = filteredReservations.reduce((sum, res) => sum + (res.net_revenue || 0), 0);
   const totalInvestment = filteredInvestments.reduce((sum, inv) => sum + Number(inv.amount), 0);
   const totalROIValue = filteredROIData.reduce((sum, roi) => sum + roi.net_revenue, 0);
   const averageROI = filteredROIData.length > 0 
@@ -94,7 +133,7 @@ const InvestmentsPage = () => {
     }).format(value);
   };
 
-  const totalLoading = investmentsLoading || roiLoading || permissionsLoading || propertiesLoading;
+  const totalLoading = investmentsLoading || roiLoading || permissionsLoading || propertiesLoading || reservationsLoading;
 
   if (totalLoading) {
     return (
@@ -180,7 +219,7 @@ const InvestmentsPage = () => {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">
-                Valor Bruto Recebido
+                Receita Bruta Total
               </CardTitle>
             </CardHeader>
             <CardContent>
