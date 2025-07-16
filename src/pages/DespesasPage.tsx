@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertTriangle } from 'lucide-react';
 
 const DespesasPage = () => {
-  const { hasPermission, loading } = useUserPermissions();
+  const { hasPermission, loading, getAccessibleProperties } = useUserPermissions();
 
   if (loading) {
     return (
@@ -19,7 +19,7 @@ const DespesasPage = () => {
     );
   }
 
-  const canViewExpenses = hasPermission('expenses_view');
+  const canViewExpenses = hasPermission('expenses_view') || getAccessibleProperties().length > 0;
 
   if (!canViewExpenses) {
     return (
