@@ -24,16 +24,25 @@ const InvestmentsPage = () => {
 
   const { investments, loading: investmentsLoading, createInvestment, deleteInvestment } = usePropertyInvestments();
   const { roiData, loading: roiLoading, refetch: refetchROI } = useROICalculations();
-  const { hasPermission, loading: permissionsLoading } = useUserPermissions();
+  const { hasPermission, getAccessibleProperties, loading: permissionsLoading } = useUserPermissions();
 
   // Carregar propriedades
   useEffect(() => {
     const fetchProperties = async () => {
       try {
-        const { data, error } = await supabase
+        const accessibleProperties = getAccessibleProperties();
+        
+        let query = supabase
           .from('properties')
           .select('*')
           .order('name');
+
+        // Apply filters based on permissions
+        if (accessibleProperties.length > 0) {
+          query = query.in('id', accessibleProperties);
+        }
+
+        const { data, error } = await query;
 
         if (error) throw error;
         setProperties(data || []);
@@ -44,8 +53,10 @@ const InvestmentsPage = () => {
       }
     };
 
-    fetchProperties();
-  }, []);
+    if (!permissionsLoading) {
+      fetchProperties();
+    }
+  }, [permissionsLoading, getAccessibleProperties]);
 
   const handleCreateInvestment = async (investmentData: any) => {
     await createInvestment(investmentData);

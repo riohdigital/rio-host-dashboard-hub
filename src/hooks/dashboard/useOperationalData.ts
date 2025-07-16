@@ -39,7 +39,7 @@ export const useOperationalData = (
       let upcomingQuery = supabase.from('reservations').select('guest_name, check_in_date, payment_status, properties(nickname, name)').gte('check_in_date', todayString).order('check_in_date', { ascending: true }).limit(3);
       let recentQuery = supabase.from('reservations').select('guest_name, check_in_date, platform, total_revenue, created_at, properties(nickname, name)').order('created_at', { ascending: false }).limit(5);
 
-      if (propertyFilter) {
+      if (propertyFilter && propertyFilter.length > 0) {
         reservationsInPeriodQuery = reservationsInPeriodQuery.in('property_id', propertyFilter);
         allReservationsQuery = allReservationsQuery.in('property_id', propertyFilter);
         upcomingQuery = upcomingQuery.in('property_id', propertyFilter);

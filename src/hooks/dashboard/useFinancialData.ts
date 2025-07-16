@@ -50,7 +50,7 @@ export const useFinancialData = (
       
       let propertiesQuery = supabase.from('properties').select('id');
 
-      if (propertyFilter) {
+      if (propertyFilter && propertyFilter.length > 0) {
         reservationsQuery = reservationsQuery.in('property_id', propertyFilter);
         expensesQuery = expensesQuery.in('property_id', propertyFilter);
         propertiesQuery = propertiesQuery.in('id', propertyFilter);

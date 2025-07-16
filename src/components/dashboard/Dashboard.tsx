@@ -35,7 +35,7 @@ const Dashboard = () => {
   const [properties, setProperties] = useState<Property[]>([]);
   const [propertySelectOpen, setPropertySelectOpen] = useState(false);
   const [propertiesLoading, setPropertiesLoading] = useState(true);
-  const { hasPermission, getAccessibleProperties, isMaster } = useUserPermissions();
+  const { hasPermission, getAccessibleProperties, isMaster, loading: permissionsLoading } = useUserPermissions();
 
   const { startDateString, endDateString, totalDays, periodType } = useDateRange(selectedPeriod);
 
@@ -46,6 +46,8 @@ const Dashboard = () => {
 
   useEffect(() => {
     const fetchProps = async () => {
+      if (permissionsLoading) return;
+      
       setPropertiesLoading(true);
       const { data, error } = await supabase.from('properties').select('*').order('name');
       if (error) {
@@ -61,12 +63,19 @@ const Dashboard = () => {
         }
         
         setProperties(filteredProperties);
-        setSelectedProperties(filteredProperties.length > 0 ? filteredProperties.map(p => p.id) : ['todas']);
+        if (filteredProperties.length > 0) {
+          // Set to accessible properties or all properties based on permissions
+          setSelectedProperties(
+            !isMaster() && !hasPermission('properties_view_all')
+              ? filteredProperties.map(p => p.id) 
+              : ['todas']
+          );
+        }
       }
       setPropertiesLoading(false);
     };
     fetchProps();
-  }, [isMaster, hasPermission, getAccessibleProperties]);
+  }, [permissionsLoading, isMaster, hasPermission, getAccessibleProperties]);
 
   useEffect(() => {
     if (!propertiesLoading) {
@@ -76,7 +85,7 @@ const Dashboard = () => {
     }
   }, [selectedPeriod, selectedProperties, propertiesLoading, fetchFinancialData, fetchOperationalData, fetchAnnualGrowthData]);
   
-  const isLoading = financialLoading || operationalLoading || annualGrowthLoading || propertiesLoading;
+  const isLoading = financialLoading || operationalLoading || annualGrowthLoading || propertiesLoading || permissionsLoading;
   
   const generatePeriodOptions = () => {
     const now = new Date();

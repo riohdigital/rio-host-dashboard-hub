@@ -91,9 +91,9 @@ export const useUserPermissions = () => {
 
   const getAccessibleProperties = (): string[] => {
     if (isMaster() || hasPermission('properties_view_all')) {
-      return [];
+      return []; // Empty array means all properties accessible
     }
-    return propertyAccess.map(pa => pa.property_id);
+    return propertyAccess.map(pa => pa.property_id).filter(Boolean);
   };
 
   return {

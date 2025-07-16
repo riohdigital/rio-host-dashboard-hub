@@ -42,24 +42,39 @@ const ReservasPage = () => {
   const [selectedProperty, setSelectedProperty] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const { toast } = useToast();
-  const { hasPermission, loading: permissionsLoading } = useUserPermissions();
+  const { hasPermission, getAccessibleProperties, loading: permissionsLoading } = useUserPermissions();
 
   useEffect(() => {
-    fetchAllData();
-  }, []);
+    if (!permissionsLoading) {
+      fetchAllData();
+    }
+  }, [permissionsLoading, getAccessibleProperties]);
 
   const fetchAllData = async () => {
     setLoading(true);
     try {
+      const accessibleProperties = getAccessibleProperties();
+      const hasFullAccess = hasPermission('reservations_view_all');
+      
+      let reservationsQuery = supabase
+        .from('reservations')
+        .select('*')
+        .order('check_in_date', { ascending: false });
+      
+      let propertiesQuery = supabase
+        .from('properties')
+        .select('*')
+        .order('name');
+
+      // Apply filters based on permissions
+      if (!hasFullAccess && accessibleProperties.length > 0) {
+        reservationsQuery = reservationsQuery.in('property_id', accessibleProperties);
+        propertiesQuery = propertiesQuery.in('id', accessibleProperties);
+      }
+
       const [reservationsResponse, propertiesResponse] = await Promise.all([
-        supabase
-          .from('reservations')
-          .select('*')
-          .order('check_in_date', { ascending: false }),
-        supabase
-          .from('properties')
-          .select('*')
-          .order('name')
+        reservationsQuery,
+        propertiesQuery
       ]);
 
       if (reservationsResponse.error) throw reservationsResponse.error;
