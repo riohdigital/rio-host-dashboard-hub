@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { Loader2, DollarSign, TrendingDown, TrendingUp, Calendar } from 'lucide-react';
+import { format, addMonths, subMonths, addYears, subYears } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { Property } from '@/types/property';
 
@@ -61,16 +63,51 @@ const Dashboard = () => {
   
   const isLoading = financialLoading || operationalLoading || annualGrowthLoading || propertiesLoading;
   
-  const periodOptions = [
-    { value: 'current_month', label: 'Este Mês', group: 'Atual' },
-    { value: 'current_year', label: 'Este Ano', group: 'Atual' },
-    { value: 'last_month', label: 'Mês Passado', group: 'Passado' },
-    { value: 'last_3_months', label: 'Últimos 3 Meses', group: 'Passado' },
-    { value: 'last_6_months', label: 'Últimos 6 Meses', group: 'Passado' },
-    { value: 'last_year', label: 'Ano Passado', group: 'Passado' },
-    { value: 'next_month', label: 'Próximo Mês', group: 'Futuro' },
-    { value: 'next_3_months', label: 'Próximos 3 Meses', group: 'Futuro' },
-  ];
+  const generatePeriodOptions = () => {
+    const now = new Date();
+    const currentMonth = format(now, 'MMMM', { locale: ptBR });
+    const currentYear = now.getFullYear();
+    
+    const lastMonth = format(subMonths(now, 1), 'MMMM', { locale: ptBR });
+    const nextMonth = format(addMonths(now, 1), 'MMMM', { locale: ptBR });
+    
+    // Para 3 meses passados (Ex: Jun/Mai/Abr)
+    const last3Months = Array.from({ length: 3 }, (_, i) => 
+      format(subMonths(now, i + 1), 'MMM', { locale: ptBR })
+    ).join('/');
+    
+    // Para 6 meses passados (Ex: Jun-Jan)
+    const last6Start = format(subMonths(now, 6), 'MMM', { locale: ptBR });
+    const last6End = format(subMonths(now, 1), 'MMM', { locale: ptBR });
+    
+    // Para 3 meses futuros (Ex: Ago/Set/Out)
+    const next3Months = Array.from({ length: 3 }, (_, i) => 
+      format(addMonths(now, i + 1), 'MMM', { locale: ptBR })
+    ).join('/');
+    
+    // Para 6 meses futuros (Ex: Ago-Jan)
+    const next6Start = format(addMonths(now, 1), 'MMM', { locale: ptBR });
+    const next6End = format(addMonths(now, 6), 'MMM', { locale: ptBR });
+    
+    // Para 12 meses futuros (Ex: Ago-Jul)
+    const next12Start = format(addMonths(now, 1), 'MMM', { locale: ptBR });
+    const next12End = format(addMonths(now, 12), 'MMM', { locale: ptBR });
+
+    return [
+      { value: 'current_month', label: `Mês Atual (${currentMonth})`, group: 'Atual' },
+      { value: 'current_year', label: `Ano Atual (${currentYear})`, group: 'Atual' },
+      { value: 'last_month', label: `Último Mês (${lastMonth})`, group: 'Passado' },
+      { value: 'last_3_months', label: `Últimos 3 Meses (${last3Months})`, group: 'Passado' },
+      { value: 'last_6_months', label: `Últimos 6 Meses (${last6Start}-${last6End})`, group: 'Passado' },
+      { value: 'last_year', label: `Ano Passado (${currentYear - 1})`, group: 'Passado' },
+      { value: 'next_month', label: `Próximo Mês (${nextMonth})`, group: 'Futuro' },
+      { value: 'next_3_months', label: `Próximos 3 Meses (${next3Months})`, group: 'Futuro' },
+      { value: 'next_6_months', label: `Próximos 6 Meses (${next6Start}-${next6End})`, group: 'Futuro' },
+      { value: 'next_12_months', label: `Próximos 12 Meses (${next12Start}-${next12End})`, group: 'Futuro' }
+    ];
+  };
+
+  const periodOptions = generatePeriodOptions();
 
   const COLORS = ['#6A6DDF', '#F472B6', '#F59E0B', '#10B981', '#EF4444', '#06B6D4'];
 
