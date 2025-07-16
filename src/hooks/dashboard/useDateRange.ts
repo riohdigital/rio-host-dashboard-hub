@@ -63,6 +63,11 @@ export const useDateRange = (selectedPeriod: string) => {
         endDate = new Date(now.getFullYear() + 1, now.getMonth() + 1, 0);
         periodType = 'future';
         break;
+      case 'general':
+        startDate = new Date(1900, 0, 1);
+        endDate = new Date(2099, 11, 31);
+        periodType = 'current';
+        break;
       default:
         startDate = new Date(now.getFullYear(), 0, 1);
         endDate = new Date(now.getFullYear(), 11, 31);

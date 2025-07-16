@@ -120,6 +120,7 @@ const Dashboard = () => {
     return [
       { value: 'current_month', label: `Mês Atual (${currentMonth})`, group: 'Atual' },
       { value: 'current_year', label: `Ano Atual (${currentYear})`, group: 'Atual' },
+      { value: 'general', label: 'Geral (Todo Histórico)', group: 'Atual' },
       { value: 'last_month', label: `Último Mês (${lastMonth})`, group: 'Passado' },
       { value: 'last_3_months', label: `Últimos 3 Meses (${last3Months})`, group: 'Passado' },
       { value: 'last_6_months', label: `Últimos 6 Meses (${last6Start}-${last6End})`, group: 'Passado' },
