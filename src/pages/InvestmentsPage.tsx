@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, DollarSign, Plus, BarChart3, AlertTriangle } from 'lucide-react';
+import { TrendingUp, DollarSign, Plus, BarChart3, AlertTriangle, Receipt } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -79,6 +79,7 @@ const InvestmentsPage = () => {
     : investments;
 
   // Calcular estatísticas gerais (baseadas nos dados filtrados)
+  const totalGrossRevenue = filteredROIData.reduce((sum, roi) => sum + roi.total_revenue, 0);
   const totalInvestment = filteredInvestments.reduce((sum, inv) => sum + Number(inv.amount), 0);
   const totalROIValue = filteredROIData.reduce((sum, roi) => sum + roi.net_revenue, 0);
   const averageROI = filteredROIData.length > 0 
@@ -175,7 +176,22 @@ const InvestmentsPage = () => {
         </div>
 
         {/* KPIs Gerais */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">
+                Valor Bruto Recebido
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-2">
+                <Receipt className="h-5 w-5 text-blue-500" />
+                <span className="text-2xl font-bold text-blue-600">
+                  {formatCurrency(totalGrossRevenue)}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">
