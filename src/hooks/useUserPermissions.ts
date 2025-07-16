@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import type { UserProfile, UserPermission, UserPropertyAccess, PermissionType } from '@/types/user-management';
@@ -10,24 +10,15 @@ export const useUserPermissions = () => {
   const [propertyAccess, setPropertyAccess] = useState<UserPropertyAccess[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (user) {
-      fetchUserData();
-    } else {
-      setUserProfile(null);
-      setPermissions([]);
-      setPropertyAccess([]);
+  const fetchUserData = useCallback(async () => {
+    if (!user) {
       setLoading(false);
-    }
-  }, [user]);
-
-  const fetchUserData = async () => {
-    if (!user) return;
+      return;
+    };
 
     try {
       setLoading(true);
 
-      // Buscar perfil do usuário
       const { data: profile } = await supabase
         .from('user_profiles')
         .select('*')
@@ -37,55 +28,47 @@ export const useUserPermissions = () => {
       if (profile) {
         setUserProfile(profile as UserProfile);
 
-        // Buscar permissões
         const { data: userPermissions } = await supabase
           .from('user_permissions')
           .select('*')
           .eq('user_id', profile.user_id);
-
         setPermissions(userPermissions || []);
 
-        // Buscar acesso a propriedades
-        const { data: propertyAccess } = await supabase
+        const { data: propertyAccessData } = await supabase
           .from('user_property_access')
           .select('*')
           .eq('user_id', profile.user_id);
-
-        setPropertyAccess((propertyAccess || []) as UserPropertyAccess[]);
+        setPropertyAccess((propertyAccessData || []) as UserPropertyAccess[]);
       }
     } catch (error) {
       console.error('Erro ao buscar dados do usuário:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    fetchUserData();
+  }, [fetchUserData]);
 
   const hasPermission = (permissionType: PermissionType, resourceId?: string): boolean => {
-    // Usuário mestre tem todas as permissões
     if (userProfile?.role === 'master') {
       return true;
     }
-
     const permission = permissions.find(p => 
       p.permission_type === permissionType && 
       (resourceId ? p.resource_id === resourceId : !p.resource_id)
     );
-
     return permission?.permission_value || false;
   };
 
   const canAccessProperty = (propertyId: string): 'full' | 'read_only' | 'restricted' | null => {
-    // Usuário mestre tem acesso total
     if (userProfile?.role === 'master') {
       return 'full';
     }
-
-    // Verificar se tem acesso a todas as propriedades
     if (hasPermission('properties_view_all')) {
       return hasPermission('properties_edit') ? 'full' : 'read_only';
     }
-
-    // Verificar acesso específico à propriedade
     const access = propertyAccess.find(pa => pa.property_id === propertyId);
     return access ? access.access_level : null;
   };
@@ -107,12 +90,9 @@ export const useUserPermissions = () => {
   };
 
   const getAccessibleProperties = (): string[] => {
-    // Usuário mestre ou com acesso a todas as propriedades
     if (isMaster() || hasPermission('properties_view_all')) {
-      return []; // Array vazio significa "todas as propriedades"
+      return [];
     }
-
-    // Retornar apenas IDs das propriedades com acesso específico
     return propertyAccess.map(pa => pa.property_id);
   };
 
