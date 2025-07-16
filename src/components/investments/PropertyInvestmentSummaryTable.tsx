@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { TrendingUp, TrendingDown, Settings, Eye } from 'lucide-react';
+import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import { PropertyROI } from '@/types/investment';
 import { useNavigate } from 'react-router-dom';
 
@@ -15,6 +16,7 @@ interface PropertyInvestmentSummaryTableProps {
 
 const PropertyInvestmentSummaryTable = ({ roiData, loading }: PropertyInvestmentSummaryTableProps) => {
   const navigate = useNavigate();
+  const { hasPermission } = useUserPermissions();
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -79,7 +81,7 @@ const PropertyInvestmentSummaryTable = ({ roiData, loading }: PropertyInvestment
               <TableHead className="text-right">Receita Líquida</TableHead>
               <TableHead className="text-center">ROI</TableHead>
               <TableHead className="text-center">Recuperação</TableHead>
-              <TableHead className="text-center">Ações</TableHead>
+              {hasPermission('investments_create') && <TableHead className="text-center">Ações</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -120,18 +122,20 @@ const PropertyInvestmentSummaryTable = ({ roiData, loading }: PropertyInvestment
                     </div>
                   </div>
                 </TableCell>
-                <TableCell className="text-center">
-                  <div className="flex gap-2 justify-center">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleManageInvestments(roi.property_id)}
-                    >
-                      <Settings className="h-4 w-4 mr-1" />
-                      Gerenciar
-                    </Button>
-                  </div>
-                </TableCell>
+                {hasPermission('investments_create') && (
+                  <TableCell className="text-center">
+                    <div className="flex gap-2 justify-center">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleManageInvestments(roi.property_id)}
+                      >
+                        <Settings className="h-4 w-4 mr-1" />
+                        Gerenciar
+                      </Button>
+                    </div>
+                  </TableCell>
+                )}
               </TableRow>
             ))}
           </TableBody>
