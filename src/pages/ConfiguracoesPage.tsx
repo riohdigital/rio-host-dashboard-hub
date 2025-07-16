@@ -4,8 +4,9 @@ import MainLayout from '@/components/layout/MainLayout';
 import ProfileSection from '@/components/settings/ProfileSection';
 import ExpenseCategoriesSection from '@/components/settings/ExpenseCategoriesSection';
 import SecuritySection from '@/components/settings/SecuritySection';
+import UserManagementSection from '@/components/settings/UserManagementSection';
 import { Button } from '@/components/ui/button';
-import { User, Tag, Shield } from 'lucide-react';
+import { User, Tag, Shield, Users } from 'lucide-react';
 
 const ConfiguracoesPage = () => {
   const [activeSection, setActiveSection] = useState('profile');
@@ -14,6 +15,7 @@ const ConfiguracoesPage = () => {
     { id: 'profile', label: 'Meu Perfil', icon: User, component: ProfileSection },
     { id: 'categories', label: 'Categorias de Despesas', icon: Tag, component: ExpenseCategoriesSection },
     { id: 'security', label: 'Segurança', icon: Shield, component: SecuritySection },
+    { id: 'users', label: 'Gerenciamento de Usuários', icon: Users, component: UserManagementSection },
   ];
 
   const ActiveComponent = sections.find(s => s.id === activeSection)?.component || ProfileSection;
