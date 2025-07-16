@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Search, UserPlus, RefreshCw, Loader2 } from 'lucide-react'; // Importado o Loader2
+import { Search, UserPlus, RefreshCw, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
@@ -24,27 +24,8 @@ const UserManagementSection = () => {
   const [showInviteForm, setShowInviteForm] = useState(false);
   
   // CORREÇÃO 1: Acessando o estado de loading do hook de permissões
-  const { hasPermission, isMaster, loading: permissionsLoading } = useUserPermissions();
+  const { hasPermission, loading: permissionsLoading } = useUserPermissions();
   const { toast } = useToast();
-
-  useEffect(() => {
-    // A verificação de permissão agora acontece apenas quando o loading de permissões termina
-    if (!permissionsLoading && hasPermission('users_manage')) {
-      fetchUsers();
-    }
-  }, [permissionsLoading, hasPermission]);
-
-  useEffect(() => {
-    if (searchTerm) {
-      const filtered = users.filter(user => 
-        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (user.full_name && user.full_name.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
-      setFilteredUsers(filtered);
-    } else {
-      setFilteredUsers(users);
-    }
-  }, [users, searchTerm]);
 
   const fetchUsers = async () => {
     try {
@@ -67,6 +48,27 @@ const UserManagementSection = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    // CORREÇÃO 2: A busca de usuários agora só ocorre DEPOIS que as permissões foram carregadas
+    if (!permissionsLoading) {
+      if (hasPermission('users_manage')) {
+        fetchUsers();
+      } else {
+        // Se não tem permissão, não precisa fazer nada, o componente já tratará a exibição
+        setLoading(false); // Garante que o loading principal pare
+      }
+    }
+  }, [permissionsLoading, hasPermission]);
+
+  useEffect(() => {
+    const lowercasedFilter = searchTerm.toLowerCase();
+    const filtered = users.filter(user => 
+      user.email?.toLowerCase().includes(lowercasedFilter) ||
+      user.full_name?.toLowerCase().includes(lowercasedFilter)
+    );
+    setFilteredUsers(filtered);
+  }, [users, searchTerm]);
 
   const handleEditUser = (user: UserProfile) => {
     setSelectedUser(user);
@@ -91,11 +93,11 @@ const UserManagementSection = () => {
       });
 
       fetchUsers();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao alterar status do usuário:', error);
       toast({
         title: "Erro",
-        description: "Não foi possível alterar o status do usuário.",
+        description: error.message,
         variant: "destructive",
       });
     }
@@ -110,6 +112,7 @@ const UserManagementSection = () => {
     if (!userToDelete) return;
 
     try {
+      // Idealmente, isso seria uma única chamada a uma função no Supabase Edge Functions para garantir atomicidade.
       await supabase.from('user_permissions').delete().eq('user_id', userToDelete.user_id);
       await supabase.from('user_property_access').delete().eq('user_id', userToDelete.user_id);
       const { error } = await supabase.from('user_profiles').delete().eq('user_id', userToDelete.user_id);
@@ -121,11 +124,11 @@ const UserManagementSection = () => {
       });
 
       fetchUsers();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao deletar usuário:', error);
       toast({
         title: "Erro",
-        description: "Não foi possível remover o usuário.",
+        description: error.message,
         variant: "destructive",
       });
     } finally {
@@ -134,7 +137,7 @@ const UserManagementSection = () => {
     }
   };
 
-  // CORREÇÃO 2: Adicionando a verificação do estado de loading ANTES de verificar as permissões.
+  // CORREÇÃO 3: Verificação do estado de loading ANTES de verificar as permissões.
   if (permissionsLoading) {
     return (
       <div className="flex justify-center items-center py-8">
@@ -144,6 +147,7 @@ const UserManagementSection = () => {
     );
   }
 
+  // A verificação de permissão agora acontece apenas depois do loading.
   if (!hasPermission('users_manage')) {
     return (
       <div className="text-center py-8">
@@ -170,7 +174,7 @@ const UserManagementSection = () => {
             {showInviteForm ? 'Ocultar Convite' : 'Convidar Usuário'}
           </Button>
           <Button variant="outline" onClick={fetchUsers} disabled={loading}>
-            <RefreshCw className="h-4 w-4 mr-2" />
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Atualizar
           </Button>
         </div>
@@ -232,7 +236,7 @@ const UserManagementSection = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteUser}>
+            <AlertDialogAction onClick={confirmDeleteUser} className="bg-destructive hover:bg-destructive/90">
               Confirmar Exclusão
             </AlertDialogAction>
           </AlertDialogFooter>
