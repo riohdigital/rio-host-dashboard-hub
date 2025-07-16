@@ -56,11 +56,11 @@ export const useROICalculations = () => {
             .eq('property_id', property.id);
 
           const totalInvestment = (investments || []).reduce((sum, inv) => sum + Number(inv.amount), 0);
-          const totalRevenue = (reservations || []).reduce((sum, res) => sum + Number(res.total_revenue || 0), 0);
+          const totalRevenue = (reservations || []).reduce((sum, res) => sum + Number(res.net_revenue || 0), 0);
           const netRevenue = (reservations || []).reduce((sum, res) => sum + Number(res.net_revenue || 0), 0);
           const totalExpenses = (expenses || []).reduce((sum, exp) => sum + Number(exp.amount), 0);
 
-          const finalNetRevenue = netRevenue - totalExpenses;
+          const finalNetRevenue = netRevenue - totalInvestment;
           const roiPercentage = totalInvestment > 0 ? (finalNetRevenue / totalInvestment) * 100 : 0;
           const investmentRecoveredPercentage = totalInvestment > 0 ? (finalNetRevenue / totalInvestment) * 100 : 0;
           const paybackMonths = totalInvestment > 0 && finalNetRevenue > 0 
