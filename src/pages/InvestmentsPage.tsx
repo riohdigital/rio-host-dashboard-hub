@@ -120,7 +120,7 @@ const InvestmentsPage = () => {
   // Calcular estatísticas gerais (baseadas nos dados filtrados)
   const totalGrossRevenue = filteredReservations.reduce((sum, res) => sum + (res.net_revenue || 0), 0);
   const totalInvestment = filteredInvestments.reduce((sum, inv) => sum + Number(inv.amount), 0);
-  const totalROIValue = filteredROIData.reduce((sum, roi) => sum + roi.net_revenue, 0);
+  const totalNetRevenue = totalGrossRevenue - totalInvestment;
   const averageROI = filteredROIData.length > 0 
     ? filteredROIData.reduce((sum, roi) => sum + roi.roi_percentage, 0) / filteredROIData.length 
     : 0;
@@ -257,7 +257,7 @@ const InvestmentsPage = () => {
               <div className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-green-500" />
                 <span className="text-2xl font-bold text-green-600">
-                  {formatCurrency(totalROIValue)}
+                  {formatCurrency(totalNetRevenue)}
                 </span>
               </div>
             </CardContent>
