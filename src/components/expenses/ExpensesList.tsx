@@ -109,6 +109,20 @@ const ExpensesList = () => {
     }
   };
 
+  const handleMarkAsPaid = async (expenseId: string) => {
+    try {
+      const { error } = await supabase
+        .from('expenses')
+        .update({ payment_status: 'Pago' })
+        .eq('id', expenseId);
+      if (error) throw error;
+      toast({ title: "Sucesso", description: "Despesa marcada como paga." });
+      fetchExpenses();
+    } catch (error: any) {
+      toast({ title: "Erro", description: `Não foi possível atualizar o status: ${error.message}`, variant: "destructive" });
+    }
+  };
+
   if (loading) return <div>Carregando...</div>;
 
   return (
@@ -183,10 +197,14 @@ const ExpensesList = () => {
         isOpen={detailModalOpen} 
         onClose={() => setDetailModalOpen(false)} 
         group={selectedGroup} 
-        onEditGroup={() => {}} 
+        onEditGroup={(expense) => {
+          setEditingExpense(expense);
+          setDetailModalOpen(false);
+          setDialogOpen(true);
+        }} 
         onDeleteAll={handleDeleteAllRecurrent} 
         onDeleteSingle={(id) => handleDeleteSingle(id, true)}
-        onMarkAsPaid={() => {}}
+        onMarkAsPaid={(id) => handleMarkAsPaid(id)}
       />
     </div>
   );
