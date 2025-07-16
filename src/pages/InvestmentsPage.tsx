@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, DollarSign, Plus, BarChart3 } from 'lucide-react';
+import { TrendingUp, DollarSign, Plus, BarChart3, AlertTriangle } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,8 @@ import { usePropertyInvestments } from '@/hooks/investments/usePropertyInvestmen
 import { useROICalculations } from '@/hooks/investments/useROICalculations';
 import { supabase } from '@/integrations/supabase/client';
 import { Property } from '@/types/property';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const InvestmentsPage = () => {
   const [properties, setProperties] = useState<Property[]>([]);
@@ -22,6 +24,7 @@ const InvestmentsPage = () => {
 
   const { investments, loading: investmentsLoading, createInvestment, deleteInvestment } = usePropertyInvestments();
   const { roiData, loading: roiLoading, refetch: refetchROI } = useROICalculations();
+  const { hasPermission, loading: permissionsLoading } = useUserPermissions();
 
   // Carregar propriedades
   useEffect(() => {
@@ -79,6 +82,45 @@ const InvestmentsPage = () => {
     }).format(value);
   };
 
+  const totalLoading = investmentsLoading || roiLoading || permissionsLoading || propertiesLoading;
+
+  if (totalLoading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">Carregando permissões...</div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  const canViewInvestments = hasPermission('investments_view');
+  const canCreateInvestments = hasPermission('investments_create');
+  const canDeleteInvestments = hasPermission('investments_create'); // Using create permission for delete operations
+
+  if (!canViewInvestments) {
+    return (
+      <MainLayout>
+        <div className="space-y-8">
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-3xl font-bold text-gradient-primary">Investimentos & ROI</h1>
+              <p className="text-gray-600 mt-2">
+                Controle seus investimentos e acompanhe o retorno sobre investimento
+              </p>
+            </div>
+          </div>
+          <Alert>
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              Você não tem permissão para acessar esta seção. Entre em contato com o administrador para solicitar acesso.
+            </AlertDescription>
+          </Alert>
+        </div>
+      </MainLayout>
+    );
+  }
+
   return (
     <MainLayout>
       <div className="space-y-8">
@@ -99,24 +141,26 @@ const InvestmentsPage = () => {
               loading={propertiesLoading}
             />
             
-            <Dialog open={formOpen} onOpenChange={setFormOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Novo Investimento
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>Adicionar Investimento</DialogTitle>
-                </DialogHeader>
-                <InvestmentForm
-                  properties={properties}
-                  onSubmit={handleCreateInvestment}
-                  loading={propertiesLoading}
-                />
-              </DialogContent>
-            </Dialog>
+            {canCreateInvestments && (
+              <Dialog open={formOpen} onOpenChange={setFormOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Novo Investimento
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>Adicionar Investimento</DialogTitle>
+                  </DialogHeader>
+                  <InvestmentForm
+                    properties={properties}
+                    onSubmit={handleCreateInvestment}
+                    loading={propertiesLoading}
+                  />
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         </div>
 
@@ -206,7 +250,7 @@ const InvestmentsPage = () => {
           
           <InvestmentsList
             investments={filteredInvestments}
-            onDelete={handleDeleteInvestment}
+            onDelete={canDeleteInvestments ? handleDeleteInvestment : undefined}
             loading={investmentsLoading}
             showPropertyColumn={!selectedPropertyId}
           />

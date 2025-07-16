@@ -7,14 +7,16 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Edit, Trash2, Plus, Search, Loader2 } from 'lucide-react';
+import { Edit, Trash2, Plus, Search, Loader2, AlertTriangle } from 'lucide-react';
 import ReservationForm from '@/components/reservations/ReservationForm';
 import StatusSelector from '@/components/reservations/StatusSelector';
 import { supabase } from '@/integrations/supabase/client';
 import { Reservation } from '@/types/reservation';
 import { Property } from '@/types/property';
 import { useToast } from '@/hooks/use-toast';
-import MainLayout from '@/components/layout/MainLayout'; // Importando o MainLayout
+import MainLayout from '@/components/layout/MainLayout';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 // CORREÇÃO DA DATA: Função que trata a data como string para evitar bugs de fuso horário.
 const formatDate = (dateString: string | null): string => {
@@ -40,6 +42,7 @@ const ReservasPage = () => {
   const [selectedProperty, setSelectedProperty] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const { toast } = useToast();
+  const { hasPermission, loading: permissionsLoading } = useUserPermissions();
 
   useEffect(() => {
     fetchAllData();
@@ -158,18 +161,45 @@ const ReservasPage = () => {
     return matchesSearch && matchesProperty && matchesStatus;
   });
 
-  if (loading) {
+  const totalLoading = loading || permissionsLoading;
+
+  if (totalLoading) {
     return (
       <MainLayout>
         <div className="flex items-center justify-center min-h-[400px]">
-          <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
+          <div className="text-center">Carregando permissões...</div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  const canViewReservations = hasPermission('reservations_view_all') || hasPermission('reservations_view_assigned');
+  const canCreateReservations = hasPermission('reservations_create');
+  const canEditReservations = hasPermission('reservations_edit');
+  const canDeleteReservations = hasPermission('reservations_delete');
+
+  if (!canViewReservations) {
+    return (
+      <MainLayout>
+        <div className="container mx-auto py-8 px-4">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Reservas</h1>
+              <p className="text-gray-600 mt-1">Gerencie suas reservas e acompanhe o status</p>
+            </div>
+          </div>
+          <Alert>
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              Você não tem permissão para acessar esta seção. Entre em contato com o administrador para solicitar acesso.
+            </AlertDescription>
+          </Alert>
         </div>
       </MainLayout>
     );
   }
 
   return (
-    // REINTEGRAÇÃO DO MAINLAYOUT
     <MainLayout>
       <div className="container mx-auto py-8 px-4">
         <div className="flex items-center justify-between mb-8">
@@ -177,16 +207,18 @@ const ReservasPage = () => {
             <h1 className="text-3xl font-bold text-gray-900">Reservas</h1>
             <p className="text-gray-600 mt-1">Gerencie suas reservas e acompanhe o status</p>
           </div>
-          <Button 
-            onClick={() => {
-              setEditingReservation(null);
-              setShowForm(true);
-            }}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Adicionar Nova Reserva
-          </Button>
+          {canCreateReservations && (
+            <Button 
+              onClick={() => {
+                setEditingReservation(null);
+                setShowForm(true);
+              }}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Adicionar Nova Reserva
+            </Button>
+          )}
         </div>
 
         <Card className="mb-6">
@@ -249,7 +281,9 @@ const ReservasPage = () => {
                     <TableHead className="font-semibold text-gray-900">Valores</TableHead>
                     <TableHead className="font-semibold text-gray-900">Comunicado</TableHead>
                     <TableHead className="font-semibold text-gray-900">Recibo</TableHead>
-                    <TableHead className="font-semibold text-gray-900">Ações</TableHead>
+                    {(canEditReservations || canDeleteReservations) && (
+                      <TableHead className="font-semibold text-gray-900">Ações</TableHead>
+                    )}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -276,10 +310,18 @@ const ReservasPage = () => {
                           <Badge variant="secondary" className="bg-blue-100 text-blue-700">{reservation.platform}</Badge>
                         </TableCell>
                         <TableCell>
-                          <StatusSelector reservationId={reservation.id} currentStatus={reservation.reservation_status} statusType="reservation_status" onUpdate={fetchAllData} />
+                          {canEditReservations ? (
+                            <StatusSelector reservationId={reservation.id} currentStatus={reservation.reservation_status} statusType="reservation_status" onUpdate={fetchAllData} />
+                          ) : (
+                            <Badge variant="secondary">{reservation.reservation_status}</Badge>
+                          )}
                         </TableCell>
                         <TableCell>
-                          <StatusSelector reservationId={reservation.id} currentStatus={reservation.payment_status || 'Pendente'} statusType="payment_status" onUpdate={fetchAllData} />
+                          {canEditReservations ? (
+                            <StatusSelector reservationId={reservation.id} currentStatus={reservation.payment_status || 'Pendente'} statusType="payment_status" onUpdate={fetchAllData} />
+                          ) : (
+                            <Badge variant="secondary">{reservation.payment_status || 'Pendente'}</Badge>
+                          )}
                         </TableCell>
                         <TableCell>
                           <div className="space-y-1">
@@ -288,23 +330,59 @@ const ReservasPage = () => {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center space-x-2"><Checkbox checked={reservation.is_communicated || false} onCheckedChange={(checked) => handleCheckboxChange(reservation.id, 'is_communicated', checked as boolean)} /><span className="text-sm text-gray-600">{reservation.is_communicated ? 'Sim' : 'Não'}</span></div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center space-x-2"><Checkbox checked={reservation.receipt_sent || false} onCheckedChange={(checked) => handleCheckboxChange(reservation.id, 'receipt_sent', checked as boolean)} /><span className="text-sm text-gray-600">{reservation.receipt_sent ? 'Sim' : 'Não'}</span></div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Button variant="outline" size="sm" onClick={() => handleEdit(reservation)} className="text-blue-600 border-blue-600 hover:bg-blue-50"><Edit className="h-4 w-4" /></Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild><Button variant="outline" size="sm" className="text-red-600 border-red-600 hover:bg-red-50"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader><AlertDialogTitle>Confirmar exclusão</AlertDialogTitle><AlertDialogDescription>Tem certeza que deseja excluir esta reserva? Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
-                                <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(reservation.id)} className="bg-red-600 hover:bg-red-700">Excluir</AlertDialogAction></AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                          <div className="flex items-center space-x-2">
+                            {canEditReservations ? (
+                              <Checkbox checked={reservation.is_communicated || false} onCheckedChange={(checked) => handleCheckboxChange(reservation.id, 'is_communicated', checked as boolean)} />
+                            ) : (
+                              <div className="w-4 h-4 border rounded flex items-center justify-center">
+                                {reservation.is_communicated && <div className="w-2 h-2 bg-blue-600 rounded"></div>}
+                              </div>
+                            )}
+                            <span className="text-sm text-gray-600">{reservation.is_communicated ? 'Sim' : 'Não'}</span>
                           </div>
                         </TableCell>
+                        <TableCell>
+                          <div className="flex items-center space-x-2">
+                            {canEditReservations ? (
+                              <Checkbox checked={reservation.receipt_sent || false} onCheckedChange={(checked) => handleCheckboxChange(reservation.id, 'receipt_sent', checked as boolean)} />
+                            ) : (
+                              <div className="w-4 h-4 border rounded flex items-center justify-center">
+                                {reservation.receipt_sent && <div className="w-2 h-2 bg-blue-600 rounded"></div>}
+                              </div>
+                            )}
+                            <span className="text-sm text-gray-600">{reservation.receipt_sent ? 'Sim' : 'Não'}</span>
+                          </div>
+                        </TableCell>
+                        {(canEditReservations || canDeleteReservations) && (
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {canEditReservations && (
+                                <Button variant="outline" size="sm" onClick={() => handleEdit(reservation)} className="text-blue-600 border-blue-600 hover:bg-blue-50">
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              )}
+                              {canDeleteReservations && (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button variant="outline" size="sm" className="text-red-600 border-red-600 hover:bg-red-50">
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+                                      <AlertDialogDescription>Tem certeza que deseja excluir esta reserva? Esta ação não pode ser desfeita.</AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => handleDelete(reservation.id)} className="bg-red-600 hover:bg-red-700">Excluir</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              )}
+                            </div>
+                          </TableCell>
+                        )}
                       </TableRow>
                     );
                   })}
@@ -314,7 +392,7 @@ const ReservasPage = () => {
           </CardContent>
         </Card>
 
-        {showForm && (
+        {showForm && canCreateReservations && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
               <div className="p-6">
