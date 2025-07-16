@@ -59,7 +59,7 @@ const UserManagementSection = () => {
         setLoading(false); // Garante que o loading principal pare
       }
     }
-  }, [permissionsLoading, hasPermission]);
+  }, [permissionsLoading]);
 
   useEffect(() => {
     const lowercasedFilter = searchTerm.toLowerCase();
