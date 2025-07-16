@@ -256,7 +256,7 @@ const InvestmentsPage = () => {
             <CardContent>
               <div className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-green-500" />
-                <span className="text-2xl font-bold text-green-600">
+                <span className={`text-2xl font-bold ${totalNetRevenue >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {formatCurrency(totalNetRevenue)}
                 </span>
               </div>
