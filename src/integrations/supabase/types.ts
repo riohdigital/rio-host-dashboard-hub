@@ -41,7 +41,10 @@ export type Database = {
           expense_date: string
           expense_type: string | null
           id: string
+          is_recurrent: boolean | null
+          payment_status: string | null
           property_id: string | null
+          recurrence_group_id: string | null
         }
         Insert: {
           amount: number
@@ -51,7 +54,10 @@ export type Database = {
           expense_date: string
           expense_type?: string | null
           id?: string
+          is_recurrent?: boolean | null
+          payment_status?: string | null
           property_id?: string | null
+          recurrence_group_id?: string | null
         }
         Update: {
           amount?: number
@@ -61,7 +67,10 @@ export type Database = {
           expense_date?: string
           expense_type?: string | null
           id?: string
+          is_recurrent?: boolean | null
+          payment_status?: string | null
           property_id?: string | null
+          recurrence_group_id?: string | null
         }
         Relationships: [
           {
@@ -103,6 +112,8 @@ export type Database = {
           cleaning_fee: number | null
           commission_rate: number | null
           created_at: string | null
+          default_checkin_time: string | null
+          default_checkout_time: string | null
           id: string
           max_guests: number | null
           name: string
@@ -119,6 +130,8 @@ export type Database = {
           cleaning_fee?: number | null
           commission_rate?: number | null
           created_at?: string | null
+          default_checkin_time?: string | null
+          default_checkout_time?: string | null
           id?: string
           max_guests?: number | null
           name: string
@@ -135,6 +148,8 @@ export type Database = {
           cleaning_fee?: number | null
           commission_rate?: number | null
           created_at?: string | null
+          default_checkin_time?: string | null
+          default_checkout_time?: string | null
           id?: string
           max_guests?: number | null
           name?: string
@@ -204,16 +219,20 @@ export type Database = {
           base_revenue: number | null
           check_in_date: string
           check_out_date: string
+          checkin_time: string | null
+          checkout_time: string | null
           commission_amount: number | null
           created_at: string | null
           guest_name: string | null
           id: string
+          is_communicated: boolean | null
           net_revenue: number | null
           number_of_guests: number | null
           payment_date: string | null
           payment_status: string | null
           platform: string
           property_id: string | null
+          receipt_sent: boolean | null
           reservation_code: string
           reservation_status: string | null
           total_revenue: number
@@ -222,16 +241,20 @@ export type Database = {
           base_revenue?: number | null
           check_in_date: string
           check_out_date: string
+          checkin_time?: string | null
+          checkout_time?: string | null
           commission_amount?: number | null
           created_at?: string | null
           guest_name?: string | null
           id?: string
+          is_communicated?: boolean | null
           net_revenue?: number | null
           number_of_guests?: number | null
           payment_date?: string | null
           payment_status?: string | null
           platform?: string
           property_id?: string | null
+          receipt_sent?: boolean | null
           reservation_code: string
           reservation_status?: string | null
           total_revenue: number
@@ -240,16 +263,20 @@ export type Database = {
           base_revenue?: number | null
           check_in_date?: string
           check_out_date?: string
+          checkin_time?: string | null
+          checkout_time?: string | null
           commission_amount?: number | null
           created_at?: string | null
           guest_name?: string | null
           id?: string
+          is_communicated?: boolean | null
           net_revenue?: number | null
           number_of_guests?: number | null
           payment_date?: string | null
           payment_status?: string | null
           platform?: string
           property_id?: string | null
+          receipt_sent?: boolean | null
           reservation_code?: string
           reservation_status?: string | null
           total_revenue?: number

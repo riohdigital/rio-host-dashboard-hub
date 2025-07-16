@@ -13,5 +13,7 @@ export interface Property {
   base_nightly_price?: number;
   max_guests?: number;
   notes?: string;
+  default_checkin_time?: string;
+  default_checkout_time?: string;
   created_at: string;
 }

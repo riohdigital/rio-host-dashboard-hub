@@ -1,220 +1,386 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import MainLayout from '@/components/layout/MainLayout';
-import { Plus, Edit, Trash2, Search, Loader2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Edit, Trash2, Plus, Search } from 'lucide-react';
 import ReservationForm from '@/components/reservations/ReservationForm';
+import StatusSelector from '@/components/reservations/StatusSelector';
+import { supabase } from '@/integrations/supabase/client';
 import { Reservation } from '@/types/reservation';
 import { Property } from '@/types/property';
-import StatusSelector from '@/components/reservations/StatusSelector'; // Importando o componente de status
+import { useToast } from '@/hooks/use-toast';
 
-// MELHORIA 1: Função de formatação de data corrigida
-const formatDate = (dateString: string | null) => {
-  if (!dateString) return '--';
-  const parts = dateString.split('-');
-  if (parts.length !== 3) return dateString;
-  const [year, month, day] = parts;
-  return `${day}/${month}/${year}`;
+const formatDate = (dateString: string | null): string => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('pt-BR');
+};
+
+const formatTime = (timeString: string | null): string => {
+  if (!timeString) return '';
+  return timeString.slice(0, 5); // Remove seconds
 };
 
 const ReservasPage = () => {
-  const [reservations, setReservations] = useState<any[]>([]);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
-  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [editingReservation, setEditingReservation] = useState<Reservation | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedProperty, setSelectedProperty] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState('');
+  const [selectedProperty, setSelectedProperty] = useState('all');
+  const [selectedStatus, setSelectedStatus] = useState('all');
   const { toast } = useToast();
-
-  const fetchAllData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [reservationsRes, propertiesRes] = await Promise.all([
-        supabase.from('reservations').select('*, properties (name, nickname)').order('check_in_date', { ascending: false }),
-        supabase.from('properties').select('*').order('name')
-      ]);
-
-      if (reservationsRes.error) throw reservationsRes.error;
-      if (propertiesRes.error) throw propertiesRes.error;
-
-      setReservations(reservationsRes.data || []);
-      setProperties(propertiesRes.data || []);
-    } catch (error: any) {
-      console.error('Erro ao buscar dados:', error);
-      toast({ title: "Erro", description: "Não foi possível carregar os dados da página.", variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
 
   useEffect(() => {
     fetchAllData();
-  }, [fetchAllData]);
+  }, []);
 
-  const handleDelete = async (reservationId: string) => {
-    if (!window.confirm('Tem certeza que deseja excluir esta reserva?')) return;
+  const fetchAllData = async () => {
+    setLoading(true);
     try {
-      const { error } = await supabase.from('reservations').delete().eq('id', reservationId);
+      const [reservationsResponse, propertiesResponse] = await Promise.all([
+        supabase
+          .from('reservations')
+          .select('*')
+          .order('check_in_date', { ascending: false }),
+        supabase
+          .from('properties')
+          .select('*')
+          .order('name')
+      ]);
+
+      if (reservationsResponse.error) throw reservationsResponse.error;
+      if (propertiesResponse.error) throw propertiesResponse.error;
+
+      setReservations(reservationsResponse.data || []);
+      setProperties(propertiesResponse.data || []);
+    } catch (error) {
+      console.error('Erro ao buscar dados:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os dados.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (reservationId: string): Promise<void> => {
+    try {
+      const { error } = await supabase
+        .from('reservations')
+        .delete()
+        .eq('id', reservationId);
+
       if (error) throw error;
-      toast({ title: "Sucesso", description: "Reserva excluída com sucesso." });
-      fetchAllData(); // Recarrega tudo
-    } catch (error: any) {
-      toast({ title: "Erro", description: error.message, variant: "destructive" });
+
+      toast({
+        title: "Sucesso",
+        description: "Reserva excluída com sucesso.",
+      });
+      
+      fetchAllData();
+    } catch (error) {
+      console.error('Erro ao excluir reserva:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível excluir a reserva.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCheckboxChange = async (reservationId: string, field: 'is_communicated' | 'receipt_sent', value: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('reservations')
+        .update({ [field]: value })
+        .eq('id', reservationId);
+
+      if (error) throw error;
+
+      setReservations(prev => 
+        prev.map(reservation => 
+          reservation.id === reservationId 
+            ? { ...reservation, [field]: value }
+            : reservation
+        )
+      );
+
+      const fieldName = field === 'is_communicated' ? 'comunicação' : 'recibo';
+      toast({
+        title: "Sucesso",
+        description: `Status de ${fieldName} atualizado com sucesso.`,
+      });
+    } catch (error) {
+      console.error(`Erro ao atualizar ${field}:`, error);
+      toast({
+        title: "Erro",
+        description: `Não foi possível atualizar o status de ${field === 'is_communicated' ? 'comunicação' : 'recibo'}.`,
+        variant: "destructive",
+      });
     }
   };
 
   const handleEdit = (reservation: Reservation) => {
     setEditingReservation(reservation);
-    setIsFormOpen(true);
+    setShowForm(true);
   };
 
   const handleFormSuccess = () => {
-    setIsFormOpen(false);
+    setShowForm(false);
     setEditingReservation(null);
     fetchAllData();
   };
 
+  // Filtering logic
   const filteredReservations = reservations.filter(reservation => {
-    const propertyData = reservation.properties;
-    const guestName = reservation.guest_name || '';
-
+    const property = properties.find(p => p.id === reservation.property_id);
     const matchesSearch = !searchTerm || 
-      (reservation.reservation_code && reservation.reservation_code.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (guestName && guestName.toLowerCase().includes(searchTerm.toLowerCase()));
+      reservation.reservation_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (reservation.guest_name && reservation.guest_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (property && (property.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                    (property.nickname && property.nickname.toLowerCase().includes(searchTerm.toLowerCase()))));
     
-    const matchesProperty = !selectedProperty || selectedProperty === 'all-properties' || reservation.property_id === selectedProperty;
-    const matchesStatus = !selectedStatus || selectedStatus === 'all-status' || reservation.reservation_status === selectedStatus;
+    const matchesProperty = selectedProperty === 'all' || reservation.property_id === selectedProperty;
+    const matchesStatus = selectedStatus === 'all' || reservation.reservation_status === selectedStatus;
     
     return matchesSearch && matchesProperty && matchesStatus;
   });
 
   if (loading) {
     return (
-      <MainLayout>
-        <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
-          <Loader2 className="h-8 w-8 text-primary animate-spin" />
+      <div className="container mx-auto py-8 px-4">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">Carregando...</div>
         </div>
-      </MainLayout>
+      </div>
     );
   }
 
   return (
-    <MainLayout>
-      <div className="p-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-[#6A6DDF] to-[#8B5CF6] bg-clip-text text-transparent">
-            Minhas Reservas
-          </h1>
-          <Dialog open={isFormOpen} onOpenChange={(open) => {
-            setIsFormOpen(open);
-            if (!open) setEditingReservation(null);
-          }}>
-            <DialogTrigger asChild>
-              <Button className="bg-gradient-to-r from-[#6A6DDF] to-[#8B5CF6] hover:from-[#5A5BCF] hover:to-[#7C3AED] text-white shadow-lg">
-                <Plus className="mr-2 h-4 w-4" />
-                Adicionar Nova Reserva
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto custom-scrollbar">
-              <ReservationForm 
-                reservation={editingReservation} 
-                onSuccess={handleFormSuccess}
-                onCancel={() => setIsFormOpen(false)}
-              />
-            </DialogContent>
-          </Dialog>
+    <div className="container mx-auto py-8 px-4">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Reservas</h1>
+          <p className="text-gray-600 mt-1">Gerencie suas reservas e acompanhe o status</p>
         </div>
+        <Button 
+          onClick={() => setShowForm(true)}
+          className="bg-blue-600 hover:bg-blue-700 text-white"
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Adicionar Nova Reserva
+        </Button>
+      </div>
 
-        {/* Barra de Ferramentas */}
-        <div className="bg-gradient-to-r from-white to-gray-50 p-4 rounded-lg shadow-sm border">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input placeholder="Buscar por código ou hóspede..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
+      {/* Filtros */}
+      <Card className="mb-6">
+        <CardContent className="pt-6">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Buscar por código, hóspede ou propriedade..."
+                className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
+            
             <Select value={selectedProperty} onValueChange={setSelectedProperty}>
-              <SelectTrigger><SelectValue placeholder="Filtrar por propriedade" /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-[220px] border-gray-300">
+                <SelectValue placeholder="Todas as propriedades" />
+              </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all-properties">Todas as propriedades</SelectItem>
-                {properties.map((property) => (<SelectItem key={property.id} value={property.id}>{property.nickname || property.name}</SelectItem>))}
+                <SelectItem value="all">Todas as propriedades</SelectItem>
+                {properties.map((property) => (
+                  <SelectItem key={property.id} value={property.id}>
+                    {property.nickname || property.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
+
             <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-              <SelectTrigger><SelectValue placeholder="Filtrar por status" /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-[180px] border-gray-300">
+                <SelectValue placeholder="Todos os status" />
+              </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all-status">Todos os status</SelectItem>
+                <SelectItem value="all">Todos os status</SelectItem>
                 <SelectItem value="Confirmada">Confirmada</SelectItem>
-                <SelectItem value="Em andamento">Em andamento</SelectItem>
+                <SelectItem value="Em Andamento">Em Andamento</SelectItem>
                 <SelectItem value="Finalizada">Finalizada</SelectItem>
                 <SelectItem value="Cancelada">Cancelada</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" onClick={() => { setSearchTerm(''); setSelectedProperty('all-properties'); setSelectedStatus('all-status'); }}>Limpar Filtros</Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Tabela */}
+      <Card>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-gray-50">
+                  <TableHead className="font-semibold text-gray-900">Código</TableHead>
+                  <TableHead className="font-semibold text-gray-900">Propriedade</TableHead>
+                  <TableHead className="font-semibold text-gray-900">Hóspede</TableHead>
+                  <TableHead className="font-semibold text-gray-900">Check-in</TableHead>
+                  <TableHead className="font-semibold text-gray-900">Check-out</TableHead>
+                  <TableHead className="font-semibold text-gray-900">Plataforma</TableHead>
+                  <TableHead className="font-semibold text-gray-900">Status</TableHead>
+                  <TableHead className="font-semibold text-gray-900">Receita Total</TableHead>
+                  <TableHead className="font-semibold text-gray-900">Comunicado</TableHead>
+                  <TableHead className="font-semibold text-gray-900">Recibo</TableHead>
+                  <TableHead className="font-semibold text-gray-900">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredReservations.map((reservation) => {
+                  const property = properties.find(p => p.id === reservation.property_id);
+                  return (
+                    <TableRow key={reservation.id} className="hover:bg-gray-50">
+                      <TableCell className="font-medium text-blue-600">{reservation.reservation_code}</TableCell>
+                      <TableCell className="font-medium">{property?.nickname || property?.name}</TableCell>
+                      <TableCell>{reservation.guest_name || '-'}</TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <div className="font-medium">{formatDate(reservation.check_in_date)}</div>
+                          {reservation.checkin_time && (
+                            <div className="text-sm text-gray-500">{formatTime(reservation.checkin_time)}</div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <div className="font-medium">{formatDate(reservation.check_out_date)}</div>
+                          {reservation.checkout_time && (
+                            <div className="text-sm text-gray-500">{formatTime(reservation.checkout_time)}</div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                          {reservation.platform}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <StatusSelector 
+                          reservationId={reservation.id}
+                          currentStatus={reservation.reservation_status}
+                          statusType="reservation_status"
+                          onUpdate={fetchAllData}
+                        />
+                      </TableCell>
+                      <TableCell className="font-semibold text-green-600">
+                        R$ {reservation.total_revenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            checked={reservation.is_communicated || false}
+                            onCheckedChange={(checked) => 
+                              handleCheckboxChange(reservation.id, 'is_communicated', checked as boolean)
+                            }
+                          />
+                          <span className="text-sm text-gray-600">
+                            {reservation.is_communicated ? 'Sim' : 'Não'}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            checked={reservation.receipt_sent || false}
+                            onCheckedChange={(checked) => 
+                              handleCheckboxChange(reservation.id, 'receipt_sent', checked as boolean)
+                            }
+                          />
+                          <span className="text-sm text-gray-600">
+                            {reservation.receipt_sent ? 'Sim' : 'Não'}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEdit(reservation)}
+                            className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="text-red-600 border-red-600 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Tem certeza que deseja excluir esta reserva? Esta ação não pode ser desfeita.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={() => handleDelete(reservation.id)}
+                                  className="bg-red-600 hover:bg-red-700"
+                                >
+                                  Excluir
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Modal do formulário */}
+      {showForm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h2 className="text-xl font-semibold mb-4 text-gray-900">
+                {editingReservation ? 'Editar Reserva' : 'Nova Reserva'}
+              </h2>
+              <ReservationForm
+                reservation={editingReservation}
+                onSuccess={handleFormSuccess}
+                onCancel={() => {
+                  setShowForm(false);
+                  setEditingReservation(null);
+                }}
+              />
+            </div>
           </div>
         </div>
-
-        {/* Tabela de Reservas */}
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden border">
-          <Table>
-            <TableHeader className="bg-gradient-to-r from-gray-50 to-gray-100">
-              <TableRow>
-                <TableHead>Propriedade</TableHead>
-                <TableHead>Hóspede / Código</TableHead>
-                <TableHead>Período</TableHead>
-                <TableHead>Valor Proprietário</TableHead>
-                <TableHead className="w-[180px]">Status da Reserva</TableHead>
-                <TableHead className="w-[180px]">Status do Pagamento</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredReservations.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-gray-500">{reservations.length === 0 ? "Nenhuma reserva cadastrada ainda." : "Nenhuma reserva encontrada com os filtros aplicados."}</TableCell></TableRow>
-              ) : (
-                filteredReservations.map((reservation) => (
-                  <TableRow key={reservation.id} className="hover:bg-gradient-to-r hover:from-gray-50 hover:to-transparent">
-                    <TableCell>
-                      <div className="font-medium">{reservation.properties?.nickname || reservation.properties?.name}</div>
-                      <div className="text-sm text-gray-500">{reservation.platform}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-medium">{reservation.guest_name || 'Não informado'}</div>
-                      <div className="text-sm text-gray-500">{reservation.reservation_code}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">{formatDate(reservation.check_in_date)} a {formatDate(reservation.check_out_date)}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-semibold text-[#10B981]">R$ {(reservation.net_revenue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                    </TableCell>
-                    {/* MELHORIA 2: STATUS INTERATIVO */}
-                    <TableCell>
-                      <StatusSelector reservationId={reservation.id} currentStatus={reservation.reservation_status || 'Confirmada'} statusType="reservation_status" onUpdate={fetchAllData} />
-                    </TableCell>
-                    <TableCell>
-                      <StatusSelector reservationId={reservation.id} currentStatus={reservation.payment_status || 'Pendente'} statusType="payment_status" onUpdate={fetchAllData} />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex gap-1 justify-end">
-                        <Button variant="ghost" size="icon" onClick={() => handleEdit(reservation)}><Edit className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(reservation.id)} className="text-red-500 hover:text-red-600"><Trash2 className="h-4 w-4" /></Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
-    </MainLayout>
+      )}
+    </div>
   );
 };
 

@@ -28,7 +28,9 @@ const PropertyForm = ({ property, onSuccess, onCancel }: PropertyFormProps) => {
     cleaning_fee: 0,
     base_nightly_price: 0,
     max_guests: 1,
-    notes: ''
+    notes: '',
+    default_checkin_time: '15:00',
+    default_checkout_time: '11:00'
   });
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -47,7 +49,9 @@ const PropertyForm = ({ property, onSuccess, onCancel }: PropertyFormProps) => {
         cleaning_fee: property.cleaning_fee || 0,
         base_nightly_price: property.base_nightly_price || 0,
         max_guests: property.max_guests || 1,
-        notes: property.notes || ''
+        notes: property.notes || '',
+        default_checkin_time: property.default_checkin_time || '15:00',
+        default_checkout_time: property.default_checkout_time || '11:00'
       });
     }
   }, [property]);
@@ -275,6 +279,27 @@ const PropertyForm = ({ property, onSuccess, onCancel }: PropertyFormProps) => {
               value={formData.max_guests}
               onChange={(e) => handleInputChange('max_guests', parseInt(e.target.value) || 1)}
               placeholder="1"
+            />
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="default_checkin_time">Horário Padrão de Check-in</Label>
+            <Input
+              id="default_checkin_time"
+              type="time"
+              value={formData.default_checkin_time}
+              onChange={(e) => handleInputChange('default_checkin_time', e.target.value)}
+            />
+          </div>
+          <div>
+            <Label htmlFor="default_checkout_time">Horário Padrão de Check-out</Label>
+            <Input
+              id="default_checkout_time"
+              type="time"
+              value={formData.default_checkout_time}
+              onChange={(e) => handleInputChange('default_checkout_time', e.target.value)}
             />
           </div>
         </div>
