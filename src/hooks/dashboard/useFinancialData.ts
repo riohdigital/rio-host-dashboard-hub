@@ -36,7 +36,6 @@ export const useFinancialData = (
     setError(null);
 
     try {
-      // CORREÇÃO: Construção de queries mais robusta
       let reservationsQuery = supabase
         .from('reservations')
         .select('*, properties(name, nickname)')
@@ -71,13 +70,14 @@ export const useFinancialData = (
       const expenses = expensesRes.data || [];
       const properties = propertiesRes.data || [];
 
-      // Cálculos Financeiros
-      const totalRevenue = reservations.reduce((sum, r) => sum + (r.total_revenue || 0), 0);
+      // --- CORREÇÃO APLICADA AQUI ---
+      // A Receita Total agora é a soma de 'base_revenue' (sem a taxa de limpeza).
+      const totalRevenue = reservations.reduce((sum, r) => sum + (r.base_revenue || 0), 0);
+      
       const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
       const totalNetRevenue = reservations.reduce((sum, r) => sum + (r.net_revenue || 0), 0);
       const netProfit = totalNetRevenue - totalExpenses;
 
-      // Cálculo da Taxa de Ocupação
       const totalBookedDays = reservations.reduce((sum, r) => {
         const checkIn = new Date(r.check_in_date + 'T00:00:00');
         const checkOut = new Date(r.check_out_date + 'T00:00:00');
