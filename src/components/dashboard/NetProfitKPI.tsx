@@ -10,19 +10,16 @@ interface NetProfitKPIProps {
 const NetProfitKPI = ({ reservations }: NetProfitKPIProps) => {
   const [viewType, setViewType] = useState<'net' | 'commission' | 'combined'>('net');
 
-  // Calcular receita líquida total do proprietário (sem subtrair despesas)
   const totalNetRevenue = reservations.reduce((sum, r) => {
     return sum + (r.net_revenue || 0);
   }, 0);
 
-  // Calcular comissão total como diferença entre receita total e líquida
+  // --- CORREÇÃO APLICADA AQUI ---
+  // A comissão total agora é a soma de 'commission_amount'.
   const totalCommission = reservations.reduce((sum, r) => {
-    const total = r.total_revenue || 0;
-    const net = r.net_revenue || 0;
-    return sum + (total - net);
+    return sum + (r.commission_amount || 0);
   }, 0);
 
-  // CORREÇÃO: Função para formatação consistente
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -52,7 +49,7 @@ const NetProfitKPI = ({ reservations }: NetProfitKPIProps) => {
       case 'commission':
         return 'Comissão Co-Anfitrião';
       case 'combined':
-        return 'Receita Total';
+        return 'Base de Cálculo'; // Alterado para ser mais preciso
       default:
         return 'Total Líquido do Proprietário';
     }
@@ -72,7 +69,7 @@ const NetProfitKPI = ({ reservations }: NetProfitKPIProps) => {
             <SelectContent>
               <SelectItem value="net" className="text-xs">Proprietário</SelectItem>
               <SelectItem value="commission" className="text-xs">Comissão</SelectItem>
-              <SelectItem value="combined" className="text-xs">Combinado</SelectItem>
+              <SelectItem value="combined" className="text-xs">Base de Cálculo</SelectItem>
             </SelectContent>
           </Select>
         </div>
