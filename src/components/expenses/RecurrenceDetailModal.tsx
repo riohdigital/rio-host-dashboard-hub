@@ -4,8 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Trash2, Calendar, DollarSign, CheckCircle, Edit } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 
 const RecurrenceDetailModal = ({ isOpen, onClose, group, onEditGroup, onDeleteAll, onDeleteSingle, onMarkAsPaid }) => {
+  const { hasPermission } = useUserPermissions();
+  
   if (!group || group.expenses.length === 0) return null;
 
   const { description, amount, property_name, recurrence_group_id, expenses } = group;
@@ -41,15 +44,17 @@ const RecurrenceDetailModal = ({ isOpen, onClose, group, onEditGroup, onDeleteAl
                   </div>
                   <div className="flex items-center gap-2">
                     {getStatusBadge(exp.payment_status)}
-                    {exp.payment_status !== 'Pago' && (
+                    {exp.payment_status !== 'Pago' && hasPermission('expenses_edit') && (
                       <Button variant="outline" size="sm" onClick={() => onMarkAsPaid(exp.id)}>
                         <CheckCircle className="h-4 w-4 text-green-600 mr-2" />
                         Pagar
                       </Button>
                     )}
-                    <Button variant="ghost" size="icon" onClick={() => onDeleteSingle(exp.id)}>
-                      <Trash2 className="h-4 w-4 text-red-500" />
-                    </Button>
+                    {hasPermission('expenses_edit') && (
+                      <Button variant="ghost" size="icon" onClick={() => onDeleteSingle(exp.id)}>
+                        <Trash2 className="h-4 w-4 text-red-500" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -58,17 +63,21 @@ const RecurrenceDetailModal = ({ isOpen, onClose, group, onEditGroup, onDeleteAl
         </div>
 
         <DialogFooter className="flex justify-between w-full">
-          <div>
-            <Button variant="outline" onClick={() => onEditGroup(group.expenses[0])}>
-              <Edit className="h-4 w-4 mr-2" />
-              Editar Grupo
-            </Button>
-          </div>
+          {hasPermission('expenses_edit') && (
+            <div>
+              <Button variant="outline" onClick={() => onEditGroup(group.expenses[0])}>
+                <Edit className="h-4 w-4 mr-2" />
+                Editar Grupo
+              </Button>
+            </div>
+          )}
           <div className="flex gap-2">
-            <Button variant="destructive" onClick={() => onDeleteAll(recurrence_group_id)}>
-              <Trash2 className="h-4 w-4 mr-2" />
-              Excluir Todas
-            </Button>
+            {hasPermission('expenses_edit') && (
+              <Button variant="destructive" onClick={() => onDeleteAll(recurrence_group_id)}>
+                <Trash2 className="h-4 w-4 mr-2" />
+                Excluir Todas
+              </Button>
+            )}
             <Button onClick={onClose}>Fechar</Button>
           </div>
         </DialogFooter>
