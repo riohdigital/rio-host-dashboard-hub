@@ -15,10 +15,14 @@ import { Reservation } from '@/types/reservation';
 import { Property } from '@/types/property';
 import { useToast } from '@/hooks/use-toast';
 
+// --- CORREÇÃO APLICADA AQUI ---
+// A função agora trata a data como uma string para evitar problemas de fuso horário.
 const formatDate = (dateString: string | null): string => {
   if (!dateString) return '';
-  const date = new Date(dateString);
-  return date.toLocaleDateString('pt-BR');
+  const parts = dateString.split('-'); // Ex: '2025-07-18'
+  if (parts.length !== 3) return dateString; // Retorna original se o formato for inválido
+  const [year, month, day] = parts;
+  return `${day}/${month}/${year}`; // Retorna '18/07/2025'
 };
 
 const formatTime = (timeString: string | null): string => {
@@ -140,7 +144,6 @@ const ReservasPage = () => {
     fetchAllData();
   };
 
-  // Filtering logic
   const filteredReservations = reservations.filter(reservation => {
     const property = properties.find(p => p.id === reservation.property_id);
     const matchesSearch = !searchTerm || 
@@ -181,7 +184,6 @@ const ReservasPage = () => {
         </Button>
       </div>
 
-      {/* Filtros */}
       <Card className="mb-6">
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row gap-4">
@@ -225,7 +227,6 @@ const ReservasPage = () => {
         </CardContent>
       </Card>
 
-      {/* Tabela */}
       <Card>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -376,7 +377,6 @@ const ReservasPage = () => {
         </CardContent>
       </Card>
 
-      {/* Modal do formulário */}
       {showForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
