@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { Property } from '@/types/property';
 import { Expense, ExpenseCategory } from '@/types/expense';
 import RecurrenceSettings from './RecurrenceSettings';
@@ -36,6 +37,7 @@ const ExpenseForm = ({ expense, selectedPropertyId, onSuccess, onCancel }: Expen
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { hasPermission, getAccessibleProperties, isMaster } = useUserPermissions();
 
   const [recurrenceType, setRecurrenceType] = useState('monthly');
   const [recurrenceDuration, setRecurrenceDuration] = useState(12);
@@ -63,11 +65,21 @@ const ExpenseForm = ({ expense, selectedPropertyId, onSuccess, onCancel }: Expen
       ]);
       if (propsRes.error) throw propsRes.error;
       if (catRes.error) throw catRes.error;
-      setProperties(propsRes.data || []);
+      
+      // Filter properties based on user permissions
+      let filteredProperties = propsRes.data || [];
+      if (!isMaster() && !hasPermission('properties_view_all')) {
+        const accessiblePropertyIds = getAccessibleProperties();
+        filteredProperties = propsRes.data?.filter(property => 
+          accessiblePropertyIds.includes(property.id)
+        ) || [];
+      }
+      
+      setProperties(filteredProperties);
       setCategories(catRes.data || []);
     };
     fetchData().catch(console.error);
-  }, []);
+  }, [isMaster, hasPermission, getAccessibleProperties]);
 
   const generateRecurrentExpenses = (baseExpense: Omit<ExpenseFormData, 'expense_date'>) => {
     const expenses = [];

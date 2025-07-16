@@ -15,6 +15,7 @@ import { useDateRange } from '@/hooks/dashboard/useDateRange';
 import { useFinancialData } from '@/hooks/dashboard/useFinancialData';
 import { useOperationalData } from '@/hooks/dashboard/useOperationalData';
 import { useAnnualGrowthData } from '@/hooks/dashboard/useAnnualGrowthData';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
 
 // Importando os componentes de UI
 import KPICard from './KPICard';
@@ -34,6 +35,7 @@ const Dashboard = () => {
   const [properties, setProperties] = useState<Property[]>([]);
   const [propertySelectOpen, setPropertySelectOpen] = useState(false);
   const [propertiesLoading, setPropertiesLoading] = useState(true);
+  const { hasPermission, getAccessibleProperties, isMaster } = useUserPermissions();
 
   const { startDateString, endDateString, totalDays, periodType } = useDateRange(selectedPeriod);
 
@@ -46,12 +48,25 @@ const Dashboard = () => {
     const fetchProps = async () => {
       setPropertiesLoading(true);
       const { data, error } = await supabase.from('properties').select('*').order('name');
-      if (error) console.error("Erro ao carregar propriedades", error);
-      else setProperties(data || []);
+      if (error) {
+        console.error("Erro ao carregar propriedades", error);
+      } else {
+        // Filter properties based on user permissions
+        let filteredProperties = data || [];
+        if (!isMaster() && !hasPermission('properties_view_all')) {
+          const accessiblePropertyIds = getAccessibleProperties();
+          filteredProperties = data?.filter(property => 
+            accessiblePropertyIds.includes(property.id)
+          ) || [];
+        }
+        
+        setProperties(filteredProperties);
+        setSelectedProperties(filteredProperties.length > 0 ? filteredProperties.map(p => p.id) : ['todas']);
+      }
       setPropertiesLoading(false);
     };
     fetchProps();
-  }, []);
+  }, [isMaster, hasPermission, getAccessibleProperties]);
 
   useEffect(() => {
     if (!propertiesLoading) {
