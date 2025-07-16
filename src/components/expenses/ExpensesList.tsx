@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Calendar, DollarSign, Tag, Trash2, Edit, RefreshCw, Layers } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import ExpenseForm from './ExpenseForm';
 import { Expense } from '@/types/expense';
 import RecurrenceDetailModal from './RecurrenceDetailModal';
@@ -20,6 +21,7 @@ const ExpensesList = () => {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<any>(null);
   const { toast } = useToast();
+  const { hasPermission } = useUserPermissions();
 
   useEffect(() => {
     fetchExpenses();
@@ -116,20 +118,22 @@ const ExpensesList = () => {
           <h2 className="text-2xl font-bold text-gradient-primary">Minhas Despesas</h2>
           <p className="text-gray-600 mt-1">Gerencie despesas fixas e variáveis.</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-                <Button onClick={() => setEditingExpense(null)} className="bg-primary hover:bg-primary/90 text-white">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Nova Despesa
-                </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                    <DialogTitle>{editingExpense ? 'Editar' : 'Nova'} Despesa</DialogTitle>
-                </DialogHeader>
-                <ExpenseForm expense={editingExpense} onSuccess={handleSuccess} onCancel={() => setDialogOpen(false)} />
-            </DialogContent>
-        </Dialog>
+        {hasPermission('expenses_create') && (
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                  <Button onClick={() => setEditingExpense(null)} className="bg-primary hover:bg-primary/90 text-white">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Nova Despesa
+                  </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                  <DialogHeader>
+                      <DialogTitle>{editingExpense ? 'Editar' : 'Nova'} Despesa</DialogTitle>
+                  </DialogHeader>
+                  <ExpenseForm expense={editingExpense} onSuccess={handleSuccess} onCancel={() => setDialogOpen(false)} />
+              </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       {groupedExpenses.recurrent.length > 0 && <h3 className="font-semibold text-gray-700">Despesas Recorrentes</h3>}
@@ -167,8 +171,8 @@ const ExpensesList = () => {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" onClick={() => handleEdit(expense)}><Edit className="h-4 w-4" /></Button>
-                <Button variant="ghost" size="icon" onClick={() => handleDeleteSingle(expense.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
+                {hasPermission('expenses_edit') && <Button variant="ghost" size="icon" onClick={() => handleEdit(expense)}><Edit className="h-4 w-4" /></Button>}
+                {hasPermission('expenses_edit') && <Button variant="ghost" size="icon" onClick={() => handleDeleteSingle(expense.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>}
               </div>
             </CardContent>
           </Card>

@@ -107,7 +107,6 @@ const InvestmentsPage = () => {
 
   const canViewInvestments = hasPermission('investments_view');
   const canCreateInvestments = hasPermission('investments_create');
-  const canDeleteInvestments = hasPermission('investments_create'); // Using create permission for delete operations
 
   if (!canViewInvestments) {
     return (
@@ -261,7 +260,7 @@ const InvestmentsPage = () => {
           
           <InvestmentsList
             investments={filteredInvestments}
-            onDelete={canDeleteInvestments ? handleDeleteInvestment : undefined}
+            onDelete={handleDeleteInvestment}
             loading={investmentsLoading}
             showPropertyColumn={!selectedPropertyId}
           />

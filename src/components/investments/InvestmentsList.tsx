@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import { PropertyInvestment } from '@/types/investment';
 
 interface InvestmentsListProps {
@@ -15,6 +16,7 @@ interface InvestmentsListProps {
 
 const InvestmentsList = ({ investments, onDelete, loading, showPropertyColumn = true }: InvestmentsListProps) => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const { hasPermission } = useUserPermissions();
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -76,7 +78,7 @@ const InvestmentsList = ({ investments, onDelete, loading, showPropertyColumn = 
               <TableHead>Descrição</TableHead>
               <TableHead>Data</TableHead>
               <TableHead className="text-right">Valor</TableHead>
-              <TableHead className="text-center">Ações</TableHead>
+              {hasPermission('investments_create') && <TableHead className="text-center">Ações</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -113,32 +115,34 @@ const InvestmentsList = ({ investments, onDelete, loading, showPropertyColumn = 
                 <TableCell className="text-right font-medium">
                   {formatCurrency(Number(investment.amount))}
                 </TableCell>
-                <TableCell className="text-center">
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="outline" size="sm">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Tem certeza que deseja excluir este investimento? Esta ação não pode ser desfeita.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => handleDelete(investment.id)}
-                          disabled={deletingId === investment.id}
-                        >
-                          {deletingId === investment.id ? 'Excluindo...' : 'Excluir'}
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </TableCell>
+                {hasPermission('investments_create') && (
+                  <TableCell className="text-center">
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Tem certeza que deseja excluir este investimento? Esta ação não pode ser desfeita.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDelete(investment.id)}
+                            disabled={deletingId === investment.id}
+                          >
+                            {deletingId === investment.id ? 'Excluindo...' : 'Excluir'}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </TableCell>
+                )}
               </TableRow>
             ))}
           </TableBody>
