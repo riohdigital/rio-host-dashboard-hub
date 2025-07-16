@@ -3,7 +3,6 @@ import { useMemo } from 'react';
 export const useDateRange = (selectedPeriod: string) => {
   return useMemo(() => {
     const now = new Date();
-    // Normaliza a data para evitar problemas de fuso horário nos cálculos
     now.setHours(0, 0, 0, 0);
     
     let startDate: Date;
@@ -11,18 +10,24 @@ export const useDateRange = (selectedPeriod: string) => {
     let periodType: 'past' | 'current' | 'future' = 'past';
     
     switch (selectedPeriod) {
+      // --- LÓGICA CORRIGIDA PARA PERÍODOS PASSADOS ---
       case 'last_month':
         startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
         endDate = new Date(now.getFullYear(), now.getMonth(), 0);
         break;
       case 'last_3_months':
-        startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1);
-        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        // Ex: Hoje é Julho. Queremos Junho, Maio, Abril.
+        // Fim é o último dia do mês passado.
+        endDate = new Date(now.getFullYear(), now.getMonth(), 0);
+        // Início é o primeiro dia de 3 meses antes do mês atual.
+        startDate = new Date(now.getFullYear(), now.getMonth() - 3, 1);
         break;
       case 'last_6_months':
-        startDate = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        endDate = new Date(now.getFullYear(), now.getMonth(), 0);
+        startDate = new Date(now.getFullYear(), now.getMonth() - 6, 1);
         break;
+      // --- FIM DA CORREÇÃO ---
+
       case 'last_year':
         const lastYear = now.getFullYear() - 1;
         startDate = new Date(lastYear, 0, 1);
@@ -58,7 +63,7 @@ export const useDateRange = (selectedPeriod: string) => {
         endDate = new Date(now.getFullYear() + 1, now.getMonth() + 1, 0);
         periodType = 'future';
         break;
-      default: // Fallback para "Ano Atual"
+      default:
         startDate = new Date(now.getFullYear(), 0, 1);
         endDate = new Date(now.getFullYear(), 11, 31);
         periodType = 'current';
