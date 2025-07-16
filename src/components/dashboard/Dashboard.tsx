@@ -165,10 +165,18 @@ const Dashboard = () => {
         <>
           <h2 className="text-2xl font-bold text-gray-700 -mb-4">Visão Financeira {periodType === 'future' && <span className="text-sm font-normal text-gray-500">(Previsão)</span>}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <MonthlyRevenueKPI totalRevenue={financialData.totalRevenue} selectedPeriod={getCurrentPeriodLabel()} />
-            <KPICard title="Despesas Totais" value={`R$ ${financialData.totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} isPositive={false} icon={<TrendingDown className="h-4 w-4" />} />
-            <NetProfitKPI reservations={financialData.reservationsForPeriod} />
-            <KPICard title="Taxa de Ocupação" value={`${financialData.occupancyRate.toFixed(1)}%`} icon={<Calendar className="h-4 w-4" />} />
+            {hasPermission('dashboard_revenue') && (
+              <MonthlyRevenueKPI totalRevenue={financialData.totalRevenue} selectedPeriod={getCurrentPeriodLabel()} />
+            )}
+            {hasPermission('dashboard_expenses') && (
+              <KPICard title="Despesas Totais" value={`R$ ${financialData.totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} isPositive={false} icon={<TrendingDown className="h-4 w-4" />} />
+            )}
+            {hasPermission('dashboard_profit') && (
+              <NetProfitKPI reservations={financialData.reservationsForPeriod} />
+            )}
+            {hasPermission('dashboard_occupancy') && (
+              <KPICard title="Taxa de Ocupação" value={`${financialData.occupancyRate.toFixed(1)}%`} icon={<Calendar className="h-4 w-4" />} />
+            )}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
