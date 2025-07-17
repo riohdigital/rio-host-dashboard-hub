@@ -75,6 +75,8 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
 
     try {
       setLoading(true);
+      console.log('🔍 DEBUG: Iniciando salvamento do usuário:', user.email);
+      console.log('🔍 DEBUG: Propriedades a serem salvas:', propertyAccess);
 
       // Atualizar perfil do usuário
       const { error: profileError } = await supabase
@@ -87,13 +89,23 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
         })
         .eq('user_id', user.user_id);
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error('🔍 DEBUG: Erro ao atualizar perfil:', profileError);
+        throw profileError;
+      }
+      console.log('✅ DEBUG: Perfil atualizado com sucesso');
 
       // Remover permissões existentes
-      await supabase
+      const { error: deletePermissionsError } = await supabase
         .from('user_permissions')
         .delete()
         .eq('user_id', user.user_id);
+
+      if (deletePermissionsError) {
+        console.error('🔍 DEBUG: Erro ao deletar permissões:', deletePermissionsError);
+        throw deletePermissionsError;
+      }
+      console.log('✅ DEBUG: Permissões antigas removidas');
 
       // Inserir novas permissões (apenas as que têm valor true)
       const permissionsToInsert = permissions
@@ -105,19 +117,31 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
           resource_id: p.resource_id
         }));
 
+      console.log('🔍 DEBUG: Permissões a inserir:', permissionsToInsert);
+
       if (permissionsToInsert.length > 0) {
         const { error: permissionsError } = await supabase
           .from('user_permissions')
           .insert(permissionsToInsert);
 
-        if (permissionsError) throw permissionsError;
+        if (permissionsError) {
+          console.error('🔍 DEBUG: Erro ao inserir permissões:', permissionsError);
+          throw permissionsError;
+        }
+        console.log('✅ DEBUG: Permissões inseridas com sucesso');
       }
 
       // Remover acesso a propriedades existente
-      await supabase
+      const { error: deletePropertyAccessError } = await supabase
         .from('user_property_access')
         .delete()
         .eq('user_id', user.user_id);
+
+      if (deletePropertyAccessError) {
+        console.error('🔍 DEBUG: Erro ao deletar acesso às propriedades:', deletePropertyAccessError);
+        throw deletePropertyAccessError;
+      }
+      console.log('✅ DEBUG: Acesso antigo às propriedades removido');
 
       // Inserir novo acesso a propriedades
       if (propertyAccess.length > 0) {
@@ -127,11 +151,20 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
           access_level: pa.access_level
         }));
 
-        const { error: propertyAccessError } = await supabase
-          .from('user_property_access')
-          .insert(propertyAccessToInsert);
+        console.log('🔍 DEBUG: Dados de acesso às propriedades a inserir:', propertyAccessToInsert);
 
-        if (propertyAccessError) throw propertyAccessError;
+        const { data: insertedData, error: propertyAccessError } = await supabase
+          .from('user_property_access')
+          .insert(propertyAccessToInsert)
+          .select();
+
+        if (propertyAccessError) {
+          console.error('🔍 DEBUG: Erro ao inserir acesso às propriedades:', propertyAccessError);
+          throw propertyAccessError;
+        }
+        console.log('✅ DEBUG: Acesso às propriedades inserido com sucesso:', insertedData);
+      } else {
+        console.log('🔍 DEBUG: Nenhuma propriedade para inserir');
       }
 
       toast({
@@ -142,7 +175,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
       onUserUpdated();
       onClose();
     } catch (error) {
-      console.error('Erro ao atualizar usuário:', error);
+      console.error('🔴 ERRO ao atualizar usuário:', error);
       toast({
         title: "Erro",
         description: "Não foi possível atualizar o usuário.",
