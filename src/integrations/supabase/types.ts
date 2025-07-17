@@ -112,6 +112,7 @@ export type Database = {
           cleaning_fee: number | null
           commission_rate: number | null
           created_at: string | null
+          created_by: string | null
           default_checkin_time: string | null
           default_checkout_time: string | null
           id: string
@@ -130,6 +131,7 @@ export type Database = {
           cleaning_fee?: number | null
           commission_rate?: number | null
           created_at?: string | null
+          created_by?: string | null
           default_checkin_time?: string | null
           default_checkout_time?: string | null
           id?: string
@@ -148,6 +150,7 @@ export type Database = {
           cleaning_fee?: number | null
           commission_rate?: number | null
           created_at?: string | null
+          created_by?: string | null
           default_checkin_time?: string | null
           default_checkout_time?: string | null
           id?: string

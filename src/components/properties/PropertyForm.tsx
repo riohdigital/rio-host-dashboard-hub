@@ -87,7 +87,10 @@ const PropertyForm = ({ property, onSuccess, onCancel }: PropertyFormProps) => {
       } else {
         const { data: insertData, error: insertError } = await supabase
           .from('properties')
-          .insert([dataToSubmit])
+          .insert([{
+            ...dataToSubmit,
+            created_by: user?.id
+          }])
           .select()
           .single();
         error = insertError;
