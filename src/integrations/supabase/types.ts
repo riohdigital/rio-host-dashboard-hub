@@ -403,6 +403,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_manage_property_access: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      debug_auth_context: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          current_user_id: string
+          user_role: string
+          session_exists: boolean
+        }[]
+      }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: string
