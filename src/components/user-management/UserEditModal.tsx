@@ -59,14 +59,24 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
 
   const fetchPropertyAccess = async (userId: string) => {
     try {
-      const { data } = await supabase
+      console.log('🔍 Fetchando property access para userId:', userId);
+      console.log('🔍 Usuário autenticado atual:', (await supabase.auth.getUser()).data.user?.id);
+      
+      const { data, error } = await supabase
         .from('user_property_access')
         .select('*')
         .eq('user_id', userId);
-      
+
+      if (error) {
+        console.error('❌ Erro ao buscar acesso às propriedades:', error);
+        console.error('❌ Error details:', JSON.stringify(error, null, 2));
+        return;
+      }
+
+      console.log('✅ Property access carregado:', data);
       setPropertyAccess((data || []) as UserPropertyAccess[]);
     } catch (error) {
-      console.error('Erro ao buscar acesso a propriedades:', error);
+      console.error('❌ Erro catch ao buscar acesso às propriedades:', error);
     }
   };
 
