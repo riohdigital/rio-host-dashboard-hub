@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuthSession } from '@/hooks/useAuthSession';
 import PermissionsEditor from './PermissionsEditor';
 import PropertyAccessEditor from './PropertyAccessEditor';
 import type { UserProfile, UserPermission, UserPropertyAccess } from '@/types/user-management';
@@ -33,6 +34,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
   const [propertyAccess, setPropertyAccess] = useState<UserPropertyAccess[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { ensureValidSession, refreshSession, isAuthenticated } = useAuthSession();
 
   useEffect(() => {
     if (user && open) {
@@ -86,14 +88,15 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
     try {
       setLoading(true);
       console.log('🚀 Iniciando salvamento do usuário:', user.email);
-      console.log('🚀 Propriedades a serem salvas:', propertyAccess);
 
-      // Verificar contexto de autenticação antes de começar
-      const { data: authContext } = await supabase.rpc('debug_auth_context');
-      console.log('🔐 Contexto de autenticação:', authContext);
+      // PRIMEIRO: Garantir que temos uma sessão válida
+      if (!isAuthenticated) {
+        throw new Error('Usuário não está autenticado');
+      }
 
-      if (!authContext || !authContext[0]?.session_exists) {
-        throw new Error('Sessão de autenticação inválida. Faça logout e login novamente.');
+      const sessionValid = await ensureValidSession();
+      if (!sessionValid) {
+        throw new Error('Sessão inválida ou expirada');
       }
 
       // Verificar se usuário pode gerenciar acessos
