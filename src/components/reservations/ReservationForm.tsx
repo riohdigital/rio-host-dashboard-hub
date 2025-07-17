@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Reservation } from '@/types/reservation';
 import { Property } from '@/types/property';
 import { useToast } from '@/hooks/use-toast';
+import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 
 // Schema de validação com os novos campos
 const reservationSchema = z.object({
@@ -57,6 +58,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
   const [numberOfDays, setNumberOfDays] = useState(0);
   const [usePropertyDefaults, setUsePropertyDefaults] = useState(true);
   const { toast } = useToast();
+  const { hasPermission, getAccessibleProperties, isMaster } = useUserPermissions();
 
   const {
     register,
@@ -85,7 +87,25 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
         .order('name');
 
       if (error) throw error;
-      setProperties(data || []);
+      
+      // Filter properties based on user permissions
+      let filteredProperties = data || [];
+      if (!isMaster() && !hasPermission('properties_view_all')) {
+        const accessiblePropertyIds = getAccessibleProperties();
+        filteredProperties = data?.filter(property => 
+          accessiblePropertyIds.includes(property.id)
+        ) || [];
+        
+        // When editing, ensure the reservation's property is available even if not in accessible list
+        if (reservation && reservation.property_id) {
+          const reservationProperty = data?.find(p => p.id === reservation.property_id);
+          if (reservationProperty && !filteredProperties.find(p => p.id === reservation.property_id)) {
+            filteredProperties.push(reservationProperty);
+          }
+        }
+      }
+      
+      setProperties(filteredProperties);
     } catch (error) {
       console.error('Erro ao buscar propriedades:', error);
     }

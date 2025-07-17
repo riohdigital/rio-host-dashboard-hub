@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Property } from '@/types/property';
+import { useAuth } from '@/hooks/useAuth';
 
 interface PropertyFormProps {
   property?: Property | null;
@@ -34,6 +35,7 @@ const PropertyForm = ({ property, onSuccess, onCancel }: PropertyFormProps) => {
   });
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   useEffect(() => {
     if (property) {
@@ -74,6 +76,8 @@ const PropertyForm = ({ property, onSuccess, onCancel }: PropertyFormProps) => {
       };
 
       let error;
+      let newPropertyId;
+      
       if (property) {
         const { error: updateError } = await supabase
           .from('properties')
@@ -81,13 +85,37 @@ const PropertyForm = ({ property, onSuccess, onCancel }: PropertyFormProps) => {
           .eq('id', property.id);
         error = updateError;
       } else {
-        const { error: insertError } = await supabase
+        const { data: insertData, error: insertError } = await supabase
           .from('properties')
-          .insert([dataToSubmit]);
+          .insert([dataToSubmit])
+          .select()
+          .single();
         error = insertError;
+        newPropertyId = insertData?.id;
       }
 
       if (error) throw error;
+
+      // Se criou uma nova propriedade, dar acesso automático ao usuário da sessão
+      if (!property && newPropertyId && user) {
+        // Buscar o perfil do usuário logado
+        const { data: userProfile } = await supabase
+          .from('user_profiles')
+          .select('user_id, role')
+          .eq('user_id', user.id)
+          .single();
+
+        // Se não for master, dar acesso 'full' à propriedade criada
+        if (userProfile && userProfile.role !== 'master') {
+          await supabase
+            .from('user_property_access')
+            .insert([{
+              user_id: user.id,
+              property_id: newPropertyId,
+              access_level: 'full'
+            }]);
+        }
+      }
 
       toast({
         title: "Sucesso",
