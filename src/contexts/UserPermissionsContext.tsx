@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import type { UserProfile, UserPermission, UserPropertyAccess, PermissionType } from '@/types/user-management';
@@ -71,7 +72,7 @@ export const UserPermissionsProvider: React.FC<{ children: React.ReactNode }> = 
     fetchUserData();
   }, [fetchUserData]);
 
-  const hasPermission = (permissionType: PermissionType, resourceId?: string): boolean => {
+  const hasPermission = useCallback((permissionType: PermissionType, resourceId?: string): boolean => {
     if (userProfile?.role === 'master') {
       return true;
     }
@@ -80,9 +81,9 @@ export const UserPermissionsProvider: React.FC<{ children: React.ReactNode }> = 
       (resourceId ? p.resource_id === resourceId : !p.resource_id)
     );
     return permission?.permission_value || false;
-  };
+  }, [userProfile?.role, permissions]);
 
-  const canAccessProperty = (propertyId: string): 'full' | 'read_only' | 'restricted' | null => {
+  const canAccessProperty = useCallback((propertyId: string): 'full' | 'read_only' | 'restricted' | null => {
     if (userProfile?.role === 'master') {
       return 'full';
     }
@@ -91,32 +92,32 @@ export const UserPermissionsProvider: React.FC<{ children: React.ReactNode }> = 
     }
     const access = propertyAccess.find(pa => pa.property_id === propertyId);
     return access ? access.access_level : null;
-  };
+  }, [userProfile?.role, hasPermission, propertyAccess]);
 
-  const isMaster = (): boolean => {
+  const isMaster = useCallback((): boolean => {
     return userProfile?.role === 'master';
-  };
+  }, [userProfile?.role]);
 
-  const isOwner = (): boolean => {
+  const isOwner = useCallback((): boolean => {
     return userProfile?.role === 'owner';
-  };
+  }, [userProfile?.role]);
 
-  const isEditor = (): boolean => {
+  const isEditor = useCallback((): boolean => {
     return userProfile?.role === 'editor';
-  };
+  }, [userProfile?.role]);
 
-  const isViewer = (): boolean => {
+  const isViewer = useCallback((): boolean => {
     return userProfile?.role === 'viewer';
-  };
+  }, [userProfile?.role]);
 
-  const getAccessibleProperties = (): string[] => {
+  const getAccessibleProperties = useCallback((): string[] => {
     if (isMaster() || hasPermission('properties_view_all')) {
-      return []; // Empty array means all properties accessible
+      return [];
     }
     return propertyAccess.map(pa => pa.property_id).filter(Boolean);
-  };
+  }, [isMaster, hasPermission, propertyAccess]);
 
-  const value = {
+  const value = useMemo(() => ({
     userProfile,
     permissions,
     propertyAccess,
@@ -129,7 +130,20 @@ export const UserPermissionsProvider: React.FC<{ children: React.ReactNode }> = 
     isViewer,
     getAccessibleProperties,
     refetch: fetchUserData
-  };
+  }), [
+    userProfile,
+    permissions,
+    propertyAccess,
+    loading,
+    hasPermission,
+    canAccessProperty,
+    isMaster,
+    isOwner,
+    isEditor,
+    isViewer,
+    getAccessibleProperties,
+    fetchUserData
+  ]);
 
   return (
     <UserPermissionsContext.Provider value={value}>

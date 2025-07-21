@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./hooks/useAuth";
 import { UserPermissionsProvider } from "@/contexts/UserPermissionsContext";
+import { GlobalFiltersProvider } from "@/contexts/GlobalFiltersContext";
 import AuthPage from "./components/auth/AuthPage";
 import DashboardPage from "./pages/DashboardPage";
 import ReservasPage from "./pages/ReservasPage";
@@ -42,18 +43,20 @@ const App = () => {
             </Routes>
           ) : (
             <UserPermissionsProvider>
-              <Routes>
-                <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                <Route path="/dashboard" element={<DashboardPage />} />
-                <Route path="/reservas" element={<ReservasPage />} />
-                <Route path="/despesas" element={<DespesasPage />} />
-                <Route path="/propriedades" element={<PropriedadesPage />} />
-                <Route path="/investimentos" element={<InvestmentsPage />} />
-                <Route path="/investimentos/:propertyId" element={<PropertyInvestmentDetailPage />} />
-                <Route path="/configuracoes" element={<ConfiguracoesPage />} />
-                <Route path="/auth" element={<Navigate to="/dashboard" replace />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
+              <GlobalFiltersProvider>
+                <Routes>
+                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                  <Route path="/dashboard" element={<DashboardPage />} />
+                  <Route path="/reservas" element={<ReservasPage />} />
+                  <Route path="/despesas" element={<DespesasPage />} />
+                  <Route path="/propriedades" element={<PropriedadesPage />} />
+                  <Route path="/investimentos" element={<InvestmentsPage />} />
+                  <Route path="/investimentos/:propertyId" element={<PropertyInvestmentDetailPage />} />
+                  <Route path="/configuracoes" element={<ConfiguracoesPage />} />
+                  <Route path="/auth" element={<Navigate to="/dashboard" replace />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </GlobalFiltersProvider>
             </UserPermissionsProvider>
           )}
         </BrowserRouter>

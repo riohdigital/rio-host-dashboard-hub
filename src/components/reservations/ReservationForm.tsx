@@ -91,7 +91,6 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
     }
   };
 
-  // Pre-populate form if editing
   useEffect(() => {
     if (reservation) {
       setValue('property_id', reservation.property_id || '');
@@ -103,7 +102,6 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
       setValue('check_out_date', new Date(reservation.check_out_date).toISOString().split('T')[0]);
       setValue('total_revenue', reservation.total_revenue);
       setValue('payment_status', reservation.payment_status || '');
-      // setValue('payment_date', reservation.payment_date ? new Date(reservation.payment_date).toISOString().split('T')[0] : '');
 
       if (reservation.property_id) {
         const property = properties.find(p => p.id === reservation.property_id);
@@ -113,7 +111,6 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
         }
       }
 
-      // Set times if available
       if (reservation.checkin_time) {
         setValue('checkin_time', reservation.checkin_time.slice(0, 5));
         setUsePropertyDefaults(false);
@@ -124,12 +121,10 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
     }
   }, [reservation, setValue, properties]);
 
-  // Watch for changes in property to pre-select values and set default times
   useEffect(() => {
     if (selectedProperty) {
       setValue('property_id', selectedProperty.id);
       
-      // Set default times if using property defaults
       if (usePropertyDefaults) {
         if (selectedProperty.default_checkin_time) {
           setValue('checkin_time', selectedProperty.default_checkin_time.slice(0, 5));
@@ -141,7 +136,6 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
     }
   }, [selectedProperty, setValue, usePropertyDefaults]);
 
-  // Watch for property changes
   const watchedPropertyId = watch('property_id');
   useEffect(() => {
     if (watchedPropertyId) {
@@ -150,10 +144,8 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
     }
   }, [watchedPropertyId, properties]);
 
-  // Calculate days and financial values
   const watchedValues = watch();
   useEffect(() => {
-    // Calculate number of days
     if (watchedValues.check_in_date && watchedValues.check_out_date) {
       const checkIn = new Date(watchedValues.check_in_date);
       const checkOut = new Date(watchedValues.check_out_date);
@@ -161,10 +153,13 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
         const diffTime = Math.abs(checkOut.getTime() - checkIn.getTime());
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         setNumberOfDays(diffDays);
+      } else {
+        setNumberOfDays(0);
       }
+    } else {
+      setNumberOfDays(0);
     }
 
-    // Calculate financial values
     if (selectedProperty && watchedValues.total_revenue > 0) {
       const totalRevenue = watchedValues.total_revenue;
       const cleaningFee = selectedProperty.cleaning_fee || 0;
@@ -183,7 +178,6 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
   const onSubmit = async (data: ReservationFormData) => {
     setLoading(true);
     try {
-      // Calculate financial values
       const totalRevenue = data.total_revenue;
       const cleaningFee = selectedProperty?.cleaning_fee || 0;
       const commissionRate = selectedProperty?.commission_rate || 0;
@@ -249,7 +243,6 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
     }
   };
 
-  // Show selected property info if available
   if (!selectedProperty && watchedValues.total_revenue === 0) {
     return (
       <div className="p-6 text-center">
@@ -358,7 +351,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <Label htmlFor="check_in_date">Data de Check-in *</Label>
             <Input
@@ -383,9 +376,16 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
               <span className="text-red-500 text-sm">{errors.check_out_date.message}</span>
             )}
           </div>
+          <div className="flex flex-col justify-center">
+            <Label className="text-sm text-gray-600 mb-2">Número de Diárias</Label>
+            <div className="flex items-center justify-center p-2 bg-blue-50 rounded-md border border-blue-200">
+              <span className="text-lg font-semibold text-blue-600">
+                {numberOfDays > 0 ? `${numberOfDays} ${numberOfDays === 1 ? 'diária' : 'diárias'}` : '-'}
+              </span>
+            </div>
+          </div>
         </div>
 
-        {/* Horários */}
         <div className="space-y-4">
           <div className="flex items-center space-x-2">
             <Checkbox

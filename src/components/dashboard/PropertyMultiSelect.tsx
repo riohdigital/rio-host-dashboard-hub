@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Card, CardContent } from "@/components/ui/card";
+
+import React from 'react';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Button } from "@/components/ui/button"; // Importe o componente de Botão
+import { ChevronDown } from "lucide-react";
 import { Property } from '@/types/property';
 
 interface PropertyMultiSelectProps {
@@ -10,6 +12,7 @@ interface PropertyMultiSelectProps {
   onSelectionChange: (selected: string[]) => void;
   isOpen: boolean;
   onToggle: () => void;
+  compact?: boolean;
 }
 
 const PropertyMultiSelect = ({ 
@@ -17,103 +20,73 @@ const PropertyMultiSelect = ({
   selectedProperties, 
   onSelectionChange, 
   isOpen, 
-  onToggle 
+  onToggle,
+  compact = false 
 }: PropertyMultiSelectProps) => {
-  // Estado local para guardar as seleções antes de "Aplicar"
-  const [localSelection, setLocalSelection] = useState(selectedProperties);
-  const wrapperRef = useRef<HTMLDivElement>(null); // Ref para detectar cliques fora
-
-  // Sincroniza o estado local se o estado global mudar por outro motivo
-  useEffect(() => {
-    setLocalSelection(selectedProperties);
-  }, [selectedProperties]);
-
-  // Efeito para detectar cliques fora do componente e fechar o menu
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
-        if (isOpen) {
-          // Ao fechar, aplica as seleções que estavam pendentes
-          onSelectionChange(localSelection);
-          onToggle();
-        }
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isOpen, localSelection, onToggle, onSelectionChange]);
-
-  const handleSelectAll = () => {
-    if (localSelection.includes('todas')) {
-      setLocalSelection([]);
-    } else {
-      setLocalSelection(['todas', ...properties.map(p => p.id)]);
-    }
-  };
-
   const handlePropertyToggle = (propertyId: string) => {
-    const newSelection = localSelection.includes(propertyId)
-      ? localSelection.filter(id => id !== propertyId)
-      : [...localSelection, propertyId];
-
-    // Se "todas" for desmarcado, remove-a da seleção
-    if (propertyId !== 'todas' && newSelection.includes('todas')) {
-      setLocalSelection(newSelection.filter(id => id !== 'todas'));
+    if (propertyId === 'todas') {
+      onSelectionChange(['todas']);
     } else {
-      setLocalSelection(newSelection);
+      const newSelection = selectedProperties.includes('todas') 
+        ? [propertyId]
+        : selectedProperties.includes(propertyId)
+          ? selectedProperties.filter(id => id !== propertyId)
+          : [...selectedProperties.filter(id => id !== 'todas'), propertyId];
+      
+      onSelectionChange(newSelection.length === 0 ? ['todas'] : newSelection);
     }
-  };
-  
-  const handleApply = () => {
-    onSelectionChange(localSelection); // Envia o estado local para o componente pai
-    onToggle(); // Fecha o menu
   };
 
   const getSelectedText = () => {
-    // A lógica para exibir o texto permanece a mesma
-    if (selectedProperties.length === 0) return "Selecionar Propriedades";
-    if (selectedProperties.includes('todas')) return "Todas as Propriedades";
-    if (selectedProperties.length === 1) {
+    if (selectedProperties.includes('todas')) {
+      return compact ? 'Todas' : 'Todas as propriedades';
+    } else if (selectedProperties.length === 1) {
       const property = properties.find(p => p.id === selectedProperties[0]);
-      return property?.nickname || property?.name || "1 propriedade";
+      return compact ? property?.nickname || property?.name || 'N/A' : property?.nickname || property?.name || 'Propriedade selecionada';
+    } else {
+      return compact ? `${selectedProperties.length} props` : `${selectedProperties.length} propriedades selecionadas`;
     }
-    return `${selectedProperties.length} propriedades`;
   };
 
   return (
-    <div className="relative" ref={wrapperRef}>
-      <button
-        onClick={onToggle}
-        className="w-48 px-4 py-2 text-left bg-white border border-gray-300 rounded-md hover:bg-gray-50 flex items-center justify-between transition-all duration-200 hover:border-primary/50"
-      >
-        <span className="text-gradient-primary font-medium">{getSelectedText()}</span>
-        <svg className={`w-4 h-4 transition-transform text-gradient-primary ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-      </button>
-
-      {isOpen && (
-        <Card className="absolute top-full left-0 w-64 mt-1 z-50 shadow-lg bg-white">
-          <CardContent className="p-4 space-y-4">
-            <div className="space-y-3">
-              <div className="flex items-center space-x-2 pb-2 border-b">
-                <Checkbox id="select-all" checked={localSelection.includes('todas')} onCheckedChange={handleSelectAll} />
-                <label htmlFor="select-all" className="text-sm font-medium text-gradient-primary cursor-pointer">Selecionar Todas</label>
-              </div>
-              <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-2">
-                {properties.map((property) => (
-                  <div key={property.id} className="flex items-center space-x-2">
-                    <Checkbox id={property.id} checked={localSelection.includes(property.id)} onCheckedChange={() => handlePropertyToggle(property.id)} />
-                    <label htmlFor={property.id} className="text-sm cursor-pointer hover:text-gradient-primary transition-colors text-gray-700">{property.nickname || property.name}</label>
-                  </div>
-                ))}
-              </div>
+    <Popover open={isOpen} onOpenChange={onToggle}>
+      <PopoverTrigger asChild>
+        <Button 
+          variant="outline" 
+          className={`justify-between ${compact ? 'h-8 text-xs px-2' : 'w-64'}`}
+        >
+          <span className="truncate">{getSelectedText()}</span>
+          <ChevronDown className={`${compact ? 'h-3 w-3' : 'h-4 w-4'} shrink-0 opacity-50`} />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className={`${compact ? 'w-56' : 'w-64'} p-0`} align="start">
+        <div className="p-1">
+          <div className="flex items-center space-x-2 px-2 py-1.5 hover:bg-gray-50 rounded">
+            <Checkbox
+              id="todas"
+              checked={selectedProperties.includes('todas')}
+              onCheckedChange={() => handlePropertyToggle('todas')}
+            />
+            <label htmlFor="todas" className={`${compact ? 'text-xs' : 'text-sm'} cursor-pointer flex-1`}>
+              Todas as propriedades
+            </label>
+          </div>
+          <div className="border-t my-1"></div>
+          {properties.map((property) => (
+            <div key={property.id} className="flex items-center space-x-2 px-2 py-1.5 hover:bg-gray-50 rounded">
+              <Checkbox
+                id={property.id}
+                checked={selectedProperties.includes(property.id)}
+                onCheckedChange={() => handlePropertyToggle(property.id)}
+              />
+              <label htmlFor={property.id} className={`${compact ? 'text-xs' : 'text-sm'} cursor-pointer flex-1 truncate`}>
+                {property.nickname || property.name}
+              </label>
             </div>
-            <Button onClick={handleApply} className="w-full bg-primary hover:bg-primary/90">Aplicar</Button>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 };
 

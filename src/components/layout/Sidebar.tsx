@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import GlobalFilters from './GlobalFilters';
 
 const Sidebar = () => {
   const { toast } = useToast();
@@ -30,12 +31,10 @@ const Sidebar = () => {
           });
         }
       } else {
-        // Se não há sessão ativa, apenas limpe o estado localmente
         window.location.href = '/auth';
       }
     } catch (error) {
       console.error('Erro durante logout:', error);
-      // Em caso de erro, redirecione para auth
       window.location.href = '/auth';
     }
   };
@@ -55,6 +54,11 @@ const Sidebar = () => {
         <h1 className="text-xl font-bold text-[#6A6DDF]">
           Rioh Host Rentals
         </h1>
+      </div>
+      
+      {/* Filtros Globais */}
+      <div className="border-b">
+        <GlobalFilters />
       </div>
       
       <nav className="flex-1 px-4 py-6">
