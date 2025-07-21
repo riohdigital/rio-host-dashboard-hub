@@ -8,7 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Property } from '@/types/property';
-import { useAuth } from '@/hooks/useAuth';
 
 interface PropertyFormProps {
   property?: Property | null;
@@ -35,7 +34,6 @@ const PropertyForm = ({ property, onSuccess, onCancel }: PropertyFormProps) => {
   });
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  const { user } = useAuth();
 
   useEffect(() => {
     if (property) {
@@ -76,8 +74,6 @@ const PropertyForm = ({ property, onSuccess, onCancel }: PropertyFormProps) => {
       };
 
       let error;
-      let newPropertyId;
-      
       if (property) {
         const { error: updateError } = await supabase
           .from('properties')
@@ -85,67 +81,13 @@ const PropertyForm = ({ property, onSuccess, onCancel }: PropertyFormProps) => {
           .eq('id', property.id);
         error = updateError;
       } else {
-        const { data: insertData, error: insertError } = await supabase
+        const { error: insertError } = await supabase
           .from('properties')
-          .insert([{
-            ...dataToSubmit,
-            created_by: user?.id
-          }])
-          .select()
-          .single();
+          .insert([dataToSubmit]);
         error = insertError;
-        newPropertyId = insertData?.id;
       }
 
       if (error) throw error;
-
-      // Se criou uma nova propriedade, dar acesso automático ao usuário da sessão
-      if (!property && newPropertyId && user) {
-        console.log('🔍 DEBUG: Criando acesso automático para propriedade:', {
-          userId: user.id,
-          propertyId: newPropertyId
-        });
-
-        // Buscar o perfil do usuário logado
-        const { data: userProfile, error: profileError } = await supabase
-          .from('user_profiles')
-          .select('user_id, role')
-          .eq('user_id', user.id)
-          .single();
-
-        console.log('🔍 DEBUG: Perfil do usuário:', { userProfile, profileError });
-
-        // Se não for master, dar acesso 'full' à propriedade criada
-        if (userProfile && userProfile.role !== 'master') {
-          console.log('🔍 DEBUG: Usuário não é master, criando acesso à propriedade');
-          
-          const { data: accessData, error: accessError } = await supabase
-            .from('user_property_access')
-            .insert([{
-              user_id: user.id,
-              property_id: newPropertyId,
-              access_level: 'full'
-            }])
-            .select();
-
-          console.log('🔍 DEBUG: Resultado da inserção do acesso:', { accessData, accessError });
-
-          if (accessError) {
-            console.error('❌ ERRO ao criar acesso à propriedade:', accessError);
-            toast({
-              title: "Aviso",
-              description: "Propriedade criada, mas houve erro ao atribuir acesso automático.",
-              variant: "destructive",
-            });
-          } else {
-            console.log('✅ Acesso à propriedade criado com sucesso');
-          }
-        } else if (!userProfile) {
-          console.error('❌ ERRO: Perfil do usuário não encontrado');
-        } else {
-          console.log('🔍 DEBUG: Usuário é master, não precisa de acesso específico');
-        }
-      }
 
       toast({
         title: "Sucesso",

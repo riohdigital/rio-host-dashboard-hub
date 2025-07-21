@@ -115,15 +115,7 @@ const ExpenseForm = ({ expense, selectedPropertyId, onSuccess, onCancel }: Expen
     try {
       if (expense) {
         // Editando despesa existente
-        const updateData = {
-          property_id: data.property_id,
-          expense_date: data.expense_date,
-          description: data.description,
-          category: data.category,
-          expense_type: data.expense_type,
-          amount: Number(data.amount)
-        };
-        const { error } = await supabase.from('expenses').update(updateData).eq('id', expense.id);
+        const { error } = await supabase.from('expenses').update(data).eq('id', expense.id);
         if (error) throw error;
         toast({ title: "Sucesso", description: "Despesa atualizada com sucesso." });
       } else {
@@ -134,7 +126,7 @@ const ExpenseForm = ({ expense, selectedPropertyId, onSuccess, onCancel }: Expen
           if (error) throw error;
           toast({ title: "Sucesso", description: `${recurrentExpenses.length} despesas recorrentes criadas.` });
         } else {
-          const insertData = {
+          const { error } = await supabase.from('expenses').insert([{
             property_id: data.property_id,
             expense_date: data.expense_date,
             description: data.description,
@@ -142,8 +134,7 @@ const ExpenseForm = ({ expense, selectedPropertyId, onSuccess, onCancel }: Expen
             expense_type: data.expense_type,
             amount: Number(data.amount),
             is_recurrent: false
-          };
-          const { error } = await supabase.from('expenses').insert([insertData]);
+          }]);
           if (error) throw error;
           toast({ title: "Sucesso", description: "Despesa criada com sucesso." });
         }
@@ -153,6 +144,7 @@ const ExpenseForm = ({ expense, selectedPropertyId, onSuccess, onCancel }: Expen
       console.error('Erro ao salvar despesa:', error);
       toast({
         title: "Erro",
+        // CORREÇÃO: Tratamento de erro mais seguro
         description: `Não foi possível salvar a despesa: ${error?.message || 'Erro desconhecido.'}`,
         variant: "destructive",
       });

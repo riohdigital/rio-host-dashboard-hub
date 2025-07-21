@@ -9,7 +9,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useAuthSession } from '@/hooks/useAuthSession';
 import PermissionsEditor from './PermissionsEditor';
 import PropertyAccessEditor from './PropertyAccessEditor';
 import type { UserProfile, UserPermission, UserPropertyAccess } from '@/types/user-management';
@@ -34,7 +33,6 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
   const [propertyAccess, setPropertyAccess] = useState<UserPropertyAccess[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  const { ensureValidSession, refreshSession, isAuthenticated } = useAuthSession();
 
   useEffect(() => {
     if (user && open) {
@@ -61,24 +59,14 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
 
   const fetchPropertyAccess = async (userId: string) => {
     try {
-      console.log('🔍 Fetchando property access para userId:', userId);
-      console.log('🔍 Usuário autenticado atual:', (await supabase.auth.getUser()).data.user?.id);
-      
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('user_property_access')
         .select('*')
         .eq('user_id', userId);
-
-      if (error) {
-        console.error('❌ Erro ao buscar acesso às propriedades:', error);
-        console.error('❌ Error details:', JSON.stringify(error, null, 2));
-        return;
-      }
-
-      console.log('✅ Property access carregado:', data);
+      
       setPropertyAccess((data || []) as UserPropertyAccess[]);
     } catch (error) {
-      console.error('❌ Erro catch ao buscar acesso às propriedades:', error);
+      console.error('Erro ao buscar acesso a propriedades:', error);
     }
   };
 
@@ -87,25 +75,6 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
 
     try {
       setLoading(true);
-      console.log('🚀 Iniciando salvamento do usuário:', user.email);
-
-      // PRIMEIRO: Garantir que temos uma sessão válida
-      if (!isAuthenticated) {
-        throw new Error('Usuário não está autenticado');
-      }
-
-      const sessionValid = await ensureValidSession();
-      if (!sessionValid) {
-        throw new Error('Sessão inválida ou expirada');
-      }
-
-      // Verificar se usuário pode gerenciar acessos
-      const { data: canManage } = await supabase.rpc('can_manage_property_access');
-      console.log('✅ Pode gerenciar acessos:', canManage);
-
-      if (!canManage) {
-        throw new Error('Usuário não tem permissão para gerenciar acessos às propriedades');
-      }
 
       // Atualizar perfil do usuário
       const { error: profileError } = await supabase
@@ -118,23 +87,13 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
         })
         .eq('user_id', user.user_id);
 
-      if (profileError) {
-        console.error('❌ Erro ao atualizar perfil:', profileError);
-        throw profileError;
-      }
-      console.log('✅ Perfil atualizado com sucesso');
+      if (profileError) throw profileError;
 
       // Remover permissões existentes
-      const { error: deletePermissionsError } = await supabase
+      await supabase
         .from('user_permissions')
         .delete()
         .eq('user_id', user.user_id);
-
-      if (deletePermissionsError) {
-        console.error('❌ Erro ao deletar permissões:', deletePermissionsError);
-        throw deletePermissionsError;
-      }
-      console.log('✅ Permissões antigas removidas');
 
       // Inserir novas permissões (apenas as que têm valor true)
       const permissionsToInsert = permissions
@@ -146,33 +105,19 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
           resource_id: p.resource_id
         }));
 
-      console.log('📝 Permissões a inserir:', permissionsToInsert);
-
       if (permissionsToInsert.length > 0) {
         const { error: permissionsError } = await supabase
           .from('user_permissions')
           .insert(permissionsToInsert);
 
-        if (permissionsError) {
-          console.error('❌ Erro ao inserir permissões:', permissionsError);
-          throw permissionsError;
-        }
-        console.log('✅ Permissões inseridas com sucesso');
+        if (permissionsError) throw permissionsError;
       }
 
       // Remover acesso a propriedades existente
-      console.log('🗑️ Removendo acessos antigos às propriedades...');
-      const { error: deletePropertyAccessError, data: deletedAccess } = await supabase
+      await supabase
         .from('user_property_access')
         .delete()
-        .eq('user_id', user.user_id)
-        .select();
-
-      if (deletePropertyAccessError) {
-        console.error('❌ Erro ao deletar acesso às propriedades:', deletePropertyAccessError);
-        throw deletePropertyAccessError;
-      }
-      console.log('✅ Acessos antigos removidos:', deletedAccess);
+        .eq('user_id', user.user_id);
 
       // Inserir novo acesso a propriedades
       if (propertyAccess.length > 0) {
@@ -182,79 +127,25 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
           access_level: pa.access_level
         }));
 
-        console.log('📝 Inserindo novos acessos:', propertyAccessToInsert);
-
-        const { data: insertedData, error: propertyAccessError } = await supabase
+        const { error: propertyAccessError } = await supabase
           .from('user_property_access')
-          .insert(propertyAccessToInsert)
-          .select();
+          .insert(propertyAccessToInsert);
 
-        if (propertyAccessError) {
-          console.error('❌ Erro ao inserir acesso às propriedades:', propertyAccessError);
-          console.error('❌ Detalhes do erro:', JSON.stringify(propertyAccessError, null, 2));
-          
-          // Tratar erros RLS específicos
-          if (propertyAccessError.code === '42501') {
-            throw new Error('Erro de permissão: Verifique se você está logado como usuário master');
-          } else if (propertyAccessError.code === 'PGRST301') {
-            throw new Error('Erro de autenticação: Faça logout e login novamente');
-          }
-          
-          throw propertyAccessError;
-        }
-        
-        console.log('✅ Novos acessos inseridos:', insertedData);
-
-        // Verificação de integridade - confirmar que os dados foram realmente salvos
-        const { data: verificationData, error: verificationError } = await supabase
-          .from('user_property_access')
-          .select('*')
-          .eq('user_id', user.user_id);
-
-        if (verificationError) {
-          console.error('❌ Erro na verificação:', verificationError);
-        } else {
-          console.log('🔍 Verificação de integridade:', verificationData);
-          
-          if (verificationData.length !== propertyAccess.length) {
-            console.warn('⚠️ ATENÇÃO: Número de registros não confere!');
-            console.warn('⚠️ Esperado:', propertyAccess.length, 'Encontrado:', verificationData.length);
-            
-            throw new Error(`Falha na verificação: Esperado ${propertyAccess.length} acessos, mas apenas ${verificationData.length} foram salvos`);
-          }
-        }
-      } else {
-        console.log('ℹ️ Nenhuma propriedade para inserir');
+        if (propertyAccessError) throw propertyAccessError;
       }
 
       toast({
         title: "Sucesso",
-        description: "Usuário atualizado com sucesso! Todos os acessos foram salvos corretamente.",
+        description: "Usuário atualizado com sucesso.",
       });
 
       onUserUpdated();
       onClose();
-    } catch (error: any) {
-      console.error('🔴 ERRO ao atualizar usuário:', error);
-      
-      let errorMessage = "Não foi possível atualizar o usuário.";
-      
-      // Mensagens específicas baseadas no tipo de erro
-      if (error.code === '42501') {
-        errorMessage = "Permissão insuficiente. Verifique se você está logado como usuário master.";
-      } else if (error.code === 'PGRST301') {
-        errorMessage = "Falha na autenticação. Tente fazer logout e login novamente.";
-      } else if (error.message?.includes('Sessão de autenticação inválida')) {
-        errorMessage = "Sessão expirada. Faça logout e login novamente.";
-      } else if (error.message?.includes('Falha na verificação')) {
-        errorMessage = error.message;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-
+    } catch (error) {
+      console.error('Erro ao atualizar usuário:', error);
       toast({
         title: "Erro",
-        description: errorMessage,
+        description: "Não foi possível atualizar o usuário.",
         variant: "destructive",
       });
     } finally {
