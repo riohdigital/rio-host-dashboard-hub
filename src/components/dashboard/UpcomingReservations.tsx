@@ -3,14 +3,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, User, MapPin, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
-interface UpcomingReservation {
+interface PeriodEvent {
+  type: 'checkin' | 'checkout';
   guest_name: string;
   property_name: string;
-  check_in_date: string;
+  date: string;
   payment_status: string;
 }
 
-const UpcomingReservations = ({ reservations, loading }: { reservations: UpcomingReservation[], loading: boolean }) => {
+const UpcomingReservations = ({ events, loading }: { events: PeriodEvent[], loading: boolean }) => {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString + 'T00:00:00');
     const today = new Date();
@@ -29,6 +30,20 @@ const UpcomingReservations = ({ reservations, loading }: { reservations: Upcomin
         bgColor: 'bg-blue-50 border-blue-200'
       };
     }
+  };
+
+  const getEventIcon = (type: 'checkin' | 'checkout') => {
+    return type === 'checkin' ? 
+      <Calendar className="h-4 w-4 text-green-600" /> : 
+      <Clock className="h-4 w-4 text-blue-600" />;
+  };
+
+  const getEventTypeText = (type: 'checkin' | 'checkout') => {
+    return type === 'checkin' ? 'Check-in' : 'Check-out';
+  };
+
+  const getEventTypeColor = (type: 'checkin' | 'checkout') => {
+    return type === 'checkin' ? 'text-green-600' : 'text-blue-600';
   };
   
   const getStatusVariant = (status: string) => {
@@ -52,7 +67,7 @@ const UpcomingReservations = ({ reservations, loading }: { reservations: Upcomin
       <CardHeader className="pb-4">
         <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
           <Calendar className="h-5 w-5 text-primary" />
-          Próximos Check-ins
+          Eventos do Período
         </CardTitle>
       </CardHeader>
       <CardContent className="flex-grow flex flex-col">
@@ -66,32 +81,39 @@ const UpcomingReservations = ({ reservations, loading }: { reservations: Upcomin
               </div>
             ))}
           </div>
-        ) : reservations.length === 0 ? (
+        ) : events.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center py-8">
             <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-3"><Clock className="h-8 w-8 text-gray-400" /></div>
-            <h3 className="font-medium text-gray-900 mb-1">Nenhum check-in programado</h3>
-            <p className="text-sm text-gray-500">Não há reservas com check-in nos próximos dias</p>
+            <h3 className="font-medium text-gray-900 mb-1">Nenhum evento no período</h3>
+            <p className="text-sm text-gray-500">Não há check-ins ou check-outs no período selecionado</p>
           </div>
         ) : (
           // --- MELHORIA APLICADA AQUI ---
           <div className="h-96 overflow-y-auto pr-3 custom-scrollbar">
             <div className="space-y-3">
-              {reservations.map((res, index) => {
-                const dateInfo = formatDate(res.check_in_date);
+              {events.map((event, index) => {
+                const dateInfo = formatDate(event.date);
                 return (
                   <div key={index} className="flex items-center space-x-4 p-4 rounded-lg border border-gray-200 bg-gray-50/50 hover:bg-gray-50 transition-colors">
                     <div className={`flex flex-col items-center justify-center rounded-lg p-3 min-w-[4rem] border ${dateInfo.bgColor}`}>
                       <span className={`text-sm font-semibold ${dateInfo.color}`}>{dateInfo.text}</span>
-                      <span className="text-xs text-gray-500 font-medium">Check-in</span>
+                      <span className={`text-xs font-medium ${getEventTypeColor(event.type)}`}>{getEventTypeText(event.type)}</span>
                     </div>
                     <div className="flex-1 min-w-0 space-y-1">
-                      <div className="flex items-center gap-2"><User className="h-4 w-4 text-gray-400 flex-shrink-0" /><p className="font-medium text-gray-900 truncate">{res.guest_name}</p></div>
-                      <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-gray-400 flex-shrink-0" /><p className="text-sm text-gray-600 truncate">{res.property_name}</p></div>
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                        <p className="font-medium text-gray-900 truncate">{event.guest_name}</p>
+                        {getEventIcon(event.type)}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                        <p className="text-sm text-gray-600 truncate">{event.property_name}</p>
+                      </div>
                     </div>
                     <div className="flex-shrink-0">
-                      <Badge variant={getStatusVariant(res.payment_status)} className="text-xs font-medium flex items-center gap-1">
-                        {getStatusIcon(res.payment_status)}
-                        {res.payment_status}
+                      <Badge variant={getStatusVariant(event.payment_status)} className="text-xs font-medium flex items-center gap-1">
+                        {getStatusIcon(event.payment_status)}
+                        {event.payment_status}
                       </Badge>
                     </div>
                   </div>

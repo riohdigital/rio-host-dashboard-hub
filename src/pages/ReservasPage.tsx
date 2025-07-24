@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -41,6 +41,7 @@ const ReservasPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProperty, setSelectedProperty] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
+  const [selectedPlatform, setSelectedPlatform] = useState('all');
   const { toast } = useToast();
   const { hasPermission, getAccessibleProperties, loading: permissionsLoading } = useUserPermissions();
 
@@ -172,8 +173,34 @@ const ReservasPage = () => {
     
     const matchesProperty = selectedProperty === 'all' || reservation.property_id === selectedProperty;
     const matchesStatus = selectedStatus === 'all' || reservation.reservation_status === selectedStatus;
+    const matchesPlatform = selectedPlatform === 'all' || reservation.platform === selectedPlatform;
     
-    return matchesSearch && matchesProperty && matchesStatus;
+    return matchesSearch && matchesProperty && matchesStatus && matchesPlatform;
+  });
+
+  // Calcular totais dos dados filtrados
+  const totals = filteredReservations.reduce((acc, reservation) => {
+    acc.count += 1;
+    acc.totalRevenue += reservation.total_revenue || 0;
+    acc.netRevenue += reservation.net_revenue || 0;
+    if (reservation.payment_status === 'Pago') acc.paidCount += 1;
+    else acc.pendingCount += 1;
+    
+    // Contar por plataforma
+    if (reservation.platform === 'Airbnb') acc.airbnbCount += 1;
+    else if (reservation.platform === 'Booking.com') acc.bookingCount += 1;
+    else acc.diretoCount += 1;
+    
+    return acc;
+  }, {
+    count: 0,
+    totalRevenue: 0,
+    netRevenue: 0,
+    paidCount: 0,
+    pendingCount: 0,
+    airbnbCount: 0,
+    bookingCount: 0,
+    diretoCount: 0
   });
 
   const totalLoading = loading || permissionsLoading;
@@ -273,6 +300,18 @@ const ReservasPage = () => {
                   <SelectItem value="Em Andamento">Em Andamento</SelectItem>
                   <SelectItem value="Finalizada">Finalizada</SelectItem>
                   <SelectItem value="Cancelada">Cancelada</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={selectedPlatform} onValueChange={setSelectedPlatform}>
+                <SelectTrigger className="w-full sm:w-[180px] border-gray-300">
+                  <SelectValue placeholder="Todas as plataformas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as plataformas</SelectItem>
+                  <SelectItem value="Airbnb">Airbnb</SelectItem>
+                  <SelectItem value="Booking.com">Booking.com</SelectItem>
+                  <SelectItem value="Direto">Direto</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -402,6 +441,39 @@ const ReservasPage = () => {
                     );
                   })}
                 </TableBody>
+                <TableFooter>
+                  <TableRow className="bg-gray-100 font-semibold">
+                    <TableCell colSpan={2} className="font-bold">TOTAIS ({totals.count} reservas)</TableCell>
+                    <TableCell className="text-center">-</TableCell>
+                    <TableCell className="text-center">-</TableCell>
+                    <TableCell className="text-center">-</TableCell>
+                    <TableCell>
+                      <div className="space-y-1 text-xs">
+                        <div>Airbnb: {totals.airbnbCount}</div>
+                        <div>Booking: {totals.bookingCount}</div>
+                        <div>Direto: {totals.diretoCount}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">-</TableCell>
+                    <TableCell>
+                      <div className="space-y-1 text-xs">
+                        <div>Pago: {totals.paidCount}</div>
+                        <div>Pendente: {totals.pendingCount}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <div className="font-bold text-green-700">R$ {totals.netRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                        <div className="text-sm text-gray-600">Total: R$ {totals.totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">-</TableCell>
+                    <TableCell className="text-center">-</TableCell>
+                    {(canEditReservations || canDeleteReservations) && (
+                      <TableCell className="text-center">-</TableCell>
+                    )}
+                  </TableRow>
+                </TableFooter>
               </Table>
             </div>
           </CardContent>

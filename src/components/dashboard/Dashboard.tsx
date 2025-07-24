@@ -89,7 +89,7 @@ const Dashboard = () => {
             <div>
               <h2 className="text-2xl font-bold text-gray-700 mb-4">Eventos</h2>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <UpcomingReservations reservations={operationalData.upcomingReservations} loading={operationalData.loading} />
+                <UpcomingReservations events={operationalData.periodEvents} loading={operationalData.loading} />
                 <RecentReservations reservations={operationalData.recentReservations} loading={operationalData.loading} />
               </div>
             </div>
