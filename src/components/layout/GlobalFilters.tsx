@@ -34,18 +34,18 @@ const GlobalFilters = () => {
         }
         
         setProperties(filteredProperties);
-        if (filteredProperties.length > 0 && selectedProperties.includes('todas')) {
-          setSelectedProperties(
-            !isMaster() && !hasPermission('properties_view_all')
-              ? filteredProperties.map(p => p.id) 
-              : ['todas']
-          );
-        }
       }
       setPropertiesLoading(false);
     };
     fetchProps();
-  }, [permissionsLoading, isMaster, hasPermission, getAccessibleProperties, selectedProperties, setSelectedProperties]);
+  }, [permissionsLoading, isMaster, hasPermission, getAccessibleProperties]);
+
+  // Separate effect to handle initial property selection
+  useEffect(() => {
+    if (properties.length > 0 && selectedProperties.includes('todas') && !isMaster() && !hasPermission('properties_view_all')) {
+      setSelectedProperties(properties.map(p => p.id));
+    }
+  }, [properties, isMaster, hasPermission, setSelectedProperties]);
 
   const generatePeriodOptions = () => {
     const now = new Date();
