@@ -76,34 +76,42 @@ export const useOperationalData = (
         return acc;
       }, { airbnbReceived: 0, bookingReceived: 0, diretoReceived: 0, airbnbReceivable: 0, bookingReceivable: 0, diretoReceivable: 0 });
 
-      // Criar eventos do período (check-ins e check-outs)
+      // Criar eventos do período (check-ins e check-outs) - apenas futuros
       const periodEvents = [];
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
       
       periodEventsData.forEach(res => {
-        // Adicionar check-in se estiver no período
+        // Adicionar check-in se estiver no período e for futuro
         if (res.check_in_date >= startDateString && res.check_in_date <= endDateString) {
-          periodEvents.push({
-            type: 'checkin',
-            guest_name: res.guest_name || 'N/A',
-            property_name: res.properties?.nickname || res.properties?.name || 'N/A',
-            date: res.check_in_date,
-            payment_status: res.payment_status || 'Pendente'
-          });
+          const eventDate = new Date(res.check_in_date + 'T00:00:00');
+          if (eventDate >= today) {
+            periodEvents.push({
+              type: 'checkin',
+              guest_name: res.guest_name || 'N/A',
+              property_name: res.properties?.nickname || res.properties?.name || 'N/A',
+              date: res.check_in_date,
+              payment_status: res.payment_status || 'Pendente'
+            });
+          }
         }
         
-        // Adicionar check-out se estiver no período
+        // Adicionar check-out se estiver no período e for futuro
         if (res.check_out_date >= startDateString && res.check_out_date <= endDateString) {
-          periodEvents.push({
-            type: 'checkout',
-            guest_name: res.guest_name || 'N/A',
-            property_name: res.properties?.nickname || res.properties?.name || 'N/A',
-            date: res.check_out_date,
-            payment_status: res.payment_status || 'Pendente'
-          });
+          const eventDate = new Date(res.check_out_date + 'T00:00:00');
+          if (eventDate >= today) {
+            periodEvents.push({
+              type: 'checkout',
+              guest_name: res.guest_name || 'N/A',
+              property_name: res.properties?.nickname || res.properties?.name || 'N/A',
+              date: res.check_out_date,
+              payment_status: res.payment_status || 'Pendente'
+            });
+          }
         }
       });
       
-      // Ordenar eventos por data
+      // Ordenar eventos por data (próximos primeiro)
       periodEvents.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
       const recentReservations = recent.map(res => ({

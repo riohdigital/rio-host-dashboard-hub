@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
 import { TrendingUp, DollarSign, Plus, BarChart3, AlertTriangle, Receipt } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,11 +24,10 @@ const InvestmentsPage = () => {
   const [propertiesLoading, setPropertiesLoading] = useState(true);
   const [reservationsLoading, setReservationsLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
-  const [selectedPropertyId, setSelectedPropertyId] = useState<string | undefined>();
-
   const { investments, loading: investmentsLoading, createInvestment, deleteInvestment } = usePropertyInvestments();
   const { roiData, loading: roiLoading, refetch: refetchROI } = useROICalculations();
   const { hasPermission, getAccessibleProperties, loading: permissionsLoading } = useUserPermissions();
+  const { selectedProperties } = useGlobalFilters();
 
   // Carregar propriedades
   useEffect(() => {
@@ -104,18 +104,18 @@ const InvestmentsPage = () => {
     await refetchROI();
   };
 
-  // Filtrar dados por propriedade selecionada
-  const filteredROIData = selectedPropertyId 
-    ? roiData.filter(roi => roi.property_id === selectedPropertyId)
-    : roiData;
+  // Filtrar dados por propriedades globais selecionadas
+  const filteredROIData = selectedProperties.includes('todas')
+    ? roiData
+    : roiData.filter(roi => selectedProperties.includes(roi.property_id));
 
-  const filteredInvestments = selectedPropertyId
-    ? investments.filter(inv => inv.property_id === selectedPropertyId)
-    : investments;
+  const filteredInvestments = selectedProperties.includes('todas')
+    ? investments
+    : investments.filter(inv => selectedProperties.includes(inv.property_id));
 
-  const filteredReservations = selectedPropertyId
-    ? reservations.filter(res => res.property_id === selectedPropertyId)
-    : reservations;
+  const filteredReservations = selectedProperties.includes('todas')
+    ? reservations
+    : reservations.filter(res => selectedProperties.includes(res.property_id || ''));
 
   // Calcular estatísticas gerais (baseadas nos dados filtrados)
   const totalGrossRevenue = filteredReservations.reduce((sum, res) => sum + (res.net_revenue || 0), 0);
@@ -183,14 +183,7 @@ const InvestmentsPage = () => {
             </p>
           </div>
           
-          <div className="flex gap-3 items-center">
-            <PropertySelector
-              properties={properties}
-              selectedPropertyId={selectedPropertyId}
-              onPropertyChange={setSelectedPropertyId}
-              loading={propertiesLoading}
-            />
-            
+          <div className="flex gap-3 items-center">            
             {canCreateInvestments && (
               <Dialog open={formOpen} onOpenChange={setFormOpen}>
                 <DialogTrigger asChild>
@@ -306,18 +299,13 @@ const InvestmentsPage = () => {
         <div className="space-y-4">
           <h2 className="text-xl font-semibold">
             Histórico de Investimentos
-            {selectedPropertyId && (
-              <span className="text-base font-normal text-gray-600 ml-2">
-                - {properties.find(p => p.id === selectedPropertyId)?.name}
-              </span>
-            )}
           </h2>
           
           <InvestmentsList
             investments={filteredInvestments}
             onDelete={handleDeleteInvestment}
             loading={investmentsLoading}
-            showPropertyColumn={!selectedPropertyId}
+            showPropertyColumn={selectedProperties.includes('todas')}
           />
         </div>
       </div>

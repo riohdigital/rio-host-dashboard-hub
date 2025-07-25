@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -39,11 +40,11 @@ const ReservasPage = () => {
   const [editingReservation, setEditingReservation] = useState<Reservation | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedProperty, setSelectedProperty] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedPlatform, setSelectedPlatform] = useState('all');
   const { toast } = useToast();
   const { hasPermission, getAccessibleProperties, loading: permissionsLoading } = useUserPermissions();
+  const { selectedProperties } = useGlobalFilters();
 
   useEffect(() => {
     if (!permissionsLoading) {
@@ -163,20 +164,23 @@ const ReservasPage = () => {
     fetchAllData();
   };
 
-  const filteredReservations = reservations.filter(reservation => {
-    const property = properties.find(p => p.id === reservation.property_id);
-    const matchesSearch = !searchTerm || 
-      reservation.reservation_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (reservation.guest_name && reservation.guest_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (property && (property.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                    (property.nickname && property.nickname.toLowerCase().includes(searchTerm.toLowerCase()))));
-    
-    const matchesProperty = selectedProperty === 'all' || reservation.property_id === selectedProperty;
-    const matchesStatus = selectedStatus === 'all' || reservation.reservation_status === selectedStatus;
-    const matchesPlatform = selectedPlatform === 'all' || reservation.platform === selectedPlatform;
-    
-    return matchesSearch && matchesProperty && matchesStatus && matchesPlatform;
-  });
+  const filteredReservations = useMemo(() => {
+    return reservations.filter(reservation => {
+      const property = properties.find(p => p.id === reservation.property_id);
+      const matchesSearch = !searchTerm || 
+        reservation.reservation_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (reservation.guest_name && reservation.guest_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (property && (property.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                      (property.nickname && property.nickname.toLowerCase().includes(searchTerm.toLowerCase()))));
+      
+      const matchesProperty = selectedProperties.includes('todas') || 
+        selectedProperties.includes(reservation.property_id || '');
+      const matchesStatus = selectedStatus === 'all' || reservation.reservation_status === selectedStatus;
+      const matchesPlatform = selectedPlatform === 'all' || reservation.platform === selectedPlatform;
+      
+      return matchesSearch && matchesProperty && matchesStatus && matchesPlatform;
+    });
+  }, [reservations, searchTerm, selectedProperties, selectedStatus, selectedPlatform, properties]);
 
   // Calcular totais dos dados filtrados
   const totals = filteredReservations.reduce((acc, reservation) => {
@@ -276,19 +280,6 @@ const ReservasPage = () => {
                 />
               </div>
               
-              <Select value={selectedProperty} onValueChange={setSelectedProperty}>
-                <SelectTrigger className="w-full sm:w-[220px] border-gray-300">
-                  <SelectValue placeholder="Todas as propriedades" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas as propriedades</SelectItem>
-                  {properties.map((property) => (
-                    <SelectItem key={property.id} value={property.id}>
-                      {property.nickname || property.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
 
               <Select value={selectedStatus} onValueChange={setSelectedStatus}>
                 <SelectTrigger className="w-full sm:w-[180px] border-gray-300">

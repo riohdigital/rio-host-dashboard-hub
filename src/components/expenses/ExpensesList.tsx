@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
+import { useDateRange } from '@/hooks/dashboard/useDateRange';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -21,19 +23,41 @@ const ExpensesList = () => {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<any>(null);
   const { toast } = useToast();
-  const { hasPermission } = useUserPermissions();
+  const { hasPermission, getAccessibleProperties } = useUserPermissions();
+  const { selectedProperties, selectedPeriod } = useGlobalFilters();
+  const { startDate, endDate } = useDateRange(selectedPeriod);
 
   useEffect(() => {
     fetchExpenses();
-  }, []);
+  }, [selectedProperties, selectedPeriod, startDate, endDate]);
 
   const fetchExpenses = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('expenses')
         .select(`*, properties(name, nickname)`)
         .order('expense_date', { ascending: false });
+
+      // Apply date filter
+      if (startDate && endDate) {
+        query = query
+          .gte('expense_date', startDate.toISOString().split('T')[0])
+          .lte('expense_date', endDate.toISOString().split('T')[0]);
+      }
+
+      // Apply property filter if not "todas"
+      if (!selectedProperties.includes('todas')) {
+        const accessibleProperties = getAccessibleProperties();
+        const filteredProperties = selectedProperties.filter(id => 
+          accessibleProperties.includes(id)
+        );
+        if (filteredProperties.length > 0) {
+          query = query.in('property_id', filteredProperties);
+        }
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       setExpenses(data || []);
     } catch (error: any) {
