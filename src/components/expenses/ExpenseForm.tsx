@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
@@ -43,7 +44,7 @@ const ExpenseForm = ({ expense, selectedPropertyId, onSuccess, onCancel }: Expen
   const [recurrenceDuration, setRecurrenceDuration] = useState(12);
   const [recurrenceStartDate, setRecurrenceStartDate] = useState(new Date().toISOString().split('T')[0]);
 
-  const { register, handleSubmit, control, watch, formState: { errors } } = useForm<ExpenseFormData>({
+  const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<ExpenseFormData>({
     resolver: zodResolver(expenseSchema),
     defaultValues: {
       property_id: expense?.property_id || selectedPropertyId || '',
@@ -56,6 +57,16 @@ const ExpenseForm = ({ expense, selectedPropertyId, onSuccess, onCancel }: Expen
   });
 
   const expenseType = watch('expense_type');
+  const watchedValues = watch();
+  
+  // Persistência de formulário
+  const formKey = `expense-form-${expense?.id || 'new'}`;
+  const { restoreData, clearSavedData } = useFormPersistence({
+    key: formKey,
+    values: watchedValues,
+    setValue,
+    enabled: !expense // Só persiste para novos formulários
+  });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -87,6 +98,11 @@ const ExpenseForm = ({ expense, selectedPropertyId, onSuccess, onCancel }: Expen
       setCategories(catRes.data || []);
     };
     fetchData().catch(console.error);
+    
+    // Restaurar dados salvos apenas para novos formulários
+    if (!expense) {
+      setTimeout(() => restoreData(), 100);
+    }
   }, [isMaster, hasPermission, getAccessibleProperties, expense]);
 
   const generateRecurrentExpenses = (baseExpense: Omit<ExpenseFormData, 'expense_date'>) => {
@@ -139,6 +155,9 @@ const ExpenseForm = ({ expense, selectedPropertyId, onSuccess, onCancel }: Expen
           toast({ title: "Sucesso", description: "Despesa criada com sucesso." });
         }
       }
+      
+      // Limpar dados salvos após sucesso
+      clearSavedData();
       onSuccess();
     } catch (error: any) {
       console.error('Erro ao salvar despesa:', error);

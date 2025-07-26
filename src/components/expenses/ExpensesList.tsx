@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
 import { useDateRange } from '@/hooks/dashboard/useDateRange';
+import { usePageVisibility } from '@/hooks/usePageVisibility';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -26,10 +27,18 @@ const ExpensesList = () => {
   const { hasPermission, getAccessibleProperties } = useUserPermissions();
   const { selectedProperties, selectedPeriod } = useGlobalFilters();
   const { startDate, endDate } = useDateRange(selectedPeriod);
+  const { isVisible, shouldRefetch } = usePageVisibility();
 
   useEffect(() => {
     fetchExpenses();
   }, [selectedProperties, selectedPeriod, startDate, endDate]);
+
+  // Effect para refetch quando página volta a ficar visível
+  useEffect(() => {
+    if (isVisible && shouldRefetch()) {
+      fetchExpenses();
+    }
+  }, [isVisible]);
 
   const fetchExpenses = async () => {
     setLoading(true);

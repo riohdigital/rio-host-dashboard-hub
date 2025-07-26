@@ -1,6 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
+import { useDateRange } from '@/hooks/dashboard/useDateRange';
+import { usePageVisibility } from '@/hooks/usePageVisibility';
 import { TrendingUp, DollarSign, Plus, BarChart3, AlertTriangle, Receipt } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,7 +29,9 @@ const InvestmentsPage = () => {
   const { investments, loading: investmentsLoading, createInvestment, deleteInvestment } = usePropertyInvestments();
   const { roiData, loading: roiLoading, refetch: refetchROI } = useROICalculations();
   const { hasPermission, getAccessibleProperties, loading: permissionsLoading } = useUserPermissions();
-  const { selectedProperties } = useGlobalFilters();
+  const { selectedProperties, selectedPeriod } = useGlobalFilters();
+  const { startDateString, endDateString } = useDateRange(selectedPeriod);
+  const { isVisible, shouldRefetch } = usePageVisibility();
 
   // Carregar propriedades
   useEffect(() => {
@@ -61,6 +65,65 @@ const InvestmentsPage = () => {
     }
   }, [permissionsLoading, getAccessibleProperties]);
 
+  // Effect para refetch quando página volta a ficar visível
+  useEffect(() => {
+    if (isVisible && shouldRefetch() && !permissionsLoading) {
+      // Re-fetch data when page becomes visible after being hidden
+      const accessibleProperties = getAccessibleProperties();
+      
+      const refetchProperties = async () => {
+        try {
+          let query = supabase
+            .from('properties')
+            .select('*')
+            .order('name');
+
+          if (accessibleProperties.length > 0) {
+            query = query.in('id', accessibleProperties);
+          }
+
+          const { data, error } = await query;
+          if (error) throw error;
+          setProperties(data || []);
+        } catch (error) {
+          console.error('Erro ao carregar propriedades:', error);
+        }
+      };
+
+      const refetchReservations = async () => {
+        try {
+          let query = supabase
+            .from('reservations')
+            .select('*')
+            .order('check_in_date', { ascending: false });
+
+          if (selectedPeriod !== 'general') {
+            query = query
+              .gte('check_in_date', startDateString)
+              .lte('check_out_date', endDateString);
+          }
+
+          if (accessibleProperties.length > 0) {
+            query = query.in('property_id', accessibleProperties);
+          }
+
+          const { data, error } = await query;
+          if (error) throw error;
+          setReservations(data || []);
+        } catch (error) {
+          console.error('Erro ao carregar reservations:', error);
+        }
+      };
+
+      setPropertiesLoading(true);
+      setReservationsLoading(true);
+      Promise.all([refetchProperties(), refetchReservations()]).finally(() => {
+        setPropertiesLoading(false);
+        setReservationsLoading(false);
+      });
+    }
+  }, [isVisible]);
+
   // Carregar reservations
   useEffect(() => {
     const fetchReservations = async () => {
@@ -71,6 +134,13 @@ const InvestmentsPage = () => {
           .from('reservations')
           .select('*')
           .order('check_in_date', { ascending: false });
+
+        // Aplicar filtros de data quando não for período geral
+        if (selectedPeriod !== 'general') {
+          query = query
+            .gte('check_in_date', startDateString)
+            .lte('check_out_date', endDateString);
+        }
 
         // Apply filters based on permissions
         if (accessibleProperties.length > 0) {

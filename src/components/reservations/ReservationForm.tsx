@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
@@ -73,8 +74,24 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
     }
   });
 
+  const watchedValues = watch();
+  
+  // Persistência de formulário
+  const formKey = `reservation-form-${reservation?.id || 'new'}`;
+  const { restoreData, clearSavedData } = useFormPersistence({
+    key: formKey,
+    values: watchedValues,
+    setValue,
+    enabled: !reservation // Só persiste para novos formulários
+  });
+
   useEffect(() => {
     fetchProperties();
+    
+    // Restaurar dados salvos apenas para novos formulários
+    if (!reservation) {
+      setTimeout(() => restoreData(), 100);
+    }
   }, []);
 
   const fetchProperties = async () => {
@@ -144,7 +161,6 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
     }
   }, [watchedPropertyId, properties]);
 
-  const watchedValues = watch();
   useEffect(() => {
     if (watchedValues.check_in_date && watchedValues.check_out_date) {
       const checkIn = new Date(watchedValues.check_in_date);
@@ -230,6 +246,8 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
         });
       }
 
+      // Limpar dados salvos após sucesso
+      clearSavedData();
       onSuccess();
     } catch (error) {
       console.error('Erro ao salvar reserva:', error);

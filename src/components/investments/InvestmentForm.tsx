@@ -1,6 +1,7 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Calendar, DollarSign, FileText, Upload } from 'lucide-react';
@@ -47,10 +48,28 @@ const InvestmentForm = ({ properties, onSubmit, loading, defaultPropertyId }: In
     },
   });
 
+  const watchedValues = form.watch();
+  
+  // Persistência de formulário
+  const { restoreData, clearSavedData } = useFormPersistence({
+    key: 'investment-form-new',
+    values: watchedValues,
+    setValue: (field, value) => form.setValue(field as any, value),
+    enabled: true
+  });
+
+  useEffect(() => {
+    // Restaurar dados salvos ao montar o componente
+    setTimeout(() => restoreData(), 100);
+  }, []);
+
   const handleSubmit = async (data: InvestmentFormData) => {
     try {
       setIsSubmitting(true);
       await onSubmit(data);
+      
+      // Limpar dados salvos e resetar formulário após sucesso
+      clearSavedData();
       form.reset();
     } catch (error) {
       console.error('Erro ao submeter formulário:', error);

@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
+import { useDateRange } from '@/hooks/dashboard/useDateRange';
+import { usePageVisibility } from '@/hooks/usePageVisibility';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -44,13 +46,22 @@ const ReservasPage = () => {
   const [selectedPlatform, setSelectedPlatform] = useState('all');
   const { toast } = useToast();
   const { hasPermission, getAccessibleProperties, loading: permissionsLoading } = useUserPermissions();
-  const { selectedProperties } = useGlobalFilters();
+  const { selectedProperties, selectedPeriod } = useGlobalFilters();
+  const { startDateString, endDateString } = useDateRange(selectedPeriod);
+  const { isVisible, shouldRefetch } = usePageVisibility();
 
   useEffect(() => {
     if (!permissionsLoading) {
       fetchAllData();
     }
   }, [permissionsLoading, getAccessibleProperties]);
+
+  // Effect para refetch quando página volta a ficar visível
+  useEffect(() => {
+    if (isVisible && shouldRefetch()) {
+      fetchAllData();
+    }
+  }, [isVisible]);
 
   const fetchAllData = async () => {
     setLoading(true);
@@ -62,6 +73,13 @@ const ReservasPage = () => {
         .from('reservations')
         .select('*')
         .order('check_in_date', { ascending: false });
+
+      // Aplicar filtros de data quando não for período geral
+      if (selectedPeriod !== 'general') {
+        reservationsQuery = reservationsQuery
+          .gte('check_in_date', startDateString)
+          .lte('check_out_date', endDateString);
+      }
       
       let propertiesQuery = supabase
         .from('properties')
