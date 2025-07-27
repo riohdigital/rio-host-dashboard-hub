@@ -227,6 +227,7 @@ export type Database = {
           commission_amount: number | null
           created_at: string | null
           guest_name: string | null
+          guest_phone: string | null
           id: string
           is_communicated: boolean | null
           net_revenue: number | null
@@ -249,6 +250,7 @@ export type Database = {
           commission_amount?: number | null
           created_at?: string | null
           guest_name?: string | null
+          guest_phone?: string | null
           id?: string
           is_communicated?: boolean | null
           net_revenue?: number | null
@@ -271,6 +273,7 @@ export type Database = {
           commission_amount?: number | null
           created_at?: string | null
           guest_name?: string | null
+          guest_phone?: string | null
           id?: string
           is_communicated?: boolean | null
           net_revenue?: number | null
