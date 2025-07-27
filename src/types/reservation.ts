@@ -5,6 +5,7 @@ export interface Reservation {
   platform: string;
   reservation_code: string;
   guest_name?: string;
+  guest_phone?: string;
   number_of_guests?: number;
   check_in_date: string;
   check_out_date: string;

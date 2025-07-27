@@ -10,7 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Edit, Trash2, Plus, Search, Loader2, AlertTriangle } from 'lucide-react';
+import { Edit, Trash2, Plus, Search, Loader2, AlertTriangle, MessageCircle } from 'lucide-react';
 import ReservationForm from '@/components/reservations/ReservationForm';
 import StatusSelector from '@/components/reservations/StatusSelector';
 import { supabase } from '@/integrations/supabase/client';
@@ -56,12 +56,12 @@ const ReservasPage = () => {
     }
   }, [permissionsLoading, getAccessibleProperties]);
 
-  // Effect para refetch quando página volta a ficar visível
-  useEffect(() => {
-    if (isVisible && shouldRefetch()) {
-      fetchAllData();
-    }
-  }, [isVisible]);
+  // Remover refetch automático - deixar usuário controlar quando quer atualizar
+  // useEffect(() => {
+  //   if (isVisible && shouldRefetch()) {
+  //     fetchAllData();
+  //   }
+  // }, [isVisible]);
 
   const fetchAllData = async () => {
     setLoading(true);
@@ -77,8 +77,8 @@ const ReservasPage = () => {
       // Aplicar filtros de data quando não for período geral
       if (selectedPeriod !== 'general') {
         reservationsQuery = reservationsQuery
-          .gte('check_in_date', startDateString)
-          .lte('check_out_date', endDateString);
+          .lte('check_in_date', endDateString)
+          .gte('check_out_date', startDateString);
       }
       
       let propertiesQuery = supabase
@@ -336,6 +336,7 @@ const ReservasPage = () => {
                     <TableHead className="font-semibold text-gray-900">Código</TableHead>
                     <TableHead className="font-semibold text-gray-900">Propriedade</TableHead>
                     <TableHead className="font-semibold text-gray-900">Hóspede</TableHead>
+                    <TableHead className="font-semibold text-gray-900">Contato</TableHead>
                     <TableHead className="font-semibold text-gray-900">Check-in</TableHead>
                     <TableHead className="font-semibold text-gray-900">Check-out</TableHead>
                     <TableHead className="font-semibold text-gray-900">Plataforma</TableHead>
@@ -357,6 +358,26 @@ const ReservasPage = () => {
                         <TableCell className="font-medium text-blue-600">{reservation.reservation_code}</TableCell>
                         <TableCell className="font-medium">{property?.nickname || property?.name}</TableCell>
                         <TableCell>{reservation.guest_name || '-'}</TableCell>
+                        <TableCell>
+                          {reservation.guest_phone ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                const phoneNumber = reservation.guest_phone?.replace(/\D/g, '');
+                                if (phoneNumber) {
+                                  window.open(`https://wa.me/55${phoneNumber}`, '_blank');
+                                }
+                              }}
+                              className="gap-2"
+                            >
+                              <MessageCircle className="h-4 w-4 text-green-600" />
+                              WhatsApp
+                            </Button>
+                          ) : (
+                            '-'
+                          )}
+                        </TableCell>
                         <TableCell>
                           <div className="space-y-1">
                             <div className="font-medium">{formatDate(reservation.check_in_date)}</div>
@@ -453,6 +474,7 @@ const ReservasPage = () => {
                 <TableFooter>
                   <TableRow className="bg-gray-100 font-semibold">
                     <TableCell colSpan={2} className="font-bold">TOTAIS ({totals.count} reservas)</TableCell>
+                    <TableCell className="text-center">-</TableCell>
                     <TableCell className="text-center">-</TableCell>
                     <TableCell className="text-center">-</TableCell>
                     <TableCell className="text-center">-</TableCell>

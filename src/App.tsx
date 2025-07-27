@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -14,6 +13,7 @@ import DespesasPage from "./pages/DespesasPage";
 import PropriedadesPage from "./pages/PropriedadesPage";
 import InvestmentsPage from "./pages/InvestmentsPage";
 import PropertyInvestmentDetailPage from "./pages/PropertyInvestmentDetailPage";
+import RelatoriosPage from "./pages/RelatoriosPage";
 import ConfiguracoesPage from "./pages/ConfiguracoesPage";
 import NotFound from "./pages/NotFound";
 
@@ -52,6 +52,7 @@ const App = () => {
                   <Route path="/propriedades" element={<PropriedadesPage />} />
                   <Route path="/investimentos" element={<InvestmentsPage />} />
                   <Route path="/investimentos/:propertyId" element={<PropertyInvestmentDetailPage />} />
+                  <Route path="/relatorios" element={<RelatoriosPage />} />
                   <Route path="/configuracoes" element={<ConfiguracoesPage />} />
                   <Route path="/auth" element={<Navigate to="/dashboard" replace />} />
                   <Route path="*" element={<NotFound />} />

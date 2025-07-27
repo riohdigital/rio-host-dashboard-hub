@@ -22,9 +22,8 @@ export const usePageVisibility = () => {
   }, []);
 
   const shouldRefetch = () => {
-    // Refetch se a página ficou oculta por mais de 30 segundos
-    const timeSinceVisible = Date.now() - lastVisibleTime.current;
-    return timeSinceVisible > 30000;
+    // Não fazer refetch automático - deixar usuário controlar quando quer atualizar
+    return false;
   };
 
   return {

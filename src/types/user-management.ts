@@ -42,6 +42,8 @@ export type PermissionType =
   | 'expenses_edit'
   | 'investments_view'
   | 'investments_create'
+  | 'reports_view'
+  | 'reports_create'
   | 'dashboard_revenue'
   | 'dashboard_occupancy'
   | 'dashboard_expenses'

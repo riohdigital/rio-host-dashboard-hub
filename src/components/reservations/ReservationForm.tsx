@@ -21,6 +21,7 @@ const reservationSchema = z.object({
   platform: z.string().min(1, 'Plataforma é obrigatória'),
   reservation_code: z.string().min(1, 'Código da reserva é obrigatório'),
   guest_name: z.string().optional(),
+  guest_phone: z.string().optional(),
   number_of_guests: z.number().min(1).optional(),
   check_in_date: z.string().min(1, 'Data de check-in é obrigatória'),
   check_out_date: z.string().min(1, 'Data de check-out é obrigatória'),
@@ -206,8 +207,9 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
         property_id: data.property_id || null,
         platform: data.platform,
         reservation_code: data.reservation_code,
-        guest_name: data.guest_name || null,
-        number_of_guests: data.number_of_guests || null,
+          guest_name: data.guest_name || null,
+          guest_phone: data.guest_phone || null,
+          number_of_guests: data.number_of_guests || null,
         check_in_date: data.check_in_date,
         check_out_date: data.check_out_date,
         total_revenue: data.total_revenue,
@@ -339,6 +341,15 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
               id="guest_name"
               {...register('guest_name')}
               placeholder="Nome do hóspede"
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="guest_phone">Telefone do Hóspede</Label>
+            <Input
+              id="guest_phone"
+              {...register('guest_phone')}
+              placeholder="(11) 99999-9999"
             />
           </div>
         </div>
