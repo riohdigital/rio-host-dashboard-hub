@@ -106,6 +106,14 @@ export const PERMISSION_CATEGORIES: PermissionCategory[] = [
     ]
   },
   {
+    name: 'reports',
+    label: 'Relatórios',
+    permissions: [
+      { type: 'reports_view', label: 'Ver relatórios', description: 'Visualizar relatórios do sistema' },
+      { type: 'reports_create', label: 'Criar relatórios', description: 'Gerar e exportar relatórios' },
+    ]
+  },
+  {
     name: 'system',
     label: 'Sistema',
     permissions: [

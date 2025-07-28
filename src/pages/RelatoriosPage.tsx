@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 const RelatoriosPage: React.FC = () => {
   const { selectedPeriod } = useGlobalFilters();
   const { startDateString, endDateString } = useDateRange(selectedPeriod);
-  const { permissions } = useUserPermissions();
+  const { permissions, isMaster } = useUserPermissions();
   const { toast } = useToast();
   
   const [reportType, setReportType] = useState<string>('financial');
@@ -23,7 +23,8 @@ const RelatoriosPage: React.FC = () => {
   const [selectedPlatform, setSelectedPlatform] = useState<string>('all');
 
   // Verificar permissões
-  const canViewReports = permissions.some(p => p.permission_type === 'reports_view' && p.permission_value) || 
+  const canViewReports = isMaster() || 
+                         permissions.some(p => p.permission_type === 'reports_view' && p.permission_value) || 
                          permissions.some(p => p.permission_type === 'reports_create' && p.permission_value);
 
   if (!canViewReports) {

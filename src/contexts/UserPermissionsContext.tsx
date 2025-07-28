@@ -27,13 +27,20 @@ export const UserPermissionsProvider: React.FC<{ children: React.ReactNode }> = 
   const [permissions, setPermissions] = useState<UserPermission[]>([]);
   const [propertyAccess, setPropertyAccess] = useState<UserPropertyAccess[]>([]);
   const [loading, setLoading] = useState(true);
+  const [lastFetchTime, setLastFetchTime] = useState<number>(0);
 
-  const fetchUserData = useCallback(async () => {
+  const fetchUserData = useCallback(async (force = false) => {
     if (!user) {
       setUserProfile(null);
       setPermissions([]);
       setPropertyAccess([]);
       setLoading(false);
+      return;
+    }
+
+    // Evitar refetch desnecessário (cache por 5 minutos)
+    const now = Date.now();
+    if (!force && now - lastFetchTime < 5 * 60 * 1000 && userProfile) {
       return;
     }
 
@@ -60,13 +67,15 @@ export const UserPermissionsProvider: React.FC<{ children: React.ReactNode }> = 
           .select('*')
           .eq('user_id', profile.user_id);
         setPropertyAccess((propertyAccessData || []) as UserPropertyAccess[]);
+        
+        setLastFetchTime(now);
       }
     } catch (error) {
       console.error('Erro ao buscar dados do usuário:', error);
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, lastFetchTime, userProfile]);
 
   useEffect(() => {
     fetchUserData();
@@ -129,7 +138,7 @@ export const UserPermissionsProvider: React.FC<{ children: React.ReactNode }> = 
     isEditor,
     isViewer,
     getAccessibleProperties,
-    refetch: fetchUserData
+    refetch: () => fetchUserData(true)
   }), [
     userProfile,
     permissions,
