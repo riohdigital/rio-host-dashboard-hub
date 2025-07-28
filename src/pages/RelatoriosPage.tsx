@@ -9,18 +9,24 @@ import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
 import { useDateRange } from '@/hooks/dashboard/useDateRange';
 import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import { useToast } from '@/hooks/use-toast';
+import { useProperties } from '@/hooks/useProperties';
+import { useReportData, ReportData } from '@/hooks/reports/useReportData';
+import MainLayout from '@/components/layout/MainLayout';
 
 const RelatoriosPage: React.FC = () => {
   const { selectedPeriod } = useGlobalFilters();
   const { startDateString, endDateString } = useDateRange(selectedPeriod);
   const { permissions, isMaster } = useUserPermissions();
   const { toast } = useToast();
+  const { properties, loading: propertiesLoading } = useProperties();
+  const { generateReport, loading: reportLoading } = useReportData();
   
   const [reportType, setReportType] = useState<string>('financial');
   const [customStartDate, setCustomStartDate] = useState<Date | undefined>();
   const [customEndDate, setCustomEndDate] = useState<Date | undefined>();
   const [selectedProperty, setSelectedProperty] = useState<string>('all');
   const [selectedPlatform, setSelectedPlatform] = useState<string>('all');
+  const [currentReport, setCurrentReport] = useState<ReportData | null>(null);
 
   // Verificar permissões
   const canViewReports = isMaster() || 
@@ -48,11 +54,31 @@ const RelatoriosPage: React.FC = () => {
     { value: 'checkins', label: 'Check-ins/Check-outs', icon: Calendar },
   ];
 
-  const handleGenerateReport = () => {
-    toast({
-      title: "Relatório em desenvolvimento",
-      description: "Esta funcionalidade será implementada em breve.",
-    });
+  const handleGenerateReport = async () => {
+    try {
+      const filters = {
+        reportType,
+        propertyId: selectedProperty,
+        platform: selectedPlatform,
+        startDate: customStartDate ? customStartDate.toISOString().split('T')[0] : startDateString,
+        endDate: customEndDate ? customEndDate.toISOString().split('T')[0] : endDateString
+      };
+
+      const report = await generateReport(filters);
+      if (report) {
+        setCurrentReport(report);
+        toast({
+          title: "Relatório gerado com sucesso",
+          description: `${report.title} foi gerado para o período selecionado.`,
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Erro ao gerar relatório",
+        description: "Ocorreu um erro ao gerar o relatório. Tente novamente.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleExportPDF = () => {
@@ -63,15 +89,16 @@ const RelatoriosPage: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold">Relatórios</h1>
-          <p className="text-muted-foreground">
-            Gere relatórios detalhados sobre suas propriedades e reservas
-          </p>
+    <MainLayout>
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold">Relatórios</h1>
+            <p className="text-muted-foreground">
+              Gere relatórios detalhados sobre suas propriedades e reservas
+            </p>
+          </div>
         </div>
-      </div>
 
       {/* Filtros */}
       <Card>
@@ -115,7 +142,11 @@ const RelatoriosPage: React.FC = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas as propriedades</SelectItem>
-                  {/* Propriedades serão carregadas dinamicamente */}
+                  {properties.map((property) => (
+                    <SelectItem key={property.id} value={property.id}>
+                      {property.nickname || property.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -169,11 +200,20 @@ const RelatoriosPage: React.FC = () => {
 
       {/* Ações */}
       <div className="flex gap-4">
-        <Button onClick={handleGenerateReport} className="gap-2">
+        <Button 
+          onClick={handleGenerateReport} 
+          className="gap-2"
+          disabled={reportLoading || propertiesLoading}
+        >
           <FileText className="h-4 w-4" />
-          Gerar Relatório
+          {reportLoading ? 'Gerando...' : 'Gerar Relatório'}
         </Button>
-        <Button variant="outline" onClick={handleExportPDF} className="gap-2">
+        <Button 
+          variant="outline" 
+          onClick={handleExportPDF} 
+          className="gap-2"
+          disabled={!currentReport}
+        >
           <Download className="h-4 w-4" />
           Exportar PDF
         </Button>
@@ -188,13 +228,46 @@ const RelatoriosPage: React.FC = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-12 text-muted-foreground">
-            <FileText className="h-16 w-16 mx-auto mb-4 opacity-50" />
-            <p className="text-lg mb-2">Relatório será exibido aqui</p>
-            <p className="text-sm">
-              Clique em "Gerar Relatório" para visualizar os dados
-            </p>
-          </div>
+          {currentReport ? (
+            <div className="space-y-6">
+              {/* Resumo do Relatório */}
+              {currentReport.data.summary && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {Object.entries(currentReport.data.summary).map(([key, value]) => (
+                    <Card key={key}>
+                      <CardContent className="p-4 text-center">
+                         <p className="text-2xl font-bold">
+                           {typeof value === 'number' && (key.includes('Revenue') || key.includes('Expenses') || key.includes('profit'))
+                             ? `R$ ${(value as number).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                             : typeof value === 'number' && key.includes('Rate')
+                             ? `${(value as number).toFixed(1)}%`
+                             : value?.toString()}
+                         </p>
+                        <p className="text-sm text-muted-foreground capitalize">
+                          {key.replace(/([A-Z])/g, ' $1').trim()}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+              
+              {/* Dados Detalhados */}
+              <div className="max-h-96 overflow-auto">
+                <pre className="text-xs bg-muted p-4 rounded">
+                  {JSON.stringify(currentReport.data, null, 2)}
+                </pre>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-12 text-muted-foreground">
+              <FileText className="h-16 w-16 mx-auto mb-4 opacity-50" />
+              <p className="text-lg mb-2">Relatório será exibido aqui</p>
+              <p className="text-sm">
+                Clique em "Gerar Relatório" para visualizar os dados
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -216,7 +289,8 @@ const RelatoriosPage: React.FC = () => {
           </div>
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </MainLayout>
   );
 };
 
