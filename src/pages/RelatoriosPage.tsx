@@ -11,6 +11,9 @@ import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import { useToast } from '@/hooks/use-toast';
 import { useProperties } from '@/hooks/useProperties';
 import { useReportData, ReportData } from '@/hooks/reports/useReportData';
+import { usePDFExport } from '@/hooks/reports/usePDFExport';
+import { ReportTemplate } from '@/components/reports/ReportTemplate';
+import { ReceiptGenerator } from '@/components/reports/ReceiptGenerator';
 import MainLayout from '@/components/layout/MainLayout';
 
 const RelatoriosPage: React.FC = () => {
@@ -20,6 +23,7 @@ const RelatoriosPage: React.FC = () => {
   const { toast } = useToast();
   const { properties, loading: propertiesLoading } = useProperties();
   const { generateReport, loading: reportLoading } = useReportData();
+  const { exportToPDF, exportToExcel } = usePDFExport();
   
   const [reportType, setReportType] = useState<string>('financial');
   const [customStartDate, setCustomStartDate] = useState<Date | undefined>();
@@ -35,13 +39,15 @@ const RelatoriosPage: React.FC = () => {
 
   if (!canViewReports) {
     return (
-      <div className="container mx-auto p-6">
-        <Card>
-          <CardContent className="text-center py-8">
-            <p>Você não tem permissão para acessar os relatórios.</p>
-          </CardContent>
-        </Card>
-      </div>
+      <MainLayout>
+        <div className="container mx-auto p-6">
+          <Card>
+            <CardContent className="text-center py-8">
+              <p>Você não tem permissão para acessar os relatórios.</p>
+            </CardContent>
+          </Card>
+        </div>
+      </MainLayout>
     );
   }
 
@@ -81,11 +87,54 @@ const RelatoriosPage: React.FC = () => {
     }
   };
 
-  const handleExportPDF = () => {
-    toast({
-      title: "Exportação em desenvolvimento",
-      description: "Esta funcionalidade será implementada em breve.",
-    });
+  const handleExportPDF = async () => {
+    if (!currentReport) {
+      toast({
+        title: "Erro",
+        description: "Gere um relatório primeiro para exportar.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      await exportToPDF('report-preview', `relatorio-${currentReport.type}-${new Date().toISOString().split('T')[0]}`);
+      toast({
+        title: "Sucesso",
+        description: "Relatório exportado em PDF com sucesso!"
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Falha ao exportar PDF. Tente novamente.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleExportExcel = async () => {
+    if (!currentReport) {
+      toast({
+        title: "Erro",
+        description: "Gere um relatório primeiro para exportar.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      await exportToExcel(currentReport, `relatorio-${currentReport.type}-${new Date().toISOString().split('T')[0]}`);
+      toast({
+        title: "Sucesso",
+        description: "Relatório exportado em Excel com sucesso!"
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Falha ao exportar Excel. Tente novamente.",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
@@ -217,49 +266,40 @@ const RelatoriosPage: React.FC = () => {
           <Download className="h-4 w-4" />
           Exportar PDF
         </Button>
+        <Button 
+          variant="outline" 
+          onClick={handleExportExcel} 
+          className="gap-2"
+          disabled={!currentReport}
+        >
+          <Download className="h-4 w-4" />
+          Exportar Excel
+        </Button>
       </div>
 
       {/* Prévia do Relatório */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Prévia do Relatório</CardTitle>
-          <CardDescription>
-            {reportTypes.find(r => r.value === reportType)?.label || 'Relatório'}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {currentReport ? (
-            <div className="space-y-6">
-              {/* Resumo do Relatório */}
-              {currentReport.data.summary && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {Object.entries(currentReport.data.summary).map(([key, value]) => (
-                    <Card key={key}>
-                      <CardContent className="p-4 text-center">
-                         <p className="text-2xl font-bold">
-                           {typeof value === 'number' && (key.includes('Revenue') || key.includes('Expenses') || key.includes('profit'))
-                             ? `R$ ${(value as number).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-                             : typeof value === 'number' && key.includes('Rate')
-                             ? `${(value as number).toFixed(1)}%`
-                             : value?.toString()}
-                         </p>
-                        <p className="text-sm text-muted-foreground capitalize">
-                          {key.replace(/([A-Z])/g, ' $1').trim()}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-              
-              {/* Dados Detalhados */}
-              <div className="max-h-96 overflow-auto">
-                <pre className="text-xs bg-muted p-4 rounded">
-                  {JSON.stringify(currentReport.data, null, 2)}
-                </pre>
-              </div>
+      {currentReport && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Prévia do Relatório</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div id="report-preview">
+              <ReportTemplate report={currentReport} />
             </div>
-          ) : (
+          </CardContent>
+        </Card>
+      )}
+
+      {!currentReport && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Prévia do Relatório</CardTitle>
+            <CardDescription>
+              {reportTypes.find(r => r.value === reportType)?.label || 'Relatório'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
             <div className="text-center py-12 text-muted-foreground">
               <FileText className="h-16 w-16 mx-auto mb-4 opacity-50" />
               <p className="text-lg mb-2">Relatório será exibido aqui</p>
@@ -267,28 +307,20 @@ const RelatoriosPage: React.FC = () => {
                 Clique em "Gerar Relatório" para visualizar os dados
               </p>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Seção de Recibos */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Geração de Recibos</CardTitle>
-          <CardDescription>
-            Gere recibos individuais para suas reservas
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-8 text-muted-foreground">
-            <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p className="mb-2">Funcionalidade de recibos</p>
-            <p className="text-sm">
-              Vá para a página de reservas para gerar recibos individuais
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Geração de Recibos */}
+      <ReceiptGenerator 
+        reservations={[]} // Será implementado com dados reais das reservas
+        properties={properties}
+        selectedProperty={selectedProperty !== 'all' ? selectedProperty : undefined}
+        dateRange={{
+          start: customStartDate || new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+          end: customEndDate || new Date()
+        }}
+      />
       </div>
     </MainLayout>
   );
