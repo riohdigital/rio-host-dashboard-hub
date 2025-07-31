@@ -1,20 +1,22 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { FileText, Download, Eye } from 'lucide-react';
+import { Checkbox } from "@/components/ui/checkbox";
+import { FileText, Download, Eye, Calendar, MapPin, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Reservation } from '@/types/reservation';
 import { Property } from '@/types/property';
+import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
+import { useDateRange } from '@/hooks/dashboard/useDateRange';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ReceiptGeneratorProps {
   reservations: Reservation[];
   properties: Property[];
-  selectedProperty?: string;
-  dateRange: { start: Date; end: Date };
 }
 
 interface ReceiptTemplate {
@@ -45,10 +47,48 @@ const receiptTemplates: ReceiptTemplate[] = [
   }
 ];
 
-export const ReceiptGenerator = ({ reservations, properties, selectedProperty, dateRange }: ReceiptGeneratorProps) => {
+export const ReceiptGenerator = ({ reservations, properties }: ReceiptGeneratorProps) => {
+  const { selectedProperties, selectedPeriod } = useGlobalFilters();
+  const { startDateString, endDateString } = useDateRange(selectedPeriod);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [selectedReservations, setSelectedReservations] = useState<string[]>([]);
   const [previewReceipt, setPreviewReceipt] = useState<string | null>(null);
+  const [actualReservations, setActualReservations] = useState<Reservation[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // Buscar reservas reais do Supabase
+  useEffect(() => {
+    const fetchReservations = async () => {
+      try {
+        setLoading(true);
+        
+        const query = supabase
+          .from('reservations')
+          .select(`
+            *,
+            properties(name, address)
+          `)
+          .gte('check_in_date', startDateString)
+          .lte('check_out_date', endDateString);
+
+        // Filtrar por propriedades selecionadas
+        if (selectedProperties.length > 0 && !selectedProperties.includes('all')) {
+          query.in('property_id', selectedProperties);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+        
+        setActualReservations(data || []);
+      } catch (error) {
+        console.error('Erro ao buscar reservas:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchReservations();
+  }, [selectedProperties, startDateString, endDateString]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -57,13 +97,8 @@ export const ReceiptGenerator = ({ reservations, properties, selectedProperty, d
     }).format(value);
   };
 
-  const filteredReservations = reservations.filter(reservation => {
-    if (selectedProperty && reservation.property_id !== selectedProperty) {
-      return false;
-    }
-    const checkIn = new Date(reservation.check_in_date);
-    return checkIn >= dateRange.start && checkIn <= dateRange.end;
-  });
+  // Usar reservas reais em vez das vazias do prop
+  const filteredReservations = actualReservations;
 
   const getPropertyName = (propertyId: string) => {
     return properties.find(p => p.id === propertyId)?.name || 'Propriedade não encontrada';
@@ -277,13 +312,14 @@ export const ReceiptGenerator = ({ reservations, properties, selectedProperty, d
           {/* Reservations List */}
           <div>
             <div className="flex justify-between items-center mb-4">
-              <h3 className="font-medium">
+              <h3 className="font-medium flex items-center gap-2">
+                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                 Reservas do Período ({filteredReservations.length} encontradas)
               </h3>
               <div className="flex gap-2">
                 <Button 
                   onClick={handleGenerateReceipts}
-                  disabled={!selectedTemplate}
+                  disabled={!selectedTemplate || loading || filteredReservations.length === 0}
                   className="flex items-center gap-2"
                 >
                   <Download className="h-4 w-4" />
@@ -292,8 +328,20 @@ export const ReceiptGenerator = ({ reservations, properties, selectedProperty, d
               </div>
             </div>
 
-            <div className="space-y-2 max-h-60 overflow-y-auto">
-              {filteredReservations.map((reservation) => (
+            {loading ? (
+              <div className="flex items-center justify-center p-8">
+                <Loader2 className="h-6 w-6 animate-spin" />
+                <span className="ml-2">Carregando reservas...</span>
+              </div>
+            ) : filteredReservations.length === 0 ? (
+              <div className="text-center p-8 text-muted-foreground">
+                <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>Nenhuma reserva encontrada para o período e propriedades selecionadas</p>
+                <p className="text-sm mt-2">Ajuste os filtros na barra lateral para ver mais reservas</p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {filteredReservations.map((reservation) => (
                 <Card key={reservation.id} className="p-3">
                   <div className="flex justify-between items-center">
                     <div className="flex-1">
@@ -325,8 +373,9 @@ export const ReceiptGenerator = ({ reservations, properties, selectedProperty, d
                     </div>
                   </div>
                 </Card>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

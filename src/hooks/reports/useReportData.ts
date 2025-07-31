@@ -127,13 +127,16 @@ const generateFinancialReport = async (filters: ReportFilters) => {
       netRevenue,
       totalExpenses,
       profit,
-      reservationCount: reservations?.length || 0
+      reservationCount: reservations?.length || 0,
+      profitMargin: netRevenue > 0 ? ((profit / netRevenue) * 100) : 0,
+      averageReservationValue: reservations?.length > 0 ? (totalRevenue / reservations.length) : 0
     },
     reservations: reservations || [],
     expenses: expenses || [],
     charts: {
       monthlyRevenue: calculateMonthlyRevenue(reservations || []),
-      expensesByCategory: calculateExpensesByCategory(expenses || [])
+      expensesByCategory: calculateExpensesByCategory(expenses || []),
+      platformDistribution: calculatePlatformDistribution(reservations || [])
     }
   };
 };
@@ -428,6 +431,23 @@ const calculateMonthlyComparison = (reservations: any[], expenses: any[]) => {
     revenue: data.revenue,
     expenses: data.expenses,
     profit: data.revenue - data.expenses
+  }));
+};
+
+const calculatePlatformDistribution = (reservations: any[]) => {
+  const platformData: any = {};
+  
+  reservations.forEach(r => {
+    const platform = r.platform || 'Direto';
+    if (!platformData[platform]) {
+      platformData[platform] = 0;
+    }
+    platformData[platform] += Number(r.total_revenue) || 0;
+  });
+
+  return Object.entries(platformData).map(([platform, revenue]) => ({
+    platform,
+    revenue
   }));
 };
 

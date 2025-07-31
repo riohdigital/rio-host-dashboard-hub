@@ -315,11 +315,6 @@ const RelatoriosPage: React.FC = () => {
       <ReceiptGenerator 
         reservations={[]} // Será implementado com dados reais das reservas
         properties={properties}
-        selectedProperty={selectedProperty !== 'all' ? selectedProperty : undefined}
-        dateRange={{
-          start: customStartDate || new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-          end: customEndDate || new Date()
-        }}
       />
       </div>
     </MainLayout>
