@@ -24,7 +24,8 @@ export const ReportTemplate = ({ report }: ReportTemplateProps) => {
     }).format(value);
   };
 
-  const formatPercentage = (value: number) => {
+  const formatPercentage = (value: number | undefined | null) => {
+    if (value === undefined || value === null || isNaN(value)) return '0.0%';
     return `${value.toFixed(1)}%`;
   };
 
