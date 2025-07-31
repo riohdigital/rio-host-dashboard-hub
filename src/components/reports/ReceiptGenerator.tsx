@@ -72,7 +72,7 @@ export const ReceiptGenerator = ({ reservations, properties }: ReceiptGeneratorP
           .lte('check_out_date', endDateString);
 
         // Filtrar por propriedades selecionadas
-        if (selectedProperties.length > 0 && !selectedProperties.includes('all')) {
+        if (selectedProperties.length > 0 && !selectedProperties.includes('todas')) {
           query.in('property_id', selectedProperties);
         }
 

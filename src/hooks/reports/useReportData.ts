@@ -90,7 +90,7 @@ const generateFinancialReport = async (filters: ReportFilters) => {
     .gte('check_in_date', filters.startDate)
     .lte('check_out_date', filters.endDate);
 
-  if (filters.propertyId && filters.propertyId !== 'all') {
+  if (filters.propertyId && filters.propertyId !== 'all' && filters.propertyId !== 'todas') {
     query.eq('property_id', filters.propertyId);
   }
 
@@ -108,7 +108,7 @@ const generateFinancialReport = async (filters: ReportFilters) => {
     .gte('expense_date', filters.startDate)
     .lte('expense_date', filters.endDate);
 
-  if (filters.propertyId && filters.propertyId !== 'all') {
+  if (filters.propertyId && filters.propertyId !== 'all' && filters.propertyId !== 'todas') {
     expenseQuery.eq('property_id', filters.propertyId);
   }
 
@@ -151,7 +151,7 @@ const generateOccupancyReport = async (filters: ReportFilters) => {
     .gte('check_in_date', filters.startDate)
     .lte('check_out_date', filters.endDate);
 
-  if (filters.propertyId && filters.propertyId !== 'all') {
+  if (filters.propertyId && filters.propertyId !== 'all' && filters.propertyId !== 'todas') {
     query.eq('property_id', filters.propertyId);
   }
 
@@ -233,7 +233,7 @@ const generatePlatformReport = async (filters: ReportFilters) => {
     .gte('check_in_date', filters.startDate)
     .lte('check_out_date', filters.endDate);
 
-  if (filters.propertyId && filters.propertyId !== 'all') {
+  if (filters.propertyId && filters.propertyId !== 'all' && filters.propertyId !== 'todas') {
     query.eq('property_id', filters.propertyId);
   }
 
@@ -278,7 +278,7 @@ const generateExpensesReport = async (filters: ReportFilters) => {
     .gte('check_in_date', filters.startDate)
     .lte('check_out_date', filters.endDate);
 
-  if (filters.propertyId && filters.propertyId !== 'all') {
+  if (filters.propertyId && filters.propertyId !== 'all' && filters.propertyId !== 'todas') {
     revenueQuery.eq('property_id', filters.propertyId);
   }
 
@@ -289,7 +289,7 @@ const generateExpensesReport = async (filters: ReportFilters) => {
     .gte('expense_date', filters.startDate)
     .lte('expense_date', filters.endDate);
 
-  if (filters.propertyId && filters.propertyId !== 'all') {
+  if (filters.propertyId && filters.propertyId !== 'all' && filters.propertyId !== 'todas') {
     expenseQuery.eq('property_id', filters.propertyId);
   }
 
@@ -328,7 +328,7 @@ const generateCheckinsReport = async (filters: ReportFilters) => {
     .lte('check_out_date', filters.endDate)
     .order('check_in_date');
 
-  if (filters.propertyId && filters.propertyId !== 'all') {
+  if (filters.propertyId && filters.propertyId !== 'all' && filters.propertyId !== 'todas') {
     query.eq('property_id', filters.propertyId);
   }
 
