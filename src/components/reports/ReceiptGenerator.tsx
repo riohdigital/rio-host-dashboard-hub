@@ -455,8 +455,20 @@ export const ReceiptGenerator = ({ reservations, properties }: ReceiptGeneratorP
                         size="sm"
                         onClick={() => handlePreviewReceipt(reservation.id)}
                         disabled={!selectedTemplate}
+                        className="flex items-center gap-1"
                       >
-                        <Eye className="h-4 w-4" />
+                        <Eye className="h-3 w-3" />
+                        Preview
+                      </Button>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => handleGenerateIndividualReceipt(reservation.id)}
+                        disabled={!selectedTemplate}
+                        className="flex items-center gap-1"
+                      >
+                        <Download className="h-3 w-3" />
+                        PDF
                       </Button>
                     </div>
                   </div>

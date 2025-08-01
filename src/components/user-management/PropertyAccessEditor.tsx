@@ -7,17 +7,20 @@ import { Trash2, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import type { UserPropertyAccess } from '@/types/user-management';
 import type { Property } from '@/types/property';
+import { toast } from "sonner";
 
 interface PropertyAccessEditorProps {
   propertyAccess: UserPropertyAccess[];
   onChange: (propertyAccess: UserPropertyAccess[]) => void;
   userRole: string;
+  userId?: string;
 }
 
 const PropertyAccessEditor: React.FC<PropertyAccessEditorProps> = ({
   propertyAccess,
   onChange,
-  userRole
+  userRole,
+  userId
 }) => {
   const [properties, setProperties] = useState<Property[]>([]);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string>('');
@@ -63,8 +66,57 @@ const PropertyAccessEditor: React.FC<PropertyAccessEditorProps> = ({
     }
   };
 
-  const addPropertyAccess = () => {
-    if (!selectedPropertyId) return;
+  const savePropertyAccess = async (access: UserPropertyAccess) => {
+    if (!userId) return;
+
+    try {
+      if (access.id) {
+        // Atualizar acesso existente
+        const { error } = await supabase
+          .from('user_property_access')
+          .update({ access_level: access.access_level })
+          .eq('id', access.id);
+        
+        if (error) throw error;
+      } else {
+        // Criar novo acesso
+        const { error } = await supabase
+          .from('user_property_access')
+          .insert({
+            user_id: userId,
+            property_id: access.property_id,
+            access_level: access.access_level
+          });
+        
+        if (error) throw error;
+      }
+      
+      toast.success('Acesso à propriedade salvo com sucesso');
+    } catch (error) {
+      console.error('Erro ao salvar acesso:', error);
+      toast.error('Erro ao salvar acesso à propriedade');
+    }
+  };
+
+  const deletePropertyAccess = async (accessId: string) => {
+    if (!accessId) return;
+
+    try {
+      const { error } = await supabase
+        .from('user_property_access')
+        .delete()
+        .eq('id', accessId);
+      
+      if (error) throw error;
+      toast.success('Acesso removido com sucesso');
+    } catch (error) {
+      console.error('Erro ao remover acesso:', error);
+      toast.error('Erro ao remover acesso');
+    }
+  };
+
+  const addPropertyAccess = async () => {
+    if (!selectedPropertyId || !userId) return;
 
     // Verificar se já existe acesso para esta propriedade
     const existingAccess = propertyAccess.find(pa => pa.property_id === selectedPropertyId);
@@ -72,23 +124,38 @@ const PropertyAccessEditor: React.FC<PropertyAccessEditorProps> = ({
 
     const newAccess: UserPropertyAccess = {
       id: '', // Será gerado pelo banco
-      user_id: '', // Será definido ao salvar
+      user_id: userId,
       property_id: selectedPropertyId,
       access_level: selectedAccessLevel,
       created_at: new Date().toISOString()
     };
 
+    // Salvar no banco
+    await savePropertyAccess(newAccess);
+    
+    // Atualizar estado local
     onChange([...propertyAccess, newAccess]);
     setSelectedPropertyId('');
     setSelectedAccessLevel('read_only');
   };
 
-  const removePropertyAccess = (propertyId: string) => {
+  const removePropertyAccess = async (propertyId: string) => {
+    const access = propertyAccess.find(pa => pa.property_id === propertyId);
+    if (access?.id) {
+      await deletePropertyAccess(access.id);
+    }
+    
     const newAccess = propertyAccess.filter(pa => pa.property_id !== propertyId);
     onChange(newAccess);
   };
 
-  const updateAccessLevel = (propertyId: string, accessLevel: 'full' | 'read_only' | 'restricted') => {
+  const updateAccessLevel = async (propertyId: string, accessLevel: 'full' | 'read_only' | 'restricted') => {
+    const access = propertyAccess.find(pa => pa.property_id === propertyId);
+    if (access) {
+      const updatedAccess = { ...access, access_level: accessLevel };
+      await savePropertyAccess(updatedAccess);
+    }
+    
     const newAccess = propertyAccess.map(pa => 
       pa.property_id === propertyId 
         ? { ...pa, access_level: accessLevel }
