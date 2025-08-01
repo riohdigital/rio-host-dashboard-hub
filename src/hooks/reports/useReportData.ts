@@ -81,6 +81,8 @@ export const useReportData = () => {
 
 // Funções para gerar diferentes tipos de relatórios
 const generateFinancialReport = async (filters: ReportFilters) => {
+  console.log('Filtros aplicados:', filters);
+  
   const query = supabase
     .from('reservations')
     .select(`
@@ -88,7 +90,7 @@ const generateFinancialReport = async (filters: ReportFilters) => {
       properties(name, nickname)
     `)
     .gte('check_in_date', filters.startDate)
-    .lte('check_out_date', filters.endDate);
+    .lte('check_in_date', filters.endDate);
 
   if (filters.propertyId && filters.propertyId !== 'all' && filters.propertyId !== 'todas') {
     query.eq('property_id', filters.propertyId);
@@ -100,6 +102,8 @@ const generateFinancialReport = async (filters: ReportFilters) => {
 
   const { data: reservations, error } = await query;
   if (error) throw error;
+  
+  console.log('Reservas encontradas:', reservations?.length || 0);
 
   // Buscar despesas do mesmo período
   const expenseQuery = supabase

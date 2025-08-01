@@ -13,6 +13,8 @@ import { Property } from '@/types/property';
 import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
 import { useDateRange } from '@/hooks/dashboard/useDateRange';
 import { supabase } from '@/integrations/supabase/client';
+import jsPDF from 'jspdf';
+import { toast } from "sonner";
 
 interface ReceiptGeneratorProps {
   reservations: Reservation[];
@@ -245,9 +247,49 @@ export const ReceiptGenerator = ({ reservations, properties }: ReceiptGeneratorP
     `;
   };
 
+  const generatePDF = (reservation: Reservation, template: ReceiptTemplate) => {
+    const property = properties.find(p => p.id === reservation.property_id);
+    
+    const pdf = new jsPDF();
+    
+    // Configurações do PDF
+    pdf.setFont('helvetica');
+    
+    // Título
+    pdf.setFontSize(20);
+    pdf.setTextColor(255, 90, 95);
+    pdf.text('COMPROVANTE DE RESERVA', 105, 30, { align: 'center' });
+    
+    // Informações da propriedade
+    pdf.setFontSize(12);
+    pdf.setTextColor(0, 0, 0);
+    pdf.text(`Propriedade: ${property?.name || 'N/A'}`, 20, 50);
+    pdf.text(`Endereço: ${property?.address || 'N/A'}`, 20, 60);
+    
+    // Detalhes da reserva
+    pdf.text(`Código: ${reservation.reservation_code}`, 20, 80);
+    pdf.text(`Hóspede: ${reservation.guest_name || 'Não informado'}`, 20, 90);
+    pdf.text(`Check-in: ${format(new Date(reservation.check_in_date), "dd/MM/yyyy")}`, 20, 100);
+    pdf.text(`Check-out: ${format(new Date(reservation.check_out_date), "dd/MM/yyyy")}`, 20, 110);
+    pdf.text(`Plataforma: ${reservation.platform}`, 20, 120);
+    
+    // Valores
+    pdf.text(`Valor Total: ${formatCurrency(reservation.total_revenue)}`, 20, 140);
+    if (reservation.commission_amount) {
+      pdf.text(`Comissão: ${formatCurrency(reservation.commission_amount)}`, 20, 150);
+    }
+    
+    // Data de geração
+    pdf.setFontSize(10);
+    pdf.setTextColor(128, 128, 128);
+    pdf.text(`Gerado em: ${format(new Date(), "dd/MM/yyyy HH:mm")}`, 20, 270);
+    
+    return pdf;
+  };
+
   const handleGenerateReceipts = async () => {
     if (!selectedTemplate) {
-      alert('Selecione um template para gerar os recibos');
+      toast.error('Selecione um template para gerar os recibos');
       return;
     }
 
@@ -256,12 +298,58 @@ export const ReceiptGenerator = ({ reservations, properties }: ReceiptGeneratorP
       : filteredReservations;
 
     if (reservationsToProcess.length === 0) {
-      alert('Nenhuma reserva encontrada para o período selecionado');
+      toast.error('Nenhuma reserva encontrada para o período selecionado');
       return;
     }
 
-    // Aqui implementaríamos a geração real dos PDFs
-    alert(`Gerando ${reservationsToProcess.length} recibo(s) com o template selecionado...`);
+    try {
+      setLoading(true);
+      const template = receiptTemplates.find(t => t.id === selectedTemplate);
+      
+      if (reservationsToProcess.length === 1) {
+        // Gerar PDF individual
+        const pdf = generatePDF(reservationsToProcess[0], template!);
+        pdf.save(`recibo-${reservationsToProcess[0].reservation_code}.pdf`);
+        toast.success('Recibo gerado com sucesso!');
+      } else {
+        // Gerar múltiplos PDFs em um ZIP seria ideal, mas por simplicidade vamos gerar um PDF por vez
+        for (let i = 0; i < reservationsToProcess.length; i++) {
+          const reservation = reservationsToProcess[i];
+          const pdf = generatePDF(reservation, template!);
+          pdf.save(`recibo-${reservation.reservation_code}.pdf`);
+          
+          // Pequena pausa entre downloads
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        toast.success(`${reservationsToProcess.length} recibos gerados com sucesso!`);
+      }
+    } catch (error) {
+      console.error('Erro ao gerar recibos:', error);
+      toast.error('Erro ao gerar recibos');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGenerateIndividualReceipt = async (reservationId: string) => {
+    if (!selectedTemplate) {
+      toast.error('Selecione um template primeiro');
+      return;
+    }
+
+    const reservation = filteredReservations.find(r => r.id === reservationId);
+    const template = receiptTemplates.find(t => t.id === selectedTemplate);
+    
+    if (reservation && template) {
+      try {
+        const pdf = generatePDF(reservation, template);
+        pdf.save(`recibo-${reservation.reservation_code}.pdf`);
+        toast.success('Recibo gerado com sucesso!');
+      } catch (error) {
+        console.error('Erro ao gerar recibo:', error);
+        toast.error('Erro ao gerar recibo');
+      }
+    }
   };
 
   const handlePreviewReceipt = (reservationId: string) => {
