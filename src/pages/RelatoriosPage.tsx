@@ -13,7 +13,7 @@ import { useProperties } from '@/hooks/useProperties';
 import { useReportData, ReportData } from '@/hooks/reports/useReportData';
 import { usePDFExport } from '@/hooks/reports/usePDFExport';
 import { ReportTemplate } from '@/components/reports/ReportTemplate';
-import { ReceiptGenerator } from '@/components/reports/ReceiptGenerator';
+import ReceiptGenerator from '@/components/reports/ReceiptGenerator';
 import MainLayout from '@/components/layout/MainLayout';
 
 const RelatoriosPage: React.FC = () => {
@@ -312,10 +312,7 @@ const RelatoriosPage: React.FC = () => {
       )}
 
       {/* Geração de Recibos */}
-      <ReceiptGenerator 
-        reservations={[]} // Será implementado com dados reais das reservas
-        properties={properties}
-      />
+      <ReceiptGenerator />
       </div>
     </MainLayout>
   );

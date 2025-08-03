@@ -81,68 +81,70 @@ export const useReportData = () => {
 
 // Funções para gerar diferentes tipos de relatórios
 const generateFinancialReport = async (filters: ReportFilters) => {
-  console.log('Filtros aplicados:', filters);
-  
-  const query = supabase
-    .from('reservations')
-    .select(`
-      *,
-      properties(name, nickname)
-    `)
-    .gte('check_in_date', filters.startDate)
-    .lte('check_in_date', filters.endDate);
+  try {
+    console.log('Generating financial report with filters:', filters);
+    
+    // Fetch reservations
+    let reservationsQuery = supabase
+      .from('reservations')
+      .select(`
+        *,
+        properties (
+          name,
+          nickname
+        )
+      `)
+      .gte('check_in_date', filters.startDate)
+      .lte('check_in_date', filters.endDate);
 
-  if (filters.propertyId && filters.propertyId !== 'all' && filters.propertyId !== 'todas') {
-    query.eq('property_id', filters.propertyId);
-  }
-
-  if (filters.platform && filters.platform !== 'all') {
-    query.eq('platform', filters.platform);
-  }
-
-  const { data: reservations, error } = await query;
-  if (error) throw error;
-  
-  console.log('Reservas encontradas:', reservations?.length || 0);
-
-  // Buscar despesas do mesmo período
-  const expenseQuery = supabase
-    .from('expenses')
-    .select('*')
-    .gte('expense_date', filters.startDate)
-    .lte('expense_date', filters.endDate);
-
-  if (filters.propertyId && filters.propertyId !== 'all' && filters.propertyId !== 'todas') {
-    expenseQuery.eq('property_id', filters.propertyId);
-  }
-
-  const { data: expenses, error: expenseError } = await expenseQuery;
-  if (expenseError) throw expenseError;
-
-  // Calcular métricas
-  const totalRevenue = reservations?.reduce((sum, r) => sum + (Number(r.total_revenue) || 0), 0) || 0;
-  const netRevenue = reservations?.reduce((sum, r) => sum + (Number(r.net_revenue) || 0), 0) || 0;
-  const totalExpenses = expenses?.reduce((sum, e) => sum + (Number(e.amount) || 0), 0) || 0;
-  const profit = netRevenue - totalExpenses;
-
-  return {
-    summary: {
-      totalRevenue,
-      netRevenue,
-      totalExpenses,
-      profit,
-      reservationCount: reservations?.length || 0,
-      profitMargin: netRevenue > 0 ? ((profit / netRevenue) * 100) : 0,
-      averageReservationValue: reservations?.length > 0 ? (totalRevenue / reservations.length) : 0
-    },
-    reservations: reservations || [],
-    expenses: expenses || [],
-    charts: {
-      monthlyRevenue: calculateMonthlyRevenue(reservations || []),
-      expensesByCategory: calculateExpensesByCategory(expenses || []),
-      platformDistribution: calculatePlatformDistribution(reservations || [])
+    // Apply property filter if specified
+    if (filters.propertyId && filters.propertyId !== 'all') {
+      reservationsQuery = reservationsQuery.eq('property_id', filters.propertyId);
     }
-  };
+
+    const { data: reservations, error: reservationsError } = await reservationsQuery;
+    console.log('Reservations fetched:', reservations);
+
+    if (reservationsError) {
+      console.error('Reservations error:', reservationsError);
+      throw reservationsError;
+    }
+
+    // Fetch expenses
+    let expensesQuery = supabase
+      .from('expenses')
+      .select('*')
+      .gte('expense_date', filters.startDate)
+      .lte('expense_date', filters.endDate);
+
+    if (filters.propertyId && filters.propertyId !== 'all') {
+      expensesQuery = expensesQuery.eq('property_id', filters.propertyId);
+    }
+
+    const { data: expenses, error: expensesError } = await expensesQuery;
+
+    if (expensesError) throw expensesError;
+
+    // Calculate totals with null safety
+    const totalRevenue = reservations?.reduce((sum, r) => sum + (Number(r.total_revenue) || 0), 0) || 0;
+    const totalExpenses = expenses?.reduce((sum, e) => sum + (Number(e.amount) || 0), 0) || 0;
+    const netProfit = totalRevenue - totalExpenses;
+    const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+
+    return {
+      totalRevenue,
+      totalExpenses,
+      netProfit,
+      profitMargin,
+      monthlyRevenue: calculateMonthlyRevenue(reservations || []),
+      platformRevenue: calculatePlatformDistribution(reservations || []),
+      expensesByCategory: calculateExpensesByCategory(expenses || []),
+      reservations: reservations || []
+    };
+  } catch (error) {
+    console.error('Error generating financial report:', error);
+    throw error;
+  }
 };
 
 const generateOccupancyReport = async (filters: ReportFilters) => {

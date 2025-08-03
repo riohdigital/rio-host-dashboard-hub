@@ -116,27 +116,40 @@ const PropertyAccessEditor: React.FC<PropertyAccessEditorProps> = ({
   };
 
   const addPropertyAccess = async () => {
-    if (!selectedPropertyId || !userId) return;
-
-    // Verificar se já existe acesso para esta propriedade
-    const existingAccess = propertyAccess.find(pa => pa.property_id === selectedPropertyId);
-    if (existingAccess) return;
-
-    const newAccess: UserPropertyAccess = {
-      id: '', // Será gerado pelo banco
-      user_id: userId,
-      property_id: selectedPropertyId,
-      access_level: selectedAccessLevel,
-      created_at: new Date().toISOString()
-    };
-
-    // Salvar no banco
-    await savePropertyAccess(newAccess);
+    if (!selectedPropertyId || !selectedAccessLevel || !userId) return;
     
-    // Atualizar estado local
-    onChange([...propertyAccess, newAccess]);
-    setSelectedPropertyId('');
-    setSelectedAccessLevel('read_only');
+    try {
+      const { data, error } = await supabase
+        .from('user_property_access')
+        .insert({
+          user_id: userId,
+          property_id: selectedPropertyId,
+          access_level: selectedAccessLevel
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      if (data) {
+        const newAccess: UserPropertyAccess = {
+          id: data.id,
+          property_id: selectedPropertyId,
+          access_level: selectedAccessLevel,
+          user_id: userId,
+          created_at: data.created_at
+        };
+        
+        onChange([...propertyAccess, newAccess]);
+        setSelectedPropertyId('');
+        setSelectedAccessLevel('read_only');
+        
+        toast.success('Acesso à propriedade adicionado com sucesso');
+      }
+    } catch (error: any) {
+      console.error('Erro ao adicionar acesso:', error);
+      toast.error('Erro ao adicionar acesso à propriedade');
+    }
   };
 
   const removePropertyAccess = async (propertyId: string) => {

@@ -10,6 +10,7 @@ import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import UserListTable from '@/components/user-management/UserListTable';
 import UserEditModal from '@/components/user-management/UserEditModal';
 import UserInviteForm from '@/components/user-management/UserInviteForm';
+import UserCreateModal from '@/components/user-management/UserCreateModal';
 import type { UserProfile } from '@/types/user-management';
 
 const UserManagementSection = () => {
@@ -22,6 +23,7 @@ const UserManagementSection = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<UserProfile | null>(null);
   const [showInviteForm, setShowInviteForm] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
   
   // CORREÇÃO 1: Acessando o estado de loading do hook de permissões
   const { hasPermission, loading: permissionsLoading } = useUserPermissions();
@@ -170,9 +172,12 @@ const UserManagementSection = () => {
 
       <div className="flex flex-col sm:flex-row gap-4 justify-between">
         <div className="flex gap-2">
-          <Button onClick={() => setShowInviteForm(!showInviteForm)}>
+          <Button onClick={() => setCreateModalOpen(true)}>
             <UserPlus className="h-4 w-4 mr-2" />
-            {showInviteForm ? 'Ocultar Formulário' : 'Adicionar Usuário'}
+            Adicionar Usuário
+          </Button>
+          <Button variant="outline" onClick={() => setShowInviteForm(!showInviteForm)}>
+            {showInviteForm ? 'Ocultar Convite' : 'Convidar Usuário'}
           </Button>
           <Button variant="outline" onClick={fetchUsers} disabled={loading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
@@ -224,6 +229,12 @@ const UserManagementSection = () => {
           setSelectedUser(null);
         }}
         onUserUpdated={fetchUsers}
+      />
+
+      <UserCreateModal
+        open={createModalOpen}
+        onClose={() => setCreateModalOpen(false)}
+        onUserCreated={fetchUsers}
       />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
