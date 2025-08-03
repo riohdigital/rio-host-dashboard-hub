@@ -112,15 +112,16 @@ const UserManagementSection = () => {
     if (!userToDelete) return;
 
     try {
-      // Idealmente, isso seria uma única chamada a uma função no Supabase Edge Functions para garantir atomicidade.
-      await supabase.from('user_permissions').delete().eq('user_id', userToDelete.user_id);
-      await supabase.from('user_property_access').delete().eq('user_id', userToDelete.user_id);
-      const { error } = await supabase.from('user_profiles').delete().eq('user_id', userToDelete.user_id);
+      // Chamar Edge Function para exclusão completa
+      const { error } = await supabase.functions.invoke('delete-user', {
+        body: { userId: userToDelete.user_id }
+      });
+
       if (error) throw error;
 
       toast({
         title: "Sucesso",
-        description: "Usuário removido com sucesso.",
+        description: "Usuário removido completamente do sistema.",
       });
 
       fetchUsers();
@@ -128,7 +129,7 @@ const UserManagementSection = () => {
       console.error('Erro ao deletar usuário:', error);
       toast({
         title: "Erro",
-        description: error.message,
+        description: error.message || "Não foi possível remover o usuário.",
         variant: "destructive",
       });
     } finally {
@@ -171,7 +172,7 @@ const UserManagementSection = () => {
         <div className="flex gap-2">
           <Button onClick={() => setShowInviteForm(!showInviteForm)}>
             <UserPlus className="h-4 w-4 mr-2" />
-            {showInviteForm ? 'Ocultar Convite' : 'Convidar Usuário'}
+            {showInviteForm ? 'Ocultar Formulário' : 'Adicionar Usuário'}
           </Button>
           <Button variant="outline" onClick={fetchUsers} disabled={loading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />

@@ -252,6 +252,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
               propertyAccess={propertyAccess}
               onChange={setPropertyAccess}
               userRole={role}
+              userId={user.user_id}
             />
           </TabsContent>
         </Tabs>
