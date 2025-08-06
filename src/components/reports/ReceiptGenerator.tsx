@@ -4,11 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar, MapPin, User, Phone, Download, FileText } from 'lucide-react';
+import { Calendar, MapPin, User, Phone, Download, FileText, Eye } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
 import jsPDF from 'jspdf';
 
 interface Reservation {
@@ -35,16 +36,19 @@ const ReceiptGenerator = () => {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [receiptType, setReceiptType] = useState<ReceiptType>('reservation');
+  const [previewReservation, setPreviewReservation] = useState<Reservation | null>(null);
   const { toast } = useToast();
+  const { selectedProperties, selectedPeriod } = useGlobalFilters();
 
   useEffect(() => {
     fetchReservations();
-  }, []);
+  }, [selectedProperties, selectedPeriod]);
 
   const fetchReservations = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      
+      let query = supabase
         .from('reservations')
         .select(`
           *,
@@ -52,7 +56,39 @@ const ReceiptGenerator = () => {
             name,
             address
           )
-        `)
+        `);
+
+      // Apply property filter
+      if (selectedProperties.length > 0 && !selectedProperties.includes('todas')) {
+        query = query.in('property_id', selectedProperties);
+      }
+
+      // Apply date filter
+      if (selectedPeriod !== 'all_time') {
+        const now = new Date();
+        let startDate: Date;
+        
+        switch (selectedPeriod) {
+          case 'current_month':
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            break;
+          case 'current_year':
+            startDate = new Date(now.getFullYear(), 0, 1);
+            break;
+          case 'last_30_days':
+            startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+            break;
+          case 'last_90_days':
+            startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+            break;
+          default:
+            startDate = new Date(now.getFullYear(), 0, 1);
+        }
+        
+        query = query.gte('check_in_date', startDate.toISOString().split('T')[0]);
+      }
+
+      const { data, error } = await query
         .order('check_in_date', { ascending: false })
         .limit(50);
 
@@ -399,10 +435,10 @@ const ReceiptGenerator = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => generatePDF(reservation)}
+                      onClick={() => setPreviewReservation(reservation)}
                       className="flex items-center gap-1"
                     >
-                      <FileText className="h-3 w-3" />
+                      <Eye className="h-3 w-3" />
                       Prévia
                     </Button>
                     
@@ -420,6 +456,80 @@ const ReceiptGenerator = () => {
               ))
             )}
           </div>
+
+          {previewReservation && (
+            <div className="mt-6 border-t pt-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">
+                  Prévia do {receiptType === 'payment' ? 'Recibo de Pagamento' : 'Recibo de Reserva'}
+                </h3>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPreviewReservation(null)}
+                >
+                  Fechar Prévia
+                </Button>
+              </div>
+              
+              <div className="bg-white p-6 border rounded-lg shadow-sm max-w-2xl mx-auto">
+                <div className="text-center mb-6">
+                  <h2 className="text-xl font-bold">
+                    {receiptType === 'payment' ? 'RECIBO DE PAGAMENTO' : 'RECIBO DE RESERVA'}
+                  </h2>
+                  <div className="w-full h-px bg-gray-300 my-4"></div>
+                  <p className="text-sm text-gray-600">RIOH HOST GESTÃO DE HOSPEDAGEM</p>
+                  <p className="text-xs text-gray-500">Gestão Profissional de Propriedades para Hospedagem</p>
+                </div>
+                
+                <div className="space-y-4 text-sm">
+                  <div>
+                    <h4 className="font-semibold mb-2">DADOS DA RESERVA:</h4>
+                    <p>Código da Reserva: {previewReservation.reservation_code}</p>
+                    <p>Propriedade: {previewReservation.properties?.name || 'N/A'}</p>
+                    <p>Endereço: {previewReservation.properties?.address || 'N/A'}</p>
+                    <p>Plataforma: {previewReservation.platform}</p>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-semibold mb-2">DADOS DO HÓSPEDE:</h4>
+                    <p>Nome: {previewReservation.guest_name || 'N/A'}</p>
+                    <p>Telefone: {previewReservation.guest_phone || 'N/A'}</p>
+                    <p>Número de Hóspedes: {previewReservation.number_of_guests || 1}</p>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-semibold mb-2">PERÍODO DA ESTADIA:</h4>
+                    <p>Check-in: {formatDate(previewReservation.check_in_date)}</p>
+                    <p>Check-out: {formatDate(previewReservation.check_out_date)}</p>
+                    <p>Total de Noites: {differenceInDays(new Date(previewReservation.check_out_date), new Date(previewReservation.check_in_date))}</p>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-semibold mb-2">INFORMAÇÕES FINANCEIRAS:</h4>
+                    <p>Valor Total: {formatCurrency(previewReservation.total_revenue)}</p>
+                    {receiptType === 'payment' && (
+                      <>
+                        <p>Status do Pagamento: {previewReservation.payment_status || 'N/A'}</p>
+                        {previewReservation.payment_date && (
+                          <p>Data do Pagamento: {formatDate(previewReservation.payment_date)}</p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  
+                  <div className="pt-4 border-t text-xs text-gray-500">
+                    <p>
+                      {receiptType === 'payment' 
+                        ? 'Este documento comprova o pagamento da reserva acima mencionada.'
+                        : 'Este documento confirma a reserva e os dados informados acima.'}
+                    </p>
+                    <p>Gerado em: {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

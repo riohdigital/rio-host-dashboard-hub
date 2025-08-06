@@ -231,6 +231,39 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
             <Separator />
 
             <div className="space-y-2">
+              <Label>Alterar Senha</Label>
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  try {
+                    const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+                      redirectTo: `${window.location.origin}/reset-password`
+                    });
+                    
+                    if (error) throw error;
+                    
+                    toast({
+                      title: "Sucesso",
+                      description: "Email de redefinição de senha enviado com sucesso.",
+                    });
+                  } catch (error) {
+                    console.error('Erro ao enviar email de redefinição:', error);
+                    toast({
+                      title: "Erro",
+                      description: "Não foi possível enviar o email de redefinição.",
+                      variant: "destructive",
+                    });
+                  }
+                }}
+                className="w-full"
+              >
+                Enviar Email de Redefinição de Senha
+              </Button>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-2">
               <Label>Informações da Conta</Label>
               <div className="text-sm text-muted-foreground space-y-1">
                 <p>Criado em: {new Date(user.created_at).toLocaleDateString('pt-BR')}</p>
