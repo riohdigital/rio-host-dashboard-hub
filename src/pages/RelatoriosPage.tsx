@@ -255,7 +255,7 @@ const RelatoriosPage: React.FC = () => {
           disabled={reportLoading || propertiesLoading}
         >
           <FileText className="h-4 w-4" />
-          {reportLoading ? 'Gerando...' : 'Gerar Relatório'}
+          {reportLoading ? 'Gerando...' : 'Prévia'}
         </Button>
         <Button 
           variant="outline" 
@@ -264,7 +264,7 @@ const RelatoriosPage: React.FC = () => {
           disabled={!currentReport}
         >
           <Download className="h-4 w-4" />
-          Exportar PDF
+          PDF
         </Button>
         <Button 
           variant="outline" 
@@ -273,7 +273,7 @@ const RelatoriosPage: React.FC = () => {
           disabled={!currentReport}
         >
           <Download className="h-4 w-4" />
-          Exportar Excel
+          Excel
         </Button>
       </div>
 
