@@ -399,7 +399,7 @@ const ReceiptGenerator = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => {/* Preview logic would go here */}}
+                      onClick={() => generatePDF(reservation)}
                       className="flex items-center gap-1"
                     >
                       <FileText className="h-3 w-3" />

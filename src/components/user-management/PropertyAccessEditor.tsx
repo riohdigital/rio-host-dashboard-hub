@@ -115,41 +115,23 @@ const PropertyAccessEditor: React.FC<PropertyAccessEditorProps> = ({
     }
   };
 
-  const addPropertyAccess = async () => {
-    if (!selectedPropertyId || !selectedAccessLevel || !userId) return;
+  const addPropertyAccess = () => {
+    if (!selectedPropertyId || !selectedAccessLevel) return;
     
-    try {
-      const { data, error } = await supabase
-        .from('user_property_access')
-        .insert({
-          user_id: userId,
-          property_id: selectedPropertyId,
-          access_level: selectedAccessLevel
-        })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      
-      if (data) {
-        const newAccess: UserPropertyAccess = {
-          id: data.id,
-          property_id: selectedPropertyId,
-          access_level: selectedAccessLevel,
-          user_id: userId,
-          created_at: data.created_at
-        };
-        
-        onChange([...propertyAccess, newAccess]);
-        setSelectedPropertyId('');
-        setSelectedAccessLevel('read_only');
-        
-        toast.success('Acesso à propriedade adicionado com sucesso');
-      }
-    } catch (error: any) {
-      console.error('Erro ao adicionar acesso:', error);
-      toast.error('Erro ao adicionar acesso à propriedade');
-    }
+    // Adicionar localmente primeiro
+    const newAccess: UserPropertyAccess = {
+      id: `temp-${Date.now()}`, // ID temporário para o estado local
+      property_id: selectedPropertyId,
+      access_level: selectedAccessLevel,
+      user_id: userId || '',
+      created_at: new Date().toISOString()
+    };
+    
+    onChange([...propertyAccess, newAccess]);
+    setSelectedPropertyId('');
+    setSelectedAccessLevel('read_only');
+    
+    toast.success('Acesso à propriedade adicionado');
   };
 
   const removePropertyAccess = async (propertyId: string) => {

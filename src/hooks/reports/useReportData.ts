@@ -131,6 +131,52 @@ const generateFinancialReport = async (filters: ReportFilters) => {
     const netProfit = totalRevenue - totalExpenses;
     const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
 
+    // Fetch properties for detailed report
+    const { data: properties } = await supabase
+      .from('properties')
+      .select('id, name, nickname');
+
+    // Calculate additional metrics
+    const receivedAmount = reservations?.filter(r => r.payment_status === 'Pago')
+      .reduce((sum, r) => sum + (Number(r.total_revenue) || 0), 0) || 0;
+    const pendingAmount = totalRevenue - receivedAmount;
+
+    // Group by property
+    const propertiesData = (properties || []).map(property => {
+      const propertyReservations = (reservations || []).filter(r => r.property_id === property.id);
+      const propertyRevenue = propertyReservations.reduce((sum, r) => sum + (Number(r.total_revenue) || 0), 0);
+      const propertyReceived = propertyReservations
+        .filter(r => r.payment_status === 'Pago')
+        .reduce((sum, r) => sum + (Number(r.total_revenue) || 0), 0);
+      const propertyPending = propertyRevenue - propertyReceived;
+
+      // Platform breakdown for this property
+      const platformsData = propertyReservations.reduce((acc: any[], reservation) => {
+        const existing = acc.find(item => item.name === reservation.platform);
+        if (existing) {
+          existing.revenue += Number(reservation.total_revenue) || 0;
+          existing.count += 1;
+        } else {
+          acc.push({
+            name: reservation.platform,
+            revenue: Number(reservation.total_revenue) || 0,
+            count: 1
+          });
+        }
+        return acc;
+      }, []);
+
+      return {
+        name: property.nickname || property.name,
+        totalRevenue: propertyRevenue,
+        receivedAmount: propertyReceived,
+        pendingAmount: propertyPending,
+        totalReservations: propertyReservations.length,
+        platforms: platformsData,
+        reservations: propertyReservations.map(r => ({ code: r.reservation_code }))
+      };
+    });
+
     return {
       totalRevenue,
       totalExpenses,
@@ -139,6 +185,10 @@ const generateFinancialReport = async (filters: ReportFilters) => {
       monthlyRevenue: calculateMonthlyRevenue(reservations || []),
       platformRevenue: calculatePlatformDistribution(reservations || []),
       expensesByCategory: calculateExpensesByCategory(expenses || []),
+      properties: propertiesData,
+      receivedAmount,
+      pendingAmount,
+      totalReservations: reservations?.length || 0,
       reservations: reservations || []
     };
   } catch (error) {
@@ -446,14 +496,16 @@ const calculatePlatformDistribution = (reservations: any[]) => {
   reservations.forEach(r => {
     const platform = r.platform || 'Direto';
     if (!platformData[platform]) {
-      platformData[platform] = 0;
+      platformData[platform] = { revenue: 0, count: 0 };
     }
-    platformData[platform] += Number(r.total_revenue) || 0;
+    platformData[platform].revenue += Number(r.total_revenue) || 0;
+    platformData[platform].count += 1;
   });
 
-  return Object.entries(platformData).map(([platform, revenue]) => ({
-    platform,
-    revenue
+  return Object.entries(platformData).map(([name, data]: [string, any]) => ({
+    name,
+    revenue: data.revenue,
+    count: data.count
   }));
 };
 

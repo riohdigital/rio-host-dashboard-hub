@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useProperties } from '@/hooks/useProperties';
 import { useReportData, ReportData } from '@/hooks/reports/useReportData';
 import { usePDFExport } from '@/hooks/reports/usePDFExport';
-import { ReportTemplate } from '@/components/reports/ReportTemplate';
+import { EnhancedReportTemplate } from '@/components/reports/EnhancedReportTemplate';
 import ReceiptGenerator from '@/components/reports/ReceiptGenerator';
 import MainLayout from '@/components/layout/MainLayout';
 
@@ -285,7 +285,7 @@ const RelatoriosPage: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div id="report-preview">
-              <ReportTemplate report={currentReport} />
+              <EnhancedReportTemplate report={currentReport} />
             </div>
           </CardContent>
         </Card>
