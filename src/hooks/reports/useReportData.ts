@@ -7,6 +7,7 @@ export interface ReportFilters {
   platform?: string;
   startDate: string;
   endDate: string;
+  selectedProperties?: string[]; // Adicionar propriedades selecionadas do filtro global
 }
 
 export interface ReportData {
@@ -145,6 +146,11 @@ const generateFinancialReport = async (filters: ReportFilters) => {
     let filteredProperties = properties || [];
     if (filters.propertyId && filters.propertyId !== 'all') {
       filteredProperties = filteredProperties.filter(p => p.id === filters.propertyId);
+    }
+    
+    // Apply global property filter if available
+    if (filters.selectedProperties && filters.selectedProperties.length > 0 && !filters.selectedProperties.includes('todas')) {
+      filteredProperties = filteredProperties.filter(p => filters.selectedProperties!.includes(p.id));
     }
     
     const propertiesData = filteredProperties.map(property => {

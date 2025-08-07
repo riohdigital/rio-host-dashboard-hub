@@ -39,6 +39,34 @@ const ReceiptGenerator = () => {
   const [previewReservation, setPreviewReservation] = useState<Reservation | null>(null);
   const { toast } = useToast();
   const { selectedProperties, selectedPeriod } = useGlobalFilters();
+  
+  // Calcular datas baseado no período selecionado
+  const getDateRange = () => {
+    const now = new Date();
+    let startDate: Date;
+    let endDate = now;
+    
+    switch (selectedPeriod) {
+      case 'current_month':
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        break;
+      case 'current_year':
+        startDate = new Date(now.getFullYear(), 0, 1);
+        endDate = new Date(now.getFullYear(), 11, 31);
+        break;
+      case 'last_30_days':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case 'last_90_days':
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        break;
+      default:
+        startDate = new Date(now.getFullYear(), 0, 1);
+    }
+    
+    return { startDate, endDate };
+  };
 
   useEffect(() => {
     fetchReservations();
@@ -63,29 +91,12 @@ const ReceiptGenerator = () => {
         query = query.in('property_id', selectedProperties);
       }
 
-      // Apply date filter
+      // Apply date filter using the calculated date range
       if (selectedPeriod !== 'all_time') {
-        const now = new Date();
-        let startDate: Date;
-        
-        switch (selectedPeriod) {
-          case 'current_month':
-            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-            break;
-          case 'current_year':
-            startDate = new Date(now.getFullYear(), 0, 1);
-            break;
-          case 'last_30_days':
-            startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-            break;
-          case 'last_90_days':
-            startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-            break;
-          default:
-            startDate = new Date(now.getFullYear(), 0, 1);
-        }
-        
-        query = query.gte('check_in_date', startDate.toISOString().split('T')[0]);
+        const { startDate, endDate } = getDateRange();
+        query = query
+          .gte('check_in_date', startDate.toISOString().split('T')[0])
+          .lte('check_in_date', endDate.toISOString().split('T')[0]);
       }
 
       const { data, error } = await query
@@ -445,7 +456,6 @@ const ReceiptGenerator = () => {
                     <Button
                       size="sm"
                       onClick={() => generatePDF(reservation)}
-                      disabled={receiptType === 'payment' && reservation.payment_status !== 'Pago'}
                       className="flex items-center gap-1"
                     >
                       <Download className="h-3 w-3" />

@@ -17,7 +17,7 @@ import ReceiptGenerator from '@/components/reports/ReceiptGenerator';
 import MainLayout from '@/components/layout/MainLayout';
 
 const RelatoriosPage: React.FC = () => {
-  const { selectedPeriod } = useGlobalFilters();
+  const { selectedPeriod, selectedProperties } = useGlobalFilters();
   const { startDateString, endDateString } = useDateRange(selectedPeriod);
   const { permissions, isMaster } = useUserPermissions();
   const { toast } = useToast();
@@ -67,7 +67,8 @@ const RelatoriosPage: React.FC = () => {
         propertyId: selectedProperty,
         platform: selectedPlatform,
         startDate: customStartDate ? customStartDate.toISOString().split('T')[0] : startDateString,
-        endDate: customEndDate ? customEndDate.toISOString().split('T')[0] : endDateString
+        endDate: customEndDate ? customEndDate.toISOString().split('T')[0] : endDateString,
+        selectedProperties // Passar as propriedades selecionadas no filtro global
       };
 
       const report = await generateReport(filters);
