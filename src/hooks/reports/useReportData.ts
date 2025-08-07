@@ -141,13 +141,8 @@ const generateFinancialReport = async (filters: ReportFilters) => {
       .reduce((sum, r) => sum + (Number(r.total_revenue) || 0), 0) || 0;
     const pendingAmount = totalRevenue - receivedAmount;
 
-    // Group by property - Filter by selected property if specified
-    let filteredProperties = properties || [];
-    if (filters.propertyId && filters.propertyId !== 'all') {
-      filteredProperties = filteredProperties.filter(p => p.id === filters.propertyId);
-    }
-    
-    const propertiesData = filteredProperties.map(property => {
+    // Group by property
+    const propertiesData = (properties || []).map(property => {
       const propertyReservations = (reservations || []).filter(r => r.property_id === property.id);
       const propertyRevenue = propertyReservations.reduce((sum, r) => sum + (Number(r.total_revenue) || 0), 0);
       const propertyReceived = propertyReservations
