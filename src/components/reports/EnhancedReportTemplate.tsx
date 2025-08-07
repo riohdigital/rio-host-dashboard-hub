@@ -131,7 +131,7 @@ export const EnhancedReportTemplate = ({ report }: EnhancedReportTemplateProps) 
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={report.data.monthlyRevenue}>
+            <BarChart data={report.data.monthlyRevenue}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis 
                 dataKey="month" 
@@ -146,14 +146,18 @@ export const EnhancedReportTemplate = ({ report }: EnhancedReportTemplateProps) 
               <Tooltip 
                 formatter={(value) => [formatCurrency(Number(value)), 'Receita']}
                 labelFormatter={(label) => `Período: ${label}`}
+                contentStyle={{ 
+                  backgroundColor: 'hsl(var(--background))', 
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '6px'
+                }}
               />
-              <Line 
+              <Bar 
                 dataKey="revenue" 
-                stroke="hsl(var(--primary))" 
-                strokeWidth={3}
-                dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2, r: 4 }}
+                fill="hsl(var(--primary))" 
+                radius={[4, 4, 0, 0]}
               />
-            </LineChart>
+            </BarChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>

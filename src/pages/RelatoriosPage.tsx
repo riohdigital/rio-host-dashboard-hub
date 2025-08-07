@@ -152,9 +152,9 @@ const RelatoriosPage: React.FC = () => {
       {/* Filtros */}
       <Card>
         <CardHeader>
-          <CardTitle>Filtros de Relatório</CardTitle>
+          <CardTitle>Configurações do Relatório</CardTitle>
           <CardDescription>
-            Configure os parâmetros para gerar seu relatório
+            Configure o tipo e período para gerar seu relatório
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -178,24 +178,6 @@ const RelatoriosPage: React.FC = () => {
                       </SelectItem>
                     );
                   })}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Propriedade */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Propriedade</label>
-              <Select value={selectedProperty} onValueChange={setSelectedProperty}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todas as propriedades" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas as propriedades</SelectItem>
-                  {properties.map((property) => (
-                    <SelectItem key={property.id} value={property.id}>
-                      {property.nickname || property.name}
-                    </SelectItem>
-                  ))}
                 </SelectContent>
               </Select>
             </div>
