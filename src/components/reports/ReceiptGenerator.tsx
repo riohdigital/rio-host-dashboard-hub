@@ -10,6 +10,7 @@ import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
+import { useDateRange } from '@/hooks/dashboard/useDateRange';
 import jsPDF from 'jspdf';
 
 interface Reservation {
@@ -39,86 +40,7 @@ const ReceiptGenerator = () => {
   const [previewReservation, setPreviewReservation] = useState<Reservation | null>(null);
   const { toast } = useToast();
   const { selectedProperties, selectedPeriod } = useGlobalFilters();
-  
-  // Calcular datas baseado no período selecionado
-  const getDateRange = () => {
-    const now = new Date();
-    let startDate: Date;
-    let endDate = now;
-    
-    console.log('ReceiptGenerator - selectedPeriod:', selectedPeriod);
-    
-    switch (selectedPeriod) {
-      case 'current_month':
-        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-        break;
-      case 'current_year':
-        startDate = new Date(now.getFullYear(), 0, 1);
-        endDate = new Date(now.getFullYear(), 11, 31);
-        break;
-      case 'last_30_days':
-        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        break;
-      case 'last_90_days':
-        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-        break;
-      case 'january':
-        startDate = new Date(now.getFullYear(), 0, 1);
-        endDate = new Date(now.getFullYear(), 0, 31);
-        break;
-      case 'february':
-        startDate = new Date(now.getFullYear(), 1, 1);
-        endDate = new Date(now.getFullYear(), 1, 29);
-        break;
-      case 'march':
-        startDate = new Date(now.getFullYear(), 2, 1);
-        endDate = new Date(now.getFullYear(), 2, 31);
-        break;
-      case 'april':
-        startDate = new Date(now.getFullYear(), 3, 1);
-        endDate = new Date(now.getFullYear(), 3, 30);
-        break;
-      case 'may':
-        startDate = new Date(now.getFullYear(), 4, 1);
-        endDate = new Date(now.getFullYear(), 4, 31);
-        break;
-      case 'june':
-        startDate = new Date(now.getFullYear(), 5, 1);
-        endDate = new Date(now.getFullYear(), 5, 30);
-        break;
-      case 'july':
-        startDate = new Date(now.getFullYear(), 6, 1);
-        endDate = new Date(now.getFullYear(), 6, 31);
-        break;
-      case 'august':
-        startDate = new Date(now.getFullYear(), 7, 1);
-        endDate = new Date(now.getFullYear(), 7, 31);
-        break;
-      case 'september':
-        startDate = new Date(now.getFullYear(), 8, 1);
-        endDate = new Date(now.getFullYear(), 8, 30);
-        break;
-      case 'october':
-        startDate = new Date(now.getFullYear(), 9, 1);
-        endDate = new Date(now.getFullYear(), 9, 31);
-        break;
-      case 'november':
-        startDate = new Date(now.getFullYear(), 10, 1);
-        endDate = new Date(now.getFullYear(), 10, 30);
-        break;
-      case 'december':
-        startDate = new Date(now.getFullYear(), 11, 1);
-        endDate = new Date(now.getFullYear(), 11, 31);
-        break;
-      default:
-        startDate = new Date(now.getFullYear(), 0, 1);
-        endDate = new Date(now.getFullYear(), 11, 31);
-    }
-    
-    console.log('ReceiptGenerator - Date range:', { startDate, endDate });
-    return { startDate, endDate };
-  };
+  const { startDateString, endDateString } = useDateRange(selectedPeriod);
 
   useEffect(() => {
     fetchReservations();
@@ -144,11 +66,10 @@ const ReceiptGenerator = () => {
       }
 
       // Apply date filter using the calculated date range
-      if (selectedPeriod !== 'all_time') {
-        const { startDate, endDate } = getDateRange();
+      if (selectedPeriod !== 'general') {
         query = query
-          .gte('check_in_date', startDate.toISOString().split('T')[0])
-          .lte('check_in_date', endDate.toISOString().split('T')[0]);
+          .gte('check_in_date', startDateString)
+          .lte('check_in_date', endDateString);
       }
 
       const { data, error } = await query
