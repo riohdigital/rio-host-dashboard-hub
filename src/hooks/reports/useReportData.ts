@@ -103,6 +103,11 @@ const generateFinancialReport = async (filters: ReportFilters) => {
       reservationsQuery = reservationsQuery.eq('property_id', filters.propertyId);
     }
 
+    // Apply global property filter for reservations
+    if (filters.selectedProperties && filters.selectedProperties.length > 0 && !filters.selectedProperties.includes('todas')) {
+      reservationsQuery = reservationsQuery.in('property_id', filters.selectedProperties);
+    }
+
     const { data: reservations, error: reservationsError } = await reservationsQuery;
     console.log('Reservations fetched:', reservations);
 
@@ -120,6 +125,11 @@ const generateFinancialReport = async (filters: ReportFilters) => {
 
     if (filters.propertyId && filters.propertyId !== 'all') {
       expensesQuery = expensesQuery.eq('property_id', filters.propertyId);
+    }
+
+    // Apply global property filter for expenses
+    if (filters.selectedProperties && filters.selectedProperties.length > 0 && !filters.selectedProperties.includes('todas')) {
+      expensesQuery = expensesQuery.in('property_id', filters.selectedProperties);
     }
 
     const { data: expenses, error: expensesError } = await expensesQuery;
