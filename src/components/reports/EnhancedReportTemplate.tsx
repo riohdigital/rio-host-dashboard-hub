@@ -359,6 +359,134 @@ export const EnhancedReportTemplate = ({ report }: EnhancedReportTemplateProps) 
     </div>
   );
 
+  const renderPlatformReport = () => (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Distribuição por Plataforma (Reservas)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={report.data.charts?.platformDistribution || []}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
+                outerRadius={80}
+                dataKey="value"
+              >
+                {(report.data.charts?.platformDistribution || []).map((entry: any, index: number) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Resumo por Plataforma</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left p-2">Plataforma</th>
+                  <th className="text-right p-2">Reservas</th>
+                  <th className="text-right p-2">Receita</th>
+                  <th className="text-right p-2">Comissão</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(report.data.platforms || []).map((p: any, idx: number) => (
+                  <tr key={idx} className="border-b">
+                    <td className="p-2 font-medium">{p.name}</td>
+                    <td className="p-2 text-right">{p.reservations}</td>
+                    <td className="p-2 text-right">{formatCurrency(p.revenue)}</td>
+                    <td className="p-2 text-right">{formatCurrency(p.commission)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  const renderCheckinsReport = () => (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Próximos Check-ins</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            {(report.data.upcomingCheckins || []).slice(0, 20).map((r: any, idx: number) => (
+              <div key={idx} className="flex justify-between border rounded p-2 text-sm">
+                <span>
+                  {format(new Date(r.check_in_date), 'dd/MM/yyyy', { locale: ptBR })}
+                  {' - '}
+                  {r.properties?.nickname || r.properties?.name || 'Propriedade'}
+                </span>
+                <span className="text-muted-foreground">{r.guest_name || '-'}</span>
+              </div>
+            ))}
+            {(!report.data.upcomingCheckins || report.data.upcomingCheckins.length === 0) && (
+              <div className="text-muted-foreground">Sem dados para os próximos dias.</div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Próximos Check-outs</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            {(report.data.upcomingCheckouts || []).slice(0, 20).map((r: any, idx: number) => (
+              <div key={idx} className="flex justify-between border rounded p-2 text-sm">
+                <span>
+                  {format(new Date(r.check_out_date), 'dd/MM/yyyy', { locale: ptBR })}
+                  {' - '}
+                  {r.properties?.nickname || r.properties?.name || 'Propriedade'}
+                </span>
+                <span className="text-muted-foreground">{r.guest_name || '-'}</span>
+              </div>
+            ))}
+            {(!report.data.upcomingCheckouts || report.data.upcomingCheckouts.length === 0) && (
+              <div className="text-muted-foreground">Sem dados para os próximos dias.</div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Check-ins/Check-outs por Dia</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={report.data.charts?.checkinsByDay || []}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" />
+              <YAxis />
+              <Tooltip />
+              <Line type="monotone" dataKey="checkins" stroke="hsl(var(--primary))" />
+              <Line type="monotone" dataKey="checkouts" stroke="hsl(var(--chart-3))" />
+            </LineChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
   const renderDefaultReport = () => (
     <Card>
       <CardContent className="p-6">
@@ -392,9 +520,19 @@ export const EnhancedReportTemplate = ({ report }: EnhancedReportTemplateProps) 
       {/* Report Content */}
       {report.type === 'financial' && renderFinancialReport()}
       {report.type === 'occupancy' && renderOccupancyReport()}
-      {report.type === 'property_performance' && renderPropertyPerformanceReport()}
+      {(report.type === 'property' || report.type === 'property_performance') && renderPropertyPerformanceReport()}
+      {report.type === 'platform' && renderPlatformReport()}
       {report.type === 'expenses' && renderExpensesReport()}
-      {!['financial', 'occupancy', 'property_performance', 'expenses'].includes(report.type) && renderDefaultReport()}
+      {report.type === 'checkins' && renderCheckinsReport()}
+      {![
+        'financial',
+        'occupancy',
+        'property',
+        'property_performance',
+        'platform',
+        'expenses',
+        'checkins'
+      ].includes(report.type) && renderDefaultReport()}
     </div>
   );
 };
