@@ -58,11 +58,12 @@ const ExpensesList = () => {
       // Apply property filter if not "todas"
       if (!selectedProperties.includes('todas')) {
         const accessibleProperties = getAccessibleProperties();
-        const filteredProperties = selectedProperties.filter(id => 
-          accessibleProperties.includes(id)
-        );
-        if (filteredProperties.length > 0) {
-          query = query.in('property_id', filteredProperties);
+        // If user has unrestricted access (master or view_all), do NOT intersect – honor user selection
+        const targetIds = accessibleProperties.length > 0
+          ? selectedProperties.filter(id => accessibleProperties.includes(id))
+          : selectedProperties;
+        if (targetIds.length > 0) {
+          query = query.in('property_id', targetIds);
         }
       }
 
