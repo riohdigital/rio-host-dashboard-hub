@@ -56,12 +56,18 @@ const ReservasPage = () => {
     }
   }, [permissionsLoading, getAccessibleProperties]);
 
-  // Remover refetch automático - deixar usuário controlar quando quer atualizar
-  // useEffect(() => {
-  //   if (isVisible && shouldRefetch()) {
-  //     fetchAllData();
-  //   }
-  // }, [isVisible]);
+// Remover refetch automático - deixar usuário controlar quando quer atualizar
+// useEffect(() => {
+//   if (isVisible && shouldRefetch()) {
+//     fetchAllData();
+//   }
+// }, [isVisible]);
+
+// Refetch imediato ao alterar período ou propriedades globais
+useEffect(() => {
+  fetchAllData();
+// Dependemos também de strings para evitar recriações de Date
+}, [selectedPeriod, startDateString, endDateString, selectedProperties]);
 
   const fetchAllData = async () => {
     setLoading(true);
