@@ -235,47 +235,55 @@ export const EnhancedReportTemplate = ({ report }: EnhancedReportTemplateProps) 
     </div>
   );
 
-  const renderOccupancyReport = () => (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+  const renderOccupancyReport = () => {
+    // Cálculos auxiliares a partir dos dados retornados
+    const occupiedDays = report.data?.summary?.occupiedDays || 0;
+    const reservations = report.data?.reservations || [];
+    const totalRevenue = reservations.reduce((sum: number, r: any) => sum + (Number(r.net_revenue) || 0), 0);
+    const adr = occupiedDays > 0 ? totalRevenue / occupiedDays : 0;
+
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-sm text-muted-foreground">Taxa de Ocupação</div>
+              <div className="text-2xl font-bold text-primary">{formatPercentage(report.data?.summary?.occupancyRate)}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-sm text-muted-foreground">Diárias Vendidas</div>
+              <div className="text-2xl font-bold">{occupiedDays}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-sm text-muted-foreground">Valor Médio Diária</div>
+              <div className="text-2xl font-bold">{formatCurrency(adr)}</div>
+            </CardContent>
+          </Card>
+        </div>
+
         <Card>
-          <CardContent className="p-4">
-            <div className="text-sm text-muted-foreground">Taxa de Ocupação</div>
-            <div className="text-2xl font-bold text-primary">{formatPercentage(report.data.occupancyRate)}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-sm text-muted-foreground">Diárias Vendidas</div>
-            <div className="text-2xl font-bold">{report.data.totalNights}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-sm text-muted-foreground">Valor Médio Diária</div>
-            <div className="text-2xl font-bold">{formatCurrency(report.data.avgDailyRate)}</div>
+          <CardHeader>
+            <CardTitle>Ocupação Diária</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={report.data?.charts?.dailyOccupancy || []}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="occupied" fill="hsl(var(--primary))" />
+              </BarChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Ocupação por Propriedade</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={report.data.propertyOccupancy}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="property" />
-              <YAxis />
-              <Tooltip formatter={(value) => `${Number(value).toFixed(1)}%`} />
-              <Bar dataKey="occupancy" fill="hsl(var(--primary))" />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-    </div>
-  );
+    );
+  };
 
   const renderPropertyPerformanceReport = () => (
     <div className="space-y-6">
@@ -299,7 +307,7 @@ export const EnhancedReportTemplate = ({ report }: EnhancedReportTemplateProps) 
                 {report.data.properties?.map((property: any, index: number) => (
                   <tr key={index} className="border-b">
                     <td className="p-2 font-medium">{property.name}</td>
-                    <td className="p-2 text-right">{formatCurrency(property.revenue)}</td>
+                    <td className="p-2 text-right">{formatCurrency(property.totalRevenue)}</td>
                     <td className="p-2 text-right">{formatPercentage(property.occupancy)}</td>
                     <td className="p-2 text-right">{formatCurrency(property.adr)}</td>
                     <td className="p-2 text-right">{formatCurrency(property.revpar)}</td>
@@ -319,13 +327,13 @@ export const EnhancedReportTemplate = ({ report }: EnhancedReportTemplateProps) 
         <Card>
           <CardContent className="p-4">
             <div className="text-sm text-muted-foreground">Total de Despesas</div>
-            <div className="text-2xl font-bold text-destructive">{formatCurrency(report.data.totalExpenses)}</div>
+            <div className="text-2xl font-bold text-destructive">{formatCurrency(report.data?.summary?.totalExpenses)}</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <div className="text-sm text-muted-foreground">Receita Líquida</div>
-            <div className="text-2xl font-bold text-primary">{formatCurrency(report.data.netRevenue)}</div>
+            <div className="text-sm text-muted-foreground">Resultado (Lucro)</div>
+            <div className="text-2xl font-bold text-primary">{formatCurrency(report.data?.summary?.profit)}</div>
           </CardContent>
         </Card>
       </div>
@@ -338,7 +346,7 @@ export const EnhancedReportTemplate = ({ report }: EnhancedReportTemplateProps) 
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
-                data={report.data.expensesByCategory}
+                data={report.data.charts?.expensesByCategory}
                 cx="50%"
                 cy="50%"
                 labelLine={false}
@@ -347,7 +355,7 @@ export const EnhancedReportTemplate = ({ report }: EnhancedReportTemplateProps) 
                 fill="#8884d8"
                 dataKey="amount"
               >
-                {report.data.expensesByCategory?.map((entry: any, index: number) => (
+                {report.data.charts?.expensesByCategory?.map((entry: any, index: number) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
