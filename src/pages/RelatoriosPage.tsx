@@ -32,6 +32,13 @@ const RelatoriosPage: React.FC = () => {
   const [selectedPlatform, setSelectedPlatform] = useState<string>('all');
   const [currentReport, setCurrentReport] = useState<ReportData | null>(null);
 
+  // Atualizar automaticamente a prévia quando período ou propriedades globais mudarem
+  useEffect(() => {
+    if (currentReport) {
+      handleGenerateReport();
+    }
+  }, [selectedPeriod, startDateString, endDateString, selectedProperties]);
+
   // Verificar permissões
   const canViewReports = isMaster() || 
                          permissions.some(p => p.permission_type === 'reports_view' && p.permission_value) || 
@@ -138,12 +145,6 @@ const RelatoriosPage: React.FC = () => {
     }
   };
 
-  // Atualizar automaticamente a prévia quando período ou propriedades globais mudarem
-  useEffect(() => {
-    if (currentReport) {
-      handleGenerateReport();
-    }
-  }, [selectedPeriod, startDateString, endDateString, selectedProperties]);
 
   return (
     <MainLayout>
