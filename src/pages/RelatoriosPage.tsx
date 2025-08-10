@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -137,6 +137,13 @@ const RelatoriosPage: React.FC = () => {
       });
     }
   };
+
+  // Atualizar automaticamente a prévia quando período ou propriedades globais mudarem
+  useEffect(() => {
+    if (currentReport) {
+      handleGenerateReport();
+    }
+  }, [selectedPeriod, startDateString, endDateString, selectedProperties]);
 
   return (
     <MainLayout>

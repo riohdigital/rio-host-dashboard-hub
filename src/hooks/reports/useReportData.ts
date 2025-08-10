@@ -219,7 +219,7 @@ const generateFinancialReport = async (filters: ReportFilters) => {
 };
 
 const generateOccupancyReport = async (filters: ReportFilters) => {
-  const query = supabase
+  let query = supabase
     .from('reservations')
     .select(`
       *,
@@ -229,7 +229,11 @@ const generateOccupancyReport = async (filters: ReportFilters) => {
     .lte('check_out_date', filters.endDate);
 
   if (filters.propertyId && filters.propertyId !== 'all' && filters.propertyId !== 'todas') {
-    query.eq('property_id', filters.propertyId);
+    query = query.eq('property_id', filters.propertyId);
+  }
+
+  if (filters.selectedProperties && filters.selectedProperties.length > 0 && !filters.selectedProperties.includes('todas')) {
+    query = query.in('property_id', filters.selectedProperties);
   }
 
   const { data: reservations, error } = await query;
@@ -263,7 +267,7 @@ const generateOccupancyReport = async (filters: ReportFilters) => {
 };
 
 const generatePropertyReport = async (filters: ReportFilters) => {
-  const { data: reservations, error } = await supabase
+  let query = supabase
     .from('reservations')
     .select(`
       *,
@@ -272,7 +276,15 @@ const generatePropertyReport = async (filters: ReportFilters) => {
     .gte('check_in_date', filters.startDate)
     .lte('check_out_date', filters.endDate);
 
-  if (error) throw error;
+  if (filters.propertyId && filters.propertyId !== 'all' && filters.propertyId !== 'todas') {
+    query = query.eq('property_id', filters.propertyId);
+  }
+
+  if (filters.selectedProperties && filters.selectedProperties.length > 0 && !filters.selectedProperties.includes('todas')) {
+    query = query.in('property_id', filters.selectedProperties);
+  }
+
+  const { data: reservations, error } = await query;
 
   // Agrupar por propriedade
   const propertyData = reservations?.reduce((acc, r) => {
@@ -304,18 +316,20 @@ const generatePropertyReport = async (filters: ReportFilters) => {
 };
 
 const generatePlatformReport = async (filters: ReportFilters) => {
-  const query = supabase
+  let query = supabase
     .from('reservations')
     .select('*')
     .gte('check_in_date', filters.startDate)
     .lte('check_out_date', filters.endDate);
 
   if (filters.propertyId && filters.propertyId !== 'all' && filters.propertyId !== 'todas') {
-    query.eq('property_id', filters.propertyId);
+    query = query.eq('property_id', filters.propertyId);
+  }
+  if (filters.selectedProperties && filters.selectedProperties.length > 0 && !filters.selectedProperties.includes('todas')) {
+    query = query.in('property_id', filters.selectedProperties);
   }
 
   const { data: reservations, error } = await query;
-  if (error) throw error;
 
   // Agrupar por plataforma
   const platformData = reservations?.reduce((acc, r) => {
@@ -349,25 +363,31 @@ const generatePlatformReport = async (filters: ReportFilters) => {
 
 const generateExpensesReport = async (filters: ReportFilters) => {
   // Buscar receitas
-  const revenueQuery = supabase
+  let revenueQuery = supabase
     .from('reservations')
     .select('*')
     .gte('check_in_date', filters.startDate)
     .lte('check_out_date', filters.endDate);
 
   if (filters.propertyId && filters.propertyId !== 'all' && filters.propertyId !== 'todas') {
-    revenueQuery.eq('property_id', filters.propertyId);
+    revenueQuery = revenueQuery.eq('property_id', filters.propertyId);
+  }
+  if (filters.selectedProperties && filters.selectedProperties.length > 0 && !filters.selectedProperties.includes('todas')) {
+    revenueQuery = revenueQuery.in('property_id', filters.selectedProperties);
   }
 
   // Buscar despesas
-  const expenseQuery = supabase
+  let expenseQuery = supabase
     .from('expenses')
     .select('*')
     .gte('expense_date', filters.startDate)
     .lte('expense_date', filters.endDate);
 
   if (filters.propertyId && filters.propertyId !== 'all' && filters.propertyId !== 'todas') {
-    expenseQuery.eq('property_id', filters.propertyId);
+    expenseQuery = expenseQuery.eq('property_id', filters.propertyId);
+  }
+  if (filters.selectedProperties && filters.selectedProperties.length > 0 && !filters.selectedProperties.includes('todas')) {
+    expenseQuery = expenseQuery.in('property_id', filters.selectedProperties);
   }
 
   const [{ data: reservations, error: revenueError }, { data: expenses, error: expenseError }] = 
@@ -395,7 +415,7 @@ const generateExpensesReport = async (filters: ReportFilters) => {
 };
 
 const generateCheckinsReport = async (filters: ReportFilters) => {
-  const query = supabase
+  let query = supabase
     .from('reservations')
     .select(`
       *,
@@ -406,7 +426,10 @@ const generateCheckinsReport = async (filters: ReportFilters) => {
     .order('check_in_date');
 
   if (filters.propertyId && filters.propertyId !== 'all' && filters.propertyId !== 'todas') {
-    query.eq('property_id', filters.propertyId);
+    query = query.eq('property_id', filters.propertyId);
+  }
+  if (filters.selectedProperties && filters.selectedProperties.length > 0 && !filters.selectedProperties.includes('todas')) {
+    query = query.in('property_id', filters.selectedProperties);
   }
 
   const { data: reservations, error } = await query;

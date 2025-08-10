@@ -124,44 +124,71 @@ const InvestmentsPage = () => {
     }
   }, [isVisible]);
 
-  // Carregar reservations
-  useEffect(() => {
-    const fetchReservations = async () => {
+// Carregar reservations
+useEffect(() => {
+  const fetchReservations = async () => {
+    try {
+      const accessibleProperties = getAccessibleProperties();
+      let query = supabase
+        .from('reservations')
+        .select('*')
+        .order('check_in_date', { ascending: false });
+
+      if (selectedPeriod !== 'general') {
+        query = query
+          .gte('check_in_date', startDateString)
+          .lte('check_out_date', endDateString);
+      }
+
+      if (accessibleProperties.length > 0) {
+        query = query.in('property_id', accessibleProperties);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      setReservations(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar reservations:', error);
+    } finally {
+      setReservationsLoading(false);
+    }
+  };
+
+  if (!permissionsLoading) {
+    fetchReservations();
+  }
+}, [permissionsLoading, getAccessibleProperties]);
+
+// Refetch automático ao alterar período global
+useEffect(() => {
+  if (!permissionsLoading) {
+    (async () => {
       try {
+        setReservationsLoading(true);
         const accessibleProperties = getAccessibleProperties();
-        
         let query = supabase
           .from('reservations')
           .select('*')
           .order('check_in_date', { ascending: false });
-
-        // Aplicar filtros de data quando não for período geral
         if (selectedPeriod !== 'general') {
           query = query
             .gte('check_in_date', startDateString)
             .lte('check_out_date', endDateString);
         }
-
-        // Apply filters based on permissions
         if (accessibleProperties.length > 0) {
           query = query.in('property_id', accessibleProperties);
         }
-
         const { data, error } = await query;
-
         if (error) throw error;
         setReservations(data || []);
       } catch (error) {
-        console.error('Erro ao carregar reservations:', error);
+        console.error('Erro ao recarregar reservations:', error);
       } finally {
         setReservationsLoading(false);
       }
-    };
-
-    if (!permissionsLoading) {
-      fetchReservations();
-    }
-  }, [permissionsLoading, getAccessibleProperties]);
+    })();
+  }
+}, [selectedPeriod, startDateString, endDateString, permissionsLoading, getAccessibleProperties]);
 
   const handleCreateInvestment = async (investmentData: any) => {
     await createInvestment(investmentData);
