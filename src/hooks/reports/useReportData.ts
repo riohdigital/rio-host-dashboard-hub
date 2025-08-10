@@ -142,61 +142,77 @@ const generateFinancialReport = async (filters: ReportFilters) => {
     const netProfit = totalRevenue - totalExpenses;
     const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
 
-    // Fetch properties for detailed report
-    const { data: properties } = await supabase
-      .from('properties')
-      .select('id, name, nickname');
+// Fetch properties for detailed report
+const { data: properties } = await supabase
+  .from('properties')
+  .select('id, name, nickname');
 
-    // Calculate additional metrics
-    const receivedAmount = reservations?.filter(r => r.payment_status === 'Pago')
-      .reduce((sum, r) => sum + (Number(r.total_revenue) || 0), 0) || 0;
-    const pendingAmount = totalRevenue - receivedAmount;
+const periodStart = new Date(filters.startDate);
+const periodEnd = new Date(filters.endDate);
+const periodDays = Math.max(1, Math.ceil((periodEnd.getTime() - periodStart.getTime()) / (1000 * 60 * 60 * 24)));
 
-    // Group by property - Filter by selected property if specified
-    let filteredProperties = properties || [];
-    if (filters.propertyId && filters.propertyId !== 'all') {
-      filteredProperties = filteredProperties.filter(p => p.id === filters.propertyId);
+// Calculate additional metrics
+const receivedAmount = reservations?.filter(r => r.payment_status === 'Pago')
+  .reduce((sum, r) => sum + (Number(r.total_revenue) || 0), 0) || 0;
+const pendingAmount = totalRevenue - receivedAmount;
+
+// Group by property - Filter by selected property if specified
+let filteredProperties = properties || [];
+if (filters.propertyId && filters.propertyId !== 'all') {
+  filteredProperties = filteredProperties.filter(p => p.id === filters.propertyId);
+}
+
+// Apply global property filter if available
+if (filters.selectedProperties && filters.selectedProperties.length > 0 && !filters.selectedProperties.includes('todas')) {
+  filteredProperties = filteredProperties.filter(p => filters.selectedProperties!.includes(p.id));
+}
+
+const propertiesData = filteredProperties.map(property => {
+  const propertyReservations = (reservations || []).filter(r => r.property_id === property.id);
+  const propertyRevenue = propertyReservations.reduce((sum, r) => sum + (Number(r.total_revenue) || 0), 0);
+  const propertyReceived = propertyReservations
+    .filter(r => r.payment_status === 'Pago')
+    .reduce((sum, r) => sum + (Number(r.total_revenue) || 0), 0);
+  const propertyPending = propertyRevenue - propertyReceived;
+
+  // Ocupação da propriedade no período
+  const occupiedNights = propertyReservations.reduce((sum, r) => {
+    const ci = new Date(r.check_in_date);
+    const co = new Date(r.check_out_date);
+    const overlapStart = ci > periodStart ? ci : periodStart;
+    const overlapEnd = co < periodEnd ? co : periodEnd;
+    const nights = Math.max(0, Math.ceil((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)));
+    return sum + nights;
+  }, 0);
+  const occupancyRate = (occupiedNights / periodDays) * 100;
+
+  // Platform breakdown for this property
+  const platformsData = propertyReservations.reduce((acc: any[], reservation) => {
+    const existing = acc.find(item => item.name === reservation.platform);
+    if (existing) {
+      existing.revenue += Number(reservation.total_revenue) || 0;
+      existing.count += 1;
+    } else {
+      acc.push({
+        name: reservation.platform,
+        revenue: Number(reservation.total_revenue) || 0,
+        count: 1
+      });
     }
-    
-    // Apply global property filter if available
-    if (filters.selectedProperties && filters.selectedProperties.length > 0 && !filters.selectedProperties.includes('todas')) {
-      filteredProperties = filteredProperties.filter(p => filters.selectedProperties!.includes(p.id));
-    }
-    
-    const propertiesData = filteredProperties.map(property => {
-      const propertyReservations = (reservations || []).filter(r => r.property_id === property.id);
-      const propertyRevenue = propertyReservations.reduce((sum, r) => sum + (Number(r.total_revenue) || 0), 0);
-      const propertyReceived = propertyReservations
-        .filter(r => r.payment_status === 'Pago')
-        .reduce((sum, r) => sum + (Number(r.total_revenue) || 0), 0);
-      const propertyPending = propertyRevenue - propertyReceived;
+    return acc;
+  }, [] as any[]);
 
-      // Platform breakdown for this property
-      const platformsData = propertyReservations.reduce((acc: any[], reservation) => {
-        const existing = acc.find(item => item.name === reservation.platform);
-        if (existing) {
-          existing.revenue += Number(reservation.total_revenue) || 0;
-          existing.count += 1;
-        } else {
-          acc.push({
-            name: reservation.platform,
-            revenue: Number(reservation.total_revenue) || 0,
-            count: 1
-          });
-        }
-        return acc;
-      }, []);
-
-      return {
-        name: property.nickname || property.name,
-        totalRevenue: propertyRevenue,
-        receivedAmount: propertyReceived,
-        pendingAmount: propertyPending,
-        totalReservations: propertyReservations.length,
-        platforms: platformsData,
-        reservations: propertyReservations.map(r => ({ code: r.reservation_code }))
-      };
-    });
+  return {
+    name: property.nickname || property.name,
+    totalRevenue: propertyRevenue,
+    receivedAmount: propertyReceived,
+    pendingAmount: propertyPending,
+    totalReservations: propertyReservations.length,
+    platforms: platformsData,
+    reservations: propertyReservations.map(r => ({ code: r.reservation_code })),
+    occupancyRate
+  };
+});
 
     return {
       totalRevenue,
@@ -219,14 +235,17 @@ const generateFinancialReport = async (filters: ReportFilters) => {
 };
 
 const generateOccupancyReport = async (filters: ReportFilters) => {
+  const startDate = new Date(filters.startDate);
+  const endDate = new Date(filters.endDate);
+
   let query = supabase
     .from('reservations')
     .select(`
       *,
       properties(name, nickname)
     `)
-    .gte('check_in_date', filters.startDate)
-    .lte('check_out_date', filters.endDate);
+    .lte('check_in_date', filters.endDate)
+    .gte('check_out_date', filters.startDate);
 
   if (filters.propertyId && filters.propertyId !== 'all' && filters.propertyId !== 'todas') {
     query = query.eq('property_id', filters.propertyId);
@@ -239,25 +258,25 @@ const generateOccupancyReport = async (filters: ReportFilters) => {
   const { data: reservations, error } = await query;
   if (error) throw error;
 
-  // Calcular taxa de ocupação
-  const startDate = new Date(filters.startDate);
-  const endDate = new Date(filters.endDate);
-  const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-  
-  const occupiedDays = reservations?.reduce((sum, r) => {
-    const checkIn = new Date(r.check_in_date);
-    const checkOut = new Date(r.check_out_date);
-    return sum + Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
-  }, 0) || 0;
+  const totalDays = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
 
-  const occupancyRate = totalDays > 0 ? (occupiedDays / totalDays) * 100 : 0;
+  const occupiedDays = (reservations || []).reduce((sum, r: any) => {
+    const ci = new Date(r.check_in_date);
+    const co = new Date(r.check_out_date);
+    const overlapStart = ci > startDate ? ci : startDate;
+    const overlapEnd = co < endDate ? co : endDate;
+    const nights = Math.max(0, Math.ceil((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)));
+    return sum + nights;
+  }, 0);
+
+  const occupancyRate = (occupiedDays / totalDays) * 100;
 
   return {
     summary: {
       totalDays,
       occupiedDays,
       occupancyRate,
-      averageStay: reservations?.length ? occupiedDays / reservations.length : 0
+      averageStay: (reservations?.length || 0) > 0 ? occupiedDays / (reservations!.length) : 0
     },
     reservations: reservations || [],
     charts: {
@@ -267,14 +286,18 @@ const generateOccupancyReport = async (filters: ReportFilters) => {
 };
 
 const generatePropertyReport = async (filters: ReportFilters) => {
+  const startDate = new Date(filters.startDate);
+  const endDate = new Date(filters.endDate);
+  const totalDays = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+
   let query = supabase
     .from('reservations')
     .select(`
       *,
       properties(name, nickname)
     `)
-    .gte('check_in_date', filters.startDate)
-    .lte('check_out_date', filters.endDate);
+    .lte('check_in_date', filters.endDate)
+    .gte('check_out_date', filters.startDate);
 
   if (filters.propertyId && filters.propertyId !== 'all' && filters.propertyId !== 'todas') {
     query = query.eq('property_id', filters.propertyId);
@@ -285,31 +308,55 @@ const generatePropertyReport = async (filters: ReportFilters) => {
   }
 
   const { data: reservations, error } = await query;
+  if (error) throw error;
 
-  // Agrupar por propriedade
-  const propertyData = reservations?.reduce((acc, r) => {
+  // Agrupar e calcular métricas por propriedade
+  const byProperty = (reservations || []).reduce((acc: any, r: any) => {
     const propertyId = r.property_id;
     if (!acc[propertyId]) {
       acc[propertyId] = {
         property: r.properties,
         reservations: [],
         totalRevenue: 0,
-        netRevenue: 0
+        netRevenue: 0,
+        occupiedNights: 0
       };
     }
     acc[propertyId].reservations.push(r);
     acc[propertyId].totalRevenue += Number(r.total_revenue) || 0;
     acc[propertyId].netRevenue += Number(r.net_revenue) || 0;
+
+    // Noites ocupadas sobrepondo o período
+    const ci = new Date(r.check_in_date);
+    const co = new Date(r.check_out_date);
+    const overlapStart = ci > startDate ? ci : startDate;
+    const overlapEnd = co < endDate ? co : endDate;
+    const nights = Math.max(0, Math.ceil((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)));
+    acc[propertyId].occupiedNights += nights;
+
     return acc;
-  }, {} as any) || {};
+  }, {} as any);
+
+  const properties = Object.values(byProperty).map((p: any) => {
+    const occupancyRatio = totalDays > 0 ? (p.occupiedNights / totalDays) : 0;
+    const adr = p.occupiedNights > 0 ? (p.netRevenue || p.totalRevenue) / p.occupiedNights : 0;
+    const revpar = totalDays > 0 ? (p.netRevenue || p.totalRevenue) / totalDays : 0;
+    return {
+      name: p.property?.nickname || p.property?.name || 'N/A',
+      totalRevenue: p.totalRevenue,
+      occupancy: occupancyRatio * 100,
+      adr,
+      revpar
+    };
+  });
 
   return {
-    properties: Object.values(propertyData),
+    properties,
     charts: {
-      propertyComparison: Object.values(propertyData).map((p: any) => ({
-        name: p.property?.nickname || p.property?.name || 'N/A',
+      propertyComparison: properties.map((p: any) => ({
+        name: p.name,
         revenue: p.totalRevenue,
-        reservations: p.reservations.length
+        reservations: (byProperty as any)[Object.keys(byProperty).find(k => ((byProperty as any)[k].property?.nickname || (byProperty as any)[k].property?.name) === p.name)]?.reservations?.length || 0
       }))
     }
   };
@@ -319,8 +366,8 @@ const generatePlatformReport = async (filters: ReportFilters) => {
   let query = supabase
     .from('reservations')
     .select('*')
-    .gte('check_in_date', filters.startDate)
-    .lte('check_out_date', filters.endDate);
+    .lte('check_in_date', filters.endDate)
+    .gte('check_out_date', filters.startDate);
 
   if (filters.propertyId && filters.propertyId !== 'all' && filters.propertyId !== 'todas') {
     query = query.eq('property_id', filters.propertyId);
@@ -328,24 +375,23 @@ const generatePlatformReport = async (filters: ReportFilters) => {
   if (filters.selectedProperties && filters.selectedProperties.length > 0 && !filters.selectedProperties.includes('todas')) {
     query = query.in('property_id', filters.selectedProperties);
   }
+  if (filters.platform && filters.platform !== 'all') {
+    query = query.eq('platform', filters.platform);
+  }
 
   const { data: reservations, error } = await query;
+  if (error) throw error;
 
-  // Agrupar por plataforma
-  const platformData = reservations?.reduce((acc, r) => {
+  const platformData = (reservations || []).reduce((acc: any, r: any) => {
     const platform = r.platform || 'Não informado';
     if (!acc[platform]) {
-      acc[platform] = {
-        reservations: 0,
-        revenue: 0,
-        commission: 0
-      };
+      acc[platform] = { reservations: 0, revenue: 0, commission: 0 };
     }
     acc[platform].reservations++;
     acc[platform].revenue += Number(r.total_revenue) || 0;
     acc[platform].commission += Number(r.commission_amount) || 0;
     return acc;
-  }, {} as any) || {};
+  }, {} as any);
 
   return {
     platforms: Object.entries(platformData).map(([name, data]: [string, any]) => ({
@@ -355,7 +401,7 @@ const generatePlatformReport = async (filters: ReportFilters) => {
     charts: {
       platformDistribution: Object.entries(platformData).map(([name, data]: [string, any]) => ({
         name,
-        value: data.reservations
+        value: (data as any).reservations
       }))
     }
   };
@@ -421,8 +467,8 @@ const generateCheckinsReport = async (filters: ReportFilters) => {
       *,
       properties(name, nickname)
     `)
-    .gte('check_in_date', filters.startDate)
-    .lte('check_out_date', filters.endDate)
+    .lte('check_in_date', filters.endDate)
+    .gte('check_out_date', filters.startDate)
     .order('check_in_date');
 
   if (filters.propertyId && filters.propertyId !== 'all' && filters.propertyId !== 'todas') {
@@ -437,8 +483,8 @@ const generateCheckinsReport = async (filters: ReportFilters) => {
 
   return {
     reservations: reservations || [],
-    upcomingCheckins: (reservations || []).filter(r => new Date(r.check_in_date) >= new Date()),
-    upcomingCheckouts: (reservations || []).filter(r => new Date(r.check_out_date) >= new Date()),
+    upcomingCheckins: (reservations || []).filter(r => new Date(r.check_in_date) >= new Date(filters.startDate) && new Date(r.check_in_date) <= new Date(filters.endDate)),
+    upcomingCheckouts: (reservations || []).filter(r => new Date(r.check_out_date) >= new Date(filters.startDate) && new Date(r.check_out_date) <= new Date(filters.endDate)),
     charts: {
       checkinsByDay: calculateCheckinsByDay(reservations || [])
     }

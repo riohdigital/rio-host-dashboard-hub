@@ -42,35 +42,38 @@ const ReceiptGenerator = () => {
   const { selectedProperties, selectedPeriod } = useGlobalFilters();
   const { startDateString, endDateString } = useDateRange(selectedPeriod);
 
-  useEffect(() => {
-    fetchReservations();
-  }, [selectedProperties, selectedPeriod]);
+useEffect(() => {
+  fetchReservations();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [selectedProperties, selectedPeriod, startDateString, endDateString]);
 
   const fetchReservations = async () => {
     try {
       setLoading(true);
       
-      let query = supabase
-        .from('reservations')
-        .select(`
-          *,
-          properties (
-            name,
-            address
-          )
-        `);
+let query = supabase
+  .from('reservations')
+  .select(`
+    *,
+    properties (
+      name,
+      address,
+      cleaning_fee,
+      commission_rate
+    )
+  `);
 
       // Apply property filter
       if (selectedProperties.length > 0 && !selectedProperties.includes('todas')) {
         query = query.in('property_id', selectedProperties);
       }
 
-      // Apply date filter using the calculated date range
-      if (selectedPeriod !== 'general') {
-        query = query
-          .gte('check_in_date', startDateString)
-          .lte('check_in_date', endDateString);
-      }
+// Apply date filter using overlap within the period
+if (selectedPeriod !== 'general') {
+  query = query
+    .lte('check_in_date', endDateString)
+    .gte('check_out_date', startDateString);
+}
 
       const { data, error } = await query
         .order('check_in_date', { ascending: false })
@@ -157,31 +160,28 @@ const ReceiptGenerator = () => {
       pdf.text(`Total de Noites: ${nights}`, 20, yPosition);
       yPosition += 15;
       
-      // Informações financeiras
-      pdf.setFont("helvetica", "bold");
-      pdf.text('INFORMAÇÕES FINANCEIRAS:', 20, yPosition);
-      yPosition += 10;
-      
-      pdf.setFont("helvetica", "normal");
-      const totalFormatted = new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: 'BRL'
-      }).format(reservation.total_revenue);
-      
-      pdf.text(`Valor Total: ${totalFormatted}`, 20, yPosition);
-      yPosition += 7;
-      
-      // Informações específicas do tipo de recibo
-      if (receiptType === 'payment') {
-        pdf.text(`Status do Pagamento: ${reservation.payment_status || 'N/A'}`, 20, yPosition);
-        yPosition += 7;
-        if (reservation.payment_date) {
-          const paymentDate = format(new Date(reservation.payment_date), "dd/MM/yyyy", { locale: ptBR });
-          pdf.text(`Data do Pagamento: ${paymentDate}`, 20, yPosition);
-          yPosition += 7;
-        }
-      }
-      yPosition += 13;
+// Informações financeiras
+pdf.setFont("helvetica", "bold");
+pdf.text('INFORMAÇÕES FINANCEIRAS:', 20, yPosition);
+yPosition += 10;
+
+pdf.setFont("helvetica", "normal");
+const totalFormatted = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL'
+}).format(reservation.total_revenue || 0);
+const cleaningFee = reservation.properties?.cleaning_fee || 0;
+const netOwner = (reservation as any).net_revenue ?? (reservation.total_revenue - ((reservation as any).commission_amount || 0));
+const ownerTotal = Math.max(0, Number(netOwner));
+const cleaningFormatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(cleaningFee));
+const ownerFormatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(ownerTotal);
+
+pdf.text(`Valor Total da Reserva: ${totalFormatted}`, 20, yPosition);
+yPosition += 7;
+pdf.text(`Taxa de Limpeza: ${cleaningFormatted}`, 20, yPosition);
+yPosition += 7;
+pdf.text(`Valor do Proprietário: ${ownerFormatted}`, 20, yPosition);
+yPosition += 7;
       
       // Rodapé
       pdf.setFontSize(10);
@@ -268,16 +268,21 @@ const ReceiptGenerator = () => {
         pdf.text(`Período: ${checkIn} a ${checkOut}`, 20, yPosition);
         yPosition += 7;
         
-        const totalFormatted = new Intl.NumberFormat('pt-BR', {
-          style: 'currency',
-          currency: 'BRL'
-        }).format(reservation.total_revenue);
-        pdf.text(`Valor: ${totalFormatted}`, 20, yPosition);
-        
-        if (receiptType === 'payment' && reservation.payment_status) {
-          yPosition += 7;
-          pdf.text(`Status: ${reservation.payment_status}`, 20, yPosition);
-        }
+const totalFormatted = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL'
+}).format(reservation.total_revenue || 0);
+pdf.text(`Valor: ${totalFormatted}`, 20, yPosition);
+
+if (receiptType === 'payment') {
+  const cleaningFee = reservation.properties?.cleaning_fee || 0;
+  const netOwner = (reservation as any).net_revenue ?? (reservation.total_revenue - ((reservation as any).commission_amount || 0));
+  const ownerTotal = Math.max(0, Number(netOwner));
+  const cleaningFormatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(cleaningFee));
+  const ownerFormatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(ownerTotal);
+  yPosition += 7;
+  pdf.text(`Limpeza: ${cleaningFormatted} | Proprietário: ${ownerFormatted}`, 20, yPosition);
+}
         
         isFirstPage = false;
       }
@@ -456,18 +461,18 @@ const ReceiptGenerator = () => {
               </div>
               
               <div className="bg-white p-6 border rounded-lg shadow-sm max-w-2xl mx-auto">
-                <div className="text-center mb-6">
-                  <h2 className="text-xl font-bold">
-                    {receiptType === 'payment' ? 'RECIBO DE PAGAMENTO' : 'RECIBO DE RESERVA'}
-                  </h2>
-                  <div className="w-full h-px bg-gray-300 my-4"></div>
-                  <p className="text-sm text-gray-600">RIOH HOST GESTÃO DE HOSPEDAGEM</p>
-                  <p className="text-xs text-gray-500">Gestão Profissional de Propriedades para Hospedagem</p>
-                </div>
+<div className="text-center mb-6">
+  <h2 className="text-xl font-bold">
+    {receiptType === 'payment' ? 'RECIBO DE PAGAMENTO' : 'RECIBO DE RESERVA'}
+  </h2>
+  <div className="w-full h-px bg-gray-300 my-4"></div>
+  <p className="text-sm text-gray-600">RIOH HOST GESTÃO DE HOSPEDAGEM</p>
+  <p className="text-xs text-gray-500">Gestão Profissional de Propriedades para Hospedagem</p>
+</div>
                 
                 <div className="space-y-4 text-sm">
                   <div>
-                    <h4 className="font-semibold mb-2">DADOS DA RESERVA:</h4>
+<h4 className="font-semibold mb-2">DADOS DA RESERVA:</h4>
                     <p>Código da Reserva: {previewReservation.reservation_code}</p>
                     <p>Propriedade: {previewReservation.properties?.name || 'N/A'}</p>
                     <p>Endereço: {previewReservation.properties?.address || 'N/A'}</p>

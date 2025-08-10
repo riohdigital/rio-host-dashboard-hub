@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Property } from '@/types/property';
+import { useAuth } from '@/hooks/useAuth';
 
 interface PropertyFormProps {
   property?: Property | null;
@@ -32,8 +33,9 @@ const PropertyForm = ({ property, onSuccess, onCancel }: PropertyFormProps) => {
     default_checkin_time: '15:00',
     default_checkout_time: '11:00'
   });
-  const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
+const [loading, setLoading] = useState(false);
+const { toast } = useToast();
+const { user } = useAuth();
 
   useEffect(() => {
     if (property) {
@@ -81,9 +83,9 @@ const PropertyForm = ({ property, onSuccess, onCancel }: PropertyFormProps) => {
           .eq('id', property.id);
         error = updateError;
       } else {
-        const { error: insertError } = await supabase
-          .from('properties')
-          .insert([dataToSubmit]);
+const { error: insertError } = await supabase
+  .from('properties')
+  .insert([{ ...dataToSubmit, created_by: user?.id }]);
         error = insertError;
       }
 
