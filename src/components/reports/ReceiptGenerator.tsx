@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom/client'; // NOVO: Importe o ReactDOM para a nova lógica de PDF
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,31 +11,24 @@ import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
+import ProfessionalReceiptTemplate from './ProfessionalReceiptTemplate';
 
-// Importe o seu novo componente de template
-import ProfessionalReceiptTemplate from './ProfessionalReceiptTemplate'; // Ajuste o caminho se necessário
-
-// Interface completa da Reserva, com exemplos dos dados fornecidos
+// Interface e Type permanecem os mesmos
 interface Reservation {
   id: string;
-  guest_name: string; [cite_start]// Ex: Alexis Fabrizio Carvajal [cite: 9, 30]
-  guest_phone: string; [cite_start]// Ex: N/A [cite: 10, 31]
-  check_in_date: string; [cite_start]// Ex: 28/07/2025 [cite: 13, 34]
-  check_out_date: string; [cite_start]// Ex: 02/08/2025 [cite: 14, 35]
-  total_revenue: number; [cite_start]// Ex: 1030.95 [cite: 17, 38]
-  platform: string; [cite_start]// Ex: Airbnb [cite: 7, 28]
-  reservation_code: string; [cite_start]// Ex: HM8ETJHAEF [cite: 5, 26]
-  number_of_guests: number; [cite_start]// Ex: 2 [cite: 11, 32]
-  properties?: {
-    name: string; [cite_start]// Ex: Santa Clara 115/612 [cite: 6, 27]
-    address?: string; [cite_start]// Ex: Rua Santa Clara, 115 612, Rio de Janeiro, Rio de Janeiro 22041-011, Brasil [cite: 7, 28]
-    cleaning_fee?: number; [cite_start]// Ex: 250.00 [cite: 18, 39]
-  };
+  guest_name: string;
+  guest_phone: string;
+  check_in_date: string;
+  check_out_date: string;
+  total_revenue: number;
+  platform: string;
+  reservation_code: string;
+  number_of_guests: number;
+  properties?: { name: string; address?: string; cleaning_fee?: number; };
   payment_status?: string;
   payment_date?: string;
-  net_revenue?: number; [cite_start]// Ex: 624.76 [cite: 19, 40]
+  net_revenue?: number;
 }
-
 type ReceiptType = 'reservation' | 'payment';
 
 const ReceiptGenerator = () => {
@@ -47,30 +41,7 @@ const ReceiptGenerator = () => {
   useEffect(() => {
     const fetchReservations = async () => {
       setLoading(true);
-      // Simula a busca de dados que você já tem no seu ambiente
-      const { data, error } = await supabase
-        .from('reservations') // Use o nome correto da sua tabela
-        .select(`
-          id,
-          guest_name,
-          guest_phone,
-          check_in_date,
-          check_out_date,
-          total_revenue,
-          platform,
-          reservation_code,
-          number_of_guests,
-          payment_status,
-          payment_date,
-          net_revenue,
-          properties (
-            name,
-            address,
-            cleaning_fee
-          )
-        `)
-        .order('check_in_date', { ascending: false });
-
+      const { data, error } = await supabase.from('reservations').select(`*, properties (*)`).order('check_in_date', { ascending: false });
       if (error) {
         console.error('Erro ao buscar reservas:', error);
         toast({ title: "Erro", description: "Não foi possível carregar as reservas.", variant: "destructive" });
@@ -79,62 +50,53 @@ const ReceiptGenerator = () => {
       }
       setLoading(false);
     };
-
     fetchReservations();
   }, [toast]);
 
+  // CORREÇÃO: LÓGICA ROBUSTA PARA GERAR PDF SEM FICAR EM BRANCO
   const generatePDF = (reservation: Reservation) => {
-    toast({ title: "Gerando PDF...", description: "Por favor, aguarde." });
+    toast({ title: "Gerando PDF...", description: "Aguarde um momento, estamos preparando seu documento." });
 
-    setPreviewReservation(reservation);
+    const container = document.createElement('div');
+    container.style.position = 'absolute';
+    container.style.left = '-9999px'; // Posiciona o container fora da tela
+    document.body.appendChild(container);
 
+    const templateElement = React.createElement(ProfessionalReceiptTemplate, { reservation, receiptType });
+    const tempRoot = ReactDOM.createRoot(container);
+    tempRoot.render(templateElement);
+    
     setTimeout(() => {
-      const receiptElement = document.getElementById('receipt-to-print');
-      
-      if (!receiptElement) {
-        toast({ title: "Erro", description: "Não foi possível encontrar o template para gerar o PDF.", variant: "destructive" });
-        setPreviewReservation(null);
+      const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
+      const elementToPrint = container.children[0];
+
+      if (!elementToPrint) {
+        toast({ title: "Erro", description: "Ocorreu um problema ao criar o template.", variant: "destructive"});
+        document.body.removeChild(container);
         return;
       }
-      
-      const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
 
-      pdf.html(receiptElement, {
+      pdf.html(elementToPrint, {
         callback: function (doc) {
           const filename = `${receiptType === 'payment' ? 'recibo-pagamento' : 'recibo-reserva'}-${reservation.reservation_code}.pdf`;
           doc.save(filename);
-          
-          setPreviewReservation(null);
-          toast({ title: "Sucesso", description: "Recibo gerado com sucesso!" });
+          document.body.removeChild(container); // Limpa o container temporário
+          toast({ title: "Sucesso", description: "Recibo gerado!" });
         },
         html2canvas: {
-          scale: 0.7, 
+          scale: 0.65, // Ajuste fino da escala para garantir que tudo caiba
           useCORS: true
         },
         margin: [0, 0, 0, 0]
       });
-
-    }, 500);
+    }, 1000); // Um delay seguro para garantir que as imagens externas (logo, QR) sejam carregadas
   };
-  
+
   const generateBatchPDF = async () => {
-    // Esta função foi mantida conforme solicitado, para implementação futura de um template de lote.
-    toast({
-        title: "Função em desenvolvimento",
-        description: "A geração de um resumo em lote ainda será implementada com um novo template."
-    });
+    toast({ title: "Função em desenvolvimento", description: "A geração de um resumo em lote será implementada." });
   };
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value);
-  };
-
-  const formatDate = (dateString: string) => {
-    return format(new Date(dateString), "dd/MM/yyyy", { locale: ptBR });
-  };
+  const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+  const formatDate = (dateString: string) => format(new Date(dateString), "dd/MM/yyyy", { locale: ptBR });
 
   if (loading) {
     return (
@@ -149,10 +111,7 @@ const ReceiptGenerator = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <FileText className="h-5 w-5" />
-          Gerador de Recibos
-        </CardTitle>
+        <CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5" />Gerador de Recibos</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
@@ -161,92 +120,46 @@ const ReceiptGenerator = () => {
               <div className="space-y-2">
                 <label className="text-sm font-medium">Tipo de Recibo:</label>
                 <Select value={receiptType} onValueChange={(value: ReceiptType) => setReceiptType(value)}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="reservation">Recibo de Reserva</SelectItem>
                     <SelectItem value="payment">Recibo de Pagamento</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              
-              <p className="text-sm text-muted-foreground pt-7">
-                {reservations.length} reserva(s) disponível(eis)
-                {receiptType === 'payment' && (
-                  <span className="block">
-                    ({reservations.filter(r => r.payment_status === 'Pago').length} com pagamento confirmado)
-                  </span>
-                )}
-              </p>
+              <p className="text-sm text-muted-foreground pt-7">{reservations.length} reserva(s) disponível(eis)</p>
             </div>
-            
-            <Button 
-              onClick={generateBatchPDF}
-              disabled={reservations.length === 0}
-              className="flex items-center gap-2"
-            >
-              <Download className="h-4 w-4" />
-              Gerar Resumo em Lote
-            </Button>
+            <Button onClick={generateBatchPDF} disabled={reservations.length === 0} className="flex items-center gap-2"><Download className="h-4 w-4" />Gerar Resumo em Lote</Button>
           </div>
-
           <Separator />
-
           <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
-            {reservations.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                Nenhuma reserva encontrada
-              </div>
-            ) : (
-              reservations.map((reservation) => (
-                <div
-                  key={reservation.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex-1 space-y-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant="outline">
-                        {reservation.reservation_code}
-                      </Badge>
-                      <Badge variant={reservation.platform === 'Airbnb' ? 'default' : 'secondary'}>
-                        {reservation.platform}
-                      </Badge>
-                      {reservation.payment_status && (
-                        <Badge variant={reservation.payment_status === 'Pago' ? 'default' : 'destructive'}>
-                          {reservation.payment_status}
-                        </Badge>
-                      )}
-                    </div>
-                    
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground pt-1">
-                      <div className="flex items-center gap-1"><User className="h-3 w-3" />{reservation.guest_name}</div>
-                      <div className="flex items-center gap-1"><MapPin className="h-3 w-3" />{reservation.properties?.name}</div>
-                    </div>
-                    
-                    <div className="text-lg font-semibold text-primary pt-1">
-                      {formatCurrency(reservation.total_revenue)}
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setPreviewReservation(reservation)} className="flex items-center gap-1"><Eye className="h-3 w-3" />Prévia</Button>
-                    <Button size="sm" onClick={() => generatePDF(reservation)} className="flex items-center gap-1"><Download className="h-3 w-3" />PDF</Button>
-                  </div>
+            {reservations.map((reservation) => (
+              <div key={reservation.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                <div className="flex-1 space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap"><Badge variant="outline">{reservation.reservation_code}</Badge><Badge variant={reservation.platform === 'Airbnb' ? 'default' : 'secondary'}>{reservation.platform}</Badge></div>
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground pt-1"><div className="flex items-center gap-1"><User className="h-3 w-3" />{reservation.guest_name}</div><div className="flex items-center gap-1"><MapPin className="h-3 w-3" />{reservation.properties?.name}</div></div>
+                  <div className="text-lg font-semibold text-primary pt-1">{formatCurrency(reservation.total_revenue)}</div>
                 </div>
-              ))
-            )}
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setPreviewReservation(reservation)} className="flex items-center gap-1"><Eye className="h-3 w-3" />Prévia</Button>
+                  <Button size="sm" onClick={() => generatePDF(reservation)} className="flex items-center gap-1"><Download className="h-3 w-3" />PDF</Button>
+                </div>
+              </div>
+            ))}
           </div>
-
+          
+          {/* CORREÇÃO: Popup da prévia com botão de fechar visível */}
           {previewReservation && (
-            <div id="preview-wrapper" className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                 <div className="bg-transparent rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto relative">
-                     <Button variant="ghost" size="sm" onClick={() => setPreviewReservation(null)} className="absolute -top-8 right-0 z-10 text-white hover:bg-white/20"><X className="h-6 w-6"/></Button>
-                     <ProfessionalReceiptTemplate
-                         reservation={previewReservation}
-                         receiptType={receiptType}
-                     />
-                 </div>
+            <div id="preview-wrapper" className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg shadow-2xl max-w-4xl w-full relative">
+                {/* BOTÃO DE FECHAR VISÍVEL */}
+                <Button variant="ghost" size="icon" onClick={() => setPreviewReservation(null)} className="absolute top-2 right-2 z-10 bg-white/50 hover:bg-white/80 rounded-full h-8 w-8">
+                  <X className="h-5 w-5 text-gray-600"/>
+                </Button>
+                <div className="max-h-[90vh] overflow-y-auto">
+                   <ProfessionalReceiptTemplate reservation={previewReservation} receiptType={receiptType}/>
+                </div>
+              </div>
             </div>
           )}
         </div>
