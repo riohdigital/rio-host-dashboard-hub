@@ -33,49 +33,23 @@ interface Reservation {
   payment_date?: string;
 }
 
-type ReceiptType = 'reservation' | 'payment';
-
-const ReceiptGenerator: React.FC = () => {
-  const [reservations, setReservations] = useState<Reservation[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [receiptType, setReceiptType] = useState<ReceiptType>('reservation');
-  const [previewReservation, setPreviewReservation] = useState<Reservation | null>(null);
-  const { toast } = useToast();
-  // Simulação de outros hooks se não estiverem no contexto global
-  // const { propertyId, platform } = useGlobalFilters();
-  // const { dateRange } = useDateRange();
-
-  // Simulação de useEffect para carregar dados
-  useEffect(() => {
-    const fetchReservations = async () => {
-      setLoading(true);
-      // Dados de exemplo para teste. Substitua pela sua lógica de busca no Supabase.
-      setReservations([
-        { id: '1', guest_name: 'João da Silva', guest_phone: '11987654321', check_in_date: '2025-09-10', check_out_date: '2025-09-15', total_revenue: 1500, platform: 'Airbnb', reservation_code: 'XYZ123', number_of_guests: 2, properties: { name: 'Ap. Copacabana', address: 'Av. Atlântica, 123', cleaning_fee: 150 }, payment_status: 'Pago', payment_date: '2025-08-01' },
-        { id: '2', guest_name: 'Maria Oliveira', guest_phone: '21912345678', check_in_date: '2025-10-20', check_out_date: '2025-10-25', total_revenue: 2200, platform: 'Booking', reservation_code: 'ABC987', number_of_guests: 4, properties: { name: 'Casa Ipanema', cleaning_fee: 200 }, payment_status: 'Pendente' }
-      ]);
-      setLoading(false);
-    };
-    fetchReservations();
-  }, []);
-
-  const generatePDF = (reservation: Reservation) => {
-    try {
-      const pdf = new jsPDF();
-
+      // Header - diferentes títulos baseados no tipo
       pdf.setFontSize(20);
       pdf.setFont("helvetica", "bold");
       const title = receiptType === 'payment' ? 'RECIBO DE PAGAMENTO' : 'RECIBO DE RESERVA';
       pdf.text(title, 105, 20, { align: 'center' });
       
+      // Linha separadora
       pdf.setDrawColor(0, 0, 0);
       pdf.line(20, 30, 190, 30);
       
+      // Informações da empresa
       pdf.setFontSize(12);
       pdf.setFont("helvetica", "normal");
       pdf.text('RIOH HOST GESTÃO DE HOSPEDAGEM', 20, 45);
       pdf.text('Gestão Profissional de Propriedades para Hospedagem', 20, 52);
       
+      // Informações da reserva
       let yPosition = 70;
       
       pdf.setFont("helvetica", "bold");
@@ -92,6 +66,7 @@ const ReceiptGenerator: React.FC = () => {
       pdf.text(`Plataforma: ${reservation.platform}`, 20, yPosition);
       yPosition += 15;
       
+      // Informações do hóspede
       pdf.setFont("helvetica", "bold");
       pdf.text('DADOS DO HÓSPEDE:', 20, yPosition);
       yPosition += 10;
@@ -104,6 +79,7 @@ const ReceiptGenerator: React.FC = () => {
       pdf.text(`Número de Hóspedes: ${reservation.number_of_guests || 1}`, 20, yPosition);
       yPosition += 15;
       
+      // Datas da estadia
       pdf.setFont("helvetica", "bold");
       pdf.text('PERÍODO DA ESTADIA:', 20, yPosition);
       yPosition += 10;
@@ -120,25 +96,30 @@ const ReceiptGenerator: React.FC = () => {
       pdf.text(`Total de Noites: ${nights}`, 20, yPosition);
       yPosition += 15;
       
-      pdf.setFont("helvetica", "bold");
-      pdf.text('INFORMAÇÕES FINANCEIRAS:', 20, yPosition);
-      yPosition += 10;
+// Informações financeiras
+pdf.setFont("helvetica", "bold");
+pdf.text('INFORMAÇÕES FINANCEIRAS:', 20, yPosition);
+yPosition += 10;
 
-      pdf.setFont("helvetica", "normal");
-      const totalFormatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(reservation.total_revenue || 0);
-      const cleaningFee = reservation.properties?.cleaning_fee || 0;
-      const netOwner = (reservation as any).net_revenue ?? (reservation.total_revenue - ((reservation as any).commission_amount || 0));
-      const ownerTotal = Math.max(0, Number(netOwner));
-      const cleaningFormatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(cleaningFee));
-      const ownerFormatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(ownerTotal);
+pdf.setFont("helvetica", "normal");
+const totalFormatted = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL'
+}).format(reservation.total_revenue || 0);
+const cleaningFee = reservation.properties?.cleaning_fee || 0;
+const netOwner = (reservation as any).net_revenue ?? (reservation.total_revenue - ((reservation as any).commission_amount || 0));
+const ownerTotal = Math.max(0, Number(netOwner));
+const cleaningFormatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(cleaningFee));
+const ownerFormatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(ownerTotal);
 
-      pdf.text(`Valor Total da Reserva: ${totalFormatted}`, 20, yPosition);
-      yPosition += 7;
-      pdf.text(`Taxa de Limpeza: ${cleaningFormatted}`, 20, yPosition);
-      yPosition += 7;
-      pdf.text(`Valor do Proprietário: ${ownerFormatted}`, 20, yPosition);
-      yPosition += 7;
+pdf.text(`Valor Total da Reserva: ${totalFormatted}`, 20, yPosition);
+yPosition += 7;
+pdf.text(`Taxa de Limpeza: ${cleaningFormatted}`, 20, yPosition);
+yPosition += 7;
+pdf.text(`Valor do Proprietário: ${ownerFormatted}`, 20, yPosition);
+yPosition += 7;
       
+      // Rodapé
       pdf.setFontSize(10);
       const footerText = receiptType === 'payment' 
         ? 'Este documento comprova o pagamento da reserva acima mencionada.'
@@ -147,6 +128,7 @@ const ReceiptGenerator: React.FC = () => {
       yPosition += 7;
       pdf.text(`Gerado em: ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`, 20, yPosition);
       
+      // Salvar o PDF
       const filename = receiptType === 'payment' 
         ? `recibo-pagamento-${reservation.reservation_code}.pdf`
         : `recibo-reserva-${reservation.reservation_code}.pdf`;
@@ -171,6 +153,7 @@ const ReceiptGenerator: React.FC = () => {
       const pdf = new jsPDF();
       let isFirstPage = true;
       
+      // Filtrar reservações baseado no tipo de recibo
       const filteredReservations = receiptType === 'payment' 
         ? reservations.filter(r => r.payment_status === 'Pago')
         : reservations;
@@ -191,19 +174,23 @@ const ReceiptGenerator: React.FC = () => {
           pdf.addPage();
         }
         
+        // Header
         pdf.setFontSize(20);
         pdf.setFont("helvetica", "bold");
         const title = receiptType === 'payment' ? 'RECIBO DE PAGAMENTO' : 'RECIBO DE RESERVA';
         pdf.text(title, 105, 20, { align: 'center' });
         
+        // Linha separadora
         pdf.setDrawColor(0, 0, 0);
         pdf.line(20, 30, 190, 30);
         
+        // Informações da empresa
         pdf.setFontSize(12);
         pdf.setFont("helvetica", "normal");
         pdf.text('RIOH HOST GESTÃO DE HOSPEDAGEM', 20, 45);
         pdf.text('Gestão Profissional de Propriedades para Hospedagem', 20, 52);
         
+        // Resto dos dados da reserva (versão resumida para o lote)
         let yPosition = 70;
         pdf.text(`Reserva: ${reservation.reservation_code}`, 20, yPosition);
         yPosition += 7;
@@ -217,21 +204,21 @@ const ReceiptGenerator: React.FC = () => {
         pdf.text(`Período: ${checkIn} a ${checkOut}`, 20, yPosition);
         yPosition += 7;
         
-        const totalFormatted = new Intl.NumberFormat('pt-BR', {
-          style: 'currency',
-          currency: 'BRL'
-        }).format(reservation.total_revenue || 0);
-        pdf.text(`Valor: ${totalFormatted}`, 20, yPosition);
+const totalFormatted = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL'
+}).format(reservation.total_revenue || 0);
+pdf.text(`Valor: ${totalFormatted}`, 20, yPosition);
 
-        if (receiptType === 'payment') {
-          const cleaningFee = reservation.properties?.cleaning_fee || 0;
-          const netOwner = (reservation as any).net_revenue ?? (reservation.total_revenue - ((reservation as any).commission_amount || 0));
-          const ownerTotal = Math.max(0, Number(netOwner));
-          const cleaningFormatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(cleaningFee));
-          const ownerFormatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(ownerTotal);
-          yPosition += 7;
-          pdf.text(`Limpeza: ${cleaningFormatted} | Proprietário: ${ownerFormatted}`, 20, yPosition);
-        }
+if (receiptType === 'payment') {
+  const cleaningFee = reservation.properties?.cleaning_fee || 0;
+  const netOwner = (reservation as any).net_revenue ?? (reservation.total_revenue - ((reservation as any).commission_amount || 0));
+  const ownerTotal = Math.max(0, Number(netOwner));
+  const cleaningFormatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(cleaningFee));
+  const ownerFormatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(ownerTotal);
+  yPosition += 7;
+  pdf.text(`Limpeza: ${cleaningFormatted} | Proprietário: ${ownerFormatted}`, 20, yPosition);
+}
         
         isFirstPage = false;
       }
@@ -311,7 +298,7 @@ const ReceiptGenerator: React.FC = () => {
               </p>
             </div>
             
-            <Button  
+            <Button 
               onClick={generateBatchPDF}
               disabled={reservations.length === 0}
               className="flex items-center gap-2"
@@ -410,18 +397,18 @@ const ReceiptGenerator: React.FC = () => {
               </div>
               
               <div className="bg-white p-6 border rounded-lg shadow-sm max-w-2xl mx-auto">
-                <div className="text-center mb-6">
-                  <h2 className="text-xl font-bold">
-                    {receiptType === 'payment' ? 'RECIBO DE PAGAMENTO' : 'RECIBO DE RESERVA'}
-                  </h2>
-                  <div className="w-full h-px bg-gray-300 my-4"></div>
-                  <p className="text-sm text-gray-600">RIOH HOST GESTÃO DE HOSPEDAGEM</p>
-                  <p className="text-xs text-gray-500">Gestão Profissional de Propriedades para Hospedagem</p>
-                </div>
+<div className="text-center mb-6">
+  <h2 className="text-xl font-bold">
+    {receiptType === 'payment' ? 'RECIBO DE PAGAMENTO' : 'RECIBO DE RESERVA'}
+  </h2>
+  <div className="w-full h-px bg-gray-300 my-4"></div>
+  <p className="text-sm text-gray-600">RIOH HOST GESTÃO DE HOSPEDAGEM</p>
+  <p className="text-xs text-gray-500">Gestão Profissional de Propriedades para Hospedagem</p>
+</div>
                 
                 <div className="space-y-4 text-sm">
                   <div>
-                    <h4 className="font-semibold mb-2">DADOS DA RESERVA:</h4>
+<h4 className="font-semibold mb-2">DADOS DA RESERVA:</h4>
                     <p>Código da Reserva: {previewReservation.reservation_code}</p>
                     <p>Propriedade: {previewReservation.properties?.name || 'N/A'}</p>
                     <p>Endereço: {previewReservation.properties?.address || 'N/A'}</p>
