@@ -57,7 +57,7 @@ interface Reservation {
       yPosition += 10;
       
       pdf.setFont("helvetica", "normal");
-      pdf.text(Código da Reserva: ${reservation.reservation_code}, 20, yPosition);
+      pdf.text(`Código da Reserva: ${reservation.reservation_code}`, 20, yPosition);
       yPosition += 7;
       pdf.text(Propriedade: ${reservation.properties?.name || 'N/A'}, 20, yPosition);
       yPosition += 7;
