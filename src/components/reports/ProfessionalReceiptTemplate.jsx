@@ -27,7 +27,7 @@ const ProfessionalReceiptTemplate = ({ reservation, receiptType = 'reservation' 
 
   // Links para Logo e QR Code
   const logoUrl = "https://raw.githubusercontent.com/riohdigital/rio-host-dashboard-hub/1f3ce8cefe06b84b4fda7379f78317ab3008560b/public/LOGO%20RIOH%20HOST.png";
-  const qrCodeUrl = `https://sua-plataforma.com/verificar-reserva/${reservation.reservation_code}`;
+  const qrCodeUrl = `https://app.riohost.com/verificar-reserva/${reservation.reservation_code}`;
   const qrCodeApiSrc = `https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(qrCodeUrl)}`;
 
   return (
@@ -48,8 +48,7 @@ const ProfessionalReceiptTemplate = ({ reservation, receiptType = 'reservation' 
               <p className="text-sm text-gray-600">Plataforma: <strong>{reservation.platform}</strong></p>
             </div>
             <div className="text-right pl-4">
-              <p className="text-gray-700 text-md">Valor do Proprietário:</p>
-              <p className="text-3xl font-bold text-green-600">{formatCurrency(ownerValue)}</p>
+              <p className="text-gray-700 text-md">Valor do Proprietário:</p><p className="text-3xl font-bold text-green-600">{formatCurrency(ownerValue)}</p>
             </div>
           </div>
         </section>
@@ -69,9 +68,7 @@ const ProfessionalReceiptTemplate = ({ reservation, receiptType = 'reservation' 
         </section>
       </main>
       <footer className="bg-gray-800 text-white rounded-b-lg p-6 mt-8 flex justify-between items-center">
-        <div className="text-sm">
-          <p className="font-bold">RIOH HOST</p><p>Telefone: (XX) XXXX-XXXX | E-mail: contato@riohost.com</p><p className="mt-2 italic">“Gestão completa para seu imóvel, sem burocracia.”</p>
-        </div>
+        <div className="text-sm"><p className="font-bold">RIOH HOST</p><p>Telefone: (XX) XXXX-XXXX | E-mail: contato@riohost.com</p><p className="mt-2 italic">“Gestão completa para seu imóvel, sem burocracia.”</p></div>
         <div><img src={qrCodeApiSrc} alt={`QR Code para reserva ${reservation.reservation_code}`} crossOrigin="anonymous"/></div>
       </footer>
     </div>
