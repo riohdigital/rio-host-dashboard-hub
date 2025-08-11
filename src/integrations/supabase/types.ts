@@ -425,6 +425,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_my_properties_count: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
     }
     Enums: {
       [_ in never]: never
