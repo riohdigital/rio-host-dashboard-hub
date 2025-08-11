@@ -26,77 +26,13 @@ interface Reservation {
   properties?: {
     name: string;
     address?: string;
+    cleaning_fee?: number;
+    commission_rate?: number;
   };
   payment_status?: string;
   payment_date?: string;
 }
 
-type ReceiptType = 'reservation' | 'payment';
-
-const ReceiptGenerator = () => {
-  const [reservations, setReservations] = useState<Reservation[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [receiptType, setReceiptType] = useState<ReceiptType>('reservation');
-  const [previewReservation, setPreviewReservation] = useState<Reservation | null>(null);
-  const { toast } = useToast();
-  const { selectedProperties, selectedPeriod } = useGlobalFilters();
-  const { startDateString, endDateString } = useDateRange(selectedPeriod);
-
-useEffect(() => {
-  fetchReservations();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [selectedProperties, selectedPeriod, startDateString, endDateString]);
-
-  const fetchReservations = async () => {
-    try {
-      setLoading(true);
-      
-let query = supabase
-  .from('reservations')
-  .select(`
-    *,
-    properties (
-      name,
-      address,
-      cleaning_fee,
-      commission_rate
-    )
-  `);
-
-      // Apply property filter
-      if (selectedProperties.length > 0 && !selectedProperties.includes('todas')) {
-        query = query.in('property_id', selectedProperties);
-      }
-
-// Apply date filter using overlap within the period
-if (selectedPeriod !== 'general') {
-  query = query
-    .lte('check_in_date', endDateString)
-    .gte('check_out_date', startDateString);
-}
-
-      const { data, error } = await query
-        .order('check_in_date', { ascending: false })
-        .limit(50);
-
-      if (error) throw error;
-      setReservations(data || []);
-    } catch (error) {
-      console.error('Erro ao buscar reservas:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar as reservas.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const generatePDF = (reservation: Reservation) => {
-    try {
-      const pdf = new jsPDF();
-      
       // Header - diferentes títulos baseados no tipo
       pdf.setFontSize(20);
       pdf.setFont("helvetica", "bold");
