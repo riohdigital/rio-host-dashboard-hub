@@ -59,11 +59,11 @@ interface Reservation {
       pdf.setFont("helvetica", "normal");
       pdf.text(`Código da Reserva: ${reservation.reservation_code}`, 20, yPosition);
       yPosition += 7;
-      pdf.text(Propriedade: ${reservation.properties?.name || 'N/A'}, 20, yPosition);
+      pdf.text(`Propriedade: ${reservation.properties?.name || 'N/A'}`, 20, yPosition);
       yPosition += 7;
-      pdf.text(Endereço: ${reservation.properties?.address || 'N/A'}, 20, yPosition);
+      pdf.text(`Endereço: ${reservation.properties?.address || 'N/A'}`, 20, yPosition);
       yPosition += 7;
-      pdf.text(Plataforma: ${reservation.platform}, 20, yPosition);
+      pdf.text(`Plataforma: ${reservation.platform}`, 20, yPosition);
       yPosition += 15;
       
       // Informações do hóspede
@@ -72,11 +72,11 @@ interface Reservation {
       yPosition += 10;
       
       pdf.setFont("helvetica", "normal");
-      pdf.text(Nome: ${reservation.guest_name || 'N/A'}, 20, yPosition);
+      pdf.text(`Nome: ${reservation.guest_name || 'N/A'}`, 20, yPosition);
       yPosition += 7;
-      pdf.text(Telefone: ${reservation.guest_phone || 'N/A'}, 20, yPosition);
+      pdf.text(`Telefone: ${reservation.guest_phone || 'N/A'}`, 20, yPosition);
       yPosition += 7;
-      pdf.text(Número de Hóspedes: ${reservation.number_of_guests || 1}, 20, yPosition);
+      pdf.text`(Número de Hóspedes: ${reservation.number_of_guests || 1}`, 20, yPosition);
       yPosition += 15;
       
       // Datas da estadia
