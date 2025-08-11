@@ -76,7 +76,7 @@ interface Reservation {
       yPosition += 7;
       pdf.text(`Telefone: ${reservation.guest_phone || 'N/A'}`, 20, yPosition);
       yPosition += 7;
-      pdf.text`(Número de Hóspedes: ${reservation.number_of_guests || 1}`, 20, yPosition);
+      pdf.text(`Número de Hóspedes: ${reservation.number_of_guests || 1}`, 20, yPosition);
       yPosition += 15;
       
       // Datas da estadia
