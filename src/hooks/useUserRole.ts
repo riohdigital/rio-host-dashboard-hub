@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
-export type UserRole = 'master' | 'owner' | 'editor' | 'viewer' | null;
+export type UserRole = 'master' | 'owner' | 'editor' | 'viewer' | 'faxineira' | null;
 
 export const useUserRole = () => {
   const { user } = useAuth();
@@ -46,6 +46,7 @@ export const useUserRole = () => {
     isOwner: role === 'owner',
     isEditor: role === 'editor',
     isViewer: role === 'viewer',
+    isCleaner: role === 'faxineira',
     refetch: fetchUserRole
   };
 };

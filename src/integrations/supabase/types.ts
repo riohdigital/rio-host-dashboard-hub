@@ -224,6 +224,12 @@ export type Database = {
           check_out_date: string
           checkin_time: string | null
           checkout_time: string | null
+          cleaner_user_id: string | null
+          cleaning_allocation: string | null
+          cleaning_fee: number | null
+          cleaning_notes: string | null
+          cleaning_payment_status: string | null
+          cleaning_rating: number | null
           commission_amount: number | null
           created_at: string | null
           guest_name: string | null
@@ -247,6 +253,12 @@ export type Database = {
           check_out_date: string
           checkin_time?: string | null
           checkout_time?: string | null
+          cleaner_user_id?: string | null
+          cleaning_allocation?: string | null
+          cleaning_fee?: number | null
+          cleaning_notes?: string | null
+          cleaning_payment_status?: string | null
+          cleaning_rating?: number | null
           commission_amount?: number | null
           created_at?: string | null
           guest_name?: string | null
@@ -270,6 +282,12 @@ export type Database = {
           check_out_date?: string
           checkin_time?: string | null
           checkout_time?: string | null
+          cleaner_user_id?: string | null
+          cleaning_allocation?: string | null
+          cleaning_fee?: number | null
+          cleaning_notes?: string | null
+          cleaning_payment_status?: string | null
+          cleaning_rating?: number | null
           commission_amount?: number | null
           created_at?: string | null
           guest_name?: string | null

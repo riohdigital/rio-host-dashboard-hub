@@ -20,4 +20,12 @@ export interface Reservation {
   is_communicated?: boolean;
   receipt_sent?: boolean;
   created_at: string;
+  // Novos campos relacionados à faxina
+  cleaner_user_id?: string | null;
+  cleaning_payment_status?: string | null;
+  cleaning_rating?: number | null;
+  cleaning_notes?: string | null;
+  cleaning_fee?: number | null;
+  cleaning_allocation?: string | null;
 }
+

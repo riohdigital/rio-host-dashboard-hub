@@ -14,6 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Reservation } from '@/types/reservation';
 import { Property } from '@/types/property';
 import { useToast } from '@/hooks/use-toast';
+import { Pencil } from 'lucide-react';
 
 // Schema de validação com os novos campos
 const reservationSchema = z.object({
@@ -34,6 +35,13 @@ const reservationSchema = z.object({
   payment_status: z.string().optional(),
   reservation_status: z.string().min(1, 'Status da reserva é obrigatório'),
   payment_date: z.string().optional(),
+  // Novos campos de faxina
+  cleaner_user_id: z.string().optional(),
+  cleaning_payment_status: z.string().optional(),
+  cleaning_rating: z.number().min(0).max(5).optional(),
+  cleaning_notes: z.string().optional(),
+  cleaning_fee: z.number().optional(),
+  cleaning_allocation: z.string().optional(),
 }).refine(data => {
   if (data.check_in_date && data.check_out_date) {
     return new Date(data.check_out_date) > new Date(data.check_in_date);
