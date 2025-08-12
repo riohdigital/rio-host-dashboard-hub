@@ -14,7 +14,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Reservation } from '@/types/reservation';
 import { Property } from '@/types/property';
 import { useToast } from '@/hooks/use-toast';
-import { Pencil } from 'lucide-react';
+import { Pencil, Star, Check, X } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 
 // Schema de validação com os novos campos
 const reservationSchema = z.object({
@@ -66,6 +67,11 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
   const [loading, setLoading] = useState(false);
   const [numberOfDays, setNumberOfDays] = useState(0);
   const [usePropertyDefaults, setUsePropertyDefaults] = useState(true);
+  const [cleaners, setCleaners] = useState<{ user_id: string; full_name: string | null; email: string }[]>([]);
+  const [editingCleaningFee, setEditingCleaningFee] = useState(false);
+  const [editingCommission, setEditingCommission] = useState(false);
+  const [manualCleaningFee, setManualCleaningFee] = useState<number | undefined>(undefined);
+  const [manualCommission, setManualCommission] = useState<number | undefined>(undefined);
   const { toast } = useToast();
 
   const {
@@ -170,6 +176,40 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
     }
   }, [watchedPropertyId, properties]);
 
+  // Buscar faxineiras vinculadas à propriedade selecionada
+  const fetchCleanersForProperty = async (propertyId: string) => {
+    try {
+      const { data: accessList, error: accessError } = await supabase
+        .from('user_property_access')
+        .select('user_id')
+        .eq('property_id', propertyId);
+      if (accessError) throw accessError;
+      const userIds = (accessList || []).map((a: any) => a.user_id).filter(Boolean);
+      if (userIds.length === 0) {
+        setCleaners([]);
+        return;
+      }
+      const { data: profiles, error: profError } = await supabase
+        .from('user_profiles')
+        .select('user_id, full_name, email, role')
+        .eq('role', 'faxineira')
+        .in('user_id', userIds);
+      if (profError) throw profError;
+      setCleaners((profiles || []).map((p: any) => ({ user_id: p.user_id, full_name: p.full_name, email: p.email })));
+    } catch (e) {
+      console.error('Erro ao buscar faxineiras da propriedade:', e);
+      setCleaners([]);
+    }
+  };
+
+  useEffect(() => {
+    if (watchedPropertyId) {
+      fetchCleanersForProperty(watchedPropertyId);
+    } else {
+      setCleaners([]);
+    }
+  }, [watchedPropertyId]);
+
   useEffect(() => {
     if (watchedValues.check_in_date && watchedValues.check_out_date) {
       const checkIn = new Date(watchedValues.check_in_date);
@@ -187,18 +227,46 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
 
     if (selectedProperty && watchedValues.total_revenue > 0) {
       const totalRevenue = watchedValues.total_revenue;
-      const cleaningFee = selectedProperty.cleaning_fee || 0;
       const commissionRate = selectedProperty.commission_rate || 0;
-      
-      const baseRevenue = totalRevenue - cleaningFee;
-      const commissionAmount = baseRevenue * commissionRate;
-      const netRevenue = baseRevenue - commissionAmount;
 
+      const cleaningFeeEffective = (typeof manualCleaningFee === 'number')
+        ? manualCleaningFee
+        : (selectedProperty.cleaning_fee || 0);
+
+      const baseRevenue = totalRevenue - cleaningFeeEffective;
+
+      let commissionAmount = (typeof manualCommission === 'number')
+        ? manualCommission
+        : baseRevenue * commissionRate;
+
+      let netRevenue = baseRevenue - commissionAmount;
+
+      const allocation = watchedValues.cleaning_allocation;
+      if (allocation === 'co_anfitriao') {
+        commissionAmount = (typeof manualCommission === 'number')
+          ? manualCommission
+          : baseRevenue * commissionRate;
+        commissionAmount += cleaningFeeEffective;
+        netRevenue = baseRevenue - commissionAmount;
+      } else if (allocation === 'proprietario') {
+        netRevenue = baseRevenue - commissionAmount + cleaningFeeEffective;
+      }
+
+      setValue('cleaning_fee', Number(cleaningFeeEffective.toFixed(2)));
       setValue('base_revenue', Number(baseRevenue.toFixed(2)));
       setValue('commission_amount', Number(commissionAmount.toFixed(2)));
       setValue('net_revenue', Number(netRevenue.toFixed(2)));
     }
-  }, [watchedValues.check_in_date, watchedValues.check_out_date, watchedValues.total_revenue, selectedProperty, setValue]);
+  }, [
+    watchedValues.check_in_date,
+    watchedValues.check_out_date,
+    watchedValues.total_revenue,
+    watchedValues.cleaning_allocation,
+    selectedProperty,
+    manualCleaningFee,
+    manualCommission,
+    setValue
+  ]);
 
   const onSubmit = async (data: ReservationFormData) => {
     setLoading(true);
@@ -497,6 +565,78 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
               <span className="text-red-500 text-sm">{errors.reservation_status.message}</span>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Seção 1: Serviço de Faxina */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold text-purple-600 border-b pb-2">Serviço de Faxina</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="cleaner_user_id">Faxineira responsável</Label>
+            <Select
+              value={watchedValues.cleaner_user_id || ''}
+              onValueChange={(value) => setValue('cleaner_user_id', value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={cleaners.length ? 'Selecione a faxineira' : 'Nenhuma faxineira vinculada'} />
+              </SelectTrigger>
+              <SelectContent>
+                {cleaners.map((c) => (
+                  <SelectItem key={c.user_id} value={c.user_id}>
+                    {c.full_name || c.email}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="cleaning_payment_status">Status do Pagamento da Faxina</Label>
+            <Select
+              value={watchedValues.cleaning_payment_status || ''}
+              onValueChange={(value) => setValue('cleaning_payment_status', value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Paga">Paga</SelectItem>
+                <SelectItem value="Pagamento no Próximo Ciclo">Pagamento no Próximo Ciclo</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="cleaning_allocation">Alocação da Taxa de Limpeza</Label>
+            <Select
+              value={watchedValues.cleaning_allocation || ''}
+              onValueChange={(value) => setValue('cleaning_allocation', value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a alocação" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="co_anfitriao">Co-Anfitrião (soma na comissão)</SelectItem>
+                <SelectItem value="proprietario">Proprietário (soma no líquido)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Nota da Faxina</Label>
+            <div className="flex items-center gap-1 pt-2">
+              {[1,2,3,4,5].map((i) => (
+                <button type="button" key={i} onClick={() => setValue('cleaning_rating', i)} className="p-1">
+                  <Star className={(watchedValues.cleaning_rating || 0) >= i ? 'text-yellow-500' : 'text-gray-300'} size={18} />
+                </button>
+              ))}
+              <span className="ml-2 text-sm text-gray-600">{watchedValues.cleaning_rating || 0}/5</span>
+            </div>
+          </div>
+        </div>
+        <div>
+          <Label htmlFor="cleaning_notes">Observações da Faxina</Label>
+          <Textarea id="cleaning_notes" {...register('cleaning_notes')} placeholder="Ex.: caprichou na cozinha, faltou pano extra..." />
         </div>
       </div>
 
