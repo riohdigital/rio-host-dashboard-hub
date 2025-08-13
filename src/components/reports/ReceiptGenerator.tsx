@@ -134,7 +134,7 @@ const ReceiptGenerator = () => {
         return;
       }
 
-      pdf.html(elementToPrint, {
+      pdf.html(elementToPrint as HTMLElement, {
         callback: function (doc) {
           const filename = `${receiptType === 'payment' ? 'recibo-pagamento' : 'recibo-reserva'}-${reservation.reservation_code}.pdf`;
           doc.save(filename);
@@ -289,7 +289,7 @@ const ReceiptGenerator = () => {
               reservations.map((reservation) => (
                 <div key={reservation.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
                   <div className="flex-1 space-y-1">
-                    <div className="flex items-center gap-2 flex-wrap"><Badge variant="outline">{reservation.reservation_code}</Badge><Badge variant={reservation.platform === 'Airbnb' ? 'default' : 'secondary'}>{reservation.platform}</Badge>{reservation.payment_status && (<Badge variant={reservation.payment_status === 'Pago' ? 'success' : 'destructive'}>{reservation.payment_status}</Badge>)}</div>
+                    <div className="flex items-center gap-2 flex-wrap"><Badge variant="outline">{reservation.reservation_code}</Badge><Badge variant={reservation.platform === 'Airbnb' ? 'default' : 'secondary'}>{reservation.platform}</Badge>{reservation.payment_status && (<Badge variant={reservation.payment_status === 'Pago' ? 'secondary' : 'destructive'}>{reservation.payment_status}</Badge>)}</div>
                     <div className="flex items-center gap-4 text-sm text-muted-foreground pt-1"><div className="flex items-center gap-1"><User className="h-3 w-3" />{reservation.guest_name || 'Nome não informado'}</div><div className="flex items-center gap-1"><MapPin className="h-3 w-3" />{reservation.properties?.name || 'Propriedade não informada'}</div><div className="flex items-center gap-1"><Calendar className="h-3 w-3" />{formatDate(reservation.check_in_date)} - {formatDate(reservation.check_out_date)}</div></div>
                     <div className="text-lg font-semibold text-primary pt-1">{formatCurrency(reservation.total_revenue)}</div>
                   </div>
