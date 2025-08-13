@@ -272,23 +272,26 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
     setLoading(true);
     try {
       const totalRevenue = data.total_revenue;
-      const cleaningFee = selectedProperty?.cleaning_fee || 0;
+      const effectiveCleaningFee =
+        typeof data.cleaning_fee === 'number'
+          ? data.cleaning_fee
+          : (selectedProperty?.cleaning_fee || 0);
       const commissionRate = selectedProperty?.commission_rate || 0;
-      
-      const baseRevenue = totalRevenue - cleaningFee;
-      const commissionAmount = baseRevenue * commissionRate;
-      const netRevenue = baseRevenue - commissionAmount;
 
-      const submissionData = {
+      const baseRevenue = data.base_revenue ?? (totalRevenue - effectiveCleaningFee);
+      const commissionAmount = data.commission_amount ?? (baseRevenue * commissionRate);
+      const netRevenue = data.net_revenue ?? (baseRevenue - commissionAmount);
+
+      const submissionData: any = {
         property_id: data.property_id || null,
         platform: data.platform,
         reservation_code: data.reservation_code,
-          guest_name: data.guest_name || null,
-          guest_phone: data.guest_phone || null,
-          number_of_guests: data.number_of_guests || null,
+        guest_name: data.guest_name || null,
+        guest_phone: data.guest_phone || null,
+        number_of_guests: data.number_of_guests || null,
         check_in_date: data.check_in_date,
         check_out_date: data.check_out_date,
-        total_revenue: data.total_revenue,
+        total_revenue: totalRevenue,
         base_revenue: baseRevenue,
         commission_amount: commissionAmount,
         net_revenue: netRevenue,
@@ -297,6 +300,13 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
         checkout_time: data.checkout_time || null,
         payment_status: data.payment_status || null,
         reservation_status: data.reservation_status,
+        // Novos campos de faxina
+        cleaner_user_id: data.cleaner_user_id || null,
+        cleaning_payment_status: data.cleaning_payment_status || null,
+        cleaning_rating: data.cleaning_rating ?? 0,
+        cleaning_notes: data.cleaning_notes || null,
+        cleaning_fee: effectiveCleaningFee,
+        cleaning_allocation: data.cleaning_allocation || null,
       };
 
       if (reservation) {
@@ -680,6 +690,65 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                 </div>
               </CardContent>
             </Card>
+          </div>
+
+          {/* Edição manual: Limpeza e Comissão */
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="border rounded-md p-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-gray-600">Editar Taxa de Limpeza</p>
+                {!editingCleaningFee ? (
+                  <Button type="button" variant="outline" size="sm" onClick={() => setEditingCleaningFee(true)} className="gap-1">
+                    <Pencil className="h-4 w-4" /> Editar
+                  </Button>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Button type="button" size="sm" onClick={() => { setManualCleaningFee(watchedValues.cleaning_fee); setEditingCleaningFee(false); }} className="gap-1">
+                      <Check className="h-4 w-4" /> Aplicar atual
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => { setManualCleaningFee(undefined); setEditingCleaningFee(false); }} className="gap-1">
+                      <X className="h-4 w-4" /> Cancelar
+                    </Button>
+                  </div>
+                )}
+              </div>
+              {editingCleaningFee && (
+                <div className="mt-3 flex items-center gap-2">
+                  <Input type="number" step="0.01" placeholder="R$ 0,00" value={manualCleaningFee ?? ''} onChange={(e) => setManualCleaningFee(e.target.value === '' ? undefined : Number(e.target.value))} />
+                  <Button type="button" size="sm" onClick={() => { if (typeof manualCleaningFee === 'number') { setValue('cleaning_fee', Number(manualCleaningFee.toFixed(2))); } setEditingCleaningFee(false); }} className="gap-1">
+                    <Check className="h-4 w-4" /> Aplicar
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            <div className="border rounded-md p-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-gray-600">Editar Comissão (R$)</p>
+                {!editingCommission ? (
+                  <Button type="button" variant="outline" size="sm" onClick={() => setEditingCommission(true)} className="gap-1">
+                    <Pencil className="h-4 w-4" /> Editar
+                  </Button>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Button type="button" size="sm" onClick={() => { setManualCommission(watchedValues.commission_amount); setEditingCommission(false); }} className="gap-1">
+                      <Check className="h-4 w-4" /> Aplicar atual
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => { setManualCommission(undefined); setEditingCommission(false); }} className="gap-1">
+                      <X className="h-4 w-4" /> Cancelar
+                    </Button>
+                  </div>
+                )}
+              </div>
+              {editingCommission && (
+                <div className="mt-3 flex items-center gap-2">
+                  <Input type="number" step="0.01" placeholder="R$ 0,00" value={manualCommission ?? ''} onChange={(e) => setManualCommission(e.target.value === '' ? undefined : Number(e.target.value))} />
+                  <Button type="button" size="sm" onClick={() => { if (typeof manualCommission === 'number') { setValue('commission_amount', Number(manualCommission.toFixed(2))); } setEditingCommission(false); }} className="gap-1">
+                    <Check className="h-4 w-4" /> Aplicar
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
 
           <Card className="bg-green-50 border-green-200">

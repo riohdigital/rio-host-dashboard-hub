@@ -14,6 +14,7 @@ import { useReportData, ReportData } from '@/hooks/reports/useReportData';
 import { usePDFExport } from '@/hooks/reports/usePDFExport';
 import { EnhancedReportTemplate } from '@/components/reports/EnhancedReportTemplate';
 import ReceiptGenerator from '@/components/reports/ReceiptGenerator';
+import CleanerPaymentsReport from '@/components/reports/CleanerPaymentsReport';
 import MainLayout from '@/components/layout/MainLayout';
 
 const RelatoriosPage: React.FC = () => {
@@ -301,6 +302,9 @@ const RelatoriosPage: React.FC = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Relatório de Pagamentos de Faxineiras */}
+      <CleanerPaymentsReport />
 
       {/* Geração de Recibos */}
       <ReceiptGenerator />
