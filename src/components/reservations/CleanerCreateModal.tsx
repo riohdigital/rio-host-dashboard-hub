@@ -8,20 +8,22 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Property } from '@/types/property';
-import { useUserPermissions } from '@/contexts/UserPermissionsContext'; // Importando seu hook de permissões
+import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 
 interface CleanerCreateModalProps {
   open: boolean;
   onClose: () => void;
-  onCleanerCreated: (cleanerId: string, cleanerName: string) => void;
+  onCleanerCreated: () => void; // Apenas sinaliza o sucesso
   propertyId?: string;
+  initialData?: { email: string; fullName: string; password?: string };
 }
 
 const CleanerCreateModal: React.FC<CleanerCreateModalProps> = ({
   open,
   onClose,
   onCleanerCreated,
-  propertyId
+  propertyId,
+  initialData
 }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -31,59 +33,50 @@ const CleanerCreateModal: React.FC<CleanerCreateModalProps> = ({
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  
   const [accessibleProperties, setAccessibleProperties] = useState<Property[]>([]);
   const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
-  
-  // CORREÇÃO: Usando a função isMaster() que existe no seu hook
-  const { isMaster } = useUserPermissions(); 
+  const { isMaster } = useUserPermissions();
 
   useEffect(() => {
     if (open) {
+      // Pré-preenche com dados do primeiro modal, se existirem
+      if (initialData) {
+        setEmail(initialData.email || '');
+        setFullName(initialData.fullName || '');
+        setPassword(initialData.password || '');
+      }
       fetchAccessibleProperties();
     }
-  }, [open]);
+  }, [open, initialData]);
 
   useEffect(() => {
     if (propertyId) {
-      setSelectedProperties([propertyId]);
+      setSelectedProperties(prev => prev.includes(propertyId) ? prev : [...prev, propertyId]);
     }
-  }, [propertyId]);
-
+  }, [propertyId, open]);
+  
   const fetchAccessibleProperties = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado.");
 
-      // CORREÇÃO: Chamando a função isMaster() corretamente
       const userIsMaster = isMaster();
 
       if (userIsMaster) {
-        // Se for MASTER, busca TUDO
-        const { data: propertiesData, error: propertiesError } = await supabase
-          .from('properties')
-          .select('*')
-          .order('name');
-        if (propertiesError) throw propertiesError;
-        setAccessibleProperties(propertiesData || []);
+        const { data, error } = await supabase.from('properties').select('*').order('name');
+        if (error) throw error;
+        setAccessibleProperties(data || []);
       } else {
-        // Se for OWNER ou outro, busca apenas as propriedades vinculadas
         const { data: accessData, error: accessError } = await supabase
-          .from('user_property_access')
-          .select('property_id')
-          .eq('user_id', user.id);
+          .from('user_property_access').select('property_id').eq('user_id', user.id);
         
         if (accessError) throw accessError;
         const propertyIds = accessData.map(item => item.property_id);
         
         if (propertyIds.length > 0) {
-          const { data: propertiesData, error: propertiesError } = await supabase
-            .from('properties')
-            .select('*')
-            .in('id', propertyIds)
-            .order('name');
-          if (propertiesError) throw propertiesError;
-          setAccessibleProperties(propertiesData || []);
+          const { data, error } = await supabase.from('properties').select('*').in('id', propertyIds).order('name');
+          if (error) throw error;
+          setAccessibleProperties(data || []);
         } else {
           setAccessibleProperties([]);
         }
@@ -96,9 +89,7 @@ const CleanerCreateModal: React.FC<CleanerCreateModalProps> = ({
 
   const handlePropertySelection = (propertyId: string) => {
     setSelectedProperties(prev => 
-      prev.includes(propertyId) 
-        ? prev.filter(id => id !== propertyId) 
-        : [...prev, propertyId]
+      prev.includes(propertyId) ? prev.filter(id => id !== propertyId) : [...prev, propertyId]
     );
   };
 
@@ -115,7 +106,6 @@ const CleanerCreateModal: React.FC<CleanerCreateModalProps> = ({
 
     setLoading(true);
     try {
-      // 1. Chama a Edge Function para criar o usuário (esta parte está correta)
       const { data: functionData, error: createError } = await supabase.functions.invoke('create-user', {
         body: { email, password, fullName, role: 'faxineira', phone, address }
       });
@@ -124,27 +114,19 @@ const CleanerCreateModal: React.FC<CleanerCreateModalProps> = ({
       const newCleanerId = functionData.user.id;
       if (!newCleanerId) throw new Error("A função não retornou o ID do novo usuário.");
 
-      // 2. CORREÇÃO: Cria os vínculos na tabela correta 'cleaner_properties'
       const linksToCreate = selectedProperties.map(propId => ({
         user_id: newCleanerId,
         property_id: propId
-        // A coluna 'access_level' foi removida
       }));
-
-      // CORREÇÃO: Inserindo na tabela 'cleaner_properties'
-      const { error: linkError } = await supabase
-        .from('cleaner_properties')
-        .insert(linksToCreate);
-      
+      const { error: linkError } = await supabase.from('cleaner_properties').insert(linksToCreate);
       if (linkError) throw linkError;
 
-      // 3. (Opcional) Salva as anotações na tabela cleaner_profiles (esta parte está correta)
       if (notes.trim() !== '') {
           await supabase.from('cleaner_profiles').update({ notes }).eq('user_id', newCleanerId);
       }
 
       toast({ title: "Sucesso", description: "Faxineira criada e vinculada com sucesso!" });
-      onCleanerCreated(newCleanerId, fullName);
+      onCleanerCreated(); // Apenas notifica o pai que a criação foi um sucesso
       handleClose();
 
     } catch (error: any) {
@@ -168,27 +150,27 @@ const CleanerCreateModal: React.FC<CleanerCreateModalProps> = ({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="fullName">Nome Completo *</Label>
-              <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+              <Label htmlFor="fullName-cleaner">Nome Completo *</Label>
+              <Input id="fullName-cleaner" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email *</Label>
-              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <Label htmlFor="email-cleaner">Email *</Label>
+              <Input id="email-cleaner" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="password">Senha *</Label>
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
+              <Label htmlFor="password-cleaner">Senha *</Label>
+              <Input id="password-cleaner" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">Telefone</Label>
-              <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <Label htmlFor="phone-cleaner">Telefone</Label>
+              <Input id="phone-cleaner" value={phone} onChange={(e) => setPhone(e.target.value)} />
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="address">Endereço</Label>
-            <Input id="address" value={address} onChange={(e) => setAddress(e.target.value)} />
+            <Label htmlFor="address-cleaner">Endereço</Label>
+            <Input id="address-cleaner" value={address} onChange={(e) => setAddress(e.target.value)} />
           </div>
           <div className="space-y-2">
             <Label>Vincular Propriedades *</Label>
@@ -196,8 +178,8 @@ const CleanerCreateModal: React.FC<CleanerCreateModalProps> = ({
               {accessibleProperties.length > 0 ? (
                 accessibleProperties.map(prop => (
                   <div key={prop.id} className="flex items-center space-x-2">
-                    <Checkbox id={prop.id} checked={selectedProperties.includes(prop.id)} onCheckedChange={() => handlePropertySelection(prop.id)} />
-                    <Label htmlFor={prop.id} className="font-normal">{prop.nickname || prop.name}</Label>
+                    <Checkbox id={`prop-${prop.id}`} checked={selectedProperties.includes(prop.id)} onCheckedChange={() => handlePropertySelection(prop.id)} />
+                    <Label htmlFor={`prop-${prop.id}`} className="font-normal">{prop.nickname || prop.name}</Label>
                   </div>
                 ))
               ) : (
@@ -206,8 +188,8 @@ const CleanerCreateModal: React.FC<CleanerCreateModalProps> = ({
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="notes">Observações</Label>
-            <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
+            <Label htmlFor="notes-cleaner">Observações</Label>
+            <Textarea id="notes-cleaner" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={handleClose} type="button">Cancelar</Button>
