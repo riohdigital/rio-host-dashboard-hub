@@ -35,7 +35,8 @@ const CleanerCreateModal: React.FC<CleanerCreateModalProps> = ({
   const [accessibleProperties, setAccessibleProperties] = useState<Property[]>([]);
   const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
   
-  const { getRole } = useUserPermissions(); // Usando seu hook para pegar o role
+  // CORREÇÃO: Usando a função isMaster() que existe no seu hook
+  const { isMaster } = useUserPermissions(); 
 
   useEffect(() => {
     if (open) {
@@ -54,10 +55,10 @@ const CleanerCreateModal: React.FC<CleanerCreateModalProps> = ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado.");
 
-      const userRole = await getRole(); // Pega o role do usuário logado
+      // CORREÇÃO: Chamando a função isMaster() corretamente
+      const userIsMaster = isMaster();
 
-      // LÓGICA CONDICIONAL: Master vê tudo, outros veem apenas o que têm acesso
-      if (userRole === 'master') {
+      if (userIsMaster) {
         // Se for MASTER, busca TUDO
         const { data: propertiesData, error: propertiesError } = await supabase
           .from('properties')
@@ -89,7 +90,7 @@ const CleanerCreateModal: React.FC<CleanerCreateModalProps> = ({
       }
     } catch (error: any) {
       console.error("Erro ao buscar propriedades acessíveis:", error);
-      toast({ title: "Erro", description: "Não foi possível carregar suas propriedades.", variant: "destructive" });
+      toast({ title: "Erro", description: "Não foi possível carregar as propriedades.", variant: "destructive" });
     }
   };
 
@@ -157,8 +158,6 @@ const CleanerCreateModal: React.FC<CleanerCreateModalProps> = ({
       <DialogContent className="max-w-lg">
         <DialogHeader><DialogTitle>Cadastrar Nova Faxineira</DialogTitle></DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* O RESTANTE DO SEU FORMULÁRIO JSX PERMANECE O MESMO */}
-          {/* ... cole aqui o JSX do seu formulário, desde o primeiro <div className="grid..."> até o </form> ... */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="fullName">Nome Completo *</Label>
