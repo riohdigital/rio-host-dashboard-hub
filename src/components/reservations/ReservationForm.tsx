@@ -6,9 +6,8 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { Reservation } from '@/types/reservation';
@@ -18,7 +17,6 @@ import { Pencil, Star, Check, X } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import CleanerCreateModal from './CleanerCreateModal';
 
-// Schema de validação com os novos campos
 const reservationSchema = z.object({
     property_id: z.string().optional(),
     platform: z.string().min(1, 'Plataforma é obrigatória'),
@@ -37,10 +35,9 @@ const reservationSchema = z.object({
     payment_status: z.string().optional(),
     reservation_status: z.string().min(1, 'Status da reserva é obrigatório'),
     payment_date: z.string().optional(),
-    // Campos de faxina
-    cleaning_destination: z.string().optional(), // Novo campo unificado para a lógica da UI
-    cleaner_user_id: z.string().optional(), // Mantido para o DB
-    cleaning_allocation: z.string().optional(), // Mantido para o DB
+    cleaning_destination: z.string().optional(),
+    cleaner_user_id: z.string().optional(),
+    cleaning_allocation: z.string().optional(),
     cleaning_payment_status: z.string().optional(),
     cleaning_rating: z.number().min(0).max(5).optional(),
     cleaning_notes: z.string().optional(),
@@ -89,13 +86,12 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
             platform: 'Direto',
             reservation_status: 'Confirmada',
             payment_status: 'Pendente',
-            cleaning_destination: 'none', // Valor padrão para a nova lógica
+            cleaning_destination: 'none',
         }
     });
 
     const watchedValues = watch();
     
-    // Persistência de formulário
     const formKey = `reservation-form-${reservation?.id || 'new'}`;
     const { restoreData, clearSavedData } = useFormPersistence({
         key: formKey,
@@ -143,7 +139,6 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                 }
             });
             
-            // Lógica para definir o 'cleaning_destination' inicial com base nos dados existentes
             if (reservation.cleaner_user_id) {
                 setValue('cleaning_destination', reservation.cleaner_user_id);
             } else if (reservation.cleaning_allocation === 'co_anfitriao') {
@@ -178,39 +173,33 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
         }
     }, [watchedPropertyId, properties]);
 
-  const fetchCleanersForProperty = async (propertyId: string) => {
-    try {
-      // CORREÇÃO: Buscando da tabela correta 'cleaner_properties'
-      const { data: cleanerLinks, error: linkError } = await supabase
-        .from('cleaner_properties')
-        .select('user_id')
-        .eq('property_id', propertyId);
-
-      if (linkError) throw linkError;
-
-      const userIds = (cleanerLinks || []).map((link) => link.user_id).filter(Boolean);
-      
-      if (userIds.length === 0) {
-        setCleaners([]);
-        return;
-      }
-      
-      // Esta parte, que busca os detalhes do perfil, continua a mesma e está correta
-      const { data: profiles, error: profError } = await supabase
-        .from('user_profiles')
-        .select('user_id, full_name, email')
-        .eq('role', 'faxineira')
-        .in('user_id', userIds);
-        
-      if (profError) throw profError;
-      
-      setCleaners((profiles || []).map(p => ({ user_id: p.user_id, full_name: p.full_name, email: p.email })));
-
-    } catch (e) {
-      console.error('Erro ao buscar faxineiras da propriedade:', e);
-      setCleaners([]);
-    }
-  };
+    const fetchCleanersForProperty = async (propertyId: string) => {
+        try {
+            const { data: cleanerLinks, error: linkError } = await supabase
+                .from('cleaner_properties')
+                .select('user_id')
+                .eq('property_id', propertyId);
+            if (linkError) throw linkError;
+            
+            const userIds = (cleanerLinks || []).map((link) => link.user_id).filter(Boolean);
+            if (userIds.length === 0) {
+                setCleaners([]);
+                return;
+            }
+            
+            const { data: profiles, error: profError } = await supabase
+                .from('user_profiles')
+                .select('user_id, full_name, email')
+                .eq('role', 'faxineira')
+                .in('user_id', userIds);
+            if (profError) throw profError;
+            
+            setCleaners((profiles || []).map(p => ({ user_id: p.user_id, full_name: p.full_name, email: p.email })));
+        } catch (e) {
+            console.error('Erro ao buscar faxineiras da propriedade:', e);
+            setCleaners([]);
+        }
+    };
 
     useEffect(() => {
         if (watchedPropertyId) {
@@ -235,27 +224,19 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
             const commissionRate = selectedProperty.commission_rate || 0;
             const destination = watchedValues.cleaning_destination;
             
-            // 1. Determina a taxa de limpeza efetiva (manual ou padrão)
             const effectiveCleaningFee = manualCleaningFee ?? (selectedProperty.cleaning_fee || 0);
-            
-            // 2. Calcula a receita base (o que será dividido entre anfitrião e proprietário)
             const baseRevenue = totalRevenue - effectiveCleaningFee;
-
-            // 3. Determina a comissão efetiva (manual ou padrão)
             const defaultCommission = baseRevenue * commissionRate;
             const effectiveCommission = manualCommission ?? defaultCommission;
-
-            // 4. Inicia os valores finais de comissão e valor líquido
+            
             let finalCommission = effectiveCommission;
             let finalNetRevenue = baseRevenue - effectiveCommission;
 
-            // 5. Ajusta os valores com base na destinação da taxa de limpeza
             if (destination === 'host') {
                 finalCommission += effectiveCleaningFee;
             } else if (destination === 'owner') {
                 finalNetRevenue += effectiveCleaningFee;
             }
-            // Se for 'none' ou um ID de faxineira, a taxa já foi subtraída e não entra na divisão.
             
             setValue('cleaning_fee', Number(effectiveCleaningFee.toFixed(2)));
             setValue('base_revenue', Number(baseRevenue.toFixed(2)));
@@ -263,20 +244,14 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
             setValue('net_revenue', Number(finalNetRevenue.toFixed(2)));
         }
     }, [
-        watchedValues.check_in_date,
-        watchedValues.check_out_date,
-        watchedValues.total_revenue,
-        watchedValues.cleaning_destination,
-        selectedProperty,
-        manualCleaningFee,
-        manualCommission,
-        setValue
+        watchedValues.check_in_date, watchedValues.check_out_date,
+        watchedValues.total_revenue, watchedValues.cleaning_destination,
+        selectedProperty, manualCleaningFee, manualCommission, setValue
     ]);
 
     const onSubmit = async (data: ReservationFormData) => {
         setLoading(true);
         try {
-            // Mapeia o campo unificado 'cleaning_destination' de volta para os campos do banco de dados
             let finalCleanerId: string | null = null;
             let finalCleaningAllocation: string | null = null;
             
@@ -307,7 +282,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                 cleaning_notes: data.cleaning_notes || null,
                 cleaning_rating: data.cleaning_rating ?? 0,
             };
-            delete submissionData.cleaning_destination; // Remove o campo temporário
+            delete submissionData.cleaning_destination;
 
             if (reservation) {
                 const { error } = await supabase.from('reservations').update(submissionData).eq('id', reservation.id);
@@ -377,7 +352,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                     <Label htmlFor="guest_phone">Telefone do Hóspede</Label>
                     <Input id="guest_phone" {...register('guest_phone')} placeholder="(11) 99999-9999" />
                 </div>
-                 <div>
+                <div>
                     <Label htmlFor="number_of_guests">Número de Hóspedes</Label>
                     <Input id="number_of_guests" type="number" {...register('number_of_guests', { valueAsNumber: true })} placeholder="Ex: 2" />
                 </div>
@@ -460,54 +435,44 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                 <h3 className="text-lg font-semibold text-purple-600 border-b pb-2">Serviço de Faxina</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="cleaning_destination">Faxineira responsável</Label>
-                      <Select 
-                        value={watchedValues.cleaning_destination || 'none'} 
-                        onValueChange={(value) => {
-                          // A lógica para 'new_cleaner' foi movida para o onClick do botão abaixo,
-                          // então este onValueChange agora só precisa definir o valor.
-                          setValue('cleaning_destination', value);
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o destino da taxa..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {/* Opção Padrão */}
-                          <SelectItem value="none">A decidir / Nenhuma</SelectItem>
-                    
-                          {/* Grupo para Faxineiras Cadastradas */}
-                          {cleaners.length > 0 && (
-                            <SelectGroup>
-                              <SelectLabel>Faxineiras</SelectLabel>
-                              {cleaners.map((c) => (
-                                <SelectItem key={c.user_id} value={c.user_id}>
-                                  {c.full_name || c.email}
-                                </SelectItem>
-                              ))}
-                            </SelectGroup>
-                          )}
-                    
-                          {/* Grupo para Outras Opções */}
-                          <SelectGroup>
-                            <SelectLabel>Outras Opções</SelectLabel>
-                            <SelectItem value="host">Anfitrião (somar à comissão)</SelectItem>
-                            <SelectItem value="owner">Proprietário (somar ao líquido)</SelectItem>
-                          </SelectGroup>
-                    
-                          {/* Divisor e Botão para Novo Cadastro */}
-                          <SelectSeparator />
-                          <div
-                            // Usamos as classes de um SelectItem para manter a aparência, mas adicionamos cores e a ação onClick
-                            className="relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 text-blue-600 hover:bg-gray-100 font-semibold"
-                            onClick={() => {
-                              setShowCleanerForm(true);
+                        <Label htmlFor="cleaning_destination">Faxineira responsável</Label>
+                        <Select 
+                            value={watchedValues.cleaning_destination || 'none'} 
+                            onValueChange={(value) => {
+                                setValue('cleaning_destination', value);
                             }}
-                          >
-                            Novo Cadastro +
-                          </div>
-                        </SelectContent>
-                      </Select>
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Selecione o destino da taxa..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="none">A decidir / Nenhuma</SelectItem>
+                                {cleaners.length > 0 && (
+                                    <SelectGroup>
+                                        <SelectLabel>Faxineiras</SelectLabel>
+                                        {cleaners.map((c) => (
+                                            <SelectItem key={c.user_id} value={c.user_id}>
+                                                {c.full_name || c.email}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectGroup>
+                                )}
+                                <SelectGroup>
+                                    <SelectLabel>Outras Opções</SelectLabel>
+                                    <SelectItem value="host">Anfitrião (somar à comissão)</SelectItem>
+                                    <SelectItem value="owner">Proprietário (somar ao líquido)</SelectItem>
+                                </SelectGroup>
+                                <SelectSeparator />
+                                <div
+                                    className="relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 text-blue-600 hover:bg-gray-100 font-semibold"
+                                    onClick={() => {
+                                        setShowCleanerForm(true);
+                                    }}
+                                >
+                                    Novo Cadastro +
+                                </div>
+                            </SelectContent>
+                        </Select>
                     </div>
                     <div>
                         <Label htmlFor="cleaning_payment_status">Status do Pagamento da Faxina</Label>
@@ -541,72 +506,69 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
 
             {selectedProperty && watchedValues.total_revenue > 0 && (
                 <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-green-600 border-b pb-2">Detalhamento Financeiro</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <Card>
-                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Receita Total</CardTitle></CardHeader>
-                            <CardContent>
-                                <p className="text-2xl font-bold text-blue-600">
-                                    R$ {watchedValues.total_revenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                </p>
-                            </CardContent>
-                        </Card>
-                        
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">Taxa de Limpeza</CardTitle>
-                                {!editingCleaningFee && (
-                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingCleaningFee(true)}><Pencil className="h-4 w-4" /></Button>
-                                )}
-                            </CardHeader>
-                            <CardContent>
-                                {editingCleaningFee ? (
-                                    <div className="flex items-center gap-2">
-                                        <Input type="number" step="0.01" className="h-9" placeholder="R$ 0,00" value={manualCleaningFee ?? ''} onChange={(e) => setManualCleaningFee(e.target.value === '' ? undefined : Number(e.target.value))} />
-                                        <Button size="icon" className="h-8 w-8" onClick={() => setEditingCleaningFee(false)}><Check className="h-4 w-4" /></Button>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setManualCleaningFee(undefined); setEditingCleaningFee(false); }}><X className="h-4 w-4" /></Button>
-                                    </div>
-                                ) : (
-                                    <p className="text-2xl font-bold">
-                                        R$ {watchedValues.cleaning_fee?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}
-                                    </p>
-                                )}
-                            </CardContent>
-                        </Card>
-                        
-                        <Card>
-                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">Comissão ({(selectedProperty.commission_rate * 100).toFixed(0)}%)</CardTitle>
-                                {!editingCommission && (
-                                     <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingCommission(true)}><Pencil className="h-4 w-4" /></Button>
-                                )}
-                            </CardHeader>
-                            <CardContent>
-                                {editingCommission ? (
-                                    <div className="flex items-center gap-2">
-                                        <Input type="number" step="0.01" className="h-9" placeholder="R$ 0,00" value={manualCommission ?? ''} onChange={(e) => setManualCommission(e.target.value === '' ? undefined : Number(e.target.value))} />
-                                        <Button size="icon" className="h-8 w-8" onClick={() => setEditingCommission(false)}><Check className="h-4 w-4" /></Button>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setManualCommission(undefined); setEditingCommission(false); }}><X className="h-4 w-4" /></Button>
-                                    </div>
-                                ) : (
-                                    <p className="text-2xl font-bold text-orange-600">
-                                        R$ {watchedValues.commission_amount?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}
-                                    </p>
-                                )}
-                            </CardContent>
-                        </Card>
-                    </div>
-
-                    <Card className="bg-green-50 border-green-200">
-                        <CardContent className="pt-6">
-                            <div className="text-center">
-                                <p className="text-sm text-gray-600">Valor Líquido para o Proprietário</p>
-                                <p className="text-2xl font-bold text-green-600">
-                                    R$ {watchedValues.net_revenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                </p>
-                            </div>
-                        </CardContent>
-                    </Card>
+                  <h3 className="text-lg font-semibold text-green-600 border-b pb-2">Detalhamento Financeiro</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <Card>
+                          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Receita Total</CardTitle></CardHeader>
+                          <CardContent>
+                              <p className="text-2xl font-bold text-blue-600">
+                                  R$ {watchedValues.total_revenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                              </p>
+                          </CardContent>
+                      </Card>
+                      <Card>
+                          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                              <CardTitle className="text-sm font-medium">Taxa de Limpeza</CardTitle>
+                              {!editingCleaningFee && (
+                                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingCleaningFee(true)}><Pencil className="h-4 w-4" /></Button>
+                              )}
+                          </CardHeader>
+                          <CardContent>
+                              {editingCleaningFee ? (
+                                  <div className="flex items-center gap-2">
+                                      <Input type="number" step="0.01" className="h-9" placeholder="R$ 0,00" value={manualCleaningFee ?? ''} onChange={(e) => setManualCleaningFee(e.target.value === '' ? undefined : Number(e.target.value))} />
+                                      <Button size="icon" className="h-8 w-8" onClick={() => setEditingCleaningFee(false)}><Check className="h-4 w-4" /></Button>
+                                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setManualCleaningFee(undefined); setEditingCleaningFee(false); }}><X className="h-4 w-4" /></Button>
+                                  </div>
+                              ) : (
+                                  <p className="text-2xl font-bold">
+                                      R$ {watchedValues.cleaning_fee?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}
+                                  </p>
+                              )}
+                          </CardContent>
+                      </Card>
+                      <Card>
+                          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                              <CardTitle className="text-sm font-medium">Comissão ({(selectedProperty.commission_rate * 100).toFixed(0)}%)</CardTitle>
+                              {!editingCommission && (
+                                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingCommission(true)}><Pencil className="h-4 w-4" /></Button>
+                              )}
+                          </CardHeader>
+                          <CardContent>
+                              {editingCommission ? (
+                                  <div className="flex items-center gap-2">
+                                      <Input type="number" step="0.01" className="h-9" placeholder="R$ 0,00" value={manualCommission ?? ''} onChange={(e) => setManualCommission(e.target.value === '' ? undefined : Number(e.target.value))} />
+                                      <Button size="icon" className="h-8 w-8" onClick={() => setEditingCommission(false)}><Check className="h-4 w-4" /></Button>
+                                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setManualCommission(undefined); setEditingCommission(false); }}><X className="h-4 w-4" /></Button>
+                                  </div>
+                              ) : (
+                                  <p className="text-2xl font-bold text-orange-600">
+                                      R$ {watchedValues.commission_amount?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}
+                                  </p>
+                              )}
+                          </CardContent>
+                      </Card>
+                  </div>
+                  <Card className="bg-green-50 border-green-200">
+                      <CardContent className="pt-6">
+                          <div className="text-center">
+                              <p className="text-sm text-gray-600">Valor Líquido para o Proprietário</p>
+                              <p className="text-2xl font-bold text-green-600">
+                                  R$ {watchedValues.net_revenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                              </p>
+                          </div>
+                      </CardContent>
+                  </Card>
                 </div>
             )}
 
