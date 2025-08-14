@@ -13,10 +13,12 @@ import {
 } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useUserRole } from '@/hooks/useUserRole';
 import GlobalFilters from './GlobalFilters';
 
 const Sidebar = () => {
   const { toast } = useToast();
+  const { isCleaner } = useUserRole();
 
   const handleLogout = async () => {
     try {
@@ -40,7 +42,9 @@ const Sidebar = () => {
     }
   };
 
-  const menuItems = [
+  const menuItems = isCleaner ? [
+    { name: 'Minhas Faxinas', icon: Calendar, path: '/faxineira-dashboard' },
+  ] : [
     { name: 'Dashboard', icon: BarChart3, path: '/dashboard' },
     { name: 'Reservas', icon: Calendar, path: '/reservas' },
     { name: 'Despesas', icon: Tag, path: '/despesas' },
@@ -58,10 +62,12 @@ const Sidebar = () => {
         </h1>
       </div>
       
-      {/* Filtros Globais */}
-      <div className="border-b">
-        <GlobalFilters />
-      </div>
+      {/* Filtros Globais - ocultar para faxineiras */}
+      {!isCleaner && (
+        <div className="border-b">
+          <GlobalFilters />
+        </div>
+      )}
       
       <nav className="flex-1 px-4 py-6">
         <ul className="space-y-2">

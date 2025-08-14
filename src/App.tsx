@@ -15,6 +15,7 @@ import InvestmentsPage from "./pages/InvestmentsPage";
 import PropertyInvestmentDetailPage from "./pages/PropertyInvestmentDetailPage";
 import RelatoriosPage from "./pages/RelatoriosPage";
 import ConfiguracoesPage from "./pages/ConfiguracoesPage";
+import FaxineiraDashboard from "./pages/FaxineiraDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -54,6 +55,7 @@ const App = () => {
                   <Route path="/investimentos/:propertyId" element={<PropertyInvestmentDetailPage />} />
                   <Route path="/relatorios" element={<RelatoriosPage />} />
                   <Route path="/configuracoes" element={<ConfiguracoesPage />} />
+                  <Route path="/faxineira-dashboard" element={<FaxineiraDashboard />} />
                   <Route path="/auth" element={<Navigate to="/dashboard" replace />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>

@@ -134,7 +134,10 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                         if(formKey === 'checkin_time') setUsePropertyDefaults(false);
                     }
                 } else {
-                    setValue(formKey, reservation[formKey as keyof Reservation]);
+                    const value = reservation[formKey as keyof Reservation];
+                    if (value !== undefined && value !== null && typeof value !== 'boolean') {
+                        setValue(formKey, value);
+                    }
                 }
             });
             

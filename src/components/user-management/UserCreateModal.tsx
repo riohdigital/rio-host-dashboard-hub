@@ -21,7 +21,7 @@ const UserCreateModal: React.FC<UserCreateModalProps> = ({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState<'master' | 'owner' | 'editor' | 'viewer'>('viewer');
+  const [role, setRole] = useState<'master' | 'owner' | 'editor' | 'viewer' | 'faxineira'>('viewer');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -130,7 +130,7 @@ const UserCreateModal: React.FC<UserCreateModalProps> = ({
 
           <div className="space-y-2">
             <Label htmlFor="role">Tipo de Usuário</Label>
-            <Select value={role} onValueChange={(value) => setRole(value as 'master' | 'owner' | 'editor' | 'viewer')}>
+            <Select value={role} onValueChange={(value) => setRole(value as 'master' | 'owner' | 'editor' | 'viewer' | 'faxineira')}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -139,6 +139,7 @@ const UserCreateModal: React.FC<UserCreateModalProps> = ({
                 <SelectItem value="editor">Editor</SelectItem>
                 <SelectItem value="owner">Proprietário</SelectItem>
                 <SelectItem value="master">Mestre</SelectItem>
+                <SelectItem value="faxineira">Faxineira</SelectItem>
               </SelectContent>
             </Select>
           </div>

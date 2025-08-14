@@ -27,7 +27,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
   onUserUpdated
 }) => {
   const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState<'master' | 'owner' | 'editor' | 'viewer'>('viewer');
+  const [role, setRole] = useState<'master' | 'owner' | 'editor' | 'viewer' | 'faxineira'>('viewer');
   const [isActive, setIsActive] = useState(true);
   const [permissions, setPermissions] = useState<UserPermission[]>([]);
   const [propertyAccess, setPropertyAccess] = useState<UserPropertyAccess[]>([]);
@@ -195,9 +195,9 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="role">Role</Label>
-                <Select 
+                 <Select 
                   value={role} 
-                  onValueChange={(value) => setRole(value as 'master' | 'owner' | 'editor' | 'viewer')}
+                  onValueChange={(value) => setRole(value as 'master' | 'owner' | 'editor' | 'viewer' | 'faxineira')}
                   disabled={user.role === 'master'}
                 >
                   <SelectTrigger>
@@ -208,6 +208,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
                     <SelectItem value="owner">Proprietário</SelectItem>
                     <SelectItem value="editor">Editor</SelectItem>
                     <SelectItem value="viewer">Visualizador</SelectItem>
+                    <SelectItem value="faxineira">Faxineira</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

@@ -3,7 +3,7 @@ export interface UserProfile {
   user_id: string;
   email: string;
   full_name?: string;
-  role: 'master' | 'owner' | 'editor' | 'viewer';
+  role: 'master' | 'owner' | 'editor' | 'viewer' | 'faxineira';
   is_active: boolean;
   created_at: string;
   updated_at: string;
