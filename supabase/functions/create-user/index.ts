@@ -10,7 +10,7 @@ interface CreateUserRequest {
   email: string;
   password: string;
   fullName: string;
-  role?: 'master' | 'owner' | 'editor' | 'viewer';
+  role?: 'master' | 'owner' | 'editor' | 'viewer' | 'faxineira';
 }
 
 const handler = async (req: Request): Promise<Response> => {

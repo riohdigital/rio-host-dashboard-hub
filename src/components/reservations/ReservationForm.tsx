@@ -16,6 +16,7 @@ import { Property } from '@/types/property';
 import { useToast } from '@/hooks/use-toast';
 import { Pencil, Star, Check, X } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
+import CleanerCreateModal from './CleanerCreateModal';
 
 // Schema de validação com os novos campos
 const reservationSchema = z.object({
@@ -73,6 +74,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
     const [editingCommission, setEditingCommission] = useState(false);
     const [manualCleaningFee, setManualCleaningFee] = useState<number | undefined>(undefined);
     const [manualCommission, setManualCommission] = useState<number | undefined>(undefined);
+    const [showCleanerForm, setShowCleanerForm] = useState(false);
     const { toast } = useToast();
 
     const {
@@ -450,7 +452,13 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <Label htmlFor="cleaning_destination">Faxineira responsável</Label>
-                        <Select value={watchedValues.cleaning_destination || 'none'} onValueChange={(value) => setValue('cleaning_destination', value)}>
+                        <Select value={watchedValues.cleaning_destination || 'none'} onValueChange={(value) => {
+                            if (value === 'new_cleaner') {
+                                setShowCleanerForm(true);
+                            } else {
+                                setValue('cleaning_destination', value);
+                            }
+                        }}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Selecione o destino da taxa..." />
                             </SelectTrigger>
@@ -574,6 +582,19 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                     {loading ? 'Salvando...' : 'Salvar'}
                 </Button>
             </div>
+
+            <CleanerCreateModal
+                open={showCleanerForm}
+                onClose={() => setShowCleanerForm(false)}
+                onCleanerCreated={(cleanerId, cleanerName) => {
+                    setValue('cleaning_destination', cleanerId);
+                    setShowCleanerForm(false);
+                    if (watchedPropertyId) {
+                        fetchCleanersForProperty(watchedPropertyId);
+                    }
+                }}
+                propertyId={watchedPropertyId}
+            />
         </form>
     );
 };
