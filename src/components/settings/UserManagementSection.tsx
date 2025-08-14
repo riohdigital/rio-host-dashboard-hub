@@ -11,7 +11,7 @@ import UserListTable from '@/components/user-management/UserListTable';
 import UserEditModal from '@/components/user-management/UserEditModal';
 import UserInviteForm from '@/components/user-management/UserInviteForm';
 import UserCreateModal from '@/components/user-management/UserCreateModal';
-import CleanerCreateModal from '@/components/cleaners/CleanerCreateModal'; // NOVO: Importar o modal de faxineiras
+import CleanerCreateModal from '@/components/reservations/CleanerCreateModal'; // NOVO: Importar o modal de faxineiras
 import type { UserProfile } from '@/types/user-management';
 
 // NOVO: Definir um tipo para os dados que serão passados entre os modais
