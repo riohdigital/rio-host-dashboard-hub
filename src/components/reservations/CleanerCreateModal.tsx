@@ -115,6 +115,7 @@ const CleanerCreateModal: React.FC<CleanerCreateModalProps> = ({
 
     setLoading(true);
     try {
+      // 1. Chama a Edge Function para criar o usuário (esta parte está correta)
       const { data: functionData, error: createError } = await supabase.functions.invoke('create-user', {
         body: { email, password, fullName, role: 'faxineira', phone, address }
       });
@@ -123,14 +124,21 @@ const CleanerCreateModal: React.FC<CleanerCreateModalProps> = ({
       const newCleanerId = functionData.user.id;
       if (!newCleanerId) throw new Error("A função não retornou o ID do novo usuário.");
 
+      // 2. CORREÇÃO: Cria os vínculos na tabela correta 'cleaner_properties'
       const linksToCreate = selectedProperties.map(propId => ({
         user_id: newCleanerId,
-        property_id: propId,
-        access_level: 'viewer' 
+        property_id: propId
+        // A coluna 'access_level' foi removida
       }));
-      const { error: linkError } = await supabase.from('user_property_access').insert(linksToCreate);
+
+      // CORREÇÃO: Inserindo na tabela 'cleaner_properties'
+      const { error: linkError } = await supabase
+        .from('cleaner_properties')
+        .insert(linksToCreate);
+      
       if (linkError) throw linkError;
 
+      // 3. (Opcional) Salva as anotações na tabela cleaner_profiles (esta parte está correta)
       if (notes.trim() !== '') {
           await supabase.from('cleaner_profiles').update({ notes }).eq('user_id', newCleanerId);
       }
