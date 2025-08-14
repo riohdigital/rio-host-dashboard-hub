@@ -11,15 +11,7 @@ import UserListTable from '@/components/user-management/UserListTable';
 import UserEditModal from '@/components/user-management/UserEditModal';
 import UserInviteForm from '@/components/user-management/UserInviteForm';
 import UserCreateModal from '@/components/user-management/UserCreateModal';
-import CleanerCreateModal from '@/components/cleaners/CleanerCreateModal'; // NOVO: Importar o modal de faxineiras
 import type { UserProfile } from '@/types/user-management';
-
-// NOVO: Definir um tipo para os dados que serão passados entre os modais
-type CleanerInitialData = {
-  email: string;
-  fullName: string;
-  password?: string;
-};
 
 const UserManagementSection = () => {
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -32,11 +24,8 @@ const UserManagementSection = () => {
   const [userToDelete, setUserToDelete] = useState<UserProfile | null>(null);
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
-
-  // NOVO: Estados para controlar o fluxo de criação de faxineira
-  const [cleanerModalOpen, setCleanerModalOpen] = useState(false);
-  const [cleanerInitialData, setCleanerInitialData] = useState<CleanerInitialData | undefined>(undefined);
   
+  // CORREÇÃO 1: Acessando o estado de loading do hook de permissões
   const { hasPermission, loading: permissionsLoading } = useUserPermissions();
   const { toast } = useToast();
 
@@ -54,7 +43,7 @@ const UserManagementSection = () => {
       console.error('Erro ao buscar usuários:', error);
       toast({
         title: "Erro",
-        description: "Não foi possível carregar la lista de usuários.",
+        description: "Não foi possível carregar a lista de usuários.",
         variant: "destructive",
       });
     } finally {
@@ -63,14 +52,16 @@ const UserManagementSection = () => {
   };
 
   useEffect(() => {
+    // CORREÇÃO 2: A busca de usuários agora só ocorre DEPOIS que as permissões foram carregadas
     if (!permissionsLoading) {
       if (hasPermission('users_manage')) {
         fetchUsers();
       } else {
-        setLoading(false);
+        // Se não tem permissão, não precisa fazer nada, o componente já tratará a exibição
+        setLoading(false); // Garante que o loading principal pare
       }
     }
-  }, [permissionsLoading, hasPermission]);
+  }, [permissionsLoading]);
 
   useEffect(() => {
     const lowercasedFilter = searchTerm.toLowerCase();
@@ -123,6 +114,7 @@ const UserManagementSection = () => {
     if (!userToDelete) return;
 
     try {
+      // Chamar Edge Function para exclusão completa
       const { error } = await supabase.functions.invoke('delete-user', {
         body: { userId: userToDelete.user_id }
       });
@@ -148,13 +140,7 @@ const UserManagementSection = () => {
     }
   };
 
-  // NOVO: Função para orquestrar a transição do modal de usuário para o de faxineira
-  const handleSwitchToCleanerCreation = (data: CleanerInitialData) => {
-    setCreateModalOpen(false); // Fecha o primeiro modal
-    setCleanerInitialData(data); // Armazena os dados pré-preenchidos
-    setCleanerModalOpen(true);  // Abre o segundo modal
-  };
-
+  // CORREÇÃO 3: Verificação do estado de loading ANTES de verificar as permissões.
   if (permissionsLoading) {
     return (
       <div className="flex justify-center items-center py-8">
@@ -164,6 +150,7 @@ const UserManagementSection = () => {
     );
   }
 
+  // A verificação de permissão agora acontece apenas depois do loading.
   if (!hasPermission('users_manage')) {
     return (
       <div className="text-center py-8">
@@ -244,23 +231,10 @@ const UserManagementSection = () => {
         onUserUpdated={fetchUsers}
       />
 
-      {/* ALTERAÇÃO: Passando a nova função para o UserCreateModal */}
       <UserCreateModal
         open={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
         onUserCreated={fetchUsers}
-        onSwitchToCleanerFlow={handleSwitchToCleanerCreation}
-      />
-
-      {/* NOVO: Renderização do CleanerCreateModal, controlado por esta página */}
-      <CleanerCreateModal
-        open={cleanerModalOpen}
-        onClose={() => setCleanerModalOpen(false)}
-        onCleanerCreated={() => {
-          setCleanerModalOpen(false);
-          fetchUsers(); // Atualiza a lista de usuários após criar a faxineira
-        }}
-        initialData={cleanerInitialData}
       />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
