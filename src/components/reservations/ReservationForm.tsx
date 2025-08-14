@@ -576,5 +576,3 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
 };
 
 export default ReservationForm;
-
-Espero que esta nova versão atenda perfeitamente às suas necessidades\! Se tiver mais alguma dúvida ou precisar de outro ajuste, é só me dizer.
