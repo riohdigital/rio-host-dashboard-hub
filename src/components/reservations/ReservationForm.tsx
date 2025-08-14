@@ -178,30 +178,39 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
         }
     }, [watchedPropertyId, properties]);
 
-    const fetchCleanersForProperty = async (propertyId: string) => {
-        try {
-            const { data: accessList, error: accessError } = await supabase
-                .from('user_property_access')
-                .select('user_id')
-                .eq('property_id', propertyId);
-            if (accessError) throw accessError;
-            const userIds = (accessList || []).map((a: any) => a.user_id).filter(Boolean);
-            if (userIds.length === 0) {
-                setCleaners([]);
-                return;
-            }
-            const { data: profiles, error: profError } = await supabase
-                .from('user_profiles')
-                .select('user_id, full_name, email, role')
-                .eq('role', 'faxineira')
-                .in('user_id', userIds);
-            if (profError) throw profError;
-            setCleaners((profiles || []).map((p: any) => ({ user_id: p.user_id, full_name: p.full_name, email: p.email })));
-        } catch (e) {
-            console.error('Erro ao buscar faxineiras da propriedade:', e);
-            setCleaners([]);
-        }
-    };
+  const fetchCleanersForProperty = async (propertyId: string) => {
+    try {
+      // CORREÇÃO: Buscando da tabela correta 'cleaner_properties'
+      const { data: cleanerLinks, error: linkError } = await supabase
+        .from('cleaner_properties')
+        .select('user_id')
+        .eq('property_id', propertyId);
+
+      if (linkError) throw linkError;
+
+      const userIds = (cleanerLinks || []).map((link) => link.user_id).filter(Boolean);
+      
+      if (userIds.length === 0) {
+        setCleaners([]);
+        return;
+      }
+      
+      // Esta parte, que busca os detalhes do perfil, continua a mesma e está correta
+      const { data: profiles, error: profError } = await supabase
+        .from('user_profiles')
+        .select('user_id, full_name, email')
+        .eq('role', 'faxineira')
+        .in('user_id', userIds);
+        
+      if (profError) throw profError;
+      
+      setCleaners((profiles || []).map(p => ({ user_id: p.user_id, full_name: p.full_name, email: p.email })));
+
+    } catch (e) {
+      console.error('Erro ao buscar faxineiras da propriedade:', e);
+      setCleaners([]);
+    }
+  };
 
     useEffect(() => {
         if (watchedPropertyId) {
