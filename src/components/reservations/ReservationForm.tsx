@@ -6,6 +6,7 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+// CORREÇÃO: Importando os componentes que faltavam
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -17,6 +18,7 @@ import { Pencil, Star, Check, X } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import CleanerCreateModal from './CleanerCreateModal';
 
+// O Schema de validação permanece o mesmo
 const reservationSchema = z.object({
     property_id: z.string().optional(),
     platform: z.string().min(1, 'Plataforma é obrigatória'),
@@ -446,7 +448,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                                 <SelectValue placeholder="Selecione o destino da taxa..." />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="none">A decidir / Nenhuma</SelectItem>
+                                <SelectItem value="none">A Definir / Nenhuma</SelectItem>
                                 {cleaners.length > 0 && (
                                     <SelectGroup>
                                         <SelectLabel>Faxineiras</SelectLabel>
@@ -459,7 +461,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                                 )}
                                 <SelectGroup>
                                     <SelectLabel>Outras Opções</SelectLabel>
-                                    <SelectItem value="host">Anfitrião (somar à comissão)</SelectItem>
+                                    <SelectItem value="host">Co-Anfitrião (somar à comissão)</SelectItem>
                                     <SelectItem value="owner">Proprietário (somar ao líquido)</SelectItem>
                                 </SelectGroup>
                                 <SelectSeparator />
@@ -469,7 +471,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                                         setShowCleanerForm(true);
                                     }}
                                 >
-                                    Novo Cadastro +
+                                    + | Cadastrar Novo Perfil
                                 </div>
                             </SelectContent>
                         </Select>
@@ -506,69 +508,69 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
 
             {selectedProperty && watchedValues.total_revenue > 0 && (
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-green-600 border-b pb-2">Detalhamento Financeiro</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <Card>
-                          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Receita Total</CardTitle></CardHeader>
-                          <CardContent>
-                              <p className="text-2xl font-bold text-blue-600">
-                                  R$ {watchedValues.total_revenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                              </p>
-                          </CardContent>
-                      </Card>
-                      <Card>
-                          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                              <CardTitle className="text-sm font-medium">Taxa de Limpeza</CardTitle>
-                              {!editingCleaningFee && (
-                                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingCleaningFee(true)}><Pencil className="h-4 w-4" /></Button>
-                              )}
-                          </CardHeader>
-                          <CardContent>
-                              {editingCleaningFee ? (
-                                  <div className="flex items-center gap-2">
-                                      <Input type="number" step="0.01" className="h-9" placeholder="R$ 0,00" value={manualCleaningFee ?? ''} onChange={(e) => setManualCleaningFee(e.target.value === '' ? undefined : Number(e.target.value))} />
-                                      <Button size="icon" className="h-8 w-8" onClick={() => setEditingCleaningFee(false)}><Check className="h-4 w-4" /></Button>
-                                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setManualCleaningFee(undefined); setEditingCleaningFee(false); }}><X className="h-4 w-4" /></Button>
-                                  </div>
-                              ) : (
-                                  <p className="text-2xl font-bold">
-                                      R$ {watchedValues.cleaning_fee?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}
-                                  </p>
-                              )}
-                          </CardContent>
-                      </Card>
-                      <Card>
-                          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                              <CardTitle className="text-sm font-medium">Comissão ({(selectedProperty.commission_rate * 100).toFixed(0)}%)</CardTitle>
-                              {!editingCommission && (
-                                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingCommission(true)}><Pencil className="h-4 w-4" /></Button>
-                              )}
-                          </CardHeader>
-                          <CardContent>
-                              {editingCommission ? (
-                                  <div className="flex items-center gap-2">
-                                      <Input type="number" step="0.01" className="h-9" placeholder="R$ 0,00" value={manualCommission ?? ''} onChange={(e) => setManualCommission(e.target.value === '' ? undefined : Number(e.target.value))} />
-                                      <Button size="icon" className="h-8 w-8" onClick={() => setEditingCommission(false)}><Check className="h-4 w-4" /></Button>
-                                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setManualCommission(undefined); setEditingCommission(false); }}><X className="h-4 w-4" /></Button>
-                                  </div>
-                              ) : (
-                                  <p className="text-2xl font-bold text-orange-600">
-                                      R$ {watchedValues.commission_amount?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}
-                                  </p>
-                              )}
-                          </CardContent>
-                      </Card>
-                  </div>
-                  <Card className="bg-green-50 border-green-200">
-                      <CardContent className="pt-6">
-                          <div className="text-center">
-                              <p className="text-sm text-gray-600">Valor Líquido para o Proprietário</p>
-                              <p className="text-2xl font-bold text-green-600">
-                                  R$ {watchedValues.net_revenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                              </p>
-                          </div>
-                      </CardContent>
-                  </Card>
+                    <h3 className="text-lg font-semibold text-green-600 border-b pb-2">Detalhamento Financeiro</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <Card>
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Receita Total</CardTitle></CardHeader>
+                            <CardContent>
+                                <p className="text-2xl font-bold text-blue-600">
+                                    R$ {watchedValues.total_revenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </p>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium">Taxa de Limpeza</CardTitle>
+                                {!editingCleaningFee && (
+                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingCleaningFee(true)}><Pencil className="h-4 w-4" /></Button>
+                                )}
+                            </CardHeader>
+                            <CardContent>
+                                {editingCleaningFee ? (
+                                    <div className="flex items-center gap-2">
+                                        <Input type="number" step="0.01" className="h-9" placeholder="R$ 0,00" value={manualCleaningFee ?? ''} onChange={(e) => setManualCleaningFee(e.target.value === '' ? undefined : Number(e.target.value))} />
+                                        <Button size="icon" className="h-8 w-8" onClick={() => setEditingCleaningFee(false)}><Check className="h-4 w-4" /></Button>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setManualCleaningFee(undefined); setEditingCleaningFee(false); }}><X className="h-4 w-4" /></Button>
+                                    </div>
+                                ) : (
+                                    <p className="text-2xl font-bold">
+                                        R$ {watchedValues.cleaning_fee?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}
+                                    </p>
+                                )}
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium">Comissão ({(selectedProperty?.commission_rate || 0 * 100).toFixed(0)}%)</CardTitle>
+                                {!editingCommission && (
+                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingCommission(true)}><Pencil className="h-4 w-4" /></Button>
+                                )}
+                            </CardHeader>
+                            <CardContent>
+                                {editingCommission ? (
+                                    <div className="flex items-center gap-2">
+                                        <Input type="number" step="0.01" className="h-9" placeholder="R$ 0,00" value={manualCommission ?? ''} onChange={(e) => setManualCommission(e.target.value === '' ? undefined : Number(e.target.value))} />
+                                        <Button size="icon" className="h-8 w-8" onClick={() => setEditingCommission(false)}><Check className="h-4 w-4" /></Button>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setManualCommission(undefined); setEditingCommission(false); }}><X className="h-4 w-4" /></Button>
+                                    </div>
+                                ) : (
+                                    <p className="text-2xl font-bold text-orange-600">
+                                        R$ {watchedValues.commission_amount?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}
+                                    </p>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
+                    <Card className="bg-green-50 border-green-200">
+                        <CardContent className="pt-6">
+                            <div className="text-center">
+                                <p className="text-sm text-gray-600">Valor Líquido para o Proprietário</p>
+                                <p className="text-2xl font-bold text-green-600">
+                                    R$ {watchedValues.net_revenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </p>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </div>
             )}
 
