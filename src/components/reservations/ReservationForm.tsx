@@ -471,7 +471,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                                         setShowCleanerForm(true);
                                     }}
                                 >
-                                    + | Cadastrar Novo Perfil
+                                    Cadastrar Novo Perfil
                                 </div>
                             </SelectContent>
                         </Select>
