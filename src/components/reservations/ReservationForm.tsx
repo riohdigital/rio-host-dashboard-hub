@@ -459,31 +459,56 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
             <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-purple-600 border-b pb-2">Serviço de Faxina</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <Label htmlFor="cleaning_destination">Faxineira responsável</Label>
-                        <Select value={watchedValues.cleaning_destination || 'none'} onValueChange={(value) => {
-                            if (value === 'new_cleaner') {
-                                setShowCleanerForm(true);
-                            } else {
-                                setValue('cleaning_destination', value);
-                            }
-                        }}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Selecione o destino da taxa..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="none">A decidir/Nenhuma Faxineira</SelectItem>
-                                {cleaners.length > 0 && cleaners.map((c) => (
-                                    <SelectItem key={c.user_id} value={c.user_id}>
-                                        {c.full_name || c.email}
-                                    </SelectItem>
-                                ))}
-                                <SelectItem value="host">Anfitrião (somar à comissão)</SelectItem>
-                                <SelectItem value="owner">Proprietário (somar ao líquido)</SelectItem>
-                                <SelectItem value="new_cleaner">Novo Cadastro +</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
+<div>
+  <Label htmlFor="cleaning_destination">Faxineira responsável</Label>
+  <Select 
+    value={watchedValues.cleaning_destination || 'none'} 
+    onValueChange={(value) => {
+      // A lógica para 'new_cleaner' foi movida para o onClick do botão abaixo,
+      // então este onValueChange agora só precisa definir o valor.
+      setValue('cleaning_destination', value);
+    }}
+  >
+    <SelectTrigger>
+      <SelectValue placeholder="Selecione o destino da taxa..." />
+    </SelectTrigger>
+    <SelectContent>
+      {/* Opção Padrão */}
+      <SelectItem value="none">A decidir / Nenhuma</SelectItem>
+
+      {/* Grupo para Faxineiras Cadastradas */}
+      {cleaners.length > 0 && (
+        <SelectGroup>
+          <SelectLabel>Faxineiras</SelectLabel>
+          {cleaners.map((c) => (
+            <SelectItem key={c.user_id} value={c.user_id}>
+              {c.full_name || c.email}
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      )}
+
+      {/* Grupo para Outras Opções */}
+      <SelectGroup>
+        <SelectLabel>Outras Opções</SelectLabel>
+        <SelectItem value="host">Anfitrião (somar à comissão)</SelectItem>
+        <SelectItem value="owner">Proprietário (somar ao líquido)</SelectItem>
+      </SelectGroup>
+
+      {/* Divisor e Botão para Novo Cadastro */}
+      <SelectSeparator />
+      <div
+        // Usamos as classes de um SelectItem para manter a aparência, mas adicionamos cores e a ação onClick
+        className="relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 text-blue-600 hover:bg-gray-100 font-semibold"
+        onClick={() => {
+          setShowCleanerForm(true);
+        }}
+      >
+        Novo Cadastro +
+      </div>
+    </SelectContent>
+  </Select>
+</div>
                     <div>
                         <Label htmlFor="cleaning_payment_status">Status do Pagamento da Faxina</Label>
                         <Select value={watchedValues.cleaning_payment_status || ''} onValueChange={(value) => setValue('cleaning_payment_status', value)}>
