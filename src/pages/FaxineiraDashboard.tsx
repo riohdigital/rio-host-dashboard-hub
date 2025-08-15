@@ -44,6 +44,8 @@ const fetchAvailableReservations = async (userId: string) => {
     .is('cleaner_user_id', null)
     .gte('check_out_date', today)
     .lte('check_out_date', twoWeeksFromNow)
+    // NOVA REGRA ADICIONADA AQUI
+    .in('reservation_status', ['Confirmada', 'Em Andamento']) 
     .order('check_out_date', { ascending: true });
   if (error) throw error;
   return data || [];
