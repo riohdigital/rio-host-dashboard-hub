@@ -119,7 +119,6 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
         }
     };
     
-    // Efeito para popular os dados GERAIS do formulário
     useEffect(() => {
         if (reservation && properties.length > 0) {
             const { cleaning_destination, ...restOfReservation } = reservation;
@@ -134,7 +133,6 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
         }
     }, [reservation, properties, reset]);
     
-    // EFEITO DEDICADO: Define o valor da faxineira APÓS a lista de faxineiras ser carregada
     useEffect(() => {
         if (reservation && cleaners.length > 0) {
             let destinationValue = 'none';
@@ -326,7 +324,6 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                     {errors.platform && <span className="text-red-500 text-sm">{errors.platform.message}</span>}
                 </div>
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <Label htmlFor="reservation_code">Código da Reserva *</Label>
@@ -346,7 +343,6 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                     <Input id="number_of_guests" type="number" {...register('number_of_guests', { valueAsNumber: true })} placeholder="Ex: 2" />
                 </div>
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <Label htmlFor="total_revenue">Receita Total (R$) *</Label>
@@ -354,7 +350,6 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                     {errors.total_revenue && <span className="text-red-500 text-sm">{errors.total_revenue.message}</span>}
                 </div>
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                     <Label htmlFor="check_in_date">Data de Check-in *</Label>
@@ -375,7 +370,6 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                     </div>
                 </div>
             </div>
-
             <div className="space-y-4">
                 <div className="flex items-center space-x-2">
                     <Checkbox id="use_property_defaults" checked={usePropertyDefaults} onCheckedChange={(checked) => setUsePropertyDefaults(checked as boolean)} />
@@ -392,7 +386,6 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                     </div>
                 </div>
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <Label htmlFor="payment_status">Status do Pagamento</Label>
@@ -419,7 +412,6 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                     {errors.reservation_status && <span className="text-red-500 text-sm">{errors.reservation_status.message}</span>}
                 </div>
             </div>
-
             <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-purple-600 border-b pb-2">Serviço de Faxina</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
