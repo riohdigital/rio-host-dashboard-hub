@@ -33,13 +33,14 @@ const formatTime = (timeString: string | null): string => {
   return timeString.slice(0, 5);
 };
 
+// VERSÃO CORRIGIDA
 const fetchReservationsAndProperties = async (getAccessibleProperties: () => string[], hasPermission: (p: any) => boolean, selectedPeriod: string, startDateString: string, endDateString: string) => {
     const accessibleProperties = getAccessibleProperties();
     const hasFullAccess = hasPermission('reservations_view_all');
     
     let query = supabase
         .from('reservations')
-        .select('*, properties!inner(*)')
+        .select('*, properties!inner(*)') // Sua consulta otimizada é mantida
         .order('check_in_date', { ascending: false });
 
     if (selectedPeriod !== 'general') {
@@ -59,13 +60,26 @@ const fetchReservationsAndProperties = async (getAccessibleProperties: () => str
     }
     
     const propertiesMap = new Map();
-    (data || []).forEach(res => {
-        if (res.properties) {
-            propertiesMap.set(res.properties.id, res.properties);
+
+    // ✅ SOLUÇÃO: Normalizando os dados das reservas aqui
+    const normalizedReservations = (data || []).map(res => {
+        const { properties, ...reservationData } = res;
+
+        if (properties) {
+            propertiesMap.set(properties.id, properties);
         }
+        
+        // Recria o objeto 'reservation' no formato esperado,
+        // garantindo que 'property_id' sempre exista.
+        return {
+            ...reservationData,
+            property_id: properties?.id, // <-- A CORREÇÃO
+            properties: properties
+        };
     });
 
-    return { reservations: data || [], properties: Array.from(propertiesMap.values()) };
+    // Retorna os dados já corrigidos para o resto da aplicação.
+    return { reservations: normalizedReservations, properties: Array.from(propertiesMap.values()) };
 };
 
 const ReservasPage = () => {
