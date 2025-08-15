@@ -61,7 +61,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
 
   const fetchAllProperties = async () => {
     try {
-      const { data, error } = await supabase.from('properties').select('id, name, nickname');
+      const { data, error } = await supabase.from('properties').select('*');
       if (error) throw error;
       setAllProperties(data || []);
     } catch (error) {
@@ -71,9 +71,9 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
 
   const fetchCleanerLinkedProperties = async (userId: string) => {
     try {
-      const { data, error } = await supabase.from('cleaner_properties').select('property_id').eq('user_id', userId);
+      const { data, error } = await (supabase as any).from('cleaner_properties').select('property_id').eq('user_id', userId);
       if (error) throw error;
-      setCleanerLinkedProperties((data || []).map(link => link.property_id));
+      setCleanerLinkedProperties((data || []).map((link: any) => link.property_id));
     } catch (error) {
       console.error('Erro ao buscar propriedades da faxineira:', error);
     }
@@ -137,13 +137,13 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
       
       // 3. Lógica condicional para salvar os acessos
       if (role === 'faxineira') {
-        await supabase.from('cleaner_properties').delete().eq('user_id', user.user_id);
+        await (supabase as any).from('cleaner_properties').delete().eq('user_id', user.user_id);
         if (cleanerLinkedProperties.length > 0) {
           const linksToInsert = cleanerLinkedProperties.map(propId => ({
             user_id: user.user_id,
             property_id: propId
           }));
-          const { error: cleanerAccessError } = await supabase.from('cleaner_properties').insert(linksToInsert);
+          const { error: cleanerAccessError } = await (supabase as any).from('cleaner_properties').insert(linksToInsert);
           if (cleanerAccessError) throw cleanerAccessError;
         }
       } else {

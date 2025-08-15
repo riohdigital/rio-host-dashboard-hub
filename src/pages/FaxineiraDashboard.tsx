@@ -27,12 +27,12 @@ const fetchAssignedReservations = async (userId: string) => {
 
 // Busca as faxinas disponíveis nas propriedades da faxineira
 const fetchAvailableReservations = async (userId: string) => {
-    const { data: accessibleProperties, error: accessError } = await supabase
+    const { data: accessibleProperties, error: accessError } = await (supabase as any)
         .from('cleaner_properties')
         .select('property_id')
         .eq('user_id', userId);
     if (accessError) throw accessError;
-    const propertyIds = accessibleProperties.map(p => p.property_id);
+    const propertyIds = accessibleProperties.map((p: any) => p.property_id);
     if (propertyIds.length === 0) return [];
 
     const today = new Date().toISOString();
@@ -103,7 +103,7 @@ const FaxineiraDashboard = () => {
             try {
                 const { error } = await supabase
                     .from('reservations')
-                    .update({ cleaning_status: 'Realizada' })
+                    .update({ cleaning_allocation: 'Realizada' })
                     .eq('id', reservationId);
                 if (error) throw error;
                 toast({ title: "Sucesso!", description: "Faxina marcada como concluída e movida para o histórico." });
@@ -118,8 +118,8 @@ const FaxineiraDashboard = () => {
         }
     };
 
-    const upcomingReservations = assignedReservations?.filter(r => r.cleaning_status !== 'Realizada' && !isPast(new Date(r.check_out_date))) ?? [];
-    const pastReservations = assignedReservations?.filter(r => r.cleaning_status === 'Realizada' || isPast(new Date(r.check_out_date))) ?? [];
+    const upcomingReservations = assignedReservations?.filter(r => r.cleaning_allocation !== 'Realizada' && !isPast(new Date(r.check_out_date))) ?? [];
+    const pastReservations = assignedReservations?.filter(r => r.cleaning_allocation === 'Realizada' || isPast(new Date(r.check_out_date))) ?? [];
 
     if (isLoadingAssigned || isLoadingAvailable) {
         return (
@@ -156,10 +156,10 @@ const FaxineiraDashboard = () => {
 };
 
 // Função auxiliar para definir a cor do Badge de status da reserva
-const getStatusVariant = (status: string | null): 'success' | 'destructive' | 'default' | 'secondary' => {
+const getStatusVariant = (status: string | null): 'destructive' | 'default' | 'secondary' => {
     switch (status) {
         case 'Confirmada':
-            return 'success';
+            return 'secondary';
         case 'Cancelada':
             return 'destructive';
         case 'Finalizada':

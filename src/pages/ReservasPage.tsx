@@ -76,8 +76,8 @@ const ReservasPage = () => {
   const [selectedPlatform, setSelectedPlatform] = useState('all');
   const { toast } = useToast();
   const { hasPermission, getAccessibleProperties, loading: permissionsLoading } = useUserPermissions();
-  const { selectedProperties } = useGlobalFilters();
-  const { startDateString, endDateString, selectedPeriod } = useDateRange();
+  const { selectedProperties, selectedPeriod } = useGlobalFilters();
+  const { startDateString, endDateString } = useDateRange(selectedPeriod);
   const queryClient = useQueryClient();
 
   const queryKey = useMemo(() => ['reservations', selectedPeriod, startDateString, endDateString, selectedProperties], 
@@ -342,8 +342,14 @@ const ReservasPage = () => {
                                 <AlertDialog>
                                   <AlertDialogTrigger asChild><Button variant="outline" size="icon" className="h-8 w-8 text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
                                   <AlertDialogContent>
-                                    <AlertDialogHeader><AlertDialogTitle>Confirmar exclusão</AlertDialogTitle><AlertDialogDescription>Tem certeza que deseja excluir a reserva {reservation.reservation_code}? Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
-                                    <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(reservation.id)} className="bg-red-600 hover:bg-red-700">Excluir</AlertDialogAction></AlertDialogFooter>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+                                      <AlertDialogDescription>Tem certeza que deseja excluir esta reserva? Esta ação não pode ser desfeita.</AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => handleDelete(reservation.id)} className="bg-red-600 hover:bg-red-700">Excluir</AlertDialogAction>
+                                    </AlertDialogFooter>
                                   </AlertDialogContent>
                                 </AlertDialog>
                               )}
@@ -355,15 +361,20 @@ const ReservasPage = () => {
                   })}
                 </TableBody>
                 <TableFooter>
-                  <TableRow className="bg-gray-100 font-semibold">
-                    <TableCell colSpan={9} className="font-bold">TOTAIS ({totals.count} reservas)</TableCell>
-                    <TableCell>
-                      <div className="space-y-1 font-bold">
-                        <div>R$ {totals.netRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                        <div className="text-sm text-gray-600 font-normal">Total: R$ {totals.totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                  <TableRow>
+                    <TableCell colSpan={9} className="font-medium">Total de Reservas: {totals.count}</TableCell>
+                    <TableCell className="font-bold">
+                      <div className="space-y-1">
+                        <div className="text-green-700">Líquido: R$ {totals.netRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                        <div className="text-sm text-gray-600">Bruto: R$ {totals.totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                       </div>
                     </TableCell>
-                    <TableCell colSpan={3}></TableCell>
+                    <TableCell colSpan={3}>
+                      <div className="space-y-1 text-sm">
+                        <div>Pagos: {totals.paidCount} | Pendentes: {totals.pendingCount}</div>
+                        <div>Airbnb: {totals.airbnbCount} | Booking: {totals.bookingCount} | Direto: {totals.diretoCount}</div>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 </TableFooter>
               </Table>
@@ -372,14 +383,11 @@ const ReservasPage = () => {
         </Card>
 
         {showForm && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <h2 className="text-xl font-semibold mb-6 text-gray-900">{editingReservation ? 'Editar Reserva' : 'Nova Reserva'}</h2>
-                <ReservationForm reservation={editingReservation} onSuccess={handleFormSuccess} onCancel={() => { setShowForm(false); setEditingReservation(null); }} />
-              </div>
-            </div>
-          </div>
+          <ReservationForm 
+            reservation={editingReservation}
+            onSuccess={handleFormSuccess}
+            onCancel={() => { setShowForm(false); setEditingReservation(null); }}
+          />
         )}
       </div>
     </MainLayout>
