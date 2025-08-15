@@ -111,10 +111,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
 
     const fetchProperties = async () => {
         try {
-            const { data, error } = await supabase
-                .from('properties')
-                .select('*')
-                .order('name');
+            const { data, error } = await supabase.from('properties').select('*').order('name');
             if (error) throw error;
             setProperties(data || []);
         } catch (error) {
@@ -122,30 +119,37 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
         }
     };
     
+    // Efeito para popular os dados GERAIS do formulário
     useEffect(() => {
-        // A condição agora espera que as propriedades tenham sido carregadas.
         if (reservation && properties.length > 0) {
+            const { cleaning_destination, ...restOfReservation } = reservation;
             const initialValues: any = {
-                ...reservation,
+                ...restOfReservation,
                 check_in_date: reservation.check_in_date ? format(new Date(`${reservation.check_in_date}T00:00:00`), 'yyyy-MM-dd') : '',
                 check_out_date: reservation.check_out_date ? format(new Date(`${reservation.check_out_date}T00:00:00`), 'yyyy-MM-dd') : '',
                 checkin_time: reservation.checkin_time?.slice(0, 5) || '',
                 checkout_time: reservation.checkout_time?.slice(0, 5) || '',
             };
-
-            if (reservation.cleaner_user_id) {
-                initialValues.cleaning_destination = reservation.cleaner_user_id;
-            } else if (reservation.cleaning_allocation === 'co_anfitriao') {
-                initialValues.cleaning_destination = 'host';
-            } else if (reservation.cleaning_allocation === 'proprietario') {
-                initialValues.cleaning_destination = 'owner';
-            } else {
-                initialValues.cleaning_destination = 'none';
-            }
-            
             reset(initialValues);
         }
     }, [reservation, properties, reset]);
+    
+    // EFEITO DEDICADO: Define o valor da faxineira APÓS a lista de faxineiras ser carregada
+    useEffect(() => {
+        if (reservation && cleaners.length > 0) {
+            let destinationValue = 'none';
+            if (reservation.cleaner_user_id) {
+                if (cleaners.some(c => c.user_id === reservation.cleaner_user_id)) {
+                    destinationValue = reservation.cleaner_user_id;
+                }
+            } else if (reservation.cleaning_allocation === 'co_anfitriao') {
+                destinationValue = 'host';
+            } else if (reservation.cleaning_allocation === 'proprietario') {
+                destinationValue = 'owner';
+            }
+            setValue('cleaning_destination', destinationValue);
+        }
+    }, [reservation, cleaners, setValue]);
 
     useEffect(() => {
         if (selectedProperty && usePropertyDefaults) {
@@ -166,10 +170,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
 
     const fetchCleanersForProperty = async (propertyId: string) => {
         try {
-            const { data: cleanerLinks, error: linkError } = await supabase
-                .from('cleaner_properties')
-                .select('user_id')
-                .eq('property_id', propertyId);
+            const { data: cleanerLinks, error: linkError } = await supabase.from('cleaner_properties').select('user_id').eq('property_id', propertyId);
             if (linkError) throw linkError;
             
             const userIds = (cleanerLinks || []).map((link) => link.user_id).filter(Boolean);
@@ -178,11 +179,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                 return;
             }
             
-            const { data: profiles, error: profError } = await supabase
-                .from('user_profiles')
-                .select('user_id, full_name, email')
-                .eq('role', 'faxineira')
-                .in('user_id', userIds);
+            const { data: profiles, error: profError } = await supabase.from('user_profiles').select('user_id, full_name, email').eq('role', 'faxineira').in('user_id', userIds);
             if (profError) throw profError;
             
             setCleaners((profiles || []).map(p => ({ user_id: p.user_id, full_name: p.full_name, email: p.email })));
@@ -295,7 +292,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
         }
     };
 
-    if (!properties.length && loading) return <p>Carregando propriedades...</p>;
+    if (!properties.length && !reservation) return <p>Carregando...</p>;
 
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -313,6 +310,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                             ))}
                         </SelectContent>
                     </Select>
+                    {errors.property_id && <span className="text-red-500 text-sm">{errors.property_id.message}</span>}
                 </div>
                 <div>
                     <Label htmlFor="platform">Plataforma *</Label>
@@ -328,6 +326,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                     {errors.platform && <span className="text-red-500 text-sm">{errors.platform.message}</span>}
                 </div>
             </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <Label htmlFor="reservation_code">Código da Reserva *</Label>
@@ -347,6 +346,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                     <Input id="number_of_guests" type="number" {...register('number_of_guests', { valueAsNumber: true })} placeholder="Ex: 2" />
                 </div>
             </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <Label htmlFor="total_revenue">Receita Total (R$) *</Label>
@@ -354,6 +354,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                     {errors.total_revenue && <span className="text-red-500 text-sm">{errors.total_revenue.message}</span>}
                 </div>
             </div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                     <Label htmlFor="check_in_date">Data de Check-in *</Label>
@@ -374,6 +375,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                     </div>
                 </div>
             </div>
+
             <div className="space-y-4">
                 <div className="flex items-center space-x-2">
                     <Checkbox id="use_property_defaults" checked={usePropertyDefaults} onCheckedChange={(checked) => setUsePropertyDefaults(checked as boolean)} />
@@ -390,6 +392,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                     </div>
                 </div>
             </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <Label htmlFor="payment_status">Status do Pagamento</Label>
@@ -416,6 +419,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                     {errors.reservation_status && <span className="text-red-500 text-sm">{errors.reservation_status.message}</span>}
                 </div>
             </div>
+
             <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-purple-600 border-b pb-2">Serviço de Faxina</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
