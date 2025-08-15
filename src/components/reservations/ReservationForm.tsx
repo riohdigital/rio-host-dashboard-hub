@@ -235,6 +235,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
         selectedProperty, manualCleaningFee, manualCommission, setValue
     ]);
 
+    // CORREÇÃO: Lógica de salvamento completa e funcional
     const onSubmit = async (data: ReservationFormData) => {
         setLoading(true);
         try {
