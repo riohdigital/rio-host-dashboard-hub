@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { format } from 'date-fns'; // ADICIONADO
+import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,7 +19,7 @@ import { Textarea } from '@/components/ui/textarea';
 import CleanerCreateModal from './CleanerCreateModal';
 
 const reservationSchema = z.object({
-    property_id: z.string().optional(),
+    property_id: z.string().min(1, 'Propriedade é obrigatória'),
     platform: z.string().min(1, 'Plataforma é obrigatória'),
     reservation_code: z.string().min(1, 'Código da reserva é obrigatório'),
     guest_name: z.string().optional(),
@@ -80,7 +80,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
         handleSubmit,
         setValue,
         watch,
-        reset, // Adicionado reset para popular o formulário
+        reset,
         formState: { errors },
     } = useForm<ReservationFormData>({
         resolver: zodResolver(reservationSchema),
@@ -121,20 +121,18 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
             console.error('Erro ao buscar propriedades:', error);
         }
     };
-
-    // Efeito para popular o formulário ao editar, agora usando reset
+    
     useEffect(() => {
-        if (reservation) {
+        // A condição agora espera que as propriedades tenham sido carregadas.
+        if (reservation && properties.length > 0) {
             const initialValues: any = {
                 ...reservation,
-                // Corrige o bug de timezone nas datas
                 check_in_date: reservation.check_in_date ? format(new Date(`${reservation.check_in_date}T00:00:00`), 'yyyy-MM-dd') : '',
                 check_out_date: reservation.check_out_date ? format(new Date(`${reservation.check_out_date}T00:00:00`), 'yyyy-MM-dd') : '',
                 checkin_time: reservation.checkin_time?.slice(0, 5) || '',
                 checkout_time: reservation.checkout_time?.slice(0, 5) || '',
             };
 
-            // Lógica para definir o 'cleaning_destination' inicial com base nos dados existentes
             if (reservation.cleaner_user_id) {
                 initialValues.cleaning_destination = reservation.cleaner_user_id;
             } else if (reservation.cleaning_allocation === 'co_anfitriao') {
@@ -147,7 +145,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
             
             reset(initialValues);
         }
-    }, [reservation, reset]);
+    }, [reservation, properties, reset]);
 
     useEffect(() => {
         if (selectedProperty && usePropertyDefaults) {
@@ -212,7 +210,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
             setNumberOfDays(0);
         }
 
-        if (selectedProperty && watchedValues.total_revenue > 0) {
+        if (selectedProperty && watchedValues.total_revenue != null) {
             const totalRevenue = watchedValues.total_revenue;
             const commissionRate = selectedProperty.commission_rate || 0;
             const destination = watchedValues.cleaning_destination;
@@ -289,9 +287,9 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
 
             clearSavedData();
             onSuccess();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Erro ao salvar reserva:', error);
-            toast({ title: "Erro", description: "Não foi possível salvar a reserva.", variant: "destructive" });
+            toast({ title: "Erro", description: error.message || "Não foi possível salvar a reserva.", variant: "destructive" });
         } finally {
             setLoading(false);
         }
@@ -330,7 +328,6 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                     {errors.platform && <span className="text-red-500 text-sm">{errors.platform.message}</span>}
                 </div>
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <Label htmlFor="reservation_code">Código da Reserva *</Label>
@@ -350,7 +347,6 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                     <Input id="number_of_guests" type="number" {...register('number_of_guests', { valueAsNumber: true })} placeholder="Ex: 2" />
                 </div>
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <Label htmlFor="total_revenue">Receita Total (R$) *</Label>
@@ -358,7 +354,6 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                     {errors.total_revenue && <span className="text-red-500 text-sm">{errors.total_revenue.message}</span>}
                 </div>
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                     <Label htmlFor="check_in_date">Data de Check-in *</Label>
@@ -379,7 +374,6 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                     </div>
                 </div>
             </div>
-
             <div className="space-y-4">
                 <div className="flex items-center space-x-2">
                     <Checkbox id="use_property_defaults" checked={usePropertyDefaults} onCheckedChange={(checked) => setUsePropertyDefaults(checked as boolean)} />
@@ -396,7 +390,6 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                     </div>
                 </div>
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <Label htmlFor="payment_status">Status do Pagamento</Label>
@@ -423,7 +416,6 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                     {errors.reservation_status && <span className="text-red-500 text-sm">{errors.reservation_status.message}</span>}
                 </div>
             </div>
-
             <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-purple-600 border-b pb-2">Serviço de Faxina</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -431,13 +423,8 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                         <Label htmlFor="cleaning_destination">Faxineira responsável</Label>
                         <Select 
                             value={watchedValues.cleaning_destination || 'none'} 
-                            onValueChange={(value) => {
-                                setValue('cleaning_destination', value);
-                            }}
-                        >
-                            <SelectTrigger>
-                                <SelectValue placeholder="Selecione o destino da taxa..." />
-                            </SelectTrigger>
+                            onValueChange={(value) => { setValue('cleaning_destination', value); }}>
+                            <SelectTrigger><SelectValue placeholder="Selecione o destino da taxa..." /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="none">A decidir / Nenhuma</SelectItem>
                                 {cleaners.length > 0 && (
@@ -458,10 +445,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                                 <SelectSeparator />
                                 <div
                                     className="relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 text-blue-600 hover:bg-gray-100 font-semibold"
-                                    onClick={() => {
-                                        setShowCleanerForm(true);
-                                    }}
-                                >
+                                    onClick={() => { setShowCleanerForm(true); }}>
                                     Novo Cadastro +
                                 </div>
                             </SelectContent>
@@ -496,7 +480,6 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                     <Textarea id="cleaning_notes" {...register('cleaning_notes')} placeholder="Ex.: caprichou na cozinha, faltou pano extra..." />
                 </div>
             </div>
-
             {selectedProperty && watchedValues.total_revenue > 0 && (
                 <div className="space-y-4">
                     <h3 className="text-lg font-semibold text-green-600 border-b pb-2">Detalhamento Financeiro</h3>
@@ -504,17 +487,13 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                         <Card>
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Receita Total</CardTitle></CardHeader>
                             <CardContent>
-                                <p className="text-2xl font-bold text-blue-600">
-                                    R$ {watchedValues.total_revenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                </p>
+                                <p className="text-2xl font-bold text-blue-600">R$ {watchedValues.total_revenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                             </CardContent>
                         </Card>
                         <Card>
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                 <CardTitle className="text-sm font-medium">Taxa de Limpeza</CardTitle>
-                                {!editingCleaningFee && (
-                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingCleaningFee(true)}><Pencil className="h-4 w-4" /></Button>
-                                )}
+                                {!editingCleaningFee && (<Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingCleaningFee(true)}><Pencil className="h-4 w-4" /></Button>)}
                             </CardHeader>
                             <CardContent>
                                 {editingCleaningFee ? (
@@ -523,19 +502,13 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                                         <Button size="icon" className="h-8 w-8" onClick={() => setEditingCleaningFee(false)}><Check className="h-4 w-4" /></Button>
                                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setManualCleaningFee(undefined); setEditingCleaningFee(false); }}><X className="h-4 w-4" /></Button>
                                     </div>
-                                ) : (
-                                    <p className="text-2xl font-bold">
-                                        R$ {watchedValues.cleaning_fee?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}
-                                    </p>
-                                )}
+                                ) : ( <p className="text-2xl font-bold">R$ {watchedValues.cleaning_fee?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}</p> )}
                             </CardContent>
                         </Card>
                         <Card>
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">Comissão ({(selectedProperty?.commission_rate || 0 * 100).toFixed(0)}%)</CardTitle>
-                                {!editingCommission && (
-                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingCommission(true)}><Pencil className="h-4 w-4" /></Button>
-                                )}
+                                <CardTitle className="text-sm font-medium">Comissão ({(selectedProperty?.commission_rate || 0) * 100}%)</CardTitle>
+                                {!editingCommission && (<Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingCommission(true)}><Pencil className="h-4 w-4" /></Button>)}
                             </CardHeader>
                             <CardContent>
                                 {editingCommission ? (
@@ -544,11 +517,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                                         <Button size="icon" className="h-8 w-8" onClick={() => setEditingCommission(false)}><Check className="h-4 w-4" /></Button>
                                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setManualCommission(undefined); setEditingCommission(false); }}><X className="h-4 w-4" /></Button>
                                     </div>
-                                ) : (
-                                    <p className="text-2xl font-bold text-orange-600">
-                                        R$ {watchedValues.commission_amount?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}
-                                    </p>
-                                )}
+                                ) : ( <p className="text-2xl font-bold text-orange-600">R$ {watchedValues.commission_amount?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}</p> )}
                             </CardContent>
                         </Card>
                     </div>
@@ -556,22 +525,18 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                         <CardContent className="pt-6">
                             <div className="text-center">
                                 <p className="text-sm text-gray-600">Valor Líquido para o Proprietário</p>
-                                <p className="text-2xl font-bold text-green-600">
-                                    R$ {watchedValues.net_revenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                </p>
+                                <p className="text-2xl font-bold text-green-600">R$ {watchedValues.net_revenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                             </div>
                         </CardContent>
                     </Card>
                 </div>
             )}
-
             <div className="flex justify-end gap-3 pt-4 border-t">
                 <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>Cancelar</Button>
                 <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white" disabled={loading}>
                     {loading ? 'Salvando...' : 'Salvar'}
                 </Button>
             </div>
-
             <CleanerCreateModal
                 open={showCleanerForm}
                 onClose={() => setShowCleanerForm(false)}
