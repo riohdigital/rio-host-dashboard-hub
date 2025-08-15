@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,23 +16,29 @@ type ReservationWithProperty = Awaited<ReturnType<typeof fetchAssignedReservatio
 
 // Funções de busca de dados
 const fetchAssignedReservations = async (userId: string) => {
+  console.log('[DB] Buscando faxinas ATRIBUÍDAS...');
   const { data, error } = await supabase
     .from('reservations')
     .select(`*, properties (name, address, default_checkin_time)`)
     .eq('cleaner_user_id', userId)
     .order('check_out_date', { ascending: true });
   if (error) throw error;
+  console.log('[DB] Faxinas atribuídas encontradas:', data.length);
   return data || [];
 };
 
 const fetchAvailableReservations = async (userId: string) => {
+  console.log('[DB] Buscando faxinas DISPONÍVEIS...');
   const { data: accessibleProperties, error: accessError } = await supabase
     .from('cleaner_properties')
     .select('property_id')
     .eq('user_id', userId);
   if (accessError) throw accessError;
   const propertyIds = accessibleProperties.map(p => p.property_id);
-  if (propertyIds.length === 0) return [];
+  if (propertyIds.length === 0) {
+    console.log('[DB] Nenhuma propriedade vinculada, retornando 0 faxinas disponíveis.');
+    return [];
+  }
 
   const today = new Date().toISOString();
   const twoWeeksFromNow = addDays(new Date(), 14).toISOString();
@@ -47,6 +53,7 @@ const fetchAvailableReservations = async (userId: string) => {
     .in('reservation_status', ['Confirmada', 'Em Andamento'])
     .order('check_out_date', { ascending: true });
   if (error) throw error;
+  console.log('[DB] Faxinas disponíveis encontradas:', data.length);
   return data || [];
 };
 
@@ -58,20 +65,22 @@ const FaxineiraDashboard = () => {
   const assignedKey = ['faxineira-reservations', user?.id];
   const availableKey = ['available-cleanings', user?.id];
 
+  useEffect(() => {
+    console.log('[FaxineiraDashboard] Componente montado. Invalidando queries para buscar dados frescos.');
+    queryClient.invalidateQueries({ queryKey: assignedKey });
+    queryClient.invalidateQueries({ queryKey: availableKey });
+  }, []); // O array vazio garante que isso rode apenas uma vez, quando o componente é montado.
+
   const { data: assignedReservations, isLoading: isLoadingAssigned } = useQuery({
     queryKey: assignedKey,
     queryFn: () => fetchAssignedReservations(user!.id),
     enabled: !!user,
-    staleTime: 15000,
-    refetchOnWindowFocus: true,
   });
 
   const { data: availableReservations, isLoading: isLoadingAvailable } = useQuery({
     queryKey: availableKey,
     queryFn: () => fetchAvailableReservations(user!.id),
     enabled: !!user,
-    staleTime: 15000,
-    refetchOnWindowFocus: true,
   });
 
   const handleSignUpForCleaning = async (reservationId: string) => {
