@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -6,6 +5,7 @@ import type { UserProfile, UserPermission, UserPropertyAccess, PermissionType } 
 
 interface UserPermissionsContextType {
   userProfile: UserProfile | null;
+  role: string | null; // Adicionado para fácil acesso
   permissions: UserPermission[];
   propertyAccess: UserPropertyAccess[];
   loading: boolean;
@@ -27,9 +27,11 @@ export const UserPermissionsProvider: React.FC<{ children: React.ReactNode }> = 
   const [permissions, setPermissions] = useState<UserPermission[]>([]);
   const [propertyAccess, setPropertyAccess] = useState<UserPropertyAccess[]>([]);
   const [loading, setLoading] = useState(true);
-  const [lastFetchTime, setLastFetchTime] = useState<number>(0);
 
   const fetchUserData = useCallback(async (force = false) => {
+    // LOG 1: Verificando se a função de busca é chamada
+    console.log('[PermissionsProvider] Iniciando busca de dados para o usuário:', user?.id);
+    
     if (!user) {
       setUserProfile(null);
       setPermissions([]);
@@ -38,20 +40,21 @@ export const UserPermissionsProvider: React.FC<{ children: React.ReactNode }> = 
       return;
     }
 
-    // Evitar refetch desnecessário (cache por 5 minutos)
-    const now = Date.now();
-    if (!force && now - lastFetchTime < 5 * 60 * 1000 && userProfile) {
-      return;
-    }
-
     try {
       setLoading(true);
 
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('user_profiles')
         .select('*')
         .eq('user_id', user.id)
         .single();
+      
+      // LOG 2: Verificando o resultado da busca pelo perfil
+      if (profileError) {
+        console.error('[PermissionsProvider] Erro ao buscar perfil (pode ser normal se o perfil ainda não foi criado):', profileError);
+        // Não lançamos o erro para o finally ainda poder rodar
+      }
+      console.log('[PermissionsProvider] Perfil encontrado:', profile);
 
       if (profile) {
         setUserProfile(profile as UserProfile);
@@ -67,15 +70,22 @@ export const UserPermissionsProvider: React.FC<{ children: React.ReactNode }> = 
           .select('*')
           .eq('user_id', profile.user_id);
         setPropertyAccess((propertyAccessData || []) as UserPropertyAccess[]);
-        
-        setLastFetchTime(now);
+      } else {
+        setUserProfile(null);
+        setPermissions([]);
+        setPropertyAccess([]);
       }
     } catch (error) {
-      console.error('Erro ao buscar dados do usuário:', error);
+      console.error('[PermissionsProvider] Erro geral na busca de dados do usuário:', error);
+      setUserProfile(null);
+      setPermissions([]);
+      setPropertyAccess([]);
     } finally {
+      // LOG 3: Confirmando que o carregamento terminou
+      console.log('[PermissionsProvider] Busca de dados finalizada.');
       setLoading(false);
     }
-  }, [user, lastFetchTime, userProfile]);
+  }, [user]);
 
   useEffect(() => {
     fetchUserData();
@@ -103,31 +113,21 @@ export const UserPermissionsProvider: React.FC<{ children: React.ReactNode }> = 
     return access ? access.access_level : null;
   }, [userProfile?.role, hasPermission, propertyAccess]);
 
-  const isMaster = useCallback((): boolean => {
-    return userProfile?.role === 'master';
-  }, [userProfile?.role]);
-
-  const isOwner = useCallback((): boolean => {
-    return userProfile?.role === 'owner';
-  }, [userProfile?.role]);
-
-  const isEditor = useCallback((): boolean => {
-    return userProfile?.role === 'editor';
-  }, [userProfile?.role]);
-
-  const isViewer = useCallback((): boolean => {
-    return userProfile?.role === 'viewer';
-  }, [userProfile?.role]);
+  const isMaster = useCallback((): boolean => userProfile?.role === 'master', [userProfile?.role]);
+  const isOwner = useCallback((): boolean => userProfile?.role === 'owner', [userProfile?.role]);
+  const isEditor = useCallback((): boolean => userProfile?.role === 'editor', [userProfile?.role]);
+  const isViewer = useCallback((): boolean => userProfile?.role === 'viewer', [userProfile?.role]);
 
   const getAccessibleProperties = useCallback((): string[] => {
     if (isMaster() || hasPermission('properties_view_all')) {
-      return [];
+      return []; // Retorna array vazio para indicar acesso a tudo (lógica a ser tratada no componente)
     }
     return propertyAccess.map(pa => pa.property_id).filter(Boolean);
   }, [isMaster, hasPermission, propertyAccess]);
 
   const value = useMemo(() => ({
     userProfile,
+    role: userProfile?.role || null, // A correção principal está aqui
     permissions,
     propertyAccess,
     loading,
@@ -140,19 +140,13 @@ export const UserPermissionsProvider: React.FC<{ children: React.ReactNode }> = 
     getAccessibleProperties,
     refetch: () => fetchUserData(true)
   }), [
-    userProfile,
-    permissions,
-    propertyAccess,
-    loading,
-    hasPermission,
-    canAccessProperty,
-    isMaster,
-    isOwner,
-    isEditor,
-    isViewer,
-    getAccessibleProperties,
-    fetchUserData
+    userProfile, permissions, propertyAccess, loading,
+    hasPermission, canAccessProperty, isMaster, isOwner, isEditor, isViewer, 
+    getAccessibleProperties, fetchUserData
   ]);
+  
+  // LOG 4: Verificando o valor que o provedor está oferecendo a cada renderização
+  console.log('[PermissionsProvider] Valor fornecido ao contexto:', value);
 
   return (
     <UserPermissionsContext.Provider value={value}>
