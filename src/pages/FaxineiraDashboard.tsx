@@ -62,16 +62,16 @@ const FaxineiraDashboard = () => {
     queryKey: assignedKey,
     queryFn: () => fetchAssignedReservations(user!.id),
     enabled: !!user,
-    staleTime: 10000, // Considera os dados novos por 10 segundos
-    refetchOnWindowFocus: true, // Recarrega se o usuário voltar para a aba
+    staleTime: 15000,
+    refetchOnWindowFocus: true,
   });
 
   const { data: availableReservations, isLoading: isLoadingAvailable } = useQuery({
     queryKey: availableKey,
     queryFn: () => fetchAvailableReservations(user!.id),
     enabled: !!user,
-    staleTime: 10000, // Considera os dados novos por 10 segundos
-    refetchOnWindowFocus: true, // Recarrega se o usuário voltar para a aba
+    staleTime: 15000,
+    refetchOnWindowFocus: true,
   });
 
   const handleSignUpForCleaning = async (reservationId: string) => {
