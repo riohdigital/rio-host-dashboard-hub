@@ -6,7 +6,6 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-// CORREÇÃO: Importando os componentes que faltavam
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -18,7 +17,6 @@ import { Pencil, Star, Check, X } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import CleanerCreateModal from './CleanerCreateModal';
 
-// O Schema de validação permanece o mesmo
 const reservationSchema = z.object({
     property_id: z.string().optional(),
     platform: z.string().min(1, 'Plataforma é obrigatória'),
@@ -81,6 +79,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
         handleSubmit,
         setValue,
         watch,
+        reset, // Adicionado reset para popular o formulário
         formState: { errors },
     } = useForm<ReservationFormData>({
         resolver: zodResolver(reservationSchema),
@@ -121,44 +120,32 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
             console.error('Erro ao buscar propriedades:', error);
         }
     };
-
+    
+    // Efeito para popular o formulário ao editar
     useEffect(() => {
-        if (reservation && properties.length) {
-            Object.keys(reservation).forEach(key => {
-                const formKey = key as keyof ReservationFormData;
-                if (formKey === 'check_in_date' || formKey === 'check_out_date') {
-                    setValue(formKey, new Date(reservation[formKey]!).toISOString().split('T')[0]);
-                } else if (formKey === 'checkin_time' || formKey === 'checkout_time') {
-                    if (reservation[formKey]) {
-                        setValue(formKey, reservation[formKey]!.slice(0, 5));
-                        if(formKey === 'checkin_time') setUsePropertyDefaults(false);
-                    }
-                } else {
-                    const value = reservation[formKey as keyof Reservation];
-                    if (value !== undefined && value !== null && typeof value !== 'boolean') {
-                        setValue(formKey, value);
-                    }
-                }
-            });
-            
-            if (reservation.cleaner_user_id) {
-                setValue('cleaning_destination', reservation.cleaner_user_id);
-            } else if (reservation.cleaning_allocation === 'co_anfitriao') {
-                setValue('cleaning_destination', 'host');
-            } else if (reservation.cleaning_allocation === 'proprietario') {
-                setValue('cleaning_destination', 'owner');
-            } else {
-                setValue('cleaning_destination', 'none');
-            }
+        if (reservation) {
+            const initialValues: any = {
+                ...reservation,
+                check_in_date: reservation.check_in_date ? new Date(`${reservation.check_in_date}T00:00:00`).toISOString().split('T')[0] : '',
+                check_out_date: reservation.check_out_date ? new Date(`${reservation.check_out_date}T00:00:00`).toISOString().split('T')[0] : '',
+                checkin_time: reservation.checkin_time?.slice(0, 5) || '',
+                checkout_time: reservation.checkout_time?.slice(0, 5) || '',
+            };
 
-            if (reservation.property_id) {
-                const property = properties.find(p => p.id === reservation.property_id);
-                if (property) {
-                    setSelectedProperty(property);
-                }
+            // Lógica para definir o 'cleaning_destination' inicial com base nos dados existentes
+            if (reservation.cleaner_user_id) {
+                initialValues.cleaning_destination = reservation.cleaner_user_id;
+            } else if (reservation.cleaning_allocation === 'co_anfitriao') {
+                initialValues.cleaning_destination = 'host';
+            } else if (reservation.cleaning_allocation === 'proprietario') {
+                initialValues.cleaning_destination = 'owner';
+            } else {
+                initialValues.cleaning_destination = 'none';
             }
+            
+            reset(initialValues);
         }
-    }, [reservation, setValue, properties]);
+    }, [reservation, reset]);
 
     useEffect(() => {
         if (selectedProperty && usePropertyDefaults) {
@@ -448,7 +435,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                                 <SelectValue placeholder="Selecione o destino da taxa..." />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="none">A Definir / Nenhuma</SelectItem>
+                                <SelectItem value="none">A decidir / Nenhuma</SelectItem>
                                 {cleaners.length > 0 && (
                                     <SelectGroup>
                                         <SelectLabel>Faxineiras</SelectLabel>
@@ -461,7 +448,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                                 )}
                                 <SelectGroup>
                                     <SelectLabel>Outras Opções</SelectLabel>
-                                    <SelectItem value="host">Co-Anfitrião (somar à comissão)</SelectItem>
+                                    <SelectItem value="host">Anfitrião (somar à comissão)</SelectItem>
                                     <SelectItem value="owner">Proprietário (somar ao líquido)</SelectItem>
                                 </SelectGroup>
                                 <SelectSeparator />
@@ -471,7 +458,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                                         setShowCleanerForm(true);
                                     }}
                                 >
-                                    Cadastrar Novo Perfil
+                                    Novo Cadastro +
                                 </div>
                             </SelectContent>
                         </Select>
