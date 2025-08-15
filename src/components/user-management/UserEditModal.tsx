@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import PermissionsEditor from './PermissionsEditor';
 import PropertyAccessEditor from './PropertyAccessEditor';
+import CleanerPropertyAccessEditor from './CleanerPropertyAccessEditor';
 import type { UserProfile, UserPermission, UserPropertyAccess } from '@/types/user-management';
 import type { Property } from '@/types/property';
 
@@ -36,28 +37,24 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  // Estados para gerenciar propriedades da faxineira
   const [allProperties, setAllProperties] = useState<Property[]>([]);
   const [cleanerLinkedProperties, setCleanerLinkedProperties] = useState<string[]>([]);
 
   useEffect(() => {
     if (user && open) {
-      // Preenche os dados básicos
       setFullName(user.full_name || '');
       setRole(user.role);
       setIsActive(user.is_active);
-
-      // Busca dados específicos do usuário
       fetchUserPermissions(user.user_id);
       
-      // Lógica condicional para buscar acessos
       if (user.role === 'faxineira') {
         fetchAllProperties();
         fetchCleanerLinkedProperties(user.user_id);
-        setPropertyAccess([]); // Limpa o estado do outro tipo de acesso
+        setPropertyAccess([]);
       } else {
         fetchPropertyAccess(user.user_id);
-        setCleanerLinkedProperties([]); // Limpa o estado de acesso da faxineira
+        setCleanerLinkedProperties([]);
+        setAllProperties([]);
       }
     }
   }, [user, open]);
@@ -84,11 +81,12 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
 
   const fetchUserPermissions = async (userId: string) => {
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('user_permissions')
         .select('*')
         .eq('user_id', userId);
       
+      if (error) throw error;
       setPermissions(data || []);
     } catch (error) {
       console.error('Erro ao buscar permissões:', error);
@@ -97,23 +95,16 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
 
   const fetchPropertyAccess = async (userId: string) => {
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('user_property_access')
         .select('*')
         .eq('user_id', userId);
       
+      if (error) throw error;
       setPropertyAccess((data || []) as UserPropertyAccess[]);
     } catch (error) {
       console.error('Erro ao buscar acesso a propriedades:', error);
     }
-  };
-
-  const handleCleanerPropertyToggle = (propertyId: string) => {
-    setCleanerLinkedProperties(prev => 
-      prev.includes(propertyId)
-        ? prev.filter(id => id !== propertyId)
-        : [...prev, propertyId]
-    );
   };
 
   const handleSave = async () => {
@@ -121,37 +112,50 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
     setLoading(true);
     try {
       // 1. Atualizar perfil do usuário
-      await supabase.from('user_profiles').update({
-        full_name: fullName, role, is_active: isActive, updated_at: new Date().toISOString()
+      const { error: profileError } = await supabase.from('user_profiles').update({
+        full_name: fullName,
+        role,
+        is_active: isActive,
+        updated_at: new Date().toISOString()
       }).eq('user_id', user.user_id);
+      if (profileError) throw profileError;
 
       // 2. Sincronizar permissões
       await supabase.from('user_permissions').delete().eq('user_id', user.user_id);
-      const permissionsToInsert = permissions.filter(p => p.permission_value)
-        .map(p => ({ user_id: user.user_id, permission_type: p.permission_type, permission_value: true, resource_id: p.resource_id }));
+      const permissionsToInsert = permissions
+        .filter(p => p.permission_value)
+        .map(p => ({
+          user_id: user.user_id,
+          permission_type: p.permission_type,
+          permission_value: p.permission_value,
+          resource_id: p.resource_id
+        }));
       if (permissionsToInsert.length > 0) {
-        await supabase.from('user_permissions').insert(permissionsToInsert);
+        const { error: permissionsError } = await supabase.from('user_permissions').insert(permissionsToInsert);
+        if (permissionsError) throw permissionsError;
       }
       
       // 3. Lógica condicional para salvar os acessos
       if (role === 'faxineira') {
-        // Se for faxineira, sincroniza a tabela cleaner_properties
         await supabase.from('cleaner_properties').delete().eq('user_id', user.user_id);
         if (cleanerLinkedProperties.length > 0) {
           const linksToInsert = cleanerLinkedProperties.map(propId => ({
             user_id: user.user_id,
             property_id: propId
           }));
-          await supabase.from('cleaner_properties').insert(linksToInsert);
+          const { error: cleanerAccessError } = await supabase.from('cleaner_properties').insert(linksToInsert);
+          if (cleanerAccessError) throw cleanerAccessError;
         }
       } else {
-        // Se for outro role, usa a lógica para user_property_access
         await supabase.from('user_property_access').delete().eq('user_id', user.user_id);
         if (propertyAccess.length > 0) {
           const propertyAccessToInsert = propertyAccess.map(pa => ({
-            user_id: user.user_id, property_id: pa.property_id, access_level: pa.access_level
+            user_id: user.user_id,
+            property_id: pa.property_id,
+            access_level: pa.access_level
           }));
-          await supabase.from('user_property_access').insert(propertyAccessToInsert);
+          const { error: propertyAccessError } = await supabase.from('user_property_access').insert(propertyAccessToInsert);
+          if (propertyAccessError) throw propertyAccessError;
         }
       }
 
@@ -218,18 +222,17 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
             <Separator />
             <div className="space-y-2">
               <Label>Alterar Senha</Label>
-              <Button variant="outline" onClick={async () => {
+              <Button variant="outline" className="w-full" onClick={async () => {
                 try {
                   const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
                     redirectTo: `${window.location.origin}/reset-password`
                   });
                   if (error) throw error;
-                  toast({ title: "Sucesso", description: "Email de redefinição de senha enviado com sucesso." });
+                  toast({ title: "Sucesso", description: "Email de redefinição de senha enviado." });
                 } catch (error) {
-                  console.error('Erro ao enviar email de redefinição:', error);
-                  toast({ title: "Erro", description: "Não foi possível enviar o email de redefinição.", variant: "destructive" });
+                  toast({ title: "Erro", description: "Não foi possível enviar o email.", variant: "destructive" });
                 }
-              }} className="w-full">
+              }}>
                 Enviar Email de Redefinição de Senha
               </Button>
             </div>
@@ -249,26 +252,11 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
 
           <TabsContent value="properties" className="space-y-4 pt-4">
             {role === 'faxineira' ? (
-              <div className="space-y-3">
-                <Label className="text-base font-medium">Propriedades Vinculadas</Label>
-                <p className="text-sm text-muted-foreground">
-                  Selecione as propriedades que esta faxineira poderá ver e ser designada para limpezas.
-                </p>
-                <div className="max-h-60 overflow-y-auto rounded-md border p-4 space-y-2">
-                  {allProperties.map(prop => (
-                    <div key={prop.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`prop-${prop.id}`}
-                        checked={cleanerLinkedProperties.includes(prop.id)}
-                        onCheckedChange={() => handleCleanerPropertyToggle(prop.id)}
-                      />
-                      <Label htmlFor={`prop-${prop.id}`} className="font-normal">
-                        {prop.nickname || prop.name}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <CleanerPropertyAccessEditor
+                allProperties={allProperties}
+                linkedPropertyIds={cleanerLinkedProperties}
+                onChange={setCleanerLinkedProperties}
+              />
             ) : (
               <PropertyAccessEditor
                 propertyAccess={propertyAccess}
