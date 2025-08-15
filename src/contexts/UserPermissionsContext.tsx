@@ -5,7 +5,7 @@ import type { UserProfile, UserPermission, UserPropertyAccess, PermissionType } 
 
 interface UserPermissionsContextType {
   userProfile: UserProfile | null;
-  role: string | null; // Adicionado para fácil acesso
+  role: string | null;
   permissions: UserPermission[];
   propertyAccess: UserPropertyAccess[];
   loading: boolean;
@@ -27,11 +27,11 @@ export const UserPermissionsProvider: React.FC<{ children: React.ReactNode }> = 
   const [permissions, setPermissions] = useState<UserPermission[]>([]);
   const [propertyAccess, setPropertyAccess] = useState<UserPropertyAccess[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // LÓGICA DE CACHE RESTAURADA
+  const [lastFetchTime, setLastFetchTime] = useState<number>(0);
 
   const fetchUserData = useCallback(async (force = false) => {
-    // LOG 1: Verificando se a função de busca é chamada
-    console.log('[PermissionsProvider] Iniciando busca de dados para o usuário:', user?.id);
-    
     if (!user) {
       setUserProfile(null);
       setPermissions([]);
@@ -40,6 +40,15 @@ export const UserPermissionsProvider: React.FC<{ children: React.ReactNode }> = 
       return;
     }
 
+    // LÓGICA DE CACHE RESTAURADA: Evita a busca se os dados já foram carregados recentemente
+    const now = Date.now();
+    if (!force && now - lastFetchTime < 5 * 60 * 1000 && userProfile) {
+      console.log('[PermissionsProvider] Usando dados em cache. Sem recarregamento.');
+      setLoading(false); // Garante que o loading termine se o cache for usado
+      return;
+    }
+
+    console.log('[PermissionsProvider] Cache expirado ou forçado. Buscando dados...');
     try {
       setLoading(true);
 
@@ -49,12 +58,7 @@ export const UserPermissionsProvider: React.FC<{ children: React.ReactNode }> = 
         .eq('user_id', user.id)
         .single();
       
-      // LOG 2: Verificando o resultado da busca pelo perfil
-      if (profileError) {
-        console.error('[PermissionsProvider] Erro ao buscar perfil (pode ser normal se o perfil ainda não foi criado):', profileError);
-        // Não lançamos o erro para o finally ainda poder rodar
-      }
-      console.log('[PermissionsProvider] Perfil encontrado:', profile);
+      if (profileError) throw profileError;
 
       if (profile) {
         setUserProfile(profile as UserProfile);
@@ -70,42 +74,36 @@ export const UserPermissionsProvider: React.FC<{ children: React.ReactNode }> = 
           .select('*')
           .eq('user_id', profile.user_id);
         setPropertyAccess((propertyAccessData || []) as UserPropertyAccess[]);
+        
+        // LÓGICA DE CACHE RESTAURADA: Atualiza o tempo da última busca
+        setLastFetchTime(now);
       } else {
         setUserProfile(null);
-        setPermissions([]);
-        setPropertyAccess([]);
       }
     } catch (error) {
-      console.error('[PermissionsProvider] Erro geral na busca de dados do usuário:', error);
+      console.error('[PermissionsProvider] Erro ao buscar dados do usuário:', error);
       setUserProfile(null);
       setPermissions([]);
       setPropertyAccess([]);
     } finally {
-      // LOG 3: Confirmando que o carregamento terminou
-      console.log('[PermissionsProvider] Busca de dados finalizada.');
       setLoading(false);
     }
-  }, [user]);
+  }, [user, lastFetchTime, userProfile]);
 
   useEffect(() => {
+    // A dependência aqui foi ajustada para re-executar apenas quando o 'user' mudar,
+    // a lógica de tempo agora está dentro da própria função.
     fetchUserData();
-  }, [fetchUserData]);
+  }, [user]);
 
   const hasPermission = useCallback((permissionType: PermissionType, resourceId?: string): boolean => {
-    if (userProfile?.role === 'master') {
-      return true;
-    }
-    const permission = permissions.find(p => 
-      p.permission_type === permissionType && 
-      (resourceId ? p.resource_id === resourceId : !p.resource_id)
-    );
+    if (userProfile?.role === 'master') return true;
+    const permission = permissions.find(p => p.permission_type === permissionType && (resourceId ? p.resource_id === resourceId : !p.resource_id));
     return permission?.permission_value || false;
   }, [userProfile?.role, permissions]);
 
   const canAccessProperty = useCallback((propertyId: string): 'full' | 'read_only' | 'restricted' | null => {
-    if (userProfile?.role === 'master') {
-      return 'full';
-    }
+    if (userProfile?.role === 'master') return 'full';
     if (hasPermission('properties_view_all')) {
       return hasPermission('properties_edit') ? 'full' : 'read_only';
     }
@@ -119,15 +117,13 @@ export const UserPermissionsProvider: React.FC<{ children: React.ReactNode }> = 
   const isViewer = useCallback((): boolean => userProfile?.role === 'viewer', [userProfile?.role]);
 
   const getAccessibleProperties = useCallback((): string[] => {
-    if (isMaster() || hasPermission('properties_view_all')) {
-      return []; // Retorna array vazio para indicar acesso a tudo (lógica a ser tratada no componente)
-    }
+    if (isMaster() || hasPermission('properties_view_all')) return [];
     return propertyAccess.map(pa => pa.property_id).filter(Boolean);
   }, [isMaster, hasPermission, propertyAccess]);
 
   const value = useMemo(() => ({
     userProfile,
-    role: userProfile?.role || null, // A correção principal está aqui
+    role: userProfile?.role || null,
     permissions,
     propertyAccess,
     loading,
@@ -144,9 +140,6 @@ export const UserPermissionsProvider: React.FC<{ children: React.ReactNode }> = 
     hasPermission, canAccessProperty, isMaster, isOwner, isEditor, isViewer, 
     getAccessibleProperties, fetchUserData
   ]);
-  
-  // LOG 4: Verificando o valor que o provedor está oferecendo a cada renderização
-  console.log('[PermissionsProvider] Valor fornecido ao contexto:', value);
 
   return (
     <UserPermissionsContext.Provider value={value}>
