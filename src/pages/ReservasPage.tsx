@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
+import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -23,12 +24,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const formatDate = (dateString: string | null): string => {
   if (!dateString) return '';
-  // Corrige o bug de timezone
   const date = new Date(`${dateString}T00:00:00`);
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = date.getFullYear();
-  return `${day}/${month}/${year}`;
+  return format(date, 'dd/MM/yyyy');
 };
 
 const formatTime = (timeString: string | null): string => {
@@ -36,8 +33,7 @@ const formatTime = (timeString: string | null): string => {
   return timeString.slice(0, 5);
 };
 
-// Função de busca de dados movida para fora do componente
-const fetchReservationsAndProperties = async (getAccessibleProperties, hasPermission, selectedPeriod, startDateString, endDateString) => {
+const fetchReservationsAndProperties = async (getAccessibleProperties: () => string[], hasPermission: (p: any) => boolean, selectedPeriod: string, startDateString: string, endDateString: string) => {
     const accessibleProperties = getAccessibleProperties();
     const hasFullAccess = hasPermission('reservations_view_all');
     
@@ -72,7 +68,6 @@ const fetchReservationsAndProperties = async (getAccessibleProperties, hasPermis
     return { reservations: data || [], properties: Array.from(propertiesMap.values()) };
 };
 
-
 const ReservasPage = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingReservation, setEditingReservation] = useState<Reservation | null>(null);
@@ -82,17 +77,17 @@ const ReservasPage = () => {
   const { toast } = useToast();
   const { hasPermission, getAccessibleProperties, loading: permissionsLoading } = useUserPermissions();
   const { selectedProperties } = useGlobalFilters();
-  const { startDateString, endDateString, selectedPeriod } = useDateRange(); // Ajustado
+  const { startDateString, endDateString, selectedPeriod } = useDateRange();
   const queryClient = useQueryClient();
 
   const queryKey = useMemo(() => ['reservations', selectedPeriod, startDateString, endDateString, selectedProperties], 
     [selectedPeriod, startDateString, endDateString, selectedProperties]);
 
-  const { data, isLoading: dataLoading, error } = useQuery({
+  const { data, isLoading: dataLoading } = useQuery({
     queryKey: queryKey,
     queryFn: () => fetchReservationsAndProperties(getAccessibleProperties, hasPermission, selectedPeriod, startDateString, endDateString),
     enabled: !permissionsLoading,
-    staleTime: 10000, // Cache de 10 segundos
+    staleTime: 10000,
     refetchOnWindowFocus: true,
   });
 
@@ -105,13 +100,12 @@ const ReservasPage = () => {
       if (error) throw error;
       toast({ title: "Sucesso", description: "Reserva excluída com sucesso." });
       await queryClient.invalidateQueries({ queryKey });
-    } catch (error) {
-      toast({ title: "Erro", description: "Não foi possível excluir a reserva.", variant: "destructive" });
+    } catch (error: any) {
+      toast({ title: "Erro", description: error.message || "Não foi possível excluir a reserva.", variant: "destructive" });
     }
   };
 
   const handleCheckboxChange = async (reservationId: string, field: 'is_communicated' | 'receipt_sent', value: boolean) => {
-    // Optimistic UI update
     queryClient.setQueryData(queryKey, (oldData: any) => ({
         ...oldData,
         reservations: oldData.reservations.map(r => r.id === reservationId ? { ...r, [field]: value } : r),
@@ -124,7 +118,7 @@ const ReservasPage = () => {
       toast({ title: "Sucesso", description: `Status de ${fieldName} atualizado.` });
     } catch (error) {
       toast({ title: "Erro", description: `Falha ao atualizar status.`, variant: "destructive" });
-      queryClient.invalidateQueries({ queryKey }); // Revert on error
+      queryClient.invalidateQueries({ queryKey });
     }
   };
 
@@ -150,7 +144,7 @@ const ReservasPage = () => {
                       (property.nickname && property.nickname.toLowerCase().includes(lowerSearchTerm))));
       
       const matchesProperty = selectedProperties.includes('todas') || 
-        selectedProperties.includes(reservation.property_id || '');
+        (reservation.property_id && selectedProperties.includes(reservation.property_id));
       const matchesStatus = selectedStatus === 'all' || reservation.reservation_status === selectedStatus;
       const matchesPlatform = selectedPlatform === 'all' || reservation.platform === selectedPlatform;
       
@@ -323,20 +317,20 @@ const ReservasPage = () => {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center justify-center">
                             {canEditReservations ? (
                               <Checkbox checked={reservation.is_communicated || false} onCheckedChange={(checked) => handleCheckboxChange(reservation.id, 'is_communicated', checked as boolean)} />
                             ) : (
-                              <div className={`w-4 h-4 border rounded flex items-center justify-center ${reservation.is_communicated ? 'bg-blue-600' : ''}`}></div>
+                              <div className={`w-4 h-4 border rounded ${reservation.is_communicated ? 'bg-blue-600' : ''}`}></div>
                             )}
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center justify-center">
                             {canEditReservations ? (
                               <Checkbox checked={reservation.receipt_sent || false} onCheckedChange={(checked) => handleCheckboxChange(reservation.id, 'receipt_sent', checked as boolean)} />
                             ) : (
-                              <div className={`w-4 h-4 border rounded flex items-center justify-center ${reservation.receipt_sent ? 'bg-blue-600' : ''}`}></div>
+                              <div className={`w-4 h-4 border rounded ${reservation.receipt_sent ? 'bg-blue-600' : ''}`}></div>
                             )}
                           </div>
                         </TableCell>
