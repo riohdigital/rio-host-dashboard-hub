@@ -44,8 +44,7 @@ const fetchAvailableReservations = async (userId: string) => {
     .is('cleaner_user_id', null)
     .gte('check_out_date', today)
     .lte('check_out_date', twoWeeksFromNow)
-    // NOVA REGRA ADICIONADA AQUI
-    .in('reservation_status', ['Confirmada', 'Em Andamento']) 
+    .in('reservation_status', ['Confirmada', 'Em Andamento'])
     .order('check_out_date', { ascending: true });
   if (error) throw error;
   return data || [];
@@ -63,12 +62,16 @@ const FaxineiraDashboard = () => {
     queryKey: assignedKey,
     queryFn: () => fetchAssignedReservations(user!.id),
     enabled: !!user,
+    staleTime: 10000, // Considera os dados novos por 10 segundos
+    refetchOnWindowFocus: true, // Recarrega se o usuário voltar para a aba
   });
 
   const { data: availableReservations, isLoading: isLoadingAvailable } = useQuery({
     queryKey: availableKey,
     queryFn: () => fetchAvailableReservations(user!.id),
     enabled: !!user,
+    staleTime: 10000, // Considera os dados novos por 10 segundos
+    refetchOnWindowFocus: true, // Recarrega se o usuário voltar para a aba
   });
 
   const handleSignUpForCleaning = async (reservationId: string) => {
@@ -108,7 +111,9 @@ const FaxineiraDashboard = () => {
 
   if (isLoadingAssigned || isLoadingAvailable) {
     return (
-      <div className="p-6 flex justify-center items-center"><Loader2 className="h-8 w-8 animate-spin" /></div>
+      <div className="p-6 flex justify-center items-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
     );
   }
 
