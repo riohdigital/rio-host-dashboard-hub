@@ -1,4 +1,4 @@
-import React from 'react'; // 'useEffect' foi removido pois não era mais necessário no componente principal
+import React, { useState } from 'react'; // Adicionado useState para controlar a aba ativa
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,15 +6,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, MapPin, Users, Star, CheckCircle, Hand, Loader2 } from 'lucide-react';
-import { format, isPast, addDays } from 'date-fns'; // 'startOfToday' foi removido por não ser mais usado diretamente na filtragem
+import { Calendar, MapPin, Users, Star, CheckCircle, Hand, Loader2, LogOut, AlertTriangle } from 'lucide-react'; // Adicionado LogOut e AlertTriangle
+import { format, isPast, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
+import { Input } from '@/components/ui/input'; // Importado para a página de configurações
+import { Label } from '@/components/ui/label'; // Importado para a página de configurações
 
-// Tipagem para as reservas, incluindo a nova coluna 'cleaning_status'
 type ReservationWithProperty = Awaited<ReturnType<typeof fetchAssignedReservations>>[0] & { cleaning_status?: string };
 
-// Busca as reservas que já foram atribuídas à faxineira
 const fetchAssignedReservations = async (userId: string) => {
     const { data, error } = await supabase
         .from('reservations')
@@ -25,7 +25,6 @@ const fetchAssignedReservations = async (userId: string) => {
     return data || [];
 };
 
-// Busca as faxinas disponíveis nas propriedades da faxineira
 const fetchAvailableReservations = async (userId: string) => {
     const { data: accessibleProperties, error: accessError } = await (supabase as any)
         .from('cleaner_properties')
@@ -56,6 +55,7 @@ const FaxineiraDashboard = () => {
     const { user } = useAuth();
     const queryClient = useQueryClient();
     const { toast } = useToast();
+    const [activeTab, setActiveTab] = useState('dashboard'); // Estado para controlar a aba do menu principal
 
     const assignedKey = ['faxineira-reservations', user?.id];
     const availableKey = ['available-cleanings', user?.id];
@@ -92,7 +92,6 @@ const FaxineiraDashboard = () => {
         }
     };
 
-    // VERSÃO FINAL: Função de marcar como concluída com o diálogo de confirmação
     const handleMarkAsComplete = async (reservationId: string) => {
         const confirmed = window.confirm(
             "⚠️ Tem certeza que deseja marcar esta faxina como 'Realizada'?\n\nEsta ação moverá o card para o seu histórico e não poderá ser desfeita facilmente."
@@ -101,9 +100,10 @@ const FaxineiraDashboard = () => {
         if (confirmed) {
             console.log(`LOG: Usuário confirmou. Marcando a faxina ${reservationId} como 'Realizada'.`);
             try {
+                // ATENÇÃO: Corrigido para atualizar 'cleaning_status' como planejado
                 const { error } = await supabase
                     .from('reservations')
-                    .update({ cleaning_allocation: 'Realizada' })
+                    .update({ cleaning_status: 'Realizada' })
                     .eq('id', reservationId);
                 if (error) throw error;
                 toast({ title: "Sucesso!", description: "Faxina marcada como concluída e movida para o histórico." });
@@ -118,8 +118,9 @@ const FaxineiraDashboard = () => {
         }
     };
 
-    const upcomingReservations = assignedReservations?.filter(r => r.cleaning_allocation !== 'Realizada' && !isPast(new Date(r.check_out_date))) ?? [];
-    const pastReservations = assignedReservations?.filter(r => r.cleaning_allocation === 'Realizada' || isPast(new Date(r.check_out_date))) ?? [];
+    // ATENÇÃO: Corrigido para filtrar por 'cleaning_status' como planejado
+    const upcomingReservations = assignedReservations?.filter(r => r.cleaning_status !== 'Realizada' && !isPast(new Date(r.check_out_date))) ?? [];
+    const pastReservations = assignedReservations?.filter(r => r.cleaning_status === 'Realizada' || isPast(new Date(r.check_out_date))) ?? [];
 
     if (isLoadingAssigned || isLoadingAvailable) {
         return (
@@ -131,35 +132,123 @@ const FaxineiraDashboard = () => {
 
     return (
         <div className="p-4 md:p-6 space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold text-foreground">Minhas Faxinas</h1>
-                <p className="text-muted-foreground">Visualize e gerencie as limpezas designadas para você.</p>
+            {/* MUDANÇA: Adicionado menu de navegação e botão de logout */}
+            <header className="flex justify-between items-center pb-4 border-b">
+                <nav className="flex items-center gap-4">
+                    <Button variant={activeTab === 'dashboard' ? 'secondary' : 'ghost'} onClick={() => setActiveTab('dashboard')}>Dashboard</Button>
+                    <Button variant={activeTab === 'ganhos' ? 'secondary' : 'ghost'} onClick={() => setActiveTab('ganhos')}>Meus Ganhos</Button>
+                    <Button variant={activeTab === 'configuracao' ? 'secondary' : 'ghost'} onClick={() => setActiveTab('configuracao')}>Configuração</Button>
+                </nav>
+                <Button variant="outline" size="sm">
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Sair
+                </Button>
+            </header>
+
+            {/* MUDANÇA: Conteúdo principal agora é condicional com base na aba ativa */}
+            <div style={{ display: activeTab === 'dashboard' ? 'block' : 'none' }}>
+                <div>
+                    <h1 className="text-2xl font-bold text-foreground">Minhas Faxinas</h1>
+                    <p className="text-muted-foreground">Visualize e gerencie as limpezas designadas para você.</p>
+                </div>
+                <Tabs defaultValue="proximas" className="w-full mt-4">
+                    <TabsList className="grid w-full grid-cols-3">
+                        <TabsTrigger value="proximas">Próximas ({upcomingReservations.length})</TabsTrigger>
+                        {/* MUDANÇA: Renomeado para "Oportunidades" */}
+                        <TabsTrigger value="oportunidades">Oportunidades ({availableReservations?.length || 0})</TabsTrigger>
+                        <TabsTrigger value="historico">Histórico ({pastReservations.length})</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="proximas">
+                        <ReservationList reservations={upcomingReservations} onMarkAsComplete={handleMarkAsComplete} isUpcoming={true} />
+                    </TabsContent>
+                    {/* MUDANÇA: Renomeado para "oportunidades" */}
+                    <TabsContent value="oportunidades">
+                        <AvailableCleaningsList reservations={availableReservations || []} onSignUp={handleSignUpForCleaning} />
+                    </TabsContent>
+                    <TabsContent value="historico">
+                        <ReservationList reservations={pastReservations} isUpcoming={false} />
+                    </TabsContent>
+                </Tabs>
             </div>
-            <Tabs defaultValue="proximas" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="proximas">Próximas ({upcomingReservations.length})</TabsTrigger>
-                    <TabsTrigger value="disponiveis">Disponíveis ({availableReservations?.length || 0})</TabsTrigger>
-                    <TabsTrigger value="historico">Histórico ({pastReservations.length})</TabsTrigger>
-                </TabsList>
-                <TabsContent value="proximas">
-                    <ReservationList reservations={upcomingReservations} onMarkAsComplete={handleMarkAsComplete} isUpcoming={true} />
-                </TabsContent>
-                <TabsContent value="disponiveis">
-                    <AvailableCleaningsList reservations={availableReservations || []} onSignUp={handleSignUpForCleaning} />
-                </TabsContent>
-                <TabsContent value="historico">
-                    <ReservationList reservations={pastReservations} isUpcoming={false} />
-                </TabsContent>
-            </Tabs>
+            
+            <div style={{ display: activeTab === 'ganhos' ? 'block' : 'none' }}>
+                 <h1 className="text-2xl font-bold text-foreground">Meus Ganhos</h1>
+                 <p className="text-muted-foreground">Acompanhe seus recebimentos. (Página em construção)</p>
+            </div>
+            
+            {/* MUDANÇA: Adicionada a página de Configurações */}
+            <div style={{ display: activeTab === 'configuracao' ? 'block' : 'none' }}>
+                 <h1 className="text-2xl font-bold text-foreground">Configuração da Conta</h1>
+                 <p className="text-muted-foreground mb-6">Altere seus dados pessoais e de segurança.</p>
+                 
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Dados Pessoais</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                             <div>
+                                <Label htmlFor="fullName">Nome Completo</Label>
+                                <Input id="fullName" placeholder="Seu nome completo" defaultValue={user?.user_metadata.full_name || ''} />
+                            </div>
+                            <div>
+                                <Label htmlFor="email">Email</Label>
+                                <Input id="email" type="email" placeholder="Seu email" defaultValue={user?.email || ''} disabled />
+                            </div>
+                        </div>
+                        <div>
+                            <Label htmlFor="phone">Telefone</Label>
+                            <Input id="phone" placeholder="(XX) XXXXX-XXXX" defaultValue={user?.user_metadata.phone || ''} />
+                        </div>
+                         <div className="flex justify-end">
+                            <Button>Salvar Alterações</Button>
+                        </div>
+                    </CardContent>
+                 </Card>
+
+                 <Card className="mt-6">
+                    <CardHeader>
+                        <CardTitle>Alterar Senha</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div>
+                            <Label htmlFor="currentPassword">Senha Atual</Label>
+                            <Input id="currentPassword" type="password" />
+                        </div>
+                        <div>
+                            <Label htmlFor="newPassword">Nova Senha</Label>
+                            <Input id="newPassword" type="password" />
+                        </div>
+                         <div className="flex justify-end">
+                            <Button>Alterar Senha</Button>
+                        </div>
+                    </CardContent>
+                 </Card>
+
+                 <Card className="mt-6 border-red-500">
+                    <CardHeader>
+                        <CardTitle className="text-red-700">Zona de Perigo</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                            <div>
+                                <h3 className="font-semibold">Excluir sua conta</h3>
+                                <p className="text-sm text-muted-foreground">Esta ação é permanente e removerá todos os seus dados. <br /> Para criar um novo cadastro, você precisará contatar um administrador.</p>
+                            </div>
+                             <Button variant="destructive">Excluir Minha Conta</Button>
+                        </div>
+                    </CardContent>
+                 </Card>
+            </div>
         </div>
     );
 };
 
-// Função auxiliar para definir a cor do Badge de status da reserva
-const getStatusVariant = (status: string | null): 'destructive' | 'default' | 'secondary' => {
+// ... (Componente ReservationList sem alterações)
+const getStatusVariant = (status: string | null): 'success' | 'destructive' | 'default' | 'secondary' => {
     switch (status) {
         case 'Confirmada':
-            return 'secondary';
+            return 'success';
         case 'Cancelada':
             return 'destructive';
         case 'Finalizada':
@@ -238,6 +327,8 @@ const ReservationList = ({ reservations, onMarkAsComplete, isUpcoming }: { reser
     );
 };
 
+
+// MUDANÇA: Adicionado o Badge de status de pagamento aos cards de Oportunidades
 const AvailableCleaningsList = ({ reservations, onSignUp }: { reservations: any[], onSignUp: (id: string) => void }) => {
     if (reservations.length === 0) {
         return (
@@ -255,11 +346,19 @@ const AvailableCleaningsList = ({ reservations, onSignUp }: { reservations: any[
             {reservations.map((reservation: any) => (
                 <Card key={reservation.id} className="bg-blue-50 border-blue-200">
                     <CardHeader className="pb-3">
-                        <CardTitle className="text-lg text-blue-800">{reservation.properties?.name || 'Propriedade'}</CardTitle>
-                        <p className="text-sm text-blue-600 flex items-center mt-1">
-                            <MapPin className="h-4 w-4 mr-1.5 flex-shrink-0" />
-                            {reservation.properties?.address || 'Endereço não informado'}
-                        </p>
+                        <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-2">
+                           <div>
+                                <CardTitle className="text-lg text-blue-800">{reservation.properties?.name || 'Propriedade'}</CardTitle>
+                                <p className="text-sm text-blue-600 flex items-center mt-1">
+                                    <MapPin className="h-4 w-4 mr-1.5 flex-shrink-0" />
+                                    {reservation.properties?.address || 'Endereço não informado'}
+                                </p>
+                           </div>
+                           <div className="flex gap-2 flex-shrink-0">
+                                <Badge variant={getStatusVariant(reservation.reservation_status)}>{reservation.reservation_status}</Badge>
+                                <Badge variant={reservation.cleaning_payment_status === 'Paga' ? 'default' : 'destructive'}>{reservation.cleaning_payment_status}</Badge>
+                           </div>
+                        </div>
                     </CardHeader>
                     <CardContent className="space-y-3">
                         <div className="bg-muted p-3 rounded-lg flex flex-col sm:flex-row items-center justify-between gap-4">
