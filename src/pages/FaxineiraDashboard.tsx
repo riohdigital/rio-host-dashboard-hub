@@ -11,34 +11,26 @@ import { format, isPast, startOfToday, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 
-// Tipos para clareza
 type ReservationWithProperty = Awaited<ReturnType<typeof fetchAssignedReservations>>[0];
 
-// Funções de busca de dados
 const fetchAssignedReservations = async (userId: string) => {
-  console.log('[DB] Buscando faxinas ATRIBUÍDAS...');
   const { data, error } = await supabase
     .from('reservations')
     .select(`*, properties (name, address, default_checkin_time)`)
     .eq('cleaner_user_id', userId)
     .order('check_out_date', { ascending: true });
   if (error) throw error;
-  console.log('[DB] Faxinas atribuídas encontradas:', data.length);
   return data || [];
 };
 
 const fetchAvailableReservations = async (userId: string) => {
-  console.log('[DB] Buscando faxinas DISPONÍVEIS...');
   const { data: accessibleProperties, error: accessError } = await supabase
     .from('cleaner_properties')
     .select('property_id')
     .eq('user_id', userId);
   if (accessError) throw accessError;
   const propertyIds = accessibleProperties.map(p => p.property_id);
-  if (propertyIds.length === 0) {
-    console.log('[DB] Nenhuma propriedade vinculada, retornando 0 faxinas disponíveis.');
-    return [];
-  }
+  if (propertyIds.length === 0) return [];
 
   const today = new Date().toISOString();
   const twoWeeksFromNow = addDays(new Date(), 14).toISOString();
@@ -53,7 +45,6 @@ const fetchAvailableReservations = async (userId: string) => {
     .in('reservation_status', ['Confirmada', 'Em Andamento'])
     .order('check_out_date', { ascending: true });
   if (error) throw error;
-  console.log('[DB] Faxinas disponíveis encontradas:', data.length);
   return data || [];
 };
 
@@ -66,10 +57,9 @@ const FaxineiraDashboard = () => {
   const availableKey = ['available-cleanings', user?.id];
 
   useEffect(() => {
-    console.log('[FaxineiraDashboard] Componente montado. Invalidando queries para buscar dados frescos.');
     queryClient.invalidateQueries({ queryKey: assignedKey });
     queryClient.invalidateQueries({ queryKey: availableKey });
-  }, []); // O array vazio garante que isso rode apenas uma vez, quando o componente é montado.
+  }, []);
 
   const { data: assignedReservations, isLoading: isLoadingAssigned } = useQuery({
     queryKey: assignedKey,
@@ -187,7 +177,8 @@ const ReservationList = ({ reservations, onMarkAsComplete, isUpcoming }: { reser
             <div className="bg-muted p-3 rounded-lg flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="text-center sm:text-left">
                 <p className="text-sm font-medium text-muted-foreground">DATA DA FAXINA</p>
-                <p className="text-xl font-bold text-primary">{format(new Date(reservation.check_out_date), "dd 'de' MMMM, yyyy", { locale: ptBR })}</p>
+                {/* CORREÇÃO DA DATA */}
+                <p className="text-xl font-bold text-primary">{format(new Date(`${reservation.check_out_date}T00:00:00`), "dd 'de' MMMM, yyyy", { locale: ptBR })}</p>
               </div>
               <div className="text-center sm:text-left">
                 <p className="text-sm font-medium text-muted-foreground">JANELA DE TRABALHO</p>
@@ -199,7 +190,7 @@ const ReservationList = ({ reservations, onMarkAsComplete, isUpcoming }: { reser
               </div>
             </div>
             <div className="grid md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
-              {reservation.guest_name && (<p><span className="font-medium">Hóspede:</span> {reservation.guest_name}</p>)}
+              {reservation.guest_name && (<p><span className="font-medium">Hóspede Anterior:</span> {reservation.guest_name}</p>)}
               {reservation.number_of_guests && (<p className="flex items-center"><Users className="h-4 w-4 mr-1.5" />{reservation.number_of_guests} Hóspedes</p>)}
               {reservation.cleaning_fee && (<p><span className="font-medium">Sua Taxa:</span> <span className="text-green-600 font-semibold">R$ {parseFloat(String(reservation.cleaning_fee)).toFixed(2)}</span></p>)}
               {reservation.cleaning_rating > 0 && (<p className="flex items-center"><Star className="h-4 w-4 mr-1.5 text-yellow-500" />Sua Avaliação: {reservation.cleaning_rating}/5</p>)}
@@ -247,7 +238,8 @@ const AvailableCleaningsList = ({ reservations, onSignUp }: { reservations: any[
                     <CardContent className="space-y-3">
                         <div className="text-center">
                             <p className="text-sm font-medium text-muted-foreground">DATA DA FAXINA</p>
-                            <p className="text-xl font-bold text-primary">{format(new Date(reservation.check_out_date), "dd 'de' MMMM, yyyy", { locale: ptBR })}</p>
+                            {/* CORREÇÃO DA DATA */}
+                            <p className="text-xl font-bold text-primary">{format(new Date(`${reservation.check_out_date}T00:00:00`), "dd 'de' MMMM, yyyy", { locale: ptBR })}</p>
                         </div>
                         <div className="flex justify-between items-center bg-white p-3 rounded-lg">
                             <div>
