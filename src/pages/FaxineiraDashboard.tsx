@@ -199,7 +199,7 @@ const ReservationList = ({ reservations, onMarkAsComplete, isUpcoming }: { reser
               </div>
             </div>
             <div className="grid md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
-              {reservation.guest_name && (<p><span className="font-medium">Hóspede Anterior:</span> {reservation.guest_name}</p>)}
+              {reservation.guest_name && (<p><span className="font-medium">Hóspede:</span> {reservation.guest_name}</p>)}
               {reservation.number_of_guests && (<p className="flex items-center"><Users className="h-4 w-4 mr-1.5" />{reservation.number_of_guests} Hóspedes</p>)}
               {reservation.cleaning_fee && (<p><span className="font-medium">Sua Taxa:</span> <span className="text-green-600 font-semibold">R$ {parseFloat(String(reservation.cleaning_fee)).toFixed(2)}</span></p>)}
               {reservation.cleaning_rating > 0 && (<p className="flex items-center"><Star className="h-4 w-4 mr-1.5 text-yellow-500" />Sua Avaliação: {reservation.cleaning_rating}/5</p>)}
