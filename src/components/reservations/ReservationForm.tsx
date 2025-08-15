@@ -120,14 +120,15 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
             console.error('Erro ao buscar propriedades:', error);
         }
     };
-    
-    // Efeito para popular o formulário ao editar
+
+    // Efeito para popular o formulário ao editar, agora usando reset
     useEffect(() => {
         if (reservation) {
             const initialValues: any = {
                 ...reservation,
-                check_in_date: reservation.check_in_date ? new Date(`${reservation.check_in_date}T00:00:00`).toISOString().split('T')[0] : '',
-                check_out_date: reservation.check_out_date ? new Date(`${reservation.check_out_date}T00:00:00`).toISOString().split('T')[0] : '',
+                // Corrige o bug de timezone nas datas
+                check_in_date: reservation.check_in_date ? format(new Date(`${reservation.check_in_date}T00:00:00`), 'yyyy-MM-dd') : '',
+                check_out_date: reservation.check_out_date ? format(new Date(`${reservation.check_out_date}T00:00:00`), 'yyyy-MM-dd') : '',
                 checkin_time: reservation.checkin_time?.slice(0, 5) || '',
                 checkout_time: reservation.checkout_time?.slice(0, 5) || '',
             };
@@ -159,6 +160,8 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
         if (watchedPropertyId) {
             const property = properties.find(p => p.id === watchedPropertyId);
             setSelectedProperty(property || null);
+        } else {
+            setSelectedProperty(null);
         }
     }, [watchedPropertyId, properties]);
 
