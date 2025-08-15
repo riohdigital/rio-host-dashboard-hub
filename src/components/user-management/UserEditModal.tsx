@@ -7,13 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { Checkbox } from '@/components/ui/checkbox'; // NOVO: Importar Checkbox
+import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import PermissionsEditor from './PermissionsEditor';
 import PropertyAccessEditor from './PropertyAccessEditor';
 import type { UserProfile, UserPermission, UserPropertyAccess } from '@/types/user-management';
-import type { Property } from '@/types/property'; // NOVO: Importar tipo Property
+import type { Property } from '@/types/property';
 
 interface UserEditModalProps {
   user: UserProfile | null;
@@ -36,7 +36,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  // NOVO: Estados para gerenciar propriedades da faxineira
+  // Estados para gerenciar propriedades da faxineira
   const [allProperties, setAllProperties] = useState<Property[]>([]);
   const [cleanerLinkedProperties, setCleanerLinkedProperties] = useState<string[]>([]);
 
@@ -50,7 +50,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
       // Busca dados específicos do usuário
       fetchUserPermissions(user.user_id);
       
-      // ALTERAÇÃO: Lógica condicional para buscar acessos
+      // Lógica condicional para buscar acessos
       if (user.role === 'faxineira') {
         fetchAllProperties();
         fetchCleanerLinkedProperties(user.user_id);
@@ -62,7 +62,6 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
     }
   }, [user, open]);
 
-  // NOVO: Função para buscar TODAS as propriedades do sistema
   const fetchAllProperties = async () => {
     try {
       const { data, error } = await supabase.from('properties').select('id, name, nickname');
@@ -73,7 +72,6 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
     }
   };
 
-  // NOVO: Função para buscar os vínculos específicos da faxineira
   const fetchCleanerLinkedProperties = async (userId: string) => {
     try {
       const { data, error } = await supabase.from('cleaner_properties').select('property_id').eq('user_id', userId);
@@ -84,10 +82,32 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
     }
   };
 
-  const fetchUserPermissions = async (userId: string) => { /* ... (sem alterações) ... */ };
-  const fetchPropertyAccess = async (userId: string) => { /* ... (sem alterações) ... */ };
+  const fetchUserPermissions = async (userId: string) => {
+    try {
+      const { data } = await supabase
+        .from('user_permissions')
+        .select('*')
+        .eq('user_id', userId);
+      
+      setPermissions(data || []);
+    } catch (error) {
+      console.error('Erro ao buscar permissões:', error);
+    }
+  };
 
-  // NOVO: Handler para o checklist de propriedades da faxineira
+  const fetchPropertyAccess = async (userId: string) => {
+    try {
+      const { data } = await supabase
+        .from('user_property_access')
+        .select('*')
+        .eq('user_id', userId);
+      
+      setPropertyAccess((data || []) as UserPropertyAccess[]);
+    } catch (error) {
+      console.error('Erro ao buscar acesso a propriedades:', error);
+    }
+  };
+
   const handleCleanerPropertyToggle = (propertyId: string) => {
     setCleanerLinkedProperties(prev => 
       prev.includes(propertyId)
@@ -100,20 +120,20 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
     if (!user) return;
     setLoading(true);
     try {
-      // 1. Atualizar perfil do usuário (sem alterações)
+      // 1. Atualizar perfil do usuário
       await supabase.from('user_profiles').update({
         full_name: fullName, role, is_active: isActive, updated_at: new Date().toISOString()
       }).eq('user_id', user.user_id);
 
-      // 2. Sincronizar permissões (sem alterações)
+      // 2. Sincronizar permissões
       await supabase.from('user_permissions').delete().eq('user_id', user.user_id);
       const permissionsToInsert = permissions.filter(p => p.permission_value)
-        .map(p => ({ user_id: user.user_id, permission_type: p.permission_type, permission_value: true }));
+        .map(p => ({ user_id: user.user_id, permission_type: p.permission_type, permission_value: true, resource_id: p.resource_id }));
       if (permissionsToInsert.length > 0) {
         await supabase.from('user_permissions').insert(permissionsToInsert);
       }
       
-      // ALTERAÇÃO: Lógica condicional para salvar os acessos
+      // 3. Lógica condicional para salvar os acessos
       if (role === 'faxineira') {
         // Se for faxineira, sincroniza a tabela cleaner_properties
         await supabase.from('cleaner_properties').delete().eq('user_id', user.user_id);
@@ -125,7 +145,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
           await supabase.from('cleaner_properties').insert(linksToInsert);
         }
       } else {
-        // Se for outro role, usa a lógica antiga para user_property_access
+        // Se for outro role, usa a lógica para user_property_access
         await supabase.from('user_property_access').delete().eq('user_id', user.user_id);
         if (propertyAccess.length > 0) {
           const propertyAccessToInsert = propertyAccess.map(pa => ({
@@ -151,7 +171,10 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>Editar Usuário</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Editar Usuário</DialogTitle>
+        </DialogHeader>
+
         <Tabs defaultValue="basic" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="basic">Informações Básicas</TabsTrigger>
@@ -160,17 +183,72 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
           </TabsList>
 
           <TabsContent value="basic" className="space-y-4 pt-4">
-            {/* ... (código das informações básicas sem alterações) ... */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" value={user.email} disabled className="bg-muted" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="fullName">Nome Completo</Label>
+                <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Digite o nome completo" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="role">Role</Label>
+                <Select value={role} onValueChange={(value) => setRole(value as 'master' | 'owner' | 'editor' | 'viewer' | 'faxineira')} disabled={user.role === 'master'}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="master">Mestre</SelectItem>
+                    <SelectItem value="owner">Proprietário</SelectItem>
+                    <SelectItem value="editor">Editor</SelectItem>
+                    <SelectItem value="viewer">Visualizador</SelectItem>
+                    <SelectItem value="faxineira">Faxineira</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="isActive">Status da Conta</Label>
+                <div className="flex items-center space-x-2 pt-2">
+                  <Switch id="isActive" checked={isActive} onCheckedChange={setIsActive} disabled={user.role === 'master'} />
+                  <Label htmlFor="isActive" className="text-sm">{isActive ? 'Ativo' : 'Inativo'}</Label>
+                </div>
+              </div>
+            </div>
+            <Separator />
+            <div className="space-y-2">
+              <Label>Alterar Senha</Label>
+              <Button variant="outline" onClick={async () => {
+                try {
+                  const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+                    redirectTo: `${window.location.origin}/reset-password`
+                  });
+                  if (error) throw error;
+                  toast({ title: "Sucesso", description: "Email de redefinição de senha enviado com sucesso." });
+                } catch (error) {
+                  console.error('Erro ao enviar email de redefinição:', error);
+                  toast({ title: "Erro", description: "Não foi possível enviar o email de redefinição.", variant: "destructive" });
+                }
+              }} className="w-full">
+                Enviar Email de Redefinição de Senha
+              </Button>
+            </div>
+            <Separator />
+            <div className="space-y-2">
+              <Label>Informações da Conta</Label>
+              <div className="text-sm text-muted-foreground space-y-1">
+                <p>Criado em: {new Date(user.created_at).toLocaleDateString('pt-BR')}</p>
+                <p>Última atualização: {new Date(user.updated_at).toLocaleDateString('pt-BR')}</p>
+              </div>
+            </div>
           </TabsContent>
 
           <TabsContent value="permissions" className="space-y-4 pt-4">
             <PermissionsEditor permissions={permissions} onChange={setPermissions} userRole={role} />
           </TabsContent>
 
-          {/* ALTERAÇÃO: Conteúdo da aba "Propriedades" agora é condicional */}
           <TabsContent value="properties" className="space-y-4 pt-4">
             {role === 'faxineira' ? (
-              // NOVO: Interface para gerenciar propriedades da faxineira
               <div className="space-y-3">
                 <Label className="text-base font-medium">Propriedades Vinculadas</Label>
                 <p className="text-sm text-muted-foreground">
@@ -192,7 +270,6 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
                 </div>
               </div>
             ) : (
-              // Interface antiga para os outros roles
               <PropertyAccessEditor
                 propertyAccess={propertyAccess}
                 onChange={setPropertyAccess}
