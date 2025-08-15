@@ -76,6 +76,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
     const [manualCleaningFee, setManualCleaningFee] = useState<number | undefined>(undefined);
     const [manualCommission, setManualCommission] = useState<number | undefined>(undefined);
     const [showCleanerForm, setShowCleanerForm] = useState(false);
+    const [showCleanerModal, setShowCleanerModal] = useState(false);
     const { toast } = useToast();
 
     const {
@@ -124,9 +125,9 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
     
     useEffect(() => {
         if (reservation && properties.length > 0) {
-            const { cleaning_destination, ...restOfReservation } = reservation;
+            // Remover tentativa de desestruturar cleaning_destination que não existe no tipo
             const initialValues: any = {
-                ...restOfReservation,
+                ...reservation,
                 check_in_date: reservation.check_in_date ? format(new Date(`${reservation.check_in_date}T00:00:00`), 'yyyy-MM-dd') : '',
                 check_out_date: reservation.check_out_date ? format(new Date(`${reservation.check_out_date}T00:00:00`), 'yyyy-MM-dd') : '',
                 checkin_time: reservation.checkin_time?.slice(0, 5) || '',
@@ -171,7 +172,8 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
 
     const fetchCleanersForProperty = async (propertyId: string) => {
         try {
-            const { data: cleanerLinks, error: linkError } = await supabase.from('cleaner_properties').select('user_id').eq('property_id', propertyId);
+            // Usar any para evitar erros de TypeScript com tabelas não reconhecidas
+            const { data: cleanerLinks, error: linkError } = await (supabase as any).from('cleaner_properties').select('user_id').eq('property_id', propertyId);
             if (linkError) throw linkError;
             
             const userIds = (cleanerLinks || []).map((link) => link.user_id).filter(Boolean);
@@ -568,8 +570,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
             <CleanerCreateModal
                 open={showCleanerForm}
                 onClose={() => setShowCleanerForm(false)}
-                onCleanerCreated={(cleanerId, cleanerName) => {
-                    setValue('cleaning_destination', cleanerId);
+                onCleanerCreated={() => {
                     setShowCleanerForm(false);
                     if (watchedPropertyId) {
                         fetchCleanersForProperty(watchedPropertyId);

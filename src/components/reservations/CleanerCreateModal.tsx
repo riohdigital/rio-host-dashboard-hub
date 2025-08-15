@@ -118,11 +118,11 @@ const CleanerCreateModal: React.FC<CleanerCreateModalProps> = ({
         user_id: newCleanerId,
         property_id: propId
       }));
-      const { error: linkError } = await supabase.from('cleaner_properties').insert(linksToCreate);
+      const { error: linkError } = await (supabase as any).from('cleaner_properties').insert(linksToCreate);
       if (linkError) throw linkError;
 
       if (notes.trim() !== '') {
-          await supabase.from('cleaner_profiles').update({ notes }).eq('user_id', newCleanerId);
+          await (supabase as any).from('cleaner_profiles').update({ notes }).eq('user_id', newCleanerId);
       }
 
       toast({ title: "Sucesso", description: "Faxineira criada e vinculada com sucesso!" });
