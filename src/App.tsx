@@ -6,10 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./hooks/useAuth";
 import { UserPermissionsProvider } from "@/contexts/UserPermissionsContext";
 import { GlobalFiltersProvider } from "@/contexts/GlobalFiltersContext";
-
-// Importando o novo componente de rotas privadas
 import PrivateRoutes from "./components/auth/PrivateRoutes";
-
 import AuthPage from "./components/auth/AuthPage";
 import DashboardPage from "./pages/DashboardPage";
 import ReservasPage from "./pages/ReservasPage";
@@ -42,23 +39,22 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <Routes>
-            {/* Se não houver usuário, apenas as rotas de autenticação são acessíveis */}
             {!user ? (
+              // Rotas públicas para usuários não logados
               <>
                 <Route path="/auth" element={<AuthPage />} />
                 <Route path="*" element={<Navigate to="/auth" replace />} />
               </>
             ) : (
-              /* Se houver usuário, todas as rotas internas são protegidas pelo PrivateRoutes */
+              // Rotas privadas para usuários logados
               <Route
-                path="/*" // Coringa para capturar todas as rotas autenticadas
+                path="/*"
                 element={
                   <UserPermissionsProvider>
                     <GlobalFiltersProvider>
+                      {/* O PrivateRoutes agora envolve todas as páginas internas */}
                       <Routes>
-                        {/* O PrivateRoutes agora decide o que renderizar */}
                         <Route element={<PrivateRoutes />}>
-                          {/* Rotas que o PrivateRoutes irá gerenciar */}
                           <Route path="/" element={<Navigate to="/dashboard" replace />} />
                           <Route path="/dashboard" element={<DashboardPage />} />
                           <Route path="/reservas" element={<ReservasPage />} />
