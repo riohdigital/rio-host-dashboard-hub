@@ -38,14 +38,12 @@ const reservationSchema = z.object({
     net_revenue: z.number().optional(),
     payment_status: z.string().optional(),
     reservation_status: z.string().min(1, 'Status da reserva é obrigatório'),
-    payment_date: z.string().optional(),
     cleaning_destination: z.string().optional(),
-    cleaner_user_id: z.string().optional(),
-    cleaning_allocation: z.string().optional(),
-    cleaning_payment_status: z.string().optional(),
-    cleaning_rating: z.number().min(0).max(5).optional(),
-    cleaning_notes: z.string().optional(),
-    cleaning_fee: z.number().optional(),
+    cleaner_user_id: z.string().optional().nullable(),
+    cleaning_payment_status: z.string().optional().nullable(),
+    cleaning_rating: z.number().min(0).max(5).optional().nullable(),
+    cleaning_notes: z.string().optional().nullable(),
+    cleaning_fee: z.number().optional().nullable(),
 }).refine(data => {
     if (data.check_in_date && data.check_out_date) {
         return new Date(data.check_out_date) > new Date(data.check_in_date);
@@ -281,7 +279,6 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                 guest_name: data.guest_name || null,
                 guest_phone: data.guest_phone || null,
                 number_of_guests: data.number_of_guests || null,
-                payment_date: data.payment_date || null,
                 checkin_time: data.checkin_time || null,
                 checkout_time: data.checkout_time || null,
                 payment_status: data.payment_status || null,
