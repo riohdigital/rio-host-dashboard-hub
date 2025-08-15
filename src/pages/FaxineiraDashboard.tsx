@@ -37,7 +37,7 @@ const fetchAvailableReservations = async (userId: string) => {
 
   const { data, error } = await supabase
     .from('reservations')
-    .select(`*, properties (name, address)`)
+    .select(`*, properties (name, address, default_checkin_time)`)
     .in('property_id', propertyIds)
     .is('cleaner_user_id', null)
     .gte('check_out_date', today)
@@ -46,6 +46,22 @@ const fetchAvailableReservations = async (userId: string) => {
     .order('check_out_date', { ascending: true });
   if (error) throw error;
   return data || [];
+};
+
+const getStatusBadgeVariant = (status: string): "default" | "destructive" | "secondary" | "outline" => {
+    switch (status) {
+        case 'Confirmada':
+            return 'secondary'; // Verde
+        case 'Em Andamento':
+            return 'secondary'; // Verde
+        case 'Cancelada':
+            return 'destructive'; // Vermelho
+        case 'Finalizada':
+        case 'Realizada': // Adicionado para cobrir o novo status
+            return 'default'; // Cor primária (azul/preto)
+        default:
+            return 'outline'; // Padrão
+    }
 };
 
 const FaxineiraDashboard = () => {
@@ -92,12 +108,13 @@ const FaxineiraDashboard = () => {
 
   const handleMarkAsComplete = async (reservationId: string) => {
     try {
+      // Usando 'Finalizada' para manter consistência com o resto do sistema, mas o botão dirá 'Realizada'
       const { error } = await supabase
         .from('reservations')
-        .update({ reservation_status: 'Finalizada' })
+        .update({ reservation_status: 'Finalizada' }) 
         .eq('id', reservationId);
       if (error) throw error;
-      toast({ title: "Sucesso!", description: "Faxina marcada como concluída." });
+      toast({ title: "Sucesso!", description: "Faxina marcada como realizada." });
       await queryClient.invalidateQueries({ queryKey: assignedKey });
     } catch (error: any) {
       toast({ title: "Erro", description: error.message || "Não foi possível atualizar o status.", variant: "destructive" });
@@ -105,8 +122,14 @@ const FaxineiraDashboard = () => {
   };
 
   const today = startOfToday();
-  const upcomingReservations = assignedReservations?.filter(r => !isPast(new Date(r.check_out_date)) || format(new Date(r.check_out_date), 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd')) ?? [];
-  const pastReservations = assignedReservations?.filter(r => isPast(new Date(r.check_out_date)) && format(new Date(r.check_out_date), 'yyyy-MM-dd') !== format(today, 'yyyy-MM-dd')) ?? [];
+  const upcomingReservations = assignedReservations?.filter(r => {
+    const checkoutDate = new Date(`${r.check_out_date}T00:00:00`);
+    return checkoutDate >= today && r.reservation_status !== 'Finalizada' && r.reservation_status !== 'Realizada';
+  }) ?? [];
+  const pastReservations = assignedReservations?.filter(r => {
+    const checkoutDate = new Date(`${r.check_out_date}T00:00:00`);
+    return checkoutDate < today || r.reservation_status === 'Finalizada' || r.reservation_status === 'Realizada';
+  }) ?? [];
 
   if (isLoadingAssigned || isLoadingAvailable) {
     return (
@@ -168,7 +191,7 @@ const ReservationList = ({ reservations, onMarkAsComplete, isUpcoming }: { reser
                 </p>
               </div>
               <div className="flex gap-2 flex-shrink-0">
-                <Badge variant={reservation.reservation_status === 'Finalizada' ? 'default' : 'secondary'}>{reservation.reservation_status}</Badge>
+                <Badge variant={getStatusBadgeVariant(reservation.reservation_status)}>{reservation.reservation_status}</Badge>
                 <Badge variant={reservation.cleaning_payment_status === 'Paga' ? 'default' : 'destructive'}>{reservation.cleaning_payment_status}</Badge>
               </div>
             </div>
@@ -177,7 +200,6 @@ const ReservationList = ({ reservations, onMarkAsComplete, isUpcoming }: { reser
             <div className="bg-muted p-3 rounded-lg flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="text-center sm:text-left">
                 <p className="text-sm font-medium text-muted-foreground">DATA DA FAXINA</p>
-                {/* CORREÇÃO DA DATA */}
                 <p className="text-xl font-bold text-primary">{format(new Date(`${reservation.check_out_date}T00:00:00`), "dd 'de' MMMM, yyyy", { locale: ptBR })}</p>
               </div>
               <div className="text-center sm:text-left">
@@ -200,9 +222,9 @@ const ReservationList = ({ reservations, onMarkAsComplete, isUpcoming }: { reser
                 <p className="text-sm"><span className="font-medium">Observações:</span> <span className="text-muted-foreground">{reservation.cleaning_notes}</span></p>
               </div>
             )}
-            {isUpcoming && reservation.reservation_status !== 'Finalizada' && onMarkAsComplete && (
+            {isUpcoming && onMarkAsComplete && (
               <div className="pt-4 border-t flex justify-end">
-                <Button onClick={() => onMarkAsComplete(reservation.id)}><CheckCircle className="h-4 w-4 mr-2" />Marcar como Concluída</Button>
+                <Button onClick={() => onMarkAsComplete(reservation.id)}><CheckCircle className="h-4 w-4 mr-2" />Marcar como Realizada</Button>
               </div>
             )}
           </CardContent>
@@ -238,15 +260,21 @@ const AvailableCleaningsList = ({ reservations, onSignUp }: { reservations: any[
                     <CardContent className="space-y-3">
                         <div className="text-center">
                             <p className="text-sm font-medium text-muted-foreground">DATA DA FAXINA</p>
-                            {/* CORREÇÃO DA DATA */}
                             <p className="text-xl font-bold text-primary">{format(new Date(`${reservation.check_out_date}T00:00:00`), "dd 'de' MMMM, yyyy", { locale: ptBR })}</p>
                         </div>
-                        <div className="flex justify-between items-center bg-white p-3 rounded-lg">
-                            <div>
-                                <p className="text-sm font-medium">Sua Taxa</p>
-                                <p className="text-lg font-bold text-green-600">R$ {parseFloat(String(reservation.cleaning_fee || 0)).toFixed(2)}</p>
+                        <div className="bg-white p-3 rounded-lg flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <div className="text-center sm:text-left">
+                                <p className="text-sm font-medium text-muted-foreground">JANELA DE TRABALHO</p>
+                                <p className="text-lg font-semibold">
+                                    Saída às {reservation.checkout_time?.slice(0, 5) ?? 'N/A'}
+                                    <span className="text-muted-foreground mx-1">até</span>
+                                    Entrada às {reservation.properties?.default_checkin_time?.slice(0, 5) ?? 'N/A'}
+                                </p>
                             </div>
-                            <Button onClick={() => onSignUp(reservation.id)}><Hand className="h-4 w-4 mr-2"/>Assinar Faxina</Button>
+                            <Button onClick={() => onSignUp(reservation.id)}>
+                                <Hand className="h-4 w-4 mr-2"/>
+                                Assinar Faxina
+                            </Button>
                         </div>
                     </CardContent>
                 </Card>
