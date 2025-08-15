@@ -8,7 +8,7 @@ const PrivateRoutes = () => {
   const { role, loading: permissionsLoading } = useUserPermissions();
   const location = useLocation();
 
-  // Se as permissões ainda estiverem carregando, mostramos um loader para evitar um "flash" da página errada
+  // 1. Enquanto as permissões estiverem carregando, mostramos um loader.
   if (permissionsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
@@ -17,21 +17,30 @@ const PrivateRoutes = () => {
     );
   }
 
-  // Lógica de Redirecionamento para FAXINEIRA
-  if (role === 'faxineira' && location.pathname !== '/faxineira-dashboard') {
-    // Se o usuário é 'faxineira' e NÃO está no dashboard dela, força o redirecionamento para lá.
-    return <Navigate to="/faxineira-dashboard" replace />;
+  // 2. NOVO: Se o carregamento terminou mas o role AINDA NÃO foi definido,
+  //    esperamos ou mostramos uma mensagem. Isso evita o redirecionamento prematuro.
+  if (!role) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
+        <div className="text-muted-foreground">Verificando perfil do usuário...</div>
+      </div>
+    );
   }
 
-  // Lógica de Proteção DO DASHBOARD DA FAXINEIRA
-  if (role !== 'faxineira' && location.pathname === '/faxineira-dashboard') {
-    // Se o usuário NÃO é 'faxineira' mas tenta acessar o dashboard dela,
-    // redireciona para o dashboard principal.
-    return <Navigate to="/dashboard" replace />;
+  // 3. Agora que temos certeza do role, aplicamos as regras de redirecionamento.
+  if (role === 'faxineira') {
+    // Se for 'faxineira' e tentar acessar qualquer outra página, redireciona.
+    if (location.pathname !== '/faxineira-dashboard') {
+      return <Navigate to="/faxineira-dashboard" replace />;
+    }
+  } else {
+    // Se NÃO for 'faxineira' e tentar acessar a página dela, redireciona.
+    if (location.pathname === '/faxineira-dashboard') {
+      return <Navigate to="/dashboard" replace />;
+    }
   }
 
-  // Se nenhuma das regras de redirecionamento acima for atendida, o usuário tem permissão
-  // para ver a página que solicitou. O <Outlet /> renderiza a rota filha correspondente.
+  // 4. Se nenhuma regra de redirecionamento foi aplicada, permite o acesso à rota solicitada.
   return <Outlet />;
 };
 
