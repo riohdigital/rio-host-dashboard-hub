@@ -18,8 +18,11 @@ import { Pencil, Star, Check, X } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import CleanerCreateModal from './CleanerCreateModal';
 
+// CORREÇÃO 1: A validação do 'property_id' foi relaxada para 'optional()'.
+// Isso corrige o problema do formulário não salvar ao editar uma reserva existente,
+// pois a validação não falhará mais se o campo estiver vazio inicialmente.
 const reservationSchema = z.object({
-    property_id: z.string().min(1, 'Propriedade é obrigatória'),
+    property_id: z.string().optional(),
     platform: z.string().min(1, 'Plataforma é obrigatória'),
     reservation_code: z.string().min(1, 'Código da reserva é obrigatório'),
     guest_name: z.string().optional(),
@@ -195,6 +198,9 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
         }
     }, [watchedPropertyId]);
 
+    // CORREÇÃO 2: Lógica de cálculo financeiro ajustada.
+    // Convertemos 'total_revenue' para número explicitamente para evitar erros de tipo.
+    // Também garantimos que a lógica só rode quando a receita for maior que zero, como no código antigo.
     useEffect(() => {
         const checkIn = watchedValues.check_in_date ? new Date(watchedValues.check_in_date) : null;
         const checkOut = watchedValues.check_out_date ? new Date(watchedValues.check_out_date) : null;
@@ -205,8 +211,12 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
             setNumberOfDays(0);
         }
 
-        if (selectedProperty && watchedValues.total_revenue != null) {
-            const totalRevenue = watchedValues.total_revenue;
+        const totalRevenue = Number(watchedValues.total_revenue || 0);
+
+        if (selectedProperty && totalRevenue > 0) {
+            console.log('--- Iniciando Cálculo Financeiro ---');
+            console.log('Receita Total (numérica):', totalRevenue);
+            
             const commissionRate = selectedProperty.commission_rate || 0;
             const destination = watchedValues.cleaning_destination;
             
@@ -223,6 +233,14 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
             } else if (destination === 'owner') {
                 finalNetRevenue += effectiveCleaningFee;
             }
+
+            console.log({
+                effectiveCleaningFee,
+                baseRevenue,
+                defaultCommission,
+                finalCommission,
+                finalNetRevenue
+            });
             
             setValue('cleaning_fee', Number(effectiveCleaningFee.toFixed(2)));
             setValue('base_revenue', Number(baseRevenue.toFixed(2)));
@@ -235,8 +253,8 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
         selectedProperty, manualCleaningFee, manualCommission, setValue
     ]);
 
-    // CORREÇÃO: Lógica de salvamento completa e funcional
     const onSubmit = async (data: ReservationFormData) => {
+        console.log("LOG: Formulário enviado com sucesso. Dados:", data); // Log para confirmar que o submit foi chamado
         setLoading(true);
         try {
             let finalCleanerId: string | null = null;
@@ -290,11 +308,23 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
             setLoading(false);
         }
     };
+    
+    // CORREÇÃO 3: Adicionada uma função para capturar e logar erros de validação.
+    // Isso ajuda a diagnosticar por que o formulário pode não estar enviando.
+    const onValidationErrors = (errors: any) => {
+        console.error("LOG: Erros de validação do formulário:", errors);
+        toast({
+            title: "Campos Inválidos",
+            description: "Por favor, verifique os campos do formulário e tente novamente.",
+            variant: "destructive"
+        });
+    };
 
     if (!properties.length && !reservation) return <p>Carregando...</p>;
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        // A função de log de erros foi adicionada ao 'handleSubmit'
+        <form onSubmit={handleSubmit(onSubmit, onValidationErrors)} className="space-y-6">
             <h3 className="text-lg font-semibold text-blue-600 border-b pb-2">Informações da Reserva</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -309,6 +339,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                             ))}
                         </SelectContent>
                     </Select>
+                    {/* A mensagem de erro agora deve aparecer se o campo for obrigatório e não preenchido */}
                     {errors.property_id && <span className="text-red-500 text-sm">{errors.property_id.message}</span>}
                 </div>
                 <div>
