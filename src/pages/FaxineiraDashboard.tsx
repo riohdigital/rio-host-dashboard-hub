@@ -13,14 +13,12 @@ import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-// Tipagem atualizada para incluir os novos campos da função RPC e a flag de urgência
 type ReservationWithDetails = Awaited<ReturnType<typeof fetchAssignedReservations>>[0] & { 
     next_check_in_date?: string,
     next_checkin_time?: string,
     urgency?: { level: 'critical' | 'warning' | 'normal' }
 };
 
-// Busca as reservas atribuídas chamando a função RPC que criamos no banco de dados
 const fetchAssignedReservations = async (userId: string) => {
     const { data, error } = await supabase.rpc('fn_get_cleaner_reservations', { cleaner_id: userId });
     if (error) {
@@ -30,7 +28,6 @@ const fetchAssignedReservations = async (userId: string) => {
     return (data || []).map(r => ({...r, properties: typeof r.properties === 'string' ? JSON.parse(r.properties) : r.properties}));
 };
 
-// Busca as faxinas disponíveis (oportunidades) chamando a nova função RPC
 const fetchAvailableReservations = async (userId: string) => {
     const { data, error } = await supabase.rpc('fn_get_available_reservations', { cleaner_id: userId });
     if (error) {
@@ -41,7 +38,7 @@ const fetchAvailableReservations = async (userId: string) => {
 };
 
 const FaxineiraDashboard = () => {
-    const { user, signOut } = useAuth(); // Adicionado signOut
+    const { user, signOut } = useAuth();
     const queryClient = useQueryClient();
     const { toast } = useToast();
     const [activeTab, setActiveTab] = useState('dashboard');
@@ -67,13 +64,17 @@ const FaxineiraDashboard = () => {
         
         const withUrgency = reservations.map(r => {
             const checkoutDateTime = parseISO(`${r.check_out_date}T${r.checkout_time}`);
-            const deadline48h = addHours(checkoutDateTime, 48);
-            const hoursTo48hDeadline = differenceInHours(deadline48h, now);
+            
+            // MUDANÇA: A lógica de urgência foi corrigida aqui.
+            // Agora calculamos a diferença de horas entre AGORA e a HORA DO CHECKOUT.
+            const hoursUntilCheckout = differenceInHours(checkoutDateTime, now);
             
             let level: 'critical' | 'warning' | 'normal' = 'normal';
-            if (hoursTo48hDeadline <= 24) {
+            // Se faltam 24h ou menos para o checkout, é crítico.
+            if (hoursUntilCheckout <= 24) {
                 level = 'critical';
-            } else if (hoursTo48hDeadline <= 48) {
+            // Se faltam 48h ou menos para o checkout, é um aviso.
+            } else if (hoursUntilCheckout <= 48) {
                 level = 'warning';
             }
             return { ...r, urgency: { level } };
