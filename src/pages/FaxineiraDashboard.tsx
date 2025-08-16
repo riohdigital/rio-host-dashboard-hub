@@ -6,19 +6,22 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, MapPin, Users, Star, CheckCircle, Hand, Loader2, LogOut, AlertTriangle } from 'lucide-react';
+import { Calendar, MapPin, Users, Star, CheckCircle, Hand, Loader2, LogOut, AlertTriangle, DollarSign, Clock } from 'lucide-react';
 import { format, isPast, addHours, differenceInHours, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+// Tipagem atualizada para incluir os novos campos da função RPC e a flag de urgência
 type ReservationWithDetails = Awaited<ReturnType<typeof fetchAssignedReservations>>[0] & { 
     next_check_in_date?: string,
     next_checkin_time?: string,
     urgency?: { level: 'critical' | 'warning' | 'normal' }
 };
 
+// Busca as reservas atribuídas chamando a função RPC que criamos no banco de dados
 const fetchAssignedReservations = async (userId: string) => {
     const { data, error } = await supabase.rpc('fn_get_cleaner_reservations', { cleaner_id: userId });
     if (error) {
@@ -28,6 +31,7 @@ const fetchAssignedReservations = async (userId: string) => {
     return (data || []).map(r => ({...r, properties: typeof r.properties === 'string' ? JSON.parse(r.properties) : r.properties}));
 };
 
+// Busca as faxinas disponíveis (oportunidades) chamando a nova função RPC
 const fetchAvailableReservations = async (userId: string) => {
     const { data, error } = await supabase.rpc('fn_get_available_reservations', { cleaner_id: userId });
     if (error) {
@@ -58,39 +62,35 @@ const FaxineiraDashboard = () => {
         enabled: !!user,
     });
     
-    const processReservations = (reservations: any[] | undefined) => {
+    const processReservations = (reservations: any[] | undefined, applyUrgency: boolean) => {
         if (!reservations) return [];
         const now = new Date();
         
-        const withUrgency = reservations.map(r => {
-            const checkoutDateTime = parseISO(`${r.check_out_date}T${r.checkout_time}`);
-            
-            // MUDANÇA: A lógica de urgência foi corrigida aqui.
-            // Agora calculamos a diferença de horas entre AGORA e a HORA DO CHECKOUT.
-            const hoursUntilCheckout = differenceInHours(checkoutDateTime, now);
-            
-            let level: 'critical' | 'warning' | 'normal' = 'normal';
-            // Se faltam 24h ou menos para o checkout, é crítico.
-            if (hoursUntilCheckout <= 24) {
-                level = 'critical';
-            // Se faltam 48h ou menos para o checkout, é um aviso.
-            } else if (hoursUntilCheckout <= 48) {
-                level = 'warning';
+        const processed = reservations.map(r => {
+            // Garante que a propriedade 'urgency' exista em todos os objetos para evitar crashes
+            if (!applyUrgency) {
+                return { ...r, urgency: { level: 'normal' } };
             }
+            const checkoutDateTime = parseISO(`${r.check_out_date}T${r.checkout_time}`);
+            const hoursUntilCheckout = differenceInHours(checkoutDateTime, now);
+            let level: 'critical' | 'warning' | 'normal' = 'normal';
+            if (hoursUntilCheckout <= 24) level = 'critical';
+            else if (hoursUntilCheckout <= 48) level = 'warning';
             return { ...r, urgency: { level } };
         });
 
-        return withUrgency.sort((a, b) => {
+        // Ordena por urgência e depois por data
+        return processed.sort((a, b) => {
             const levelOrder = { critical: 0, warning: 1, normal: 2 };
             if (levelOrder[a.urgency.level] < levelOrder[b.urgency.level]) return -1;
             if (levelOrder[a.urgency.level] > levelOrder[b.urgency.level]) return 1;
-            return new Date(a.check_out_date).getTime() - new Date(b.check_out_date).getTime();
+            return new Date(b.check_out_date).getTime() - new Date(a.check_out_date).getTime();
         });
     };
 
-    const upcomingReservations = useMemo(() => processReservations(assignedReservationsData?.filter(r => r.cleaning_status !== 'Realizada' && !isPast(new Date(r.check_out_date)))), [assignedReservationsData]);
-    const pastReservations = assignedReservationsData?.filter(r => r.cleaning_status === 'Realizada' || isPast(new Date(r.check_out_date))) ?? [];
-    const availableReservations = useMemo(() => processReservations(availableReservationsData), [availableReservationsData]);
+    const upcomingReservations = useMemo(() => processReservations(assignedReservationsData?.filter(r => r.cleaning_status !== 'Realizada' && !isPast(new Date(r.check_out_date))), true), [assignedReservationsData]);
+    const availableReservations = useMemo(() => processReservations(availableReservationsData, true), [availableReservationsData]);
+    const pastReservations = useMemo(() => processReservations(assignedReservationsData?.filter(r => r.cleaning_status === 'Realizada' || isPast(new Date(r.check_out_date))), false), [assignedReservationsData]);
 
     const handleSignUpForCleaning = async (reservationId: string) => {
         if (!user) return;
@@ -113,13 +113,9 @@ const FaxineiraDashboard = () => {
         const confirmed = window.confirm(
             "⚠️ Tem certeza que deseja marcar esta faxina como 'Realizada'?\n\nEsta ação moverá o card para o seu histórico e não poderá ser desfeita facilmente."
         );
-
         if (confirmed) {
             try {
-                const { error } = await supabase
-                    .from('reservations')
-                    .update({ cleaning_status: 'Realizada' })
-                    .eq('id', reservationId);
+                const { error } = await supabase.from('reservations').update({ cleaning_status: 'Realizada' }).eq('id', reservationId);
                 if (error) throw error;
                 toast({ title: "Sucesso!", description: "Faxina marcada como concluída e movida para o histórico." });
                 await queryClient.invalidateQueries({ queryKey: assignedKey });
@@ -169,14 +165,13 @@ const FaxineiraDashboard = () => {
                         <AvailableCleaningsList reservations={availableReservations} onSignUp={handleSignUpForCleaning} />
                     </TabsContent>
                     <TabsContent value="historico">
-                        <ReservationList reservations={pastReservations} isUpcoming={false} />
+                        <ReservationList reservations={pastReservations} isUpcoming={false} isHistory={true} />
                     </TabsContent>
                 </Tabs>
             </div>
             
             <div style={{ display: activeTab === 'ganhos' ? 'block' : 'none' }}>
-                 <h1 className="text-2xl font-bold text-foreground">Meus Ganhos</h1>
-                 <p className="text-muted-foreground">Acompanhe seus recebimentos. (Página em construção)</p>
+                 <MeusGanhosPage historicalData={pastReservations} />
             </div>
             
             <div style={{ display: activeTab === 'configuracao' ? 'block' : 'none' }}>
@@ -203,7 +198,6 @@ const FaxineiraDashboard = () => {
                          <div className="flex justify-end"><Button>Salvar Alterações</Button></div>
                     </CardContent>
                  </Card>
-
                  <Card className="mt-6">
                     <CardHeader><CardTitle>Alterar Senha</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
@@ -218,7 +212,6 @@ const FaxineiraDashboard = () => {
                          <div className="flex justify-end"><Button>Alterar Senha</Button></div>
                     </CardContent>
                  </Card>
-
                  <Card className="mt-6 border-red-500">
                     <CardHeader><CardTitle className="text-red-700">Zona de Perigo</CardTitle></CardHeader>
                     <CardContent>
@@ -236,6 +229,79 @@ const FaxineiraDashboard = () => {
     );
 };
 
+const MeusGanhosPage = ({ historicalData }: { historicalData: ReservationWithDetails[] }) => {
+    const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
+
+    const availableMonths = useMemo(() => {
+        const months = new Set(historicalData.map(r => format(parseISO(r.check_out_date), 'yyyy-MM')));
+        if (months.size === 0) {
+            months.add(format(new Date(), 'yyyy-MM'));
+        }
+        return Array.from(months).sort().reverse();
+    }, [historicalData]);
+
+    const monthData = useMemo(() => {
+        const filtered = historicalData.filter(r => format(parseISO(r.check_out_date), 'yyyy-MM') === selectedMonth);
+
+        return filtered.reduce((acc, res) => {
+            const fee = Number(res.cleaning_fee || 0);
+            if (res.cleaning_payment_status === 'Paga') {
+                acc.pago += fee;
+            } else {
+                acc.proximoCiclo += fee;
+            }
+            return acc;
+        }, { pago: 0, proximoCiclo: 0 });
+    }, [historicalData, selectedMonth]);
+
+    return (
+        <div>
+            <div className="flex justify-between items-center mb-6">
+                 <div>
+                    <h1 className="text-2xl font-bold text-foreground">Meus Ganhos</h1>
+                    <p className="text-muted-foreground">Acompanhe seus recebimentos por ciclo.</p>
+                </div>
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                    <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Selecione o Mês" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {availableMonths.map(month => (
+                             <SelectItem key={month} value={month}>
+                                {format(parseISO(`${month}-02`), 'MMMM / yyyy', { locale: ptBR })}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-6">
+                <Card className="border-green-500 bg-green-50">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium text-green-800">Recebido neste Ciclo (Pago)</CardTitle>
+                        <DollarSign className="h-4 w-4 text-green-700" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-green-700">R$ {monthData.pago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                        <p className="text-xs text-green-600">Valores de faxinas (ex: Airbnb) já recebidos.</p>
+                    </CardContent>
+                </Card>
+                 <Card className="border-orange-500 bg-orange-50">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium text-orange-800">A receber no Próximo Ciclo</CardTitle>
+                        <Clock className="h-4 w-4 text-orange-700" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-orange-700">R$ {monthData.proximoCiclo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                        <p className="text-xs text-orange-600">Valores (ex: Booking) que serão pagos até o 5º dia útil do próximo mês.</p>
+                    </CardContent>
+                </Card>
+            </div>
+        </div>
+    );
+};
+
+
 const getStatusVariant = (status: string | null): 'success' | 'destructive' | 'default' | 'secondary' => {
     switch (status) {
         case 'Confirmada':
@@ -249,7 +315,7 @@ const getStatusVariant = (status: string | null): 'success' | 'destructive' | 'd
     }
 };
 
-const ReservationCard = ({ reservation, children }: { reservation: ReservationWithDetails, children?: React.ReactNode }) => {
+const ReservationCard = ({ reservation, children, isHistory = false }: { reservation: ReservationWithDetails, children?: React.ReactNode, isHistory?: boolean }) => {
     const checkoutDateTime = parseISO(`${reservation.check_out_date}T${reservation.checkout_time}`);
     
     let workWindowEndDisplay = "Prazo de 48h para concluir";
@@ -286,7 +352,7 @@ const ReservationCard = ({ reservation, children }: { reservation: ReservationWi
                         <Badge variant={reservation.cleaning_payment_status === 'Paga' ? 'default' : 'destructive'}>{reservation.cleaning_payment_status}</Badge>
                     </div>
                 </div>
-               {reservation.urgency?.level !== 'normal' && (
+               {reservation.urgency?.level !== 'normal' && !isHistory && (
                    <div className={`flex items-center gap-2 font-bold text-sm p-2 rounded-md ${reservation.urgency?.level === 'critical' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-800'}`}>
                        <AlertTriangle className="h-4 w-4" />
                        <span>{reservation.urgency.level === 'critical' ? 'ATENÇÃO: PRAZO MENOR QUE 24H' : 'AVISO: PRAZO MENOR QUE 48H'}</span>
@@ -295,14 +361,29 @@ const ReservationCard = ({ reservation, children }: { reservation: ReservationWi
             </CardHeader>
             <CardContent className="space-y-4">
                 <div className="bg-muted p-3 rounded-lg flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <div className="text-center sm:text-left">
-                        <p className="text-sm font-medium text-muted-foreground">INÍCIO DA JANELA (SAÍDA)</p>
-                        <p className="text-xl font-bold text-primary">{format(checkoutDateTime, "dd/MM 'às' HH:mm", { locale: ptBR })}</p>
-                    </div>
-                    <div className="text-center sm:text-left">
-                        <p className="text-sm font-medium text-muted-foreground">FIM DA JANELA</p>
-                        <p className="text-lg font-semibold">{workWindowEndDisplay}</p>
-                    </div>
+                    {isHistory ? (
+                        <>
+                           <div className="text-center sm:text-left">
+                                <p className="text-sm font-medium text-muted-foreground">PROPRIEDADE</p>
+                                <p className="text-xl font-bold text-primary">{reservation.properties?.name}</p>
+                            </div>
+                            <div className="text-center sm:text-left">
+                                <p className="text-sm font-medium text-muted-foreground">DATA DA FAXINA</p>
+                                <p className="text-lg font-semibold">{format(checkoutDateTime, "dd 'de' MMMM, yyyy", { locale: ptBR })}</p>
+                            </div>
+                        </>
+                    ) : (
+                         <>
+                            <div className="text-center sm:text-left">
+                                <p className="text-sm font-medium text-muted-foreground">INÍCIO DA JANELA (SAÍDA)</p>
+                                <p className="text-xl font-bold text-primary">{format(checkoutDateTime, "dd/MM 'às' HH:mm", { locale: ptBR })}</p>
+                            </div>
+                            <div className="text-center sm:text-left">
+                                <p className="text-sm font-medium text-muted-foreground">FIM DA JANELA</p>
+                                <p className="text-lg font-semibold">{workWindowEndDisplay}</p>
+                            </div>
+                         </>
+                    )}
                 </div>
                 {children}
             </CardContent>
@@ -310,7 +391,22 @@ const ReservationCard = ({ reservation, children }: { reservation: ReservationWi
     );
 };
 
-const ReservationList = ({ reservations, onMarkAsComplete, isUpcoming }: { reservations: ReservationWithDetails[], onMarkAsComplete?: (id: string) => void, isUpcoming: boolean }) => {
+const ReservationList = ({ reservations, onMarkAsComplete, isUpcoming, isHistory = false }: { reservations: ReservationWithDetails[], onMarkAsComplete?: (id: string) => void, isUpcoming: boolean, isHistory?: boolean }) => {
+    const [selectedMonth, setSelectedMonth] = useState(isHistory ? format(new Date(), 'yyyy-MM') : 'all');
+
+    const availableMonths = useMemo(() => {
+        const months = new Set(reservations.map(r => format(parseISO(r.check_out_date), 'yyyy-MM')));
+        if (isHistory && months.size === 0) {
+            months.add(format(new Date(), 'yyyy-MM'));
+        }
+        return Array.from(months).sort().reverse();
+    }, [reservations, isHistory]);
+    
+    const filteredReservations = useMemo(() => {
+        if (!isHistory || selectedMonth === 'all') return reservations;
+        return reservations.filter(r => format(parseISO(r.check_out_date), 'yyyy-MM') === selectedMonth);
+    }, [reservations, selectedMonth, isHistory]);
+
     if (reservations.length === 0) {
         return (
             <Card className="mt-4">
@@ -322,28 +418,55 @@ const ReservationList = ({ reservations, onMarkAsComplete, isUpcoming }: { reser
             </Card>
         );
     }
+    
     return (
-        <div className="grid gap-4 mt-4">
-            {reservations.map(reservation => (
-                <ReservationCard key={reservation.id} reservation={reservation}>
-                    <div className="grid md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                        {reservation.guest_name && (<p><span className="font-medium">Hóspede Anterior:</span> {reservation.guest_name}</p>)}
-                        {reservation.number_of_guests && (<p className="flex items-center"><Users className="h-4 w-4 mr-1.5" />{reservation.number_of_guests} Hóspedes</p>)}
-                        {reservation.cleaning_fee && (<p><span className="font-medium">Sua Taxa:</span> <span className="text-green-600 font-semibold">R$ {parseFloat(String(reservation.cleaning_fee)).toFixed(2)}</span></p>)}
-                        {reservation.cleaning_rating > 0 && (<p className="flex items-center"><Star className="h-4 w-4 mr-1.5 text-yellow-500" />Sua Avaliação: {reservation.cleaning_rating}/5</p>)}
-                    </div>
-                    {reservation.cleaning_notes && (
-                        <div className="pt-2 border-t">
-                            <p className="text-sm"><span className="font-medium">Observações:</span> <span className="text-muted-foreground">{reservation.cleaning_notes}</span></p>
+        <div className="space-y-4 mt-4">
+             {isHistory && (
+                <div className="flex justify-end">
+                     <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                        <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="Filtrar por Mês" />
+                        </SelectTrigger>
+                        <SelectContent>
+                             <SelectItem value="all">Todos os Meses</SelectItem>
+                             {availableMonths.map(month => (
+                                 <SelectItem key={month} value={month}>
+                                    {format(parseISO(`${month}-02`), 'MMMM / yyyy', { locale: ptBR })}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+            )}
+            {filteredReservations.length === 0 && isHistory && (
+                <Card className="mt-4">
+                    <CardContent className="pt-6 text-center text-muted-foreground">
+                         <p>Nenhuma faxina encontrada para o período selecionado.</p>
+                    </CardContent>
+                </Card>
+            )}
+            <div className="grid gap-4">
+                {filteredReservations.map(reservation => (
+                    <ReservationCard key={reservation.id} reservation={reservation} isHistory={isHistory}>
+                        <div className="grid md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                            {reservation.guest_name && (<p><span className="font-medium">Hóspede Anterior:</span> {reservation.guest_name}</p>)}
+                            {reservation.number_of_guests && (<p className="flex items-center"><Users className="h-4 w-4 mr-1.5" />{reservation.number_of_guests} Hóspedes</p>)}
+                            {reservation.cleaning_fee && (<p><span className="font-medium">Sua Taxa:</span> <span className="text-green-600 font-semibold">R$ {parseFloat(String(reservation.cleaning_fee)).toFixed(2)}</span></p>)}
+                            {reservation.cleaning_rating > 0 && (<p className="flex items-center"><Star className="h-4 w-4 mr-1.5 text-yellow-500" />Sua Avaliação: {reservation.cleaning_rating}/5</p>)}
                         </div>
-                    )}
-                    {isUpcoming && reservation.cleaning_status !== 'Realizada' && onMarkAsComplete && (
-                        <div className="pt-4 border-t flex justify-end">
-                            <Button onClick={() => onMarkAsComplete(reservation.id)}><CheckCircle className="h-4 w-4 mr-2" />Marcar como Concluída</Button>
-                        </div>
-                    )}
-                </ReservationCard>
-            ))}
+                        {reservation.cleaning_notes && (
+                            <div className="pt-2 border-t">
+                                <p className="text-sm"><span className="font-medium">Observações:</span> <span className="text-muted-foreground">{reservation.cleaning_notes}</span></p>
+                            </div>
+                        )}
+                        {isUpcoming && reservation.cleaning_status !== 'Realizada' && onMarkAsComplete && (
+                            <div className="pt-4 border-t flex justify-end">
+                                <Button onClick={() => onMarkAsComplete(reservation.id)}><CheckCircle className="h-4 w-4 mr-2" />Marcar como Concluída</Button>
+                            </div>
+                        )}
+                    </ReservationCard>
+                ))}
+            </div>
         </div>
     );
 };
