@@ -41,7 +41,7 @@ const fetchAvailableReservations = async (userId: string) => {
 };
 
 const FaxineiraDashboard = () => {
-    const { user } = useAuth();
+    const { user, signOut } = useAuth(); // Adicionado signOut
     const queryClient = useQueryClient();
     const { toast } = useToast();
     const [activeTab, setActiveTab] = useState('dashboard');
@@ -144,7 +144,7 @@ const FaxineiraDashboard = () => {
                     <Button variant={activeTab === 'ganhos' ? 'secondary' : 'ghost'} onClick={() => setActiveTab('ganhos')}>Meus Ganhos</Button>
                     <Button variant={activeTab === 'configuracao' ? 'secondary' : 'ghost'} onClick={() => setActiveTab('configuracao')}>Configuração</Button>
                 </nav>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={signOut}>
                     <LogOut className="h-4 w-4 mr-2" />
                     Sair
                 </Button>
