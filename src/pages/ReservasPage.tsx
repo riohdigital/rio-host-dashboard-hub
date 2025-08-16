@@ -418,6 +418,7 @@ const ReservasPage = () => {
                             console.log("❌ CONDIÇÃO FALSA: O modal não será renderizado.");
                         }
                     }
+                    return null;
                 })()}
 
                 {showForm && (
