@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { useReservationStatusUpdate } from '@/hooks/useReservationStatusUpdate';
 import { Loader2 } from 'lucide-react';
 
 interface StatusSelectorProps {
@@ -14,27 +13,26 @@ interface StatusSelectorProps {
 const StatusSelector = ({ reservationId, currentStatus, statusType, onUpdate }: StatusSelectorProps) => {
   const [status, setStatus] = useState(currentStatus);
   const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
+  const { updateStatus } = useReservationStatusUpdate();
 
   const options = statusType === 'reservation_status'
-    ? ['Confirmada', 'Em andamento', 'Finalizada', 'Cancelada']
+    ? ['Confirmada', 'Em Andamento', 'Finalizada', 'Cancelada']
     : ['Pago', 'Pendente', 'Atrasado'];
 
-  // ALTERAÇÃO PRINCIPAL: A função agora retorna a classe de gradiente do seu `index.css`
   const getGradientClass = (status: string) => {
     switch (status?.toLowerCase()) {
       case 'confirmada':
       case 'pago':
-        return 'gradient-success'; // Usa a classe que você já definiu
+        return 'gradient-success';
       case 'em andamento':
-        return 'gradient-info'; // Usa a classe que você já definiu
+        return 'gradient-info';
       case 'pendente':
-        return 'gradient-warning'; // Usa a classe que você já definiu
+        return 'gradient-warning';
       case 'finalizada':
-        return 'bg-gray-600 text-white'; // Fundo cinza escuro com texto branco para melhor contraste
+        return 'bg-gray-600 text-white';
       case 'cancelada':
       case 'atrasado':
-        return 'gradient-danger'; // Usa a classe que você já definiu
+        return 'gradient-danger';
       default:
         return 'gradient-muted';
     }
@@ -43,37 +41,27 @@ const StatusSelector = ({ reservationId, currentStatus, statusType, onUpdate }: 
   const handleStatusChange = async (newStatus: string) => {
     if (newStatus === status) return;
     setLoading(true);
-    try {
-      const { error } = await supabase
-        .from('reservations')
-        .update({ [statusType]: newStatus })
-        .eq('id', reservationId);
-      if (error) throw error;
+    
+    const success = await updateStatus({
+      reservationId,
+      statusType,
+      newStatus,
+      onUpdate
+    });
+    
+    if (success) {
       setStatus(newStatus);
-      toast({
-        title: "Sucesso!",
-        description: `Status atualizado para ${newStatus}.`,
-      });
-      onUpdate();
-    } catch (error: any) {
-      toast({
-        title: "Erro ao atualizar",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
     }
+    
+    setLoading(false);
   };
 
   return (
     <div className="flex items-center">
       <Select value={status} onValueChange={handleStatusChange} disabled={loading}>
-        {/* A classe de gradiente é aplicada aqui */}
         <SelectTrigger 
           className={`w-full h-9 text-xs font-semibold text-white border-none shadow-sm transition-all duration-300 hover:brightness-105 ${getGradientClass(status)}`}
         >
-          {/* O SelectValue precisa estar dentro de um span para que o 'text-white' funcione bem */}
           <span><SelectValue /></span>
         </SelectTrigger>
         <SelectContent>
