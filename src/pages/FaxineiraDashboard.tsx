@@ -22,7 +22,7 @@ type ReservationWithDetails = Awaited<ReturnType<typeof fetchAssignedReservation
 };
 
 const fetchAssignedReservations = async (userId: string) => {
-    const { data, error } = await (supabase as any).rpc('fn_get_cleaner_reservations', { cleaner_id: userId });
+    const { data, error } = await supabase.rpc('fn_get_cleaner_reservations', { cleaner_id: userId });
     if (error) {
         console.error("Erro ao buscar reservas da função RPC:", error);
         throw error;
@@ -31,7 +31,7 @@ const fetchAssignedReservations = async (userId: string) => {
 };
 
 const fetchAvailableReservations = async (userId: string) => {
-    const { data, error } = await (supabase as any).rpc('fn_get_available_reservations', { cleaner_id: userId });
+    const { data, error } = await supabase.rpc('fn_get_available_reservations', { cleaner_id: userId });
     if (error) {
         console.error("Erro ao buscar oportunidades da função RPC:", error);
         throw error;
@@ -51,7 +51,7 @@ const FaxineiraDashboard = () => {
     const { data: assignedReservationsData, isLoading: isLoadingAssigned } = useQuery({ queryKey: assignedKey, queryFn: () => fetchAssignedReservations(user!.id), enabled: !!user });
     const { data: availableReservationsData, isLoading: isLoadingAvailable } = useQuery({ queryKey: availableKey, queryFn: () => fetchAvailableReservations(user!.id), enabled: !!user });
     
-    const processReservations = (reservations: any[] | undefined) => {
+    const processUpcomingReservations = (reservations: any[] | undefined) => {
         if (!reservations) return [];
         const now = new Date();
         const withUrgency = reservations.map(r => {
@@ -67,20 +67,15 @@ const FaxineiraDashboard = () => {
             const levelOrder = { critical: 0, warning: 1, normal: 2 };
             if (levelOrder[a.urgency.level] < levelOrder[b.urgency.level]) return -1;
             if (levelOrder[a.urgency.level] > levelOrder[b.urgency.level]) return 1;
-            
-            // MUDANÇA: Ordena pela data mais próxima para a mais distante (ascendente)
             return new Date(a.check_out_date).getTime() - new Date(b.check_out_date).getTime();
         });
     };
 
-    const upcomingReservations = useMemo(() => processReservations(assignedReservationsData?.filter(r => r.cleaning_status !== 'Realizada')), [assignedReservationsData]);
-    const availableReservations = useMemo(() => processReservations(availableReservationsData), [availableReservationsData]);
+    const upcomingReservations = useMemo(() => processUpcomingReservations(assignedReservationsData?.filter(r => r.cleaning_status !== 'Realizada')), [assignedReservationsData]);
+    const availableReservations = useMemo(() => processUpcomingReservations(availableReservationsData), [availableReservationsData]);
     
     const pastReservations = useMemo(() => {
-        const data = assignedReservationsData?.filter(r => 
-            r.cleaning_status === 'Realizada' && 
-            (isToday(new Date(r.check_out_date)) || isPast(new Date(r.check_out_date)))
-        ) ?? [];
+        const data = assignedReservationsData?.filter(r => r.cleaning_status === 'Realizada' && (isToday(new Date(r.check_out_date)) || isPast(new Date(r.check_out_date)))) ?? [];
         return data.sort((a, b) => new Date(b.check_out_date).getTime() - new Date(a.check_out_date).getTime());
     }, [assignedReservationsData]);
 
@@ -101,7 +96,7 @@ const FaxineiraDashboard = () => {
         const confirmed = window.confirm("⚠️ Tem certeza que deseja marcar esta faxina como 'Realizada'?\n\nEsta ação moverá o card para o seu histórico e não poderá ser desfeita facilmente.");
         if (confirmed) {
             try {
-                const { error } = await supabase.from('reservations').update({ cleaning_status: 'Realizada' } as any).eq('id', reservationId);
+                const { error } = await supabase.from('reservations').update({ cleaning_status: 'Realizada' }).eq('id', reservationId);
                 if (error) throw error;
                 toast({ title: "Sucesso!", description: "Faxina marcada como concluída e movida para o histórico." });
                 await queryClient.invalidateQueries({ queryKey: assignedKey });
@@ -217,28 +212,16 @@ const MeusGanhosPage = ({ historicalData }: { historicalData: ReservationWithDet
                 </Select>
             </div>
             <div className="grid md:grid-cols-2 gap-6">
-                <Card className="border-green-500 bg-green-50">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium text-green-800">Recebido neste Ciclo (Pago)</CardTitle><DollarSign className="h-4 w-4 text-green-700" /></CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-green-700">R$ {monthData.pago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                        <p className="text-xs text-green-600">Valores de faxinas (ex: Airbnb) já recebidos.</p>
-                    </CardContent>
-                </Card>
-                 <Card className="border-orange-500 bg-orange-50">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium text-orange-800">A receber no Próximo Ciclo</CardTitle><Clock className="h-4 w-4 text-orange-700" /></CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-orange-700">R$ {monthData.proximoCiclo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                        <p className="text-xs text-orange-600">Valores (ex: Booking) que serão pagos até o 5º dia útil do próximo mês.</p>
-                    </CardContent>
-                </Card>
+                <Card className="border-green-500 bg-green-50"><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium text-green-800">Recebido neste Ciclo (Pago)</CardTitle><DollarSign className="h-4 w-4 text-green-700" /></CardHeader><CardContent><div className="text-2xl font-bold text-green-700">R$ {monthData.pago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div><p className="text-xs text-green-600">Valores de faxinas (ex: Airbnb) já recebidos.</p></CardContent></Card>
+                <Card className="border-orange-500 bg-orange-50"><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium text-orange-800">A receber no Próximo Ciclo</CardTitle><Clock className="h-4 w-4 text-orange-700" /></CardHeader><CardContent><div className="text-2xl font-bold text-orange-700">R$ {monthData.proximoCiclo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div><p className="text-xs text-orange-600">Valores (ex: Booking) que serão pagos até o 5º dia útil do próximo mês.</p></CardContent></Card>
             </div>
         </div>
     );
 };
 
-const getStatusVariant = (status: string | null): 'destructive' | 'default' | 'secondary' | 'outline' => {
+const getStatusVariant = (status: string | null): 'success' | 'destructive' | 'default' | 'secondary' => {
     switch (status) {
-        case 'Confirmada': return 'secondary';
+        case 'Confirmada': return 'success';
         case 'Cancelada': return 'destructive';
         case 'Finalizada': return 'default';
         default: return 'secondary';
@@ -246,14 +229,41 @@ const getStatusVariant = (status: string | null): 'destructive' | 'default' | 's
 };
 
 const UpcomingCard = ({ reservation, children }: { reservation: ReservationWithDetails, children?: React.ReactNode }) => {
-    const checkoutDateTime = parseISO(`${reservation.check_out_date}T${reservation.checkout_time}`);
-    let workWindowEndDisplay = "Prazo de 48h para concluir";
-    if (reservation.next_check_in_date && reservation.next_checkin_time) {
-        const nextCheckinDateTime = parseISO(`${reservation.next_check_in_date}T${reservation.next_checkin_time}`);
-        const hoursUntilNextCheckin = differenceInHours(nextCheckinDateTime, checkoutDateTime);
-        if (hoursUntilNextCheckin <= 48) { workWindowEndDisplay = `Entrada: ${format(nextCheckinDateTime, "dd/MM 'às' HH:mm", { locale: ptBR })}`; } 
-        else { workWindowEndDisplay = "Janela Ampla (+48h)"; }
-    }
+    // MUDANÇA PRINCIPAL: Lógica da janela de trabalho movida para um useMemo para clareza
+    const workWindowInfo = useMemo(() => {
+        const now = new Date();
+        const checkoutDateTime = parseISO(`${reservation.check_out_date}T${reservation.checkout_time}`);
+        const hasCheckoutPassed = isPast(checkoutDateTime);
+
+        let startLabel = "INÍCIO DA JANELA (SAÍDA)";
+        let startValue = format(checkoutDateTime, "dd/MM 'às' HH:mm", { locale: ptBR });
+        let endLabel = "FIM DA JANELA";
+        let endValue = "Prazo de 48h para concluir";
+
+        if (reservation.next_check_in_date && reservation.next_checkin_time) {
+            const nextCheckinDateTime = parseISO(`${reservation.next_check_in_date}T${reservation.next_checkin_time}`);
+            
+            // Ponto de partida para o cálculo da diferença: 'agora' se o checkout já passou, senão a data do checkout.
+            const comparisonDate = hasCheckoutPassed ? now : checkoutDateTime;
+            const hoursDifference = differenceInHours(nextCheckinDateTime, comparisonDate);
+
+            if (hoursDifference <= 48) {
+                endValue = `Entrada: ${format(nextCheckinDateTime, "dd/MM 'às' HH:mm", { locale: ptBR })}`;
+            } else {
+                endValue = "Janela Ampla (+48h)";
+            }
+        }
+        
+        // Se o checkout já passou, o início da janela é AGORA.
+        if(hasCheckoutPassed) {
+            startLabel = "JANELA RESTANTE (DESDE)";
+            startValue = format(now, "dd/MM 'às' HH:mm", { locale: ptBR });
+        }
+        
+        return { startLabel, startValue, endLabel, endValue };
+
+    }, [reservation.check_out_date, reservation.checkout_time, reservation.next_check_in_date, reservation.next_checkin_time]);
+    
     const urgencyClasses = { critical: 'border-2 border-red-500 bg-red-50', warning: 'border-2 border-yellow-500 bg-yellow-50', normal: '' };
 
     return (
@@ -279,12 +289,12 @@ const UpcomingCard = ({ reservation, children }: { reservation: ReservationWithD
             <CardContent className="space-y-4">
                 <div className="bg-muted p-3 rounded-lg flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="text-center sm:text-left">
-                        <p className="text-sm font-medium text-muted-foreground">INÍCIO DA JANELA (SAÍDA)</p>
-                        <p className="text-xl font-bold text-primary">{format(checkoutDateTime, "dd/MM 'às' HH:mm", { locale: ptBR })}</p>
+                        <p className="text-sm font-medium text-muted-foreground">{workWindowInfo.startLabel}</p>
+                        <p className="text-xl font-bold text-primary">{workWindowInfo.startValue}</p>
                     </div>
                     <div className="text-center sm:text-left">
-                        <p className="text-sm font-medium text-muted-foreground">FIM DA JANELA</p>
-                        <p className="text-lg font-semibold">{workWindowEndDisplay}</p>
+                        <p className="text-sm font-medium text-muted-foreground">{workWindowInfo.endLabel}</p>
+                        <p className="text-lg font-semibold">{workWindowInfo.endValue}</p>
                     </div>
                 </div>
                 {children}
@@ -320,9 +330,7 @@ const HistoryCard = ({ reservation }: { reservation: ReservationWithDetails }) =
 };
 
 const UpcomingList = ({ reservations, onMarkAsComplete }: { reservations: ReservationWithDetails[], onMarkAsComplete: (id: string) => void }) => {
-    if (reservations.length === 0) {
-        return <Card className="mt-4"><CardContent className="pt-6 text-center text-muted-foreground"><Calendar className="mx-auto h-12 w-12 mb-4 opacity-50" /><p>Nenhuma reserva encontrada</p><p className="text-sm">Você não possui faxinas futuras agendadas.</p></CardContent></Card>;
-    }
+    if (reservations.length === 0) { return <Card className="mt-4"><CardContent className="pt-6 text-center text-muted-foreground"><Calendar className="mx-auto h-12 w-12 mb-4 opacity-50" /><p>Nenhuma reserva encontrada</p><p className="text-sm">Você não possui faxinas futuras agendadas.</p></CardContent></Card>; }
     return (
         <div className="grid gap-4 mt-4">
             {reservations.map(reservation => {
@@ -342,11 +350,7 @@ const UpcomingList = ({ reservations, onMarkAsComplete }: { reservations: Reserv
                                 <TooltipProvider>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
-                                            <span tabIndex={0}>
-                                                <Button onClick={() => onMarkAsComplete(reservation.id)} disabled={!canMarkAsComplete}>
-                                                    <CheckCircle className="h-4 w-4 mr-2" />Marcar como Concluída
-                                                </Button>
-                                            </span>
+                                            <span tabIndex={0}><Button onClick={() => onMarkAsComplete(reservation.id)} disabled={!canMarkAsComplete}><CheckCircle className="h-4 w-4 mr-2" />Marcar como Concluída</Button></span>
                                         </TooltipTrigger>
                                         {!canMarkAsComplete && (<TooltipContent><p>Só é possível concluir após a data e hora de checkout do hóspede.</p></TooltipContent>)}
                                     </Tooltip>
@@ -361,9 +365,7 @@ const UpcomingList = ({ reservations, onMarkAsComplete }: { reservations: Reserv
 };
 
 const AvailableCleaningsList = ({ reservations, onSignUp }: { reservations: ReservationWithDetails[], onSignUp: (id: string) => void }) => {
-    if (reservations.length === 0) {
-        return <Card className="mt-4"><CardContent className="pt-6 text-center text-muted-foreground"><CheckCircle className="mx-auto h-12 w-12 mb-4 opacity-50 text-green-500" /><p>Nenhuma oportunidade no momento</p><p className="text-sm">Não há faxinas disponíveis nas suas propriedades para as próximas duas semanas.</p></CardContent></Card>;
-    }
+    if (reservations.length === 0) { return <Card className="mt-4"><CardContent className="pt-6 text-center text-muted-foreground"><CheckCircle className="mx-auto h-12 w-12 mb-4 opacity-50 text-green-500" /><p>Nenhuma oportunidade no momento</p><p className="text-sm">Não há faxinas disponíveis nas suas propriedades para as próximas duas semanas.</p></CardContent></Card>; }
     return (
         <div className="grid gap-4 mt-4">
             {reservations.map(reservation => (
@@ -394,9 +396,7 @@ const HistoryList = ({ reservations }: { reservations: ReservationWithDetails[] 
         return reservations.filter(r => format(parseISO(r.check_out_date), 'yyyy-MM') === selectedMonth);
     }, [reservations, selectedMonth]);
 
-    if (reservations.length === 0) {
-        return <Card className="mt-4"><CardContent className="pt-6 text-center text-muted-foreground"><Calendar className="mx-auto h-12 w-12 mb-4 opacity-50" /><p>Nenhuma reserva encontrada</p><p className="text-sm">Nenhuma faxina no seu histórico.</p></CardContent></Card>;
-    }
+    if (reservations.length === 0) { return <Card className="mt-4"><CardContent className="pt-6 text-center text-muted-foreground"><Calendar className="mx-auto h-12 w-12 mb-4 opacity-50" /><p>Nenhuma reserva encontrada</p><p className="text-sm">Nenhuma faxina no seu histórico.</p></CardContent></Card>; }
     
     return (
         <div className="space-y-4 mt-4">
