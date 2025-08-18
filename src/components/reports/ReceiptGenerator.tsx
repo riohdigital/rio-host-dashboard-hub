@@ -37,6 +37,8 @@ interface Reservation {
   payment_date?: string;
   commission_amount?: number;
   net_revenue?: number;
+  cleaning_fee?: number;
+  cleaning_allocation?: string;
 }
 type ReceiptType = 'reservation' | 'payment';
 
@@ -253,6 +255,16 @@ const ReceiptGenerator = () => {
     return format(new Date(dateString), "dd/MM/yyyy", { locale: ptBR });
   };
 
+  // Função para calcular o valor do proprietário (mesma lógica do template)
+  const calculateOwnerValue = (reservation: Reservation) => {
+    const commission = reservation.commission_amount ?? (reservation.total_revenue * (reservation.properties?.commission_rate || 0));
+    const cleaningFeeValue = reservation.cleaning_fee ?? reservation.properties?.cleaning_fee ?? 0;
+    const shouldDeductCleaning = reservation.cleaning_allocation === 'Proprietário' || reservation.cleaning_allocation === 'Proprietario' || reservation.cleaning_allocation === 'owner';
+    const cleaningDeduct = shouldDeductCleaning ? Number(cleaningFeeValue) : 0;
+    const baseNet = reservation.net_revenue ?? (reservation.total_revenue - commission);
+    return Math.max(0, Number(baseNet) - cleaningDeduct);
+  };
+
   // CÓDIGO ORIGINAL MANTIDO
   if (loading) {
     return (
@@ -294,7 +306,7 @@ const ReceiptGenerator = () => {
                   <div className="flex-1 space-y-1">
                     <div className="flex items-center gap-2 flex-wrap"><Badge variant="outline">{reservation.reservation_code}</Badge><Badge variant={reservation.platform === 'Airbnb' ? 'default' : 'secondary'}>{reservation.platform}</Badge>{reservation.payment_status && (<Badge variant={reservation.payment_status === 'Pago' ? 'secondary' : 'destructive'}>{reservation.payment_status}</Badge>)}</div>
                     <div className="flex items-center gap-4 text-sm text-muted-foreground pt-1"><div className="flex items-center gap-1"><User className="h-3 w-3" />{reservation.guest_name || 'Nome não informado'}</div><div className="flex items-center gap-1"><MapPin className="h-3 w-3" />{reservation.properties?.name || 'Propriedade não informada'}</div><div className="flex items-center gap-1"><Calendar className="h-3 w-3" />{formatDate(reservation.check_in_date)} - {formatDate(reservation.check_out_date)}</div></div>
-                    <div className="text-lg font-semibold text-primary pt-1">{formatCurrency(reservation.total_revenue)}</div>
+                    <div className="text-lg font-semibold text-primary pt-1">{formatCurrency(calculateOwnerValue(reservation))}</div>
                   </div>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" onClick={() => setPreviewReservation(reservation)} className="flex items-center gap-1"><Eye className="h-3 w-3" />Prévia</Button>

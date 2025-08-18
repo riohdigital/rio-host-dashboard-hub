@@ -56,9 +56,14 @@ const ProfessionalReceiptTemplate = ({ reservation, receiptType = 'reservation' 
               <p className="text-gray-700 text-md">Valor do Proprietário:</p>
               <p className="text-3xl font-bold text-green-600">{formatCurrency(ownerValue)}</p>
               {isPayment && (
-                <p className="text-xs text-gray-500 mt-1">
-                  Comissão: -{formatCurrency(commission)}{cleaningDeduct > 0 ? ` | Faxina: -${formatCurrency(cleaningDeduct)}` : ''}
-                </p>
+                <div className="text-xs text-gray-500 mt-2 p-2 bg-gray-50 rounded border-l-2 border-gray-200">
+                  <div className="flex justify-between"><span>Total Recebido:</span><span className="font-medium">{formatCurrency(reservation.total_revenue)}</span></div>
+                  <div className="flex justify-between"><span>Comissão:</span><span className="text-red-600">-{formatCurrency(commission)}</span></div>
+                  {cleaningDeduct > 0 && (
+                    <div className="flex justify-between"><span>Faxina:</span><span className="text-red-600">-{formatCurrency(cleaningDeduct)}</span></div>
+                  )}
+                  <div className="flex justify-between border-t border-gray-300 pt-1 mt-1 font-medium"><span>Valor do Proprietário:</span><span className="text-green-600">{formatCurrency(ownerValue)}</span></div>
+                </div>
               )}
             </div>
           </div>
