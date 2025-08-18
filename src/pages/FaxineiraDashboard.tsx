@@ -14,31 +14,28 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-// Tipagem atualizada para incluir os novos campos da função RPC e a flag de urgência
 type ReservationWithDetails = Awaited<ReturnType<typeof fetchAssignedReservations>>[0] & { 
     next_check_in_date?: string,
     next_checkin_time?: string,
     urgency?: { level: 'critical' | 'warning' | 'normal' }
 };
 
-// Busca as reservas atribuídas chamando a função RPC que criamos no banco de dados
 const fetchAssignedReservations = async (userId: string) => {
-    const { data, error } = await (supabase as any).rpc('fn_get_cleaner_reservations', { cleaner_id: userId });
+    const { data, error } = await supabase.rpc('fn_get_cleaner_reservations', { cleaner_id: userId });
     if (error) {
         console.error("Erro ao buscar reservas da função RPC:", error);
         throw error;
     }
-    return Array.isArray(data) ? data.map(r => ({...r, properties: typeof r.properties === 'string' ? JSON.parse(r.properties) : r.properties})) : [];
+    return (data || []).map(r => ({...r, properties: typeof r.properties === 'string' ? JSON.parse(r.properties) : r.properties}));
 };
 
-// Busca as faxinas disponíveis (oportunidades) chamando a nova função RPC
 const fetchAvailableReservations = async (userId: string) => {
-    const { data, error } = await (supabase as any).rpc('fn_get_available_reservations', { cleaner_id: userId });
+    const { data, error } = await supabase.rpc('fn_get_available_reservations', { cleaner_id: userId });
     if (error) {
         console.error("Erro ao buscar oportunidades da função RPC:", error);
         throw error;
     }
-    return Array.isArray(data) ? data.map(r => ({...r, properties: typeof r.properties === 'string' ? JSON.parse(r.properties) : r.properties})) : [];
+    return (data || []).map(r => ({...r, properties: typeof r.properties === 'string' ? JSON.parse(r.properties) : r.properties}));
 };
 
 const FaxineiraDashboard = () => {
@@ -73,10 +70,11 @@ const FaxineiraDashboard = () => {
         });
     };
 
-    const upcomingReservations = useMemo(() => processUpcomingReservations(assignedReservationsData?.filter(r => !isPast(new Date(r.check_out_date)))), [assignedReservationsData]);
+    // MUDANÇA CRÍTICA: Removido o filtro de data '!isPast'. A faxina só sai daqui quando 'cleaning_status' for 'Realizada'.
+    const upcomingReservations = useMemo(() => processUpcomingReservations(assignedReservationsData?.filter(r => r.cleaning_status !== 'Realizada')), [assignedReservationsData]);
     const availableReservations = useMemo(() => processUpcomingReservations(availableReservationsData), [availableReservationsData]);
     const pastReservations = useMemo(() => {
-        const data = assignedReservationsData?.filter(r => isPast(new Date(r.check_out_date))) ?? [];
+        const data = assignedReservationsData?.filter(r => r.cleaning_status === 'Realizada' || isPast(new Date(r.check_out_date))) ?? [];
         return data.sort((a, b) => new Date(b.check_out_date).getTime() - new Date(a.check_out_date).getTime());
     }, [assignedReservationsData]);
 
@@ -97,7 +95,7 @@ const FaxineiraDashboard = () => {
         const confirmed = window.confirm("⚠️ Tem certeza que deseja marcar esta faxina como 'Realizada'?\n\nEsta ação moverá o card para o seu histórico e não poderá ser desfeita facilmente.");
         if (confirmed) {
             try {
-                const { error } = await supabase.from('reservations').update({ cleaning_allocation: 'Realizada' }).eq('id', reservationId);
+                const { error } = await supabase.from('reservations').update({ cleaning_status: 'Realizada' }).eq('id', reservationId);
                 if (error) throw error;
                 toast({ title: "Sucesso!", description: "Faxina marcada como concluída e movida para o histórico." });
                 await queryClient.invalidateQueries({ queryKey: assignedKey });
@@ -108,9 +106,7 @@ const FaxineiraDashboard = () => {
     };
 
     if (isLoadingAssigned || isLoadingAvailable) {
-        return (
-            <div className="p-6 flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-        );
+        return <div className="p-6 flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
     }
 
     return (
@@ -234,12 +230,12 @@ const MeusGanhosPage = ({ historicalData }: { historicalData: ReservationWithDet
     );
 };
 
-const getStatusVariant = (status: string | null): 'destructive' | 'default' | 'secondary' | 'outline' => {
+const getStatusVariant = (status: string | null): 'success' | 'destructive' | 'default' | 'secondary' => {
     switch (status) {
-        case 'Confirmada': return 'default';
+        case 'Confirmada': return 'success';
         case 'Cancelada': return 'destructive';
-        case 'Finalizada': return 'secondary';
-        default: return 'outline';
+        case 'Finalizada': return 'default';
+        default: return 'secondary';
     }
 };
 
@@ -319,9 +315,7 @@ const HistoryCard = ({ reservation }: { reservation: ReservationWithDetails }) =
 
 const UpcomingList = ({ reservations, onMarkAsComplete }: { reservations: ReservationWithDetails[], onMarkAsComplete: (id: string) => void }) => {
     if (reservations.length === 0) {
-        return (
-            <Card className="mt-4"><CardContent className="pt-6 text-center text-muted-foreground"><Calendar className="mx-auto h-12 w-12 mb-4 opacity-50" /><p>Nenhuma reserva encontrada</p><p className="text-sm">Você não possui faxinas futuras agendadas.</p></CardContent></Card>
-        );
+        return <Card className="mt-4"><CardContent className="pt-6 text-center text-muted-foreground"><Calendar className="mx-auto h-12 w-12 mb-4 opacity-50" /><p>Nenhuma reserva encontrada</p><p className="text-sm">Você não possui faxinas futuras agendadas.</p></CardContent></Card>;
     }
     return (
         <div className="grid gap-4 mt-4">
@@ -334,7 +328,7 @@ const UpcomingList = ({ reservations, onMarkAsComplete }: { reservations: Reserv
                         {reservation.cleaning_rating > 0 && (<p className="flex items-center"><Star className="h-4 w-4 mr-1.5 text-yellow-500" />Sua Avaliação: {reservation.cleaning_rating}/5</p>)}
                     </div>
                     {reservation.cleaning_notes && (<div className="pt-2 border-t"><p className="text-sm"><span className="font-medium">Observações:</span> <span className="text-muted-foreground">{reservation.cleaning_notes}</span></p></div>)}
-                    {reservation.cleaning_allocation !== 'Realizada' && (<div className="pt-4 border-t flex justify-end"><Button onClick={() => onMarkAsComplete(reservation.id)}><CheckCircle className="h-4 w-4 mr-2" />Marcar como Concluída</Button></div>)}
+                    {reservation.cleaning_status !== 'Realizada' && (<div className="pt-4 border-t flex justify-end"><Button onClick={() => onMarkAsComplete(reservation.id)}><CheckCircle className="h-4 w-4 mr-2" />Marcar como Concluída</Button></div>)}
                 </UpcomingCard>
             ))}
         </div>
@@ -343,9 +337,7 @@ const UpcomingList = ({ reservations, onMarkAsComplete }: { reservations: Reserv
 
 const AvailableCleaningsList = ({ reservations, onSignUp }: { reservations: ReservationWithDetails[], onSignUp: (id: string) => void }) => {
     if (reservations.length === 0) {
-        return (
-            <Card className="mt-4"><CardContent className="pt-6 text-center text-muted-foreground"><CheckCircle className="mx-auto h-12 w-12 mb-4 opacity-50 text-green-500" /><p>Nenhuma oportunidade no momento</p><p className="text-sm">Não há faxinas disponíveis nas suas propriedades para as próximas duas semanas.</p></CardContent></Card>
-        );
+        return <Card className="mt-4"><CardContent className="pt-6 text-center text-muted-foreground"><CheckCircle className="mx-auto h-12 w-12 mb-4 opacity-50 text-green-500" /><p>Nenhuma oportunidade no momento</p><p className="text-sm">Não há faxinas disponíveis nas suas propriedades para as próximas duas semanas.</p></CardContent></Card>;
     }
     return (
         <div className="grid gap-4 mt-4">
@@ -378,9 +370,7 @@ const HistoryList = ({ reservations }: { reservations: ReservationWithDetails[] 
     }, [reservations, selectedMonth]);
 
     if (reservations.length === 0) {
-        return (
-            <Card className="mt-4"><CardContent className="pt-6 text-center text-muted-foreground"><Calendar className="mx-auto h-12 w-12 mb-4 opacity-50" /><p>Nenhuma reserva encontrada</p><p className="text-sm">Nenhuma faxina no seu histórico.</p></CardContent></Card>
-        );
+        return <Card className="mt-4"><CardContent className="pt-6 text-center text-muted-foreground"><Calendar className="mx-auto h-12 w-12 mb-4 opacity-50" /><p>Nenhuma reserva encontrada</p><p className="text-sm">Nenhuma faxina no seu histórico.</p></CardContent></Card>;
     }
     
     return (
