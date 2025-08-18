@@ -11,6 +11,8 @@ interface CreateUserRequest {
   password: string;
   fullName: string;
   role?: 'master' | 'owner' | 'editor' | 'viewer' | 'faxineira';
+  phone?: string;
+  address?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -28,7 +30,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const { email, password, fullName, role = 'viewer' }: CreateUserRequest = await req.json();
+    const { email, password, fullName, role = 'viewer', phone, address }: CreateUserRequest = await req.json();
 
     if (!email || !password || !fullName) {
       return new Response(
@@ -57,7 +59,10 @@ const handler = async (req: Request): Promise<Response> => {
       password,
       email_confirm: true, // Auto-confirmar email
       user_metadata: {
-        full_name: fullName
+        full_name: fullName,
+        role,
+        phone,
+        address,
       }
     });
     
@@ -72,23 +77,83 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('User created in auth:', userData.user.id);
 
-    // 2. Criar perfil na tabela user_profiles
-    const { error: profileError } = await supabaseAdmin
+    // 2. Garantir perfil em user_profiles (atualiza se existir, senão cria)
+    let profileError: any = null;
+
+    const { data: existingProfile } = await supabaseAdmin
       .from('user_profiles')
-      .insert({
-        user_id: userData.user.id,
-        email: email,
-        full_name: fullName,
-        role: role,
-        is_active: true
-      });
+      .select('id, role')
+      .eq('user_id', userData.user.id)
+      .maybeSingle();
+
+    if (existingProfile) {
+      const { error: updateProfileError } = await supabaseAdmin
+        .from('user_profiles')
+        .update({
+          email,
+          full_name: fullName,
+          role,
+          is_active: true,
+        })
+        .eq('user_id', userData.user.id);
+      if (updateProfileError) profileError = updateProfileError;
+    } else {
+      const { error: insertProfileError } = await supabaseAdmin
+        .from('user_profiles')
+        .insert({
+          user_id: userData.user.id,
+          email,
+          full_name: fullName,
+          role,
+          is_active: true,
+        });
+      if (insertProfileError) profileError = insertProfileError;
+    }
 
     if (profileError) {
-      console.error('Error creating user profile:', profileError);
+      console.error('Error ensuring user profile:', profileError);
       // Se falhar, tentar deletar o usuário criado no auth
       await supabaseAdmin.auth.admin.deleteUser(userData.user.id);
       throw profileError;
     }
+
+    // 3. Se for faxineira, garantir cleaner_profiles com phone/address
+    if (role === 'faxineira') {
+      let cleanerError: any = null;
+      const { data: existingCleaner } = await supabaseAdmin
+        .from('cleaner_profiles')
+        .select('id')
+        .eq('user_id', userData.user.id)
+        .maybeSingle();
+
+      if (existingCleaner) {
+        const { error: updateCleanerError } = await supabaseAdmin
+          .from('cleaner_profiles')
+          .update({
+            phone: phone ?? null,
+            address: address ?? null,
+          })
+          .eq('user_id', userData.user.id);
+        if (updateCleanerError) cleanerError = updateCleanerError;
+      } else {
+        const { error: insertCleanerError } = await supabaseAdmin
+          .from('cleaner_profiles')
+          .insert({
+            user_id: userData.user.id,
+            phone: phone ?? null,
+            address: address ?? null,
+          });
+        if (insertCleanerError) cleanerError = insertCleanerError;
+      }
+
+      if (cleanerError) {
+        console.error('Error ensuring cleaner profile:', cleanerError);
+        await supabaseAdmin.auth.admin.deleteUser(userData.user.id);
+        throw cleanerError;
+      }
+    }
+
+    console.log('User profile (and cleaner profile if applicable) ensured successfully');
 
     console.log('User profile created successfully');
 
