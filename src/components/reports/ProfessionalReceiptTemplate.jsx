@@ -39,7 +39,7 @@ const ProfessionalReceiptTemplate = ({ reservation, receiptType = 'reservation' 
   
   const cleaningDeduct = shouldShowCleaningLine ? cleaningFeeValue : 0;
   const baseNet = (reservation.net_revenue ?? (reservation.total_revenue - commission));
-  const ownerValue = Math.max(0, Number(baseNet) - cleaningDeduct);
+  const ownerValue = Math.max(0, Number(baseNet));
 
   // Links para Logo e QR Code
   const logoUrl = "https://raw.githubusercontent.com/riohdigital/rio-host-dashboard-hub/1f3ce8cefe06b84b4fda7379f78317ab3008560b/public/LOGO%20RIOH%20HOST.png";

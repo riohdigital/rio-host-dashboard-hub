@@ -290,15 +290,10 @@ const ReceiptGenerator = () => {
   // Função para calcular o valor do proprietário (mesma lógica do template)
   const calculateOwnerValue = (reservation: Reservation) => {
     const commission = reservation.commission_amount ?? (reservation.total_revenue * (reservation.properties?.commission_rate || 0));
-    const cleaningFeeValue = Number(reservation.cleaning_fee ?? reservation.properties?.cleaning_fee ?? 0);
     
-    // Normalizar cleaning_allocation para verificação
-    const normalizedAllocation = (reservation.cleaning_allocation || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const shouldDeductCleaning = (normalizedAllocation === 'proprietario' || normalizedAllocation === 'owner');
-    const cleaningDeduct = shouldDeductCleaning ? cleaningFeeValue : 0;
-    
+    // Como net_revenue já vem calculado corretamente do backend, apenas usar esse valor
     const baseNet = reservation.net_revenue ?? (reservation.total_revenue - commission);
-    return Math.max(0, Number(baseNet) - cleaningDeduct);
+    return Math.max(0, Number(baseNet));
   };
 
   // CÓDIGO ORIGINAL MANTIDO
