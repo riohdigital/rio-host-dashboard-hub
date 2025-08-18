@@ -139,19 +139,8 @@ const generateFinancialReport = async (filters: ReportFilters) => {
     // Calculate totals with null safety
     const totalRevenue = reservations?.reduce((sum, r) => sum + (Number(r.total_revenue) || 0), 0) || 0;
     const totalExpenses = expenses?.reduce((sum, e) => sum + (Number(e.amount) || 0), 0) || 0;
-    const netProfit = totalRevenue - totalExpenses;
-    const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
 
-// Fetch properties for detailed report
-const { data: properties } = await supabase
-  .from('properties')
-  .select('id, name, nickname');
-
-const periodStart = new Date(filters.startDate);
-const periodEnd = new Date(filters.endDate);
-const periodDays = Math.max(1, Math.ceil((periodEnd.getTime() - periodStart.getTime()) / (1000 * 60 * 60 * 24)));
-
-// Calculate additional metrics (owner payout based)
+// Calculate additional metrics (owner payout based) - moved before netProfit calculation
 const ownerPayout = (r: any) => {
   const commission = Number(r.commission_amount) || 0;
   const baseNet = (Number(r.net_revenue) || (Number(r.total_revenue) - commission));
@@ -163,6 +152,19 @@ const ownerPayout = (r: any) => {
 const receivedAmount = (reservations || []).filter((r: any) => r.payment_status === 'Pago')
   .reduce((sum: number, r: any) => sum + ownerPayout(r), 0);
 const pendingAmount = ((reservations || []).reduce((sum: number, r: any) => sum + ownerPayout(r), 0)) - receivedAmount;
+
+    // Calculate netProfit based on receivedAmount - totalExpenses
+    const netProfit = receivedAmount - totalExpenses;
+    const profitMargin = receivedAmount > 0 ? (netProfit / receivedAmount) * 100 : 0;
+
+// Fetch properties for detailed report
+const { data: properties } = await supabase
+  .from('properties')
+  .select('id, name, nickname');
+
+const periodStart = new Date(filters.startDate);
+const periodEnd = new Date(filters.endDate);
+const periodDays = Math.max(1, Math.ceil((periodEnd.getTime() - periodStart.getTime()) / (1000 * 60 * 60 * 24)));
 
 // Group by property - Filter by selected property if specified
 let filteredProperties = properties || [];
