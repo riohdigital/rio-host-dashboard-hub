@@ -28,8 +28,16 @@ const ProfessionalReceiptTemplate = ({ reservation, receiptType = 'reservation' 
   
   // Normalizar cleaning_allocation para verificação
   const normalizedAllocation = (reservation.cleaning_allocation || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  const shouldDeductCleaning = (normalizedAllocation === 'proprietario' || normalizedAllocation === 'owner');
-  const cleaningDeduct = shouldDeductCleaning ? cleaningFeeValue : 0;
+  
+  // Mostrar linha da faxina quando:
+  // - cleaning_allocation é null/vazio OU existe cleaner_user_id
+  // - E NÃO é 'proprietario' nem 'anfitriao'
+  const shouldShowCleaningLine = (
+    !normalizedAllocation || 
+    (reservation.cleaner_user_id && normalizedAllocation !== 'proprietario' && normalizedAllocation !== 'anfitriao')
+  );
+  
+  const cleaningDeduct = shouldShowCleaningLine ? cleaningFeeValue : 0;
   const baseNet = (reservation.net_revenue ?? (reservation.total_revenue - commission));
   const ownerValue = Math.max(0, Number(baseNet) - cleaningDeduct);
 
@@ -62,8 +70,8 @@ const ProfessionalReceiptTemplate = ({ reservation, receiptType = 'reservation' 
                 <div className="text-xs text-gray-500 mt-2 p-2 bg-gray-50 rounded border-l-2 border-gray-200">
                   <div className="flex justify-between"><span>Total Recebido:</span><span className="font-medium">{formatCurrency(reservation.total_revenue)}</span></div>
                   <div className="flex justify-between"><span>Comissão:</span><span className="text-red-600">-{formatCurrency(commission)}</span></div>
-                  {cleaningDeduct > 0 && (
-                    <div className="flex justify-between"><span>Faxina{isPayment && reservation.cleaner_name ? ` (${reservation.cleaner_name})` : ''}:</span><span className="text-red-600">-{formatCurrency(cleaningDeduct)}</span></div>
+                  {shouldShowCleaningLine && cleaningFeeValue > 0 && (
+                    <div className="flex justify-between"><span>Faxina{isPayment && reservation.cleaner_name ? ` (${reservation.cleaner_name})` : ''}:</span><span className="text-red-600">-{formatCurrency(cleaningFeeValue)}</span></div>
                   )}
                   <div className="flex justify-between border-t border-gray-300 pt-1 mt-1 font-medium"><span>Valor do Proprietário:</span><span className="text-green-600">{formatCurrency(ownerValue)}</span></div>
                 </div>

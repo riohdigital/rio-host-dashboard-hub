@@ -219,11 +219,11 @@ const MeusGanhosPage = ({ historicalData }: { historicalData: ReservationWithDet
     );
 };
 
-const getStatusVariant = (status: string | null): 'success' | 'destructive' | 'default' | 'secondary' => {
+const getStatusVariant = (status: string | null): 'destructive' | 'default' | 'secondary' | 'outline' => {
     switch (status) {
-        case 'Confirmada': return 'success';
+        case 'Confirmada': return 'default';
         case 'Cancelada': return 'destructive';
-        case 'Finalizada': return 'default';
+        case 'Finalizada': return 'outline';
         default: return 'secondary';
     }
 };
