@@ -7,13 +7,118 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
   }
   public: {
     Tables: {
+      alerts_destination_property_links: {
+        Row: {
+          destination_id: string
+          id: string
+          property_id: string
+        }
+        Insert: {
+          destination_id: string
+          id?: string
+          property_id: string
+        }
+        Update: {
+          destination_id?: string
+          id?: string
+          property_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alerts_destination_property_links_destination_id_fkey"
+            columns: ["destination_id"]
+            isOneToOne: false
+            referencedRelation: "notification_destinations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alerts_destination_property_links_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      anfitriao_alerta_chat_history: {
+        Row: {
+          createdAt: string | null
+          id: number
+          message: Json
+          sessionId: string
+        }
+        Insert: {
+          createdAt?: string | null
+          id?: number
+          message: Json
+          sessionId: string
+        }
+        Update: {
+          createdAt?: string | null
+          id?: number
+          message?: Json
+          sessionId?: string
+        }
+        Relationships: []
+      }
+      cleaner_profiles: {
+        Row: {
+          address: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      cleaner_properties: {
+        Row: {
+          created_at: string
+          id: string
+          property_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          property_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          property_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       expense_categories: {
         Row: {
           created_at: string
@@ -102,6 +207,53 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      notification_destinations: {
+        Row: {
+          auth_code: string | null
+          auth_code_expires_at: string | null
+          created_at: string | null
+          destination_name: string
+          destination_role: string
+          id: string
+          is_authenticated: boolean | null
+          preferences: Json | null
+          user_id: string
+          whatsapp_number: string | null
+        }
+        Insert: {
+          auth_code?: string | null
+          auth_code_expires_at?: string | null
+          created_at?: string | null
+          destination_name: string
+          destination_role: string
+          id?: string
+          is_authenticated?: boolean | null
+          preferences?: Json | null
+          user_id: string
+          whatsapp_number?: string | null
+        }
+        Update: {
+          auth_code?: string | null
+          auth_code_expires_at?: string | null
+          created_at?: string | null
+          destination_name?: string
+          destination_role?: string
+          id?: string
+          is_authenticated?: boolean | null
+          preferences?: Json | null
+          user_id?: string
+          whatsapp_number?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_destinations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       properties: {
         Row: {
@@ -230,6 +382,7 @@ export type Database = {
           cleaning_notes: string | null
           cleaning_payment_status: string | null
           cleaning_rating: number | null
+          cleaning_status: string | null
           commission_amount: number | null
           created_at: string | null
           guest_name: string | null
@@ -259,6 +412,7 @@ export type Database = {
           cleaning_notes?: string | null
           cleaning_payment_status?: string | null
           cleaning_rating?: number | null
+          cleaning_status?: string | null
           commission_amount?: number | null
           created_at?: string | null
           guest_name?: string | null
@@ -288,6 +442,7 @@ export type Database = {
           cleaning_notes?: string | null
           cleaning_payment_status?: string | null
           cleaning_rating?: number | null
+          cleaning_status?: string | null
           commission_amount?: number | null
           created_at?: string | null
           guest_name?: string | null
@@ -311,6 +466,45 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sent_alerts: {
+        Row: {
+          alert_type: string
+          destination_id: string
+          id: string
+          reservation_id: string | null
+          sent_at: string | null
+        }
+        Insert: {
+          alert_type: string
+          destination_id: string
+          id?: string
+          reservation_id?: string | null
+          sent_at?: string | null
+        }
+        Update: {
+          alert_type?: string
+          destination_id?: string
+          id?: string
+          reservation_id?: string | null
+          sent_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sent_alerts_destination_id_fkey"
+            columns: ["destination_id"]
+            isOneToOne: false
+            referencedRelation: "notification_destinations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sent_alerts_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "reservations"
             referencedColumns: ["id"]
           },
         ]
@@ -435,8 +629,80 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: {
           current_user_id: string
-          user_role: string
           session_exists: boolean
+          user_role: string
+        }[]
+      }
+      fn_get_available_reservations: {
+        Args: { cleaner_id: string }
+        Returns: {
+          base_revenue: number
+          check_in_date: string
+          check_out_date: string
+          checkin_time: string
+          checkout_time: string
+          cleaner_user_id: string
+          cleaning_allocation: string
+          cleaning_fee: number
+          cleaning_notes: string
+          cleaning_payment_status: string
+          cleaning_rating: number
+          cleaning_status: string
+          commission_amount: number
+          created_at: string
+          guest_name: string
+          guest_phone: string
+          id: string
+          is_communicated: boolean
+          net_revenue: number
+          next_check_in_date: string
+          next_checkin_time: string
+          number_of_guests: number
+          payment_date: string
+          payment_status: string
+          platform: string
+          properties: Json
+          property_id: string
+          receipt_sent: boolean
+          reservation_code: string
+          reservation_status: string
+          total_revenue: number
+        }[]
+      }
+      fn_get_cleaner_reservations: {
+        Args: { cleaner_id: string }
+        Returns: {
+          base_revenue: number
+          check_in_date: string
+          check_out_date: string
+          checkin_time: string
+          checkout_time: string
+          cleaner_user_id: string
+          cleaning_allocation: string
+          cleaning_fee: number
+          cleaning_notes: string
+          cleaning_payment_status: string
+          cleaning_rating: number
+          cleaning_status: string
+          commission_amount: number
+          created_at: string
+          guest_name: string
+          guest_phone: string
+          id: string
+          is_communicated: boolean
+          net_revenue: number
+          next_check_in_date: string
+          next_checkin_time: string
+          number_of_guests: number
+          payment_date: string
+          payment_status: string
+          platform: string
+          properties: Json
+          property_id: string
+          receipt_sent: boolean
+          reservation_code: string
+          reservation_status: string
+          total_revenue: number
         }[]
       }
       get_current_user_role: {

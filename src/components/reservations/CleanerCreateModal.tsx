@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -107,24 +108,23 @@ const CleanerCreateModal: React.FC<CleanerCreateModalProps> = ({
     setLoading(true);
     try {
       const { data: functionData, error: createError } = await supabase.functions.invoke('create-user', {
-        body: { email, password, fullName, role: 'faxineira', phone, address }
+        body: { 
+          email, 
+          password, 
+          fullName, 
+          role: 'faxineira', 
+          phone, 
+          address,
+          propertyIds: selectedProperties,
+          notes: notes?.trim() || null
+        }
       });
       if (createError) throw createError;
       
-      const newCleanerId = functionData.user.id;
+      const newCleanerId = functionData?.user?.id;
       if (!newCleanerId) throw new Error("A função não retornou o ID do novo usuário.");
 
-      const linksToCreate = selectedProperties.map(propId => ({
-        user_id: newCleanerId,
-        property_id: propId
-      }));
-      const { error: linkError } = await (supabase as any).from('cleaner_properties').insert(linksToCreate);
-      if (linkError) throw linkError;
-
-      if (notes.trim() !== '') {
-          await (supabase as any).from('cleaner_profiles').update({ notes }).eq('user_id', newCleanerId);
-      }
-
+      // Vinculação de propriedades e atualização de notas agora são feitas dentro da Edge Function (admin).
       toast({ title: "Sucesso", description: "Faxineira criada e vinculada com sucesso!" });
       onCleanerCreated(); // Apenas notifica o pai que a criação foi um sucesso
       handleClose();
