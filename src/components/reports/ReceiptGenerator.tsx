@@ -119,6 +119,7 @@ const ReceiptGenerator = () => {
             const commission = (typeof r.commission_amount === 'number' ? Number(r.commission_amount) : (Number(r.total_revenue) * (r.properties?.commission_rate || 0)));
             const net = (typeof r.net_revenue === 'number' ? Number(r.net_revenue) : (Number(r.total_revenue) - commission));
             const cleanerName = r.cleaner_user_id ? cleanerNamesMap[r.cleaner_user_id] || null : null;
+            console.log('Reservation:', r.reservation_code, 'Cleaner ID:', r.cleaner_user_id, 'Cleaner Name:', cleanerName);
             return { ...r, commission_amount: commission, net_revenue: net, cleaner_name: cleanerName };
           });
 
