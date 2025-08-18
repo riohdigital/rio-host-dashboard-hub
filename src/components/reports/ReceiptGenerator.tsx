@@ -237,12 +237,16 @@ const ReceiptGenerator = () => {
 
         if (receiptType === 'payment') {
           const commission = (reservation as any).commission_amount ?? (reservation.total_revenue * (reservation.properties?.commission_rate || 0));
-          const cleaningFeeValue = (reservation as any).cleaning_fee ?? reservation.properties?.cleaning_fee ?? 0;
-          const shouldDeductCleaning = ((reservation as any).cleaning_allocation === 'Proprietário' || (reservation as any).cleaning_allocation === 'Proprietario' || (reservation as any).cleaning_allocation === 'owner');
-          const cleaningDeduct = shouldDeductCleaning ? Number(cleaningFeeValue) : 0;
+          const cleaningFeeValue = Number((reservation as any).cleaning_fee ?? reservation.properties?.cleaning_fee ?? 0);
+          
+          // Normalizar cleaning_allocation para verificação
+          const normalizedAllocation = ((reservation as any).cleaning_allocation || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          const shouldDeductCleaning = (normalizedAllocation === 'proprietario' || normalizedAllocation === 'owner');
+          const cleaningDeduct = shouldDeductCleaning ? cleaningFeeValue : 0;
+          
           const baseNet = (reservation as any).net_revenue ?? (reservation.total_revenue - commission);
           const ownerTotal = Math.max(0, Number(baseNet) - cleaningDeduct);
-          const cleaningFormatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(cleaningDeduct));
+          const cleaningFormatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cleaningDeduct);
           const ownerFormatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(ownerTotal);
           yPosition += 7;
           pdf.text(`Limpeza: ${cleaningFormatted} | Proprietário: ${ownerFormatted}`, 20, yPosition);
@@ -286,9 +290,13 @@ const ReceiptGenerator = () => {
   // Função para calcular o valor do proprietário (mesma lógica do template)
   const calculateOwnerValue = (reservation: Reservation) => {
     const commission = reservation.commission_amount ?? (reservation.total_revenue * (reservation.properties?.commission_rate || 0));
-    const cleaningFeeValue = reservation.cleaning_fee ?? reservation.properties?.cleaning_fee ?? 0;
-    const shouldDeductCleaning = reservation.cleaning_allocation === 'Proprietário' || reservation.cleaning_allocation === 'Proprietario' || reservation.cleaning_allocation === 'owner';
-    const cleaningDeduct = shouldDeductCleaning ? Number(cleaningFeeValue) : 0;
+    const cleaningFeeValue = Number(reservation.cleaning_fee ?? reservation.properties?.cleaning_fee ?? 0);
+    
+    // Normalizar cleaning_allocation para verificação
+    const normalizedAllocation = (reservation.cleaning_allocation || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const shouldDeductCleaning = (normalizedAllocation === 'proprietario' || normalizedAllocation === 'owner');
+    const cleaningDeduct = shouldDeductCleaning ? cleaningFeeValue : 0;
+    
     const baseNet = reservation.net_revenue ?? (reservation.total_revenue - commission);
     return Math.max(0, Number(baseNet) - cleaningDeduct);
   };
