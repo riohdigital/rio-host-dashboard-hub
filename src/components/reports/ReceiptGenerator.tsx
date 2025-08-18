@@ -53,12 +53,13 @@ const ReceiptGenerator = () => {
   const { selectedProperties, selectedPeriod } = useGlobalFilters();
   const { startDateString, endDateString } = useDateRange(selectedPeriod);
 
-  // CÓDIGO ORIGINAL MANTIDO - Sua lógica de busca e filtro de dados está 100% preservada.
+  // Implementação com duas consultas separadas para evitar problemas de join
   useEffect(() => {
     const fetchReservations = async () => {
       try {
         setLoading(true);
         
+        // Primera consulta: buscar reservas sem o join problemático
         let query = supabase
           .from('reservations')
           .select(`
@@ -69,9 +70,6 @@ const ReceiptGenerator = () => {
               address,
               cleaning_fee,
               commission_rate
-            ),
-            cleaner_profile:user_profiles!cleaner_user_id (
-              full_name
             )
           `);
   
@@ -87,16 +85,40 @@ const ReceiptGenerator = () => {
             .gte('check_out_date', startDateString);
         }
   
-        const { data, error } = await query
+        const { data: reservationsData, error: reservationsError } = await query
           .order('check_in_date', { ascending: false })
           .limit(50);
   
-        if (error) throw error;
+        if (reservationsError) throw reservationsError;
         
-        const enrichedData = data.map((r: any) => {
+        // Segunda consulta: buscar nomes das faxineiras
+        const cleanerIds = [...new Set(reservationsData?.filter(r => r.cleaner_user_id).map(r => r.cleaner_user_id))];
+        let cleanerNamesMap: Record<string, string> = {};
+        
+        if (cleanerIds.length > 0) {
+          try {
+            const { data: cleanersData, error: cleanersError } = await supabase
+              .from('user_profiles')
+              .select('user_id, full_name')
+              .in('user_id', cleanerIds);
+            
+            if (!cleanersError && cleanersData) {
+              cleanerNamesMap = cleanersData.reduce((acc, cleaner) => {
+                acc[cleaner.user_id] = cleaner.full_name;
+                return acc;
+              }, {} as Record<string, string>);
+            }
+          } catch (cleanerError) {
+            console.warn('Could not fetch cleaner names:', cleanerError);
+            // Continue without cleaner names
+          }
+        }
+        
+        // Combinar dados no frontend
+        const enrichedData = reservationsData.map((r: any) => {
             const commission = (typeof r.commission_amount === 'number' ? Number(r.commission_amount) : (Number(r.total_revenue) * (r.properties?.commission_rate || 0)));
             const net = (typeof r.net_revenue === 'number' ? Number(r.net_revenue) : (Number(r.total_revenue) - commission));
-            const cleanerName = r.cleaner_profile?.full_name || null;
+            const cleanerName = r.cleaner_user_id ? cleanerNamesMap[r.cleaner_user_id] || null : null;
             return { ...r, commission_amount: commission, net_revenue: net, cleaner_name: cleanerName };
           });
 
