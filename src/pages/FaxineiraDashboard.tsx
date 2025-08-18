@@ -7,12 +7,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar, MapPin, Users, Star, CheckCircle, Hand, Loader2, LogOut, AlertTriangle, DollarSign, Clock } from 'lucide-react';
-import { format, isPast, addHours, differenceInHours, parseISO } from 'date-fns';
+import { format, isPast, addHours, differenceInHours, parseISO, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type ReservationWithDetails = Awaited<ReturnType<typeof fetchAssignedReservations>>[0] & { 
     next_check_in_date?: string,
@@ -70,11 +71,14 @@ const FaxineiraDashboard = () => {
         });
     };
 
-    // MUDANÇA CRÍTICA: Removido o filtro de data '!isPast'. A faxina só sai daqui quando 'cleaning_status' for 'Realizada'.
     const upcomingReservations = useMemo(() => processUpcomingReservations(assignedReservationsData?.filter(r => r.cleaning_status !== 'Realizada')), [assignedReservationsData]);
     const availableReservations = useMemo(() => processUpcomingReservations(availableReservationsData), [availableReservationsData]);
+    
     const pastReservations = useMemo(() => {
-        const data = assignedReservationsData?.filter(r => r.cleaning_status === 'Realizada' || isPast(new Date(r.check_out_date))) ?? [];
+        const data = assignedReservationsData?.filter(r => 
+            r.cleaning_status === 'Realizada' && 
+            (isToday(new Date(r.check_out_date)) || isPast(new Date(r.check_out_date)))
+        ) ?? [];
         return data.sort((a, b) => new Date(b.check_out_date).getTime() - new Date(a.check_out_date).getTime());
     }, [assignedReservationsData]);
 
@@ -319,18 +323,37 @@ const UpcomingList = ({ reservations, onMarkAsComplete }: { reservations: Reserv
     }
     return (
         <div className="grid gap-4 mt-4">
-            {reservations.map(reservation => (
-                <UpcomingCard key={reservation.id} reservation={reservation}>
-                    <div className="grid md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                        {reservation.guest_name && (<p><span className="font-medium">Hóspede Anterior:</span> {reservation.guest_name}</p>)}
-                        {reservation.number_of_guests && (<p className="flex items-center"><Users className="h-4 w-4 mr-1.5" />{reservation.number_of_guests} Hóspedes</p>)}
-                        {reservation.cleaning_fee && (<p><span className="font-medium">Sua Taxa:</span> <span className="text-green-600 font-semibold">R$ {parseFloat(String(reservation.cleaning_fee)).toFixed(2)}</span></p>)}
-                        {reservation.cleaning_rating > 0 && (<p className="flex items-center"><Star className="h-4 w-4 mr-1.5 text-yellow-500" />Sua Avaliação: {reservation.cleaning_rating}/5</p>)}
-                    </div>
-                    {reservation.cleaning_notes && (<div className="pt-2 border-t"><p className="text-sm"><span className="font-medium">Observações:</span> <span className="text-muted-foreground">{reservation.cleaning_notes}</span></p></div>)}
-                    {reservation.cleaning_status !== 'Realizada' && (<div className="pt-4 border-t flex justify-end"><Button onClick={() => onMarkAsComplete(reservation.id)}><CheckCircle className="h-4 w-4 mr-2" />Marcar como Concluída</Button></div>)}
-                </UpcomingCard>
-            ))}
+            {reservations.map(reservation => {
+                const checkoutDateTime = parseISO(`${reservation.check_out_date}T${reservation.checkout_time}`);
+                const canMarkAsComplete = isPast(checkoutDateTime);
+                return (
+                    <UpcomingCard key={reservation.id} reservation={reservation}>
+                        <div className="grid md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                            {reservation.guest_name && (<p><span className="font-medium">Hóspede Anterior:</span> {reservation.guest_name}</p>)}
+                            {reservation.number_of_guests && (<p className="flex items-center"><Users className="h-4 w-4 mr-1.5" />{reservation.number_of_guests} Hóspedes</p>)}
+                            {reservation.cleaning_fee && (<p><span className="font-medium">Sua Taxa:</span> <span className="text-green-600 font-semibold">R$ {parseFloat(String(reservation.cleaning_fee)).toFixed(2)}</span></p>)}
+                            {reservation.cleaning_rating > 0 && (<p className="flex items-center"><Star className="h-4 w-4 mr-1.5 text-yellow-500" />Sua Avaliação: {reservation.cleaning_rating}/5</p>)}
+                        </div>
+                        {reservation.cleaning_notes && (<div className="pt-2 border-t"><p className="text-sm"><span className="font-medium">Observações:</span> <span className="text-muted-foreground">{reservation.cleaning_notes}</span></p></div>)}
+                        {reservation.cleaning_status !== 'Realizada' && (
+                            <div className="pt-4 border-t flex justify-end">
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <span tabIndex={0}>
+                                                <Button onClick={() => onMarkAsComplete(reservation.id)} disabled={!canMarkAsComplete}>
+                                                    <CheckCircle className="h-4 w-4 mr-2" />Marcar como Concluída
+                                                </Button>
+                                            </span>
+                                        </TooltipTrigger>
+                                        {!canMarkAsComplete && (<TooltipContent><p>Só é possível concluir após a data e hora de checkout do hóspede.</p></TooltipContent>)}
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </div>
+                        )}
+                    </UpcomingCard>
+                );
+            })}
         </div>
     );
 };
