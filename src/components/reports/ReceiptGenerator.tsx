@@ -180,12 +180,9 @@ const ReceiptGenerator = () => {
   // ===== FIM DA ALTERAÇÃO 1 ========================================================
   // =================================================================================
 
-  // CÓDIGO ORIGINAL MANTIDO
+  // NOVO SISTEMA DE RECIBO CONSOLIDADO
   const generateBatchPDF = async () => {
     try {
-      const pdf = new jsPDF();
-      let isFirstPage = true;
-      
       const filteredReservations = receiptType === 'payment' 
         ? reservations.filter(r => r.payment_status === 'Pago')
         : reservations;
@@ -200,75 +197,99 @@ const ReceiptGenerator = () => {
         });
         return;
       }
-      
-      for (const reservation of filteredReservations) {
-        if (!isFirstPage) {
-          pdf.addPage();
-        }
-        
-        pdf.setFontSize(20);
-        pdf.setFont("helvetica", "bold");
-        const title = receiptType === 'payment' ? 'RECIBO DE PAGAMENTO' : 'RECIBO DE RESERVA';
-        pdf.text(title, 105, 20, { align: 'center' });
-        
-        pdf.setDrawColor(0, 0, 0);
-        pdf.line(20, 30, 190, 30);
-        
-        pdf.setFontSize(12);
-        pdf.setFont("helvetica", "normal");
-        pdf.text('RIOH HOST GESTÃO DE HOSPEDAGEM', 20, 45);
-        pdf.text('Gestão Profissional de Propriedades para Hospedagem', 20, 52);
-        
-        let yPosition = 70;
-        pdf.text(`Reserva: ${reservation.reservation_code}`, 20, yPosition);
-        yPosition += 7;
-        pdf.text(`Hóspede: ${reservation.guest_name || 'N/A'}`, 20, yPosition);
-        yPosition += 7;
-        pdf.text(`Propriedade: ${reservation.properties?.name || 'N/A'}`, 20, yPosition);
-        yPosition += 7;
-        
-        const checkIn = format(new Date(reservation.check_in_date), "dd/MM/yyyy", { locale: ptBR });
-        const checkOut = format(new Date(reservation.check_out_date), "dd/MM/yyyy", { locale: ptBR });
-        pdf.text(`Período: ${checkIn} a ${checkOut}`, 20, yPosition);
-        yPosition += 7;
-        
-        const totalFormatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(reservation.total_revenue || 0);
-        pdf.text(`Valor: ${totalFormatted}`, 20, yPosition);
 
-        if (receiptType === 'payment') {
-          const commission = (reservation as any).commission_amount ?? (reservation.total_revenue * (reservation.properties?.commission_rate || 0));
-          const cleaningFeeValue = Number((reservation as any).cleaning_fee ?? reservation.properties?.cleaning_fee ?? 0);
-          
-          // Normalizar cleaning_allocation para verificação
-          const normalizedAllocation = ((reservation as any).cleaning_allocation || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-          const shouldDeductCleaning = (normalizedAllocation === 'proprietario' || normalizedAllocation === 'owner');
-          const cleaningDeduct = shouldDeductCleaning ? cleaningFeeValue : 0;
-          
-          const baseNet = (reservation as any).net_revenue ?? (reservation.total_revenue - commission);
-          const ownerTotal = Math.max(0, Number(baseNet) - cleaningDeduct);
-          const cleaningFormatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cleaningDeduct);
-          const ownerFormatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(ownerTotal);
-          yPosition += 7;
-          pdf.text(`Limpeza: ${cleaningFormatted} | Proprietário: ${ownerFormatted}`, 20, yPosition);
-        }
-        
-        isFirstPage = false;
+      toast({
+        title: "Gerando recibo consolidado...",
+        description: "Por favor, aguarde enquanto o recibo é gerado.",
+      });
+
+      // Criar range de datas se houver reservas
+      let dateRange = null;
+      if (filteredReservations.length > 0) {
+        const dates = filteredReservations.map(r => new Date(r.check_in_date).getTime());
+        const minDate = new Date(Math.min(...dates));
+        const maxDate = new Date(Math.max(...dates));
+        dateRange = {
+          start: format(minDate, "dd/MM/yyyy", { locale: ptBR }),
+          end: format(maxDate, "dd/MM/yyyy", { locale: ptBR })
+        };
       }
+
+      // Usar ReactDOM para renderizar o template
+      const { default: BatchReceiptTemplate } = await import('./BatchReceiptTemplate.jsx');
+      const tempDiv = document.createElement('div');
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.top = '-9999px';
+      tempDiv.style.width = '210mm'; // A4 width
+      document.body.appendChild(tempDiv);
+
+      const { createRoot } = await import('react-dom/client');
+      const root = createRoot(tempDiv);
       
+      await new Promise((resolve) => {
+        root.render(
+          React.createElement(BatchReceiptTemplate, {
+            reservations: filteredReservations,
+            receiptType,
+            dateRange
+          })
+        );
+        setTimeout(resolve, 100);
+      });
+
+      // Usar html2canvas para capturar o elemento
+      const { default: html2canvas } = await import('html2canvas');
+      const canvas = await html2canvas(tempDiv.firstChild as HTMLElement, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff'
+      });
+
+      // Criar PDF
+      const { default: jsPDF } = await import('jspdf');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pdfWidth;
+      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      // Adicionar primeira página
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pdfHeight;
+
+      // Adicionar páginas adicionais se necessário
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pdfHeight;
+      }
+
+      // Limpar elemento temporário
+      document.body.removeChild(tempDiv);
+
+      // Salvar PDF
       const filename = receiptType === 'payment' 
-        ? 'recibos-pagamento-lote.pdf'
-        : 'recibos-reserva-lote.pdf';
+        ? 'recibo-consolidado-pagamentos.pdf'
+        : 'recibo-consolidado-reservas.pdf';
       pdf.save(filename);
       
       toast({
         title: "Sucesso",
-        description: `${filteredReservations.length} recibos gerados em lote!`,
+        description: `Recibo consolidado gerado com ${filteredReservations.length} reserva(s)!`,
       });
     } catch (error) {
-      console.error('Erro ao gerar PDFs em lote:', error);
+      console.error('Erro ao gerar recibo consolidado:', error);
       toast({
         title: "Erro",
-        description: "Não foi possível gerar os recibos em lote.",
+        description: "Não foi possível gerar o recibo consolidado.",
         variant: "destructive",
       });
     }
