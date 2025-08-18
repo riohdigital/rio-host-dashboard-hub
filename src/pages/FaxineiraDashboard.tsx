@@ -51,7 +51,7 @@ const FaxineiraDashboard = () => {
     const { data: assignedReservationsData, isLoading: isLoadingAssigned } = useQuery({ queryKey: assignedKey, queryFn: () => fetchAssignedReservations(user!.id), enabled: !!user });
     const { data: availableReservationsData, isLoading: isLoadingAvailable } = useQuery({ queryKey: availableKey, queryFn: () => fetchAvailableReservations(user!.id), enabled: !!user });
     
-    const processUpcomingReservations = (reservations: any[] | undefined) => {
+    const processReservations = (reservations: any[] | undefined) => {
         if (!reservations) return [];
         const now = new Date();
         const withUrgency = reservations.map(r => {
@@ -67,12 +67,14 @@ const FaxineiraDashboard = () => {
             const levelOrder = { critical: 0, warning: 1, normal: 2 };
             if (levelOrder[a.urgency.level] < levelOrder[b.urgency.level]) return -1;
             if (levelOrder[a.urgency.level] > levelOrder[b.urgency.level]) return 1;
-            return new Date(b.check_out_date).getTime() - new Date(a.check_out_date).getTime();
+            
+            // MUDANÇA: Ordena pela data mais próxima para a mais distante (ascendente)
+            return new Date(a.check_out_date).getTime() - new Date(b.check_out_date).getTime();
         });
     };
 
-    const upcomingReservations = useMemo(() => processUpcomingReservations(assignedReservationsData?.filter(r => r.cleaning_status !== 'Realizada')), [assignedReservationsData]);
-    const availableReservations = useMemo(() => processUpcomingReservations(availableReservationsData), [availableReservationsData]);
+    const upcomingReservations = useMemo(() => processReservations(assignedReservationsData?.filter(r => r.cleaning_status !== 'Realizada')), [assignedReservationsData]);
+    const availableReservations = useMemo(() => processReservations(availableReservationsData), [availableReservationsData]);
     
     const pastReservations = useMemo(() => {
         const data = assignedReservationsData?.filter(r => 
