@@ -23,7 +23,12 @@ const ProfessionalReceiptTemplate = ({ reservation, receiptType = 'reservation' 
   const checkIn = new Date(reservation.check_in_date);
   const checkOut = new Date(reservation.check_out_date);
   const nights = Math.max(1, Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24)));
-  const ownerValue = (reservation.net_revenue ?? (reservation.total_revenue - (reservation.commission_amount || 0)));
+  const commission = (reservation.commission_amount ?? (reservation.total_revenue * (reservation.properties?.commission_rate || 0)));
+  const cleaningFeeValue = (reservation.cleaning_fee ?? reservation.properties?.cleaning_fee ?? 0);
+  const shouldDeductCleaning = (reservation.cleaning_allocation === 'Proprietário' || reservation.cleaning_allocation === 'Proprietario' || reservation.cleaning_allocation === 'owner');
+  const cleaningDeduct = shouldDeductCleaning ? Number(cleaningFeeValue) : 0;
+  const baseNet = (reservation.net_revenue ?? (reservation.total_revenue - commission));
+  const ownerValue = Math.max(0, Number(baseNet) - cleaningDeduct);
 
   // Links para Logo e QR Code
   const logoUrl = "https://raw.githubusercontent.com/riohdigital/rio-host-dashboard-hub/1f3ce8cefe06b84b4fda7379f78317ab3008560b/public/LOGO%20RIOH%20HOST.png";
@@ -48,7 +53,13 @@ const ProfessionalReceiptTemplate = ({ reservation, receiptType = 'reservation' 
               <p className="text-sm text-gray-600">Plataforma: <strong>{reservation.platform}</strong></p>
             </div>
             <div className="text-right pl-4">
-              <p className="text-gray-700 text-md">Valor do Proprietário:</p><p className="text-3xl font-bold text-green-600">{formatCurrency(ownerValue)}</p>
+              <p className="text-gray-700 text-md">Valor do Proprietário:</p>
+              <p className="text-3xl font-bold text-green-600">{formatCurrency(ownerValue)}</p>
+              {isPayment && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Comissão: -{formatCurrency(commission)}{cleaningDeduct > 0 ? ` | Faxina: -${formatCurrency(cleaningDeduct)}` : ''}
+                </p>
+              )}
             </div>
           </div>
         </section>

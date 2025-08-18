@@ -151,10 +151,18 @@ const periodStart = new Date(filters.startDate);
 const periodEnd = new Date(filters.endDate);
 const periodDays = Math.max(1, Math.ceil((periodEnd.getTime() - periodStart.getTime()) / (1000 * 60 * 60 * 24)));
 
-// Calculate additional metrics
-const receivedAmount = reservations?.filter(r => r.payment_status === 'Pago')
-  .reduce((sum, r) => sum + (Number(r.total_revenue) || 0), 0) || 0;
-const pendingAmount = totalRevenue - receivedAmount;
+// Calculate additional metrics (owner payout based)
+const ownerPayout = (r: any) => {
+  const commission = Number(r.commission_amount) || 0;
+  const baseNet = (Number(r.net_revenue) || (Number(r.total_revenue) - commission));
+  const alloc = (r.cleaning_allocation || '').toLowerCase();
+  const cleaningFee = Number(r.cleaning_fee || 0);
+  const cleaningDeduct = (alloc === 'proprietário' || alloc === 'proprietario' || alloc === 'owner') ? cleaningFee : 0;
+  return Math.max(0, baseNet - cleaningDeduct);
+};
+const receivedAmount = (reservations || []).filter((r: any) => r.payment_status === 'Pago')
+  .reduce((sum: number, r: any) => sum + ownerPayout(r), 0);
+const pendingAmount = ((reservations || []).reduce((sum: number, r: any) => sum + ownerPayout(r), 0)) - receivedAmount;
 
 // Group by property - Filter by selected property if specified
 let filteredProperties = properties || [];
@@ -170,10 +178,11 @@ if (filters.selectedProperties && filters.selectedProperties.length > 0 && !filt
 const propertiesData = filteredProperties.map(property => {
   const propertyReservations = (reservations || []).filter(r => r.property_id === property.id);
   const propertyRevenue = propertyReservations.reduce((sum, r) => sum + (Number(r.total_revenue) || 0), 0);
+  const propertyOwnerTotal = propertyReservations.reduce((sum: number, r: any) => sum + ownerPayout(r), 0);
   const propertyReceived = propertyReservations
     .filter(r => r.payment_status === 'Pago')
-    .reduce((sum, r) => sum + (Number(r.total_revenue) || 0), 0);
-  const propertyPending = propertyRevenue - propertyReceived;
+    .reduce((sum: number, r: any) => sum + ownerPayout(r), 0);
+  const propertyPending = propertyOwnerTotal - propertyReceived;
 
   // Ocupação da propriedade no período
   const occupiedNights = propertyReservations.reduce((sum, r) => {

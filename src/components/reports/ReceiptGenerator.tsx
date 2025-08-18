@@ -87,11 +87,11 @@ const ReceiptGenerator = () => {
   
         if (error) throw error;
         
-        const enrichedData = data.map(r => ({
-            ...r,
-            commission_amount: r.total_revenue * (r.properties?.commission_rate || 0),
-            net_revenue: r.total_revenue * (1 - (r.properties?.commission_rate || 0))
-          }));
+        const enrichedData = data.map((r: any) => {
+            const commission = (typeof r.commission_amount === 'number' ? Number(r.commission_amount) : (Number(r.total_revenue) * (r.properties?.commission_rate || 0)));
+            const net = (typeof r.net_revenue === 'number' ? Number(r.net_revenue) : (Number(r.total_revenue) - commission));
+            return { ...r, commission_amount: commission, net_revenue: net };
+          });
 
         setReservations(enrichedData || []);
       } catch (error) {
@@ -206,10 +206,13 @@ const ReceiptGenerator = () => {
         pdf.text(`Valor: ${totalFormatted}`, 20, yPosition);
 
         if (receiptType === 'payment') {
-          const cleaningFee = reservation.properties?.cleaning_fee || 0;
-          const netOwner = (reservation as any).net_revenue ?? (reservation.total_revenue - ((reservation as any).commission_amount || 0));
-          const ownerTotal = Math.max(0, Number(netOwner));
-          const cleaningFormatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(cleaningFee));
+          const commission = (reservation as any).commission_amount ?? (reservation.total_revenue * (reservation.properties?.commission_rate || 0));
+          const cleaningFeeValue = (reservation as any).cleaning_fee ?? reservation.properties?.cleaning_fee ?? 0;
+          const shouldDeductCleaning = ((reservation as any).cleaning_allocation === 'Proprietário' || (reservation as any).cleaning_allocation === 'Proprietario' || (reservation as any).cleaning_allocation === 'owner');
+          const cleaningDeduct = shouldDeductCleaning ? Number(cleaningFeeValue) : 0;
+          const baseNet = (reservation as any).net_revenue ?? (reservation.total_revenue - commission);
+          const ownerTotal = Math.max(0, Number(baseNet) - cleaningDeduct);
+          const cleaningFormatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(cleaningDeduct));
           const ownerFormatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(ownerTotal);
           yPosition += 7;
           pdf.text(`Limpeza: ${cleaningFormatted} | Proprietário: ${ownerFormatted}`, 20, yPosition);

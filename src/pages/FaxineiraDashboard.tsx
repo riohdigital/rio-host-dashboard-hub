@@ -22,7 +22,7 @@ type ReservationWithDetails = Awaited<ReturnType<typeof fetchAssignedReservation
 };
 
 const fetchAssignedReservations = async (userId: string) => {
-    const { data, error } = await supabase.rpc('fn_get_cleaner_reservations', { cleaner_id: userId });
+    const { data, error } = await (supabase as any).rpc('fn_get_cleaner_reservations', { cleaner_id: userId });
     if (error) {
         console.error("Erro ao buscar reservas da função RPC:", error);
         throw error;
@@ -31,7 +31,7 @@ const fetchAssignedReservations = async (userId: string) => {
 };
 
 const fetchAvailableReservations = async (userId: string) => {
-    const { data, error } = await supabase.rpc('fn_get_available_reservations', { cleaner_id: userId });
+    const { data, error } = await (supabase as any).rpc('fn_get_available_reservations', { cleaner_id: userId });
     if (error) {
         console.error("Erro ao buscar oportunidades da função RPC:", error);
         throw error;
@@ -101,7 +101,7 @@ const FaxineiraDashboard = () => {
         const confirmed = window.confirm("⚠️ Tem certeza que deseja marcar esta faxina como 'Realizada'?\n\nEsta ação moverá o card para o seu histórico e não poderá ser desfeita facilmente.");
         if (confirmed) {
             try {
-                const { error } = await supabase.from('reservations').update({ cleaning_status: 'Realizada' }).eq('id', reservationId);
+                const { error } = await supabase.from('reservations').update({ cleaning_status: 'Realizada' } as any).eq('id', reservationId);
                 if (error) throw error;
                 toast({ title: "Sucesso!", description: "Faxina marcada como concluída e movida para o histórico." });
                 await queryClient.invalidateQueries({ queryKey: assignedKey });
@@ -236,9 +236,9 @@ const MeusGanhosPage = ({ historicalData }: { historicalData: ReservationWithDet
     );
 };
 
-const getStatusVariant = (status: string | null): 'success' | 'destructive' | 'default' | 'secondary' => {
+const getStatusVariant = (status: string | null): 'destructive' | 'default' | 'secondary' | 'outline' => {
     switch (status) {
-        case 'Confirmada': return 'success';
+        case 'Confirmada': return 'secondary';
         case 'Cancelada': return 'destructive';
         case 'Finalizada': return 'default';
         default: return 'secondary';
