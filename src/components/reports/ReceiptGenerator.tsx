@@ -39,6 +39,7 @@ interface Reservation {
   net_revenue?: number;
   cleaning_fee?: number;
   cleaning_allocation?: string;
+  cleaner_name?: string;
 }
 type ReceiptType = 'reservation' | 'payment';
 
@@ -68,6 +69,9 @@ const ReceiptGenerator = () => {
               address,
               cleaning_fee,
               commission_rate
+            ),
+            cleaner_profile:user_profiles!cleaner_user_id (
+              full_name
             )
           `);
   
@@ -92,7 +96,8 @@ const ReceiptGenerator = () => {
         const enrichedData = data.map((r: any) => {
             const commission = (typeof r.commission_amount === 'number' ? Number(r.commission_amount) : (Number(r.total_revenue) * (r.properties?.commission_rate || 0)));
             const net = (typeof r.net_revenue === 'number' ? Number(r.net_revenue) : (Number(r.total_revenue) - commission));
-            return { ...r, commission_amount: commission, net_revenue: net };
+            const cleanerName = r.cleaner_profile?.full_name || null;
+            return { ...r, commission_amount: commission, net_revenue: net, cleaner_name: cleanerName };
           });
 
         setReservations(enrichedData || []);

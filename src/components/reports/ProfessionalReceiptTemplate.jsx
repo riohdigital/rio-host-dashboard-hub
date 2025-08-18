@@ -60,7 +60,7 @@ const ProfessionalReceiptTemplate = ({ reservation, receiptType = 'reservation' 
                   <div className="flex justify-between"><span>Total Recebido:</span><span className="font-medium">{formatCurrency(reservation.total_revenue)}</span></div>
                   <div className="flex justify-between"><span>Comissão:</span><span className="text-red-600">-{formatCurrency(commission)}</span></div>
                   {cleaningDeduct > 0 && (
-                    <div className="flex justify-between"><span>Faxina:</span><span className="text-red-600">-{formatCurrency(cleaningDeduct)}</span></div>
+                    <div className="flex justify-between"><span>Faxina{isPayment && reservation.cleaner_name ? ` (${reservation.cleaner_name})` : ''}:</span><span className="text-red-600">-{formatCurrency(cleaningDeduct)}</span></div>
                   )}
                   <div className="flex justify-between border-t border-gray-300 pt-1 mt-1 font-medium"><span>Valor do Proprietário:</span><span className="text-green-600">{formatCurrency(ownerValue)}</span></div>
                 </div>
