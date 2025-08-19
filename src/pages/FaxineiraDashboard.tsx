@@ -88,6 +88,7 @@ const FaxineiraDashboard = () => {
 
     const upcomingReservations = useMemo(() => processUpcomingReservations(assignedReservationsData?.filter(r => r.cleaning_status !== 'Realizada')), [assignedReservationsData]);
     const availableReservations = useMemo(() => processUpcomingReservations(availableReservationsData), [availableReservationsData]);
+    
     const pastReservations = useMemo(() => {
         const data = assignedReservationsData?.filter(r => r.cleaning_status === 'Realizada' && (isToday(new Date(r.check_out_date)) || isPast(new Date(r.check_out_date)))) ?? [];
         return data.sort((a, b) => new Date(b.check_out_date).getTime() - new Date(a.check_out_date).getTime());
@@ -98,13 +99,24 @@ const FaxineiraDashboard = () => {
     const handleSignUpForCleaning = async (reservationId: string) => {
         if (!user) return;
         try {
-            const { error } = await supabase.from('reservations').update({ cleaner_user_id: user.id }).eq('id', reservationId).is('cleaner_user_id', null);
+            const { data, error } = await supabase.rpc('assign_cleaning_to_cleaner', {
+                reservation_id: reservationId,
+                cleaner_id: user.id
+            });
+
             if (error) throw error;
+            
             toast({ title: "Sucesso!", description: "Você assinou esta faxina. Ela foi movida para 'Próximas'." });
             await queryClient.invalidateQueries({ queryKey: assignedKey });
             await queryClient.invalidateQueries({ queryKey: availableKey });
         } catch (error: any) {
-            toast({ title: "Erro", description: error.message || "Não foi possível assinar a faxina.", variant: "destructive" });
+            let errorMessage = "Não foi possível assinar a faxina.";
+            if (error.message.includes('REGRA_VIOLADA')) {
+                errorMessage = "Você já possui uma faxina em andamento.";
+            } else if (error.message.includes('FALHA_UPDATE')) {
+                errorMessage = "Esta oportunidade já foi assinada por outra pessoa.";
+            }
+            toast({ title: "Ação não permitida", description: errorMessage, variant: "destructive" });
         }
     };
 
@@ -233,12 +245,7 @@ const MeusGanhosPage = ({ historicalData }: { historicalData: ReservationWithDet
 };
 
 const getStatusVariant = (status: string | null): 'success' | 'destructive' | 'default' | 'secondary' => {
-    switch (status) {
-        case 'Confirmada': return 'success';
-        case 'Cancelada': return 'destructive';
-        case 'Finalizada': return 'default';
-        default: return 'secondary';
-    }
+    switch (status) { case 'Confirmada': return 'success'; case 'Cancelada': return 'destructive'; case 'Finalizada': return 'default'; default: return 'secondary'; }
 };
 
 const UpcomingCard = ({ reservation, children }: { reservation: ReservationWithDetails, children?: React.ReactNode }) => {
