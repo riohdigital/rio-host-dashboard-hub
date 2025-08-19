@@ -88,11 +88,12 @@ const FaxineiraDashboard = () => {
 
     const upcomingReservations = useMemo(() => processUpcomingReservations(assignedReservationsData?.filter(r => r.cleaning_status !== 'Realizada')), [assignedReservationsData]);
     const availableReservations = useMemo(() => processUpcomingReservations(availableReservationsData), [availableReservationsData]);
-    
     const pastReservations = useMemo(() => {
         const data = assignedReservationsData?.filter(r => r.cleaning_status === 'Realizada' && (isToday(new Date(r.check_out_date)) || isPast(new Date(r.check_out_date)))) ?? [];
         return data.sort((a, b) => new Date(b.check_out_date).getTime() - new Date(a.check_out_date).getTime());
     }, [assignedReservationsData]);
+
+    const hasActiveCleaning = upcomingReservations.length > 0;
 
     const handleSignUpForCleaning = async (reservationId: string) => {
         if (!user) return;
@@ -148,7 +149,7 @@ const FaxineiraDashboard = () => {
                         <TabsTrigger value="historico">Histórico ({pastReservations.length})</TabsTrigger>
                     </TabsList>
                     <TabsContent value="proximas"><UpcomingList reservations={upcomingReservations} onMarkAsComplete={handleMarkAsComplete} /></TabsContent>
-                    <TabsContent value="oportunidades"><AvailableCleaningsList reservations={availableReservations} onSignUp={handleSignUpForCleaning} /></TabsContent>
+                    <TabsContent value="oportunidades"><AvailableCleaningsList reservations={availableReservations} onSignUp={handleSignUpForCleaning} hasActiveCleaning={hasActiveCleaning} /></TabsContent>
                     <TabsContent value="historico"><HistoryList reservations={pastReservations} /></TabsContent>
                 </Tabs>
             </div>
@@ -245,30 +246,21 @@ const UpcomingCard = ({ reservation, children }: { reservation: ReservationWithD
         const now = new Date();
         const checkoutDateTime = parseISO(`${reservation.check_out_date}T${reservation.checkout_time}`);
         const hasCheckoutPassed = isPast(checkoutDateTime);
-
         let startLabel = "INÍCIO DA JANELA (SAÍDA)";
         let startValue = format(checkoutDateTime, "dd/MM 'às' HH:mm", { locale: ptBR });
         let endLabel = "FIM DA JANELA";
         let endValue = "Prazo de 48h para concluir";
-
         if (reservation.next_check_in_date && reservation.next_checkin_time) {
             const nextCheckinDateTime = parseISO(`${reservation.next_check_in_date}T${reservation.next_checkin_time}`);
             const hoursRemaining = differenceInHours(nextCheckinDateTime, now);
-
-            if(hoursRemaining < 0) {
-                 endValue = `ENTRADA PERDIDA HÁ ${Math.abs(Math.round(hoursRemaining))}H`;
-            } else if (hoursRemaining <= 48) {
-                endValue = `Entrada: ${format(nextCheckinDateTime, "dd/MM 'às' HH:mm", { locale: ptBR })}`;
-            } else {
-                endValue = "Janela Ampla (+48h)";
-            }
+            if(hoursRemaining < 0) { endValue = `ENTRADA PERDIDA HÁ ${Math.abs(Math.round(hoursRemaining))}H`; } 
+            else if (hoursRemaining <= 48) { endValue = `Entrada: ${format(nextCheckinDateTime, "dd/MM 'às' HH:mm", { locale: ptBR })}`; } 
+            else { endValue = "Janela Ampla (+48h)"; }
         }
-        
         if(hasCheckoutPassed) {
             startLabel = "JANELA RESTANTE (DESDE)";
             startValue = format(now, "dd/MM 'às' HH:mm", { locale: ptBR });
         }
-        
         return { startLabel, startValue, endLabel, endValue };
     }, [reservation.check_out_date, reservation.checkout_time, reservation.next_check_in_date, reservation.next_checkin_time]);
     
@@ -372,21 +364,33 @@ const UpcomingList = ({ reservations, onMarkAsComplete }: { reservations: Reserv
     );
 };
 
-const AvailableCleaningsList = ({ reservations, onSignUp }: { reservations: ReservationWithDetails[], onSignUp: (id: string) => void }) => {
+const AvailableCleaningsList = ({ reservations, onSignUp, hasActiveCleaning }: { reservations: ReservationWithDetails[], onSignUp: (id: string) => void, hasActiveCleaning: boolean }) => {
     if (reservations.length === 0) { return <Card className="mt-4"><CardContent className="pt-6 text-center text-muted-foreground"><CheckCircle className="mx-auto h-12 w-12 mb-4 opacity-50 text-green-500" /><p>Nenhuma oportunidade no momento</p><p className="text-sm">Não há faxinas disponíveis nas suas propriedades para as próximas duas semanas.</p></CardContent></Card>; }
     return (
         <div className="grid gap-4 mt-4">
-            {reservations.map(reservation => (
-                <UpcomingCard key={reservation.id} reservation={reservation}>
-                     <div className="flex justify-between items-center bg-white p-3 rounded-lg">
-                        <div>
-                            <p className="text-sm font-medium">Sua Taxa</p>
-                            <p className="text-lg font-bold text-green-600">R$ {parseFloat(String(reservation.cleaning_fee || 0)).toFixed(2)}</p>
-                        </div>
-                        <Button onClick={() => onSignUp(reservation.id)}><Hand className="h-4 w-4 mr-2" />Assinar Faxina</Button>
-                    </div>
-                </UpcomingCard>
-            ))}
+            {reservations.map(reservation => {
+                const canSignUp = !hasActiveCleaning || reservation.urgency?.level === 'critical' || reservation.urgency?.level === 'overdue';
+                return (
+                    <UpcomingCard key={reservation.id} reservation={reservation}>
+                         <div className="flex justify-between items-center bg-white p-3 rounded-lg">
+                            <div>
+                                <p className="text-sm font-medium">Sua Taxa</p>
+                                <p className="text-lg font-bold text-green-600">R$ {parseFloat(String(reservation.cleaning_fee || 0)).toFixed(2)}</p>
+                            </div>
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <span tabIndex={0}>
+                                            <Button onClick={() => onSignUp(reservation.id)} disabled={!canSignUp}><Hand className="h-4 w-4 mr-2" />Assinar Faxina</Button>
+                                        </span>
+                                    </TooltipTrigger>
+                                    {!canSignUp && (<TooltipContent><p>Você já possui uma faxina em andamento. Conclua-a para assinar novas oportunidades.</p></TooltipContent>)}
+                                </Tooltip>
+                            </TooltipProvider>
+                         </div>
+                    </UpcomingCard>
+                );
+            })}
         </div>
     );
 };
