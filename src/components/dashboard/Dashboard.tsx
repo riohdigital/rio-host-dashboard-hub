@@ -40,7 +40,7 @@ const Dashboard = () => {
     fetchFinancialData();
     fetchOperationalData();
     fetchAnnualGrowthData();
-  }, [selectedPeriod, selectedProperties, fetchFinancialData, fetchOperationalData, fetchAnnualGrowthData]);
+  }, [selectedPeriod, selectedProperties]);
   
   const isLoading = financialLoading || operationalLoading || annualGrowthLoading;
   

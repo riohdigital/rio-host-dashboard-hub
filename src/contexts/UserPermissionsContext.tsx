@@ -42,7 +42,7 @@ export const UserPermissionsProvider: React.FC<{ children: React.ReactNode }> = 
 
     // LÓGICA DE CACHE RESTAURADA: Evita a busca se os dados já foram carregados recentemente
     const now = Date.now();
-    if (!force && now - lastFetchTime < 5 * 60 * 1000 && userProfile) {
+    if (!force && now - lastFetchTime < 10 * 60 * 1000 && userProfile) {
       console.log('[PermissionsProvider] Usando dados em cache. Sem recarregamento.');
       setLoading(false); // Garante que o loading termine se o cache for usado
       return;
@@ -88,7 +88,7 @@ export const UserPermissionsProvider: React.FC<{ children: React.ReactNode }> = 
     } finally {
       setLoading(false);
     }
-  }, [user, lastFetchTime, userProfile]);
+  }, [user]);
 
   useEffect(() => {
     // A dependência aqui foi ajustada para re-executar apenas quando o 'user' mudar,

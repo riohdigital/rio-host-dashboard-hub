@@ -20,7 +20,14 @@ import FaxineiraDashboard from "./pages/FaxineiraDashboard";
 import AnfitriaoAlertaPage from "./pages/AnfitriaoAlertaPage";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutos
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const App = () => {
   const { user, loading } = useAuth();
