@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar, MapPin, User, Phone, Download, FileText, Eye, X } from 'lucide-react'; // ADICIONADO: Ícone X
 import { format, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { formatDateSafe } from '@/lib/dateUtils';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
@@ -303,9 +304,9 @@ const ReceiptGenerator = () => {
     }).format(value);
   };
 
-  // CÓDIGO ORIGINAL MANTIDO
+  // Formatação de data com timezone seguro
   const formatDate = (dateString: string) => {
-    return format(new Date(dateString), "dd/MM/yyyy", { locale: ptBR });
+    return formatDateSafe(dateString);
   };
 
   // Função para calcular o valor do proprietário (mesma lógica do template)

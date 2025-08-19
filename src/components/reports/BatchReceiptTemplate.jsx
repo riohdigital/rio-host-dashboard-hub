@@ -1,6 +1,7 @@
 import React from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { parseDate, formatDateSafe, calculateNights } from '@/lib/dateUtils';
 import { FileText, MapPin, Calendar, Users, DollarSign, CheckCircle, CreditCard } from 'lucide-react';
 
 const BatchReceiptTemplate = ({ reservations, receiptType = 'reservation', dateRange }) => {
@@ -65,9 +66,9 @@ const BatchReceiptTemplate = ({ reservations, receiptType = 'reservation', dateR
     }).format(value);
   };
 
-  // Formatar data
+  // Formatar data com timezone seguro
   const formatDate = (dateString) => {
-    return format(new Date(dateString), "dd/MM/yyyy", { locale: ptBR });
+    return formatDateSafe(dateString);
   };
 
   const logoUrl = "https://raw.githubusercontent.com/riohdigital/rio-host-dashboard-hub/1f3ce8cefe06b84b4fda7379f78317ab3008560b/public/LOGO%20RIOH%20HOST.png";

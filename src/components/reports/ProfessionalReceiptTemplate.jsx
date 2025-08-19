@@ -2,6 +2,7 @@ import React from 'react';
 import { Calendar, MapPin, User, Users, Moon, FileText, CheckCircle, CreditCard } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { parseDate, formatDateSafe, formatDateWithTime, calculateNights } from '@/lib/dateUtils';
 
 // Função auxiliar interna para formatação de moeda
 const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
@@ -19,10 +20,10 @@ const ProfessionalReceiptTemplate = ({ reservation, receiptType = 'reservation' 
     ? { icon: <CheckCircle className="h-5 w-5 text-green-600 mr-2" />, text: 'O valor referente à reserva foi repassado com sucesso à sua conta cadastrada.', title: 'Pagamento Recebido e Efetuado' }
     : { icon: <CheckCircle className="h-5 w-5 text-blue-600 mr-2" />, text: 'O imóvel estará ocupado no período informado. Certifique-se de que ele esteja pronto para receber os hóspedes.', title: 'Estadia Confirmada com Sucesso' };
 
-  // Cálculos de dados
-  const checkIn = new Date(reservation.check_in_date);
-  const checkOut = new Date(reservation.check_out_date);
-  const nights = Math.max(1, Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24)));
+  // Cálculos de dados usando funções seguras
+  const checkIn = parseDate(reservation.check_in_date);
+  const checkOut = parseDate(reservation.check_out_date);
+  const nights = calculateNights(reservation.check_in_date, reservation.check_out_date);
   const commission = (reservation.commission_amount ?? (reservation.total_revenue * (reservation.properties?.commission_rate || 0)));
   const cleaningFeeValue = Number(reservation.cleaning_fee ?? reservation.properties?.cleaning_fee ?? 0);
   
@@ -85,8 +86,8 @@ const ProfessionalReceiptTemplate = ({ reservation, receiptType = 'reservation' 
             <div className="flex items-start"><User className="h-5 w-5 mr-3 mt-1 text-gray-500" /><div><strong>Hóspede</strong><p className="text-gray-700">{reservation.guest_name}</p></div></div>
             <div className="flex items-start"><Users className="h-5 w-5 mr-3 mt-1 text-gray-500" /><div><strong>Hóspedes</strong><p className="text-gray-700">{reservation.number_of_guests}</p></div></div>
             <div className="flex items-start"><Moon className="h-5 w-5 mr-3 mt-1 text-gray-500" /><div><strong>Noites</strong><p className="text-gray-700">{nights}</p></div></div>
-            <div className="flex items-start"><Calendar className="h-5 w-5 mr-3 mt-1 text-gray-500" /><div><strong>Check-in</strong><p className="text-gray-700">{format(checkIn, "dd/MM/yyyy 'às' 14:00", { locale: ptBR })}</p></div></div>
-            <div className="flex items-start"><Calendar className="h-5 w-5 mr-3 mt-1 text-gray-500" /><div><strong>Check-out</strong><p className="text-gray-700">{format(checkOut, "dd/MM/yyyy 'às' 11:00", { locale: ptBR })}</p></div></div>
+            <div className="flex items-start"><Calendar className="h-5 w-5 mr-3 mt-1 text-gray-500" /><div><strong>Check-in</strong><p className="text-gray-700">{formatDateWithTime(reservation.check_in_date, reservation.checkin_time)}</p></div></div>
+            <div className="flex items-start"><Calendar className="h-5 w-5 mr-3 mt-1 text-gray-500" /><div><strong>Check-out</strong><p className="text-gray-700">{formatDateWithTime(reservation.check_out_date, reservation.checkout_time)}</p></div></div>
           </div>
         </section>
         <section className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
