@@ -53,45 +53,21 @@ const MasterCleaningCard = ({
     
     setLoadingCleaners(true);
     try {
-      const { data: cleanerLinks, error: linkError } = await (supabase as any)
-        .from('cleaner_properties')
-        .select('user_id')
-        .eq('property_id', propertyId);
-      
-      if (linkError) throw linkError;
-      
-      const userIds = (cleanerLinks || []).map((link) => link.user_id).filter(Boolean);
-      if (userIds.length === 0) {
-        setPropertyCleaners([]);
-        onPropertyCleanersLoad?.(propertyId, []);
-        return;
-      }
-      
-      const { data: profiles, error: profError } = await supabase
-        .from('user_profiles')
-        .select(`
-          id,
-          user_id,
-          full_name,
-          email,
-          is_active,
-          cleaner_profiles(phone)
-        `)
-        .eq('role', 'faxineira')
-        .eq('is_active', true)
-        .in('user_id', userIds);
-      
-      if (profError) throw profError;
-      
-      const formattedCleaners = (profiles || []).map(profile => ({
+      const { data, error } = await supabase.rpc('fn_get_cleaners_for_properties' as any, {
+        property_ids: [propertyId]
+      });
+
+      if (error) throw error;
+
+      const formattedCleaners = (data || []).map((profile: any) => ({
         id: profile.id,
         user_id: profile.user_id,
         full_name: profile.full_name,
         email: profile.email,
         is_active: profile.is_active,
-        phone: (profile.cleaner_profiles as any)?.[0]?.phone
+        phone: profile.phone
       }));
-      
+
       setPropertyCleaners(formattedCleaners);
       onPropertyCleanersLoad?.(propertyId, formattedCleaners);
     } catch (e) {
@@ -220,7 +196,7 @@ const MasterCleaningCard = ({
                     <SelectTrigger className="flex-1 bg-background">
                       <SelectValue placeholder="Selecionar faxineira" />
                     </SelectTrigger>
-                    <SelectContent className="bg-background border-border">
+                    <SelectContent className="bg-background border-border z-50">
                       {propertyCleaners.map((cleaner) => (
                         <SelectItem key={cleaner.user_id} value={cleaner.user_id}>
                           {cleaner.full_name}

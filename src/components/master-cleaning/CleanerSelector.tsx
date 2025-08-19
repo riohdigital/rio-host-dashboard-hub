@@ -16,7 +16,7 @@ const CleanerSelector = ({ cleaners, selectedCleaner, onCleanerChange }: Cleaner
         <SelectTrigger className="w-64 bg-background border-border">
           <SelectValue placeholder="Selecionar faxineira" />
         </SelectTrigger>
-        <SelectContent className="bg-background border-border">
+        <SelectContent className="bg-background border-border z-50">
           <SelectItem value="all">Todas as faxineiras</SelectItem>
           {cleaners.map((cleaner) => (
             <SelectItem key={cleaner.user_id} value={cleaner.user_id}>
