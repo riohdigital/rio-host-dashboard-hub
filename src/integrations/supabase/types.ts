@@ -786,6 +786,17 @@ export type Database = {
           total_revenue: number
         }[]
       }
+      fn_get_cleaners_for_properties: {
+        Args: { property_ids?: string[] }
+        Returns: {
+          email: string
+          full_name: string
+          id: string
+          is_active: boolean
+          phone: string
+          user_id: string
+        }[]
+      }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: string

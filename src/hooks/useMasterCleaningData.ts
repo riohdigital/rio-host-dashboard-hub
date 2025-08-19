@@ -38,30 +38,20 @@ export const useMasterCleaningData = (params?: UseMasterCleaningDataParams) => {
   });
 
   const cleanersQuery = useQuery({
-    queryKey: ['master-cleaners'],
+    queryKey: ['master-cleaners', params?.propertyIds],
     queryFn: async (): Promise<CleanerProfile[]> => {
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select(`
-          id,
-          user_id,
-          full_name,
-          email,
-          is_active,
-          cleaner_profiles(phone)
-        `)
-        .eq('role', 'faxineira')
-        .eq('is_active', true);
-      
+      const propertyIds = params?.propertyIds?.length && !params.propertyIds.includes('todas') ? params.propertyIds : null;
+      const { data, error } = await supabase.rpc('fn_get_cleaners_for_properties' as any, {
+        property_ids: propertyIds
+      });
       if (error) throw error;
-      
-      return (data || []).map(profile => ({
+      return (data || []).map((profile: any) => ({
         id: profile.id,
         user_id: profile.user_id,
         full_name: profile.full_name,
         email: profile.email,
         is_active: profile.is_active,
-        phone: (profile.cleaner_profiles as any)?.[0]?.phone
+        phone: profile.phone
       }));
     },
     staleTime: 10 * 60 * 1000, // 10 minutes
