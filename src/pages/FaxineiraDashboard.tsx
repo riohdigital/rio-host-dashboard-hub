@@ -84,14 +84,13 @@ const FaxineiraDashboard = () => {
     const hasActiveCleaning = upcomingReservations.length > 0;
 
     const signUpMutation = useMutation({
-        mutationFn: (reservationId: string) => {
+        mutationFn: async (reservationId: string): Promise<void> => {
             if (!user) throw new Error("Usuário não autenticado");
-            return supabase.rpc('assign_cleaning_to_cleaner', {
+            const { error } = await supabase.rpc('assign_cleaning_to_cleaner' as any, {
                 reservation_id: reservationId,
                 cleaner_id: user.id
-            }).then(({ error }) => {
-                if (error) throw error;
             });
+            if (error) throw error;
         },
         onSuccess: () => {
             toast({ title: "Sucesso!", description: "Você assinou esta faxina. Ela foi movida para 'Próximas'." });
@@ -110,9 +109,10 @@ const FaxineiraDashboard = () => {
     });
 
     const markCompleteMutation = useMutation({
-        mutationFn: (reservationId: string) => 
-            supabase.from('reservations').update({ cleaning_status: 'Realizada' }).eq('id', reservationId)
-            .then(({ error }) => { if (error) throw error; }),
+        mutationFn: async (reservationId: string): Promise<void> => {
+            const { error } = await supabase.from('reservations').update({ cleaning_status: 'Realizada' }).eq('id', reservationId);
+            if (error) throw error;
+        },
         onSuccess: () => {
             toast({ title: "Sucesso!", description: "Faxina marcada como concluída e movida para o histórico." });
             queryClient.invalidateQueries({ queryKey: assignedKey });
@@ -243,8 +243,8 @@ const MeusGanhosPage = ({ historicalData }: { historicalData: ReservationWithDet
     );
 };
 
-const getStatusVariant = (status: string | null): 'success' | 'destructive' | 'default' | 'secondary' => {
-    switch (status) { case 'Confirmada': return 'success'; case 'Cancelada': return 'destructive'; case 'Finalizada': return 'default'; default: return 'secondary'; }
+const getStatusVariant = (status: string | null): 'default' | 'destructive' | 'secondary' | 'outline' => {
+    switch (status) { case 'Confirmada': return 'default'; case 'Cancelada': return 'destructive'; case 'Finalizada': return 'secondary'; default: return 'outline'; }
 };
 
 const UpcomingCard = ({ reservation, children }: { reservation: ReservationWithDetails, children?: React.ReactNode }) => {
