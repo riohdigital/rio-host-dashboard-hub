@@ -76,21 +76,41 @@ const BatchReceiptTemplate = ({ reservations, receiptType = 'reservation', dateR
 
   return (
     <div className="bg-white p-8 font-sans max-w-4xl mx-auto shadow-lg rounded-lg border border-gray-200">
-      {/* Header Profissional */}
-      <header className={`p-4 text-white rounded-t-lg ${headerColor} flex justify-between items-center`}>
-        <img src={logoUrl} alt="Rioh Host Logo" className="h-10" crossOrigin="anonymous" />
-        <div className="text-right">
-          <div className="flex items-center justify-end gap-2">
-            <DocIcon className="h-6 w-6" />
-            <h2 className="text-2xl font-bold">{docTitle}</h2>
+      {/* Header Centralizado Profissional */}
+      <header className="text-center py-8 bg-white border-b-2 border-gray-200">
+        {/* Logo e Título Principal */}
+        <div className="mb-6">
+          <h1 className="text-4xl font-bold text-blue-800 mb-2" style={{ letterSpacing: '2px' }}>
+            Rioh Host
+          </h1>
+          <div className={`inline-block px-6 py-2 text-white text-lg font-bold rounded-lg ${headerColor}`} style={{ letterSpacing: '1px' }}>
+            {docTitle}
           </div>
-          <p className="text-xs opacity-90 mt-1">Emitido em: {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
-          {dateRange && (
-            <p className="text-xs opacity-90">
+        </div>
+        
+        {/* Subtítulos */}
+        <div className="mb-4 space-y-1">
+          <p className="text-gray-600 font-semibold text-lg" style={{ letterSpacing: '1px' }}>
+            RIOH HOST GESTÃO DE HOSPEDAGEM
+          </p>
+          <p className="text-gray-500 text-sm" style={{ letterSpacing: '0.5px' }}>
+            Gestão Profissional de Propriedades para Hospedagem
+          </p>
+        </div>
+        
+        {/* Período em Destaque */}
+        {dateRange && (
+          <div className="bg-gray-100 inline-block px-6 py-2 rounded-lg border border-gray-300">
+            <p className="text-gray-800 font-semibold" style={{ letterSpacing: '0.5px' }}>
               Período: {dateRange.start} a {dateRange.end}
             </p>
-          )}
-        </div>
+          </div>
+        )}
+        
+        {/* Data de Emissão */}
+        <p className="text-xs text-gray-500 mt-4" style={{ letterSpacing: '0.3px' }}>
+          Emitido em: {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+        </p>
       </header>
 
       <main className="p-6">
