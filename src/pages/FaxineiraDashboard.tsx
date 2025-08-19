@@ -18,7 +18,10 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 type ReservationWithDetails = Awaited<ReturnType<typeof fetchAssignedReservations>>[0] & { 
     next_check_in_date?: string,
     next_checkin_time?: string,
-    urgency?: { level: 'critical' | 'warning' | 'normal' }
+    urgency?: { 
+        level: 'overdue' | 'critical' | 'warning' | 'normal',
+        message: string 
+    }
 };
 
 const fetchAssignedReservations = async (userId: string) => {
@@ -57,14 +60,26 @@ const FaxineiraDashboard = () => {
         const withUrgency = reservations.map(r => {
             const checkoutDateTime = parseISO(`${r.check_out_date}T${r.checkout_time}`);
             const hoursUntilCheckout = differenceInHours(checkoutDateTime, now);
-            let level: 'critical' | 'warning' | 'normal' = 'normal';
-            if (hoursUntilCheckout <= 24) level = 'critical';
-            else if (hoursUntilCheckout <= 48) level = 'warning';
-            return { ...r, urgency: { level } };
+            
+            let level: 'overdue' | 'critical' | 'warning' | 'normal' = 'normal';
+            let message = '';
+
+            if (hoursUntilCheckout < 0) {
+                level = 'overdue';
+                message = `ATENÇÃO: FAXINA ATRASADA HÁ ${Math.abs(Math.round(hoursUntilCheckout))} HORAS`;
+            } else if (hoursUntilCheckout <= 24) {
+                level = 'critical';
+                message = `ATENÇÃO: PRAZO MENOR QUE 24H`;
+            } else if (hoursUntilCheckout <= 48) {
+                level = 'warning';
+                message = `AVISO: PRAZO MENOR QUE 48H`;
+            }
+            
+            return { ...r, urgency: { level, message } };
         });
 
         return withUrgency.sort((a, b) => {
-            const levelOrder = { critical: 0, warning: 1, normal: 2 };
+            const levelOrder = { overdue: -1, critical: 0, warning: 1, normal: 2 };
             if (levelOrder[a.urgency.level] < levelOrder[b.urgency.level]) return -1;
             if (levelOrder[a.urgency.level] > levelOrder[b.urgency.level]) return 1;
             return new Date(a.check_out_date).getTime() - new Date(b.check_out_date).getTime();
@@ -198,10 +213,7 @@ const MeusGanhosPage = ({ historicalData }: { historicalData: ReservationWithDet
     return (
         <div>
             <div className="flex justify-between items-center mb-6">
-                 <div>
-                    <h1 className="text-2xl font-bold text-foreground">Meus Ganhos</h1>
-                    <p className="text-muted-foreground">Acompanhe seus recebimentos por ciclo.</p>
-                </div>
+                 <div><h1 className="text-2xl font-bold text-foreground">Meus Ganhos</h1><p className="text-muted-foreground">Acompanhe seus recebimentos por ciclo.</p></div>
                 <Select value={selectedMonth} onValueChange={setSelectedMonth}>
                     <SelectTrigger className="w-[180px]"><SelectValue placeholder="Selecione o Mês" /></SelectTrigger>
                     <SelectContent>
@@ -219,17 +231,16 @@ const MeusGanhosPage = ({ historicalData }: { historicalData: ReservationWithDet
     );
 };
 
-const getStatusVariant = (status: string | null): 'destructive' | 'default' | 'secondary' | 'outline' => {
+const getStatusVariant = (status: string | null): 'success' | 'destructive' | 'default' | 'secondary' => {
     switch (status) {
-        case 'Confirmada': return 'default';
+        case 'Confirmada': return 'success';
         case 'Cancelada': return 'destructive';
-        case 'Finalizada': return 'outline';
+        case 'Finalizada': return 'default';
         default: return 'secondary';
     }
 };
 
 const UpcomingCard = ({ reservation, children }: { reservation: ReservationWithDetails, children?: React.ReactNode }) => {
-    // MUDANÇA PRINCIPAL: Lógica da janela de trabalho movida para um useMemo para clareza
     const workWindowInfo = useMemo(() => {
         const now = new Date();
         const checkoutDateTime = parseISO(`${reservation.check_out_date}T${reservation.checkout_time}`);
@@ -242,29 +253,26 @@ const UpcomingCard = ({ reservation, children }: { reservation: ReservationWithD
 
         if (reservation.next_check_in_date && reservation.next_checkin_time) {
             const nextCheckinDateTime = parseISO(`${reservation.next_check_in_date}T${reservation.next_checkin_time}`);
-            
-            // Ponto de partida para o cálculo da diferença: 'agora' se o checkout já passou, senão a data do checkout.
-            const comparisonDate = hasCheckoutPassed ? now : checkoutDateTime;
-            const hoursDifference = differenceInHours(nextCheckinDateTime, comparisonDate);
+            const hoursRemaining = differenceInHours(nextCheckinDateTime, now);
 
-            if (hoursDifference <= 48) {
+            if(hoursRemaining < 0) {
+                 endValue = `ENTRADA PERDIDA HÁ ${Math.abs(Math.round(hoursRemaining))}H`;
+            } else if (hoursRemaining <= 48) {
                 endValue = `Entrada: ${format(nextCheckinDateTime, "dd/MM 'às' HH:mm", { locale: ptBR })}`;
             } else {
                 endValue = "Janela Ampla (+48h)";
             }
         }
         
-        // Se o checkout já passou, o início da janela é AGORA.
         if(hasCheckoutPassed) {
             startLabel = "JANELA RESTANTE (DESDE)";
             startValue = format(now, "dd/MM 'às' HH:mm", { locale: ptBR });
         }
         
         return { startLabel, startValue, endLabel, endValue };
-
     }, [reservation.check_out_date, reservation.checkout_time, reservation.next_check_in_date, reservation.next_checkin_time]);
     
-    const urgencyClasses = { critical: 'border-2 border-red-500 bg-red-50', warning: 'border-2 border-yellow-500 bg-yellow-50', normal: '' };
+    const urgencyClasses = { overdue: 'border-2 border-red-500 bg-red-50', critical: 'border-2 border-red-500 bg-red-50', warning: 'border-2 border-yellow-500 bg-yellow-50', normal: '' };
 
     return (
         <Card className={`hover:shadow-md transition-shadow ${urgencyClasses[reservation.urgency?.level || 'normal']}`}>
@@ -280,9 +288,9 @@ const UpcomingCard = ({ reservation, children }: { reservation: ReservationWithD
                     </div>
                 </div>
                {reservation.urgency?.level !== 'normal' && (
-                   <div className={`flex items-center gap-2 font-bold text-sm p-2 rounded-md ${reservation.urgency?.level === 'critical' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-800'}`}>
+                   <div className={`flex items-center gap-2 font-bold text-sm p-2 rounded-md ${reservation.urgency?.level === 'warning' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-700'}`}>
                        <AlertTriangle className="h-4 w-4" />
-                       <span>{reservation.urgency.level === 'critical' ? 'ATENÇÃO: PRAZO MENOR QUE 24H' : 'AVISO: PRAZO MENOR QUE 48H'}</span>
+                       <span>{reservation.urgency.message}</span>
                    </div>
                )}
             </CardHeader>
