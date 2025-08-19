@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -18,27 +18,18 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 type ReservationWithDetails = Awaited<ReturnType<typeof fetchAssignedReservations>>[0] & { 
     next_check_in_date?: string,
     next_checkin_time?: string,
-    urgency?: { 
-        level: 'overdue' | 'critical' | 'warning' | 'normal',
-        message: string 
-    }
+    urgency?: { level: 'overdue' | 'critical' | 'warning' | 'normal', message: string }
 };
 
 const fetchAssignedReservations = async (userId: string) => {
     const { data, error } = await supabase.rpc('fn_get_cleaner_reservations', { cleaner_id: userId });
-    if (error) {
-        console.error("Erro ao buscar reservas da função RPC:", error);
-        throw error;
-    }
+    if (error) { console.error("Erro ao buscar reservas da função RPC:", error); throw error; }
     return (data || []).map(r => ({...r, properties: typeof r.properties === 'string' ? JSON.parse(r.properties) : r.properties}));
 };
 
 const fetchAvailableReservations = async (userId: string) => {
     const { data, error } = await supabase.rpc('fn_get_available_reservations', { cleaner_id: userId });
-    if (error) {
-        console.error("Erro ao buscar oportunidades da função RPC:", error);
-        throw error;
-    }
+    if (error) { console.error("Erro ao buscar oportunidades da função RPC:", error); throw error; }
     return (data || []).map(r => ({...r, properties: typeof r.properties === 'string' ? JSON.parse(r.properties) : r.properties}));
 };
 
@@ -60,10 +51,8 @@ const FaxineiraDashboard = () => {
         const withUrgency = reservations.map(r => {
             const checkoutDateTime = parseISO(`${r.check_out_date}T${r.checkout_time}`);
             const hoursUntilCheckout = differenceInHours(checkoutDateTime, now);
-            
             let level: 'overdue' | 'critical' | 'warning' | 'normal' = 'normal';
             let message = '';
-
             if (hoursUntilCheckout < 0) {
                 level = 'overdue';
                 message = `ATENÇÃO: FAXINA ATRASADA HÁ ${Math.abs(Math.round(hoursUntilCheckout))} HORAS`;
@@ -74,7 +63,6 @@ const FaxineiraDashboard = () => {
                 level = 'warning';
                 message = `AVISO: PRAZO MENOR QUE 48H`;
             }
-            
             return { ...r, urgency: { level, message } };
         });
 
@@ -88,7 +76,6 @@ const FaxineiraDashboard = () => {
 
     const upcomingReservations = useMemo(() => processUpcomingReservations(assignedReservationsData?.filter(r => r.cleaning_status !== 'Realizada')), [assignedReservationsData]);
     const availableReservations = useMemo(() => processUpcomingReservations(availableReservationsData), [availableReservationsData]);
-    
     const pastReservations = useMemo(() => {
         const data = assignedReservationsData?.filter(r => r.cleaning_status === 'Realizada' && (isToday(new Date(r.check_out_date)) || isPast(new Date(r.check_out_date)))) ?? [];
         return data.sort((a, b) => new Date(b.check_out_date).getTime() - new Date(a.check_out_date).getTime());
@@ -96,20 +83,22 @@ const FaxineiraDashboard = () => {
 
     const hasActiveCleaning = upcomingReservations.length > 0;
 
-    const handleSignUpForCleaning = async (reservationId: string) => {
-        if (!user) return;
-        try {
-            const { data, error } = await supabase.rpc('assign_cleaning_to_cleaner', {
+    const signUpMutation = useMutation({
+        mutationFn: (reservationId: string) => {
+            if (!user) throw new Error("Usuário não autenticado");
+            return supabase.rpc('assign_cleaning_to_cleaner', {
                 reservation_id: reservationId,
                 cleaner_id: user.id
+            }).then(({ error }) => {
+                if (error) throw error;
             });
-
-            if (error) throw error;
-            
+        },
+        onSuccess: () => {
             toast({ title: "Sucesso!", description: "Você assinou esta faxina. Ela foi movida para 'Próximas'." });
-            await queryClient.invalidateQueries({ queryKey: assignedKey });
-            await queryClient.invalidateQueries({ queryKey: availableKey });
-        } catch (error: any) {
+            queryClient.invalidateQueries({ queryKey: assignedKey });
+            queryClient.invalidateQueries({ queryKey: availableKey });
+        },
+        onError: (error: any) => {
             let errorMessage = "Não foi possível assinar a faxina.";
             if (error.message.includes('REGRA_VIOLADA')) {
                 errorMessage = "Você já possui uma faxina em andamento.";
@@ -118,19 +107,29 @@ const FaxineiraDashboard = () => {
             }
             toast({ title: "Ação não permitida", description: errorMessage, variant: "destructive" });
         }
+    });
+
+    const markCompleteMutation = useMutation({
+        mutationFn: (reservationId: string) => 
+            supabase.from('reservations').update({ cleaning_status: 'Realizada' }).eq('id', reservationId)
+            .then(({ error }) => { if (error) throw error; }),
+        onSuccess: () => {
+            toast({ title: "Sucesso!", description: "Faxina marcada como concluída e movida para o histórico." });
+            queryClient.invalidateQueries({ queryKey: assignedKey });
+        },
+        onError: (error: any) => {
+             toast({ title: "Erro", description: error.message || "Não foi possível atualizar o status.", variant: "destructive" });
+        }
+    });
+
+    const handleSignUpForCleaning = (reservationId: string) => {
+        signUpMutation.mutate(reservationId);
     };
 
-    const handleMarkAsComplete = async (reservationId: string) => {
+    const handleMarkAsComplete = (reservationId: string) => {
         const confirmed = window.confirm("⚠️ Tem certeza que deseja marcar esta faxina como 'Realizada'?\n\nEsta ação moverá o card para o seu histórico e não poderá ser desfeita facilmente.");
         if (confirmed) {
-            try {
-                const { error } = await supabase.from('reservations').update({ cleaning_status: 'Realizada' }).eq('id', reservationId);
-                if (error) throw error;
-                toast({ title: "Sucesso!", description: "Faxina marcada como concluída e movida para o histórico." });
-                await queryClient.invalidateQueries({ queryKey: assignedKey });
-            } catch (error: any) {
-                toast({ title: "Erro", description: error.message || "Não foi possível atualizar o status.", variant: "destructive" });
-            }
+            markCompleteMutation.mutate(reservationId);
         }
     };
 
