@@ -18,6 +18,7 @@ import RelatoriosPage from "./pages/RelatoriosPage";
 import ConfiguracoesPage from "./pages/ConfiguracoesPage";
 import FaxineiraDashboard from "./pages/FaxineiraDashboard";
 import AnfitriaoAlertaPage from "./pages/AnfitriaoAlertaPage";
+import MasterCleaningDashboardPage from "./pages/MasterCleaningDashboardPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -74,6 +75,7 @@ const App = () => {
                           <Route path="/configuracoes" element={<ConfiguracoesPage />} />
                           <Route path="/anfitriao-alerta" element={<AnfitriaoAlertaPage />} />
                           <Route path="/faxineira-dashboard" element={<FaxineiraDashboard />} />
+                          <Route path="/gestao-faxinas" element={<MasterCleaningDashboardPage />} />
                           <Route path="/auth" element={<Navigate to="/dashboard" replace />} />
                           <Route path="*" element={<NotFound />} />
                         </Route>

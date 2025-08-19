@@ -53,6 +53,7 @@ const Sidebar = () => {
     { name: 'Investimentos & ROI', icon: TrendingUp, path: '/investimentos' },
     { name: 'Relatórios', icon: FileText, path: '/relatorios' },
     ...(isMaster || isOwner ? [{ name: 'Anfitrião Alerta', icon: Bell, path: '/anfitriao-alerta' }] : []),
+    ...(isMaster ? [{ name: 'Gestão de Faxinas', icon: Calendar, path: '/gestao-faxinas' }] : []),
     { name: 'Configurações', icon: Settings, path: '/configuracoes' },
   ];
 
