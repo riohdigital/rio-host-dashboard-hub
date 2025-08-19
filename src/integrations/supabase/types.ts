@@ -621,6 +621,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assign_cleaning_to_cleaner: {
+        Args: { cleaner_id: string; reservation_id: string }
+        Returns: string
+      }
       can_manage_property_access: {
         Args: Record<PropertyKey, never>
         Returns: boolean
@@ -631,6 +635,79 @@ export type Database = {
           current_user_id: string
           session_exists: boolean
           user_role: string
+        }[]
+      }
+      fn_get_all_available_reservations: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          base_revenue: number
+          check_in_date: string
+          check_out_date: string
+          checkin_time: string
+          checkout_time: string
+          cleaner_user_id: string
+          cleaning_allocation: string
+          cleaning_fee: number
+          cleaning_notes: string
+          cleaning_payment_status: string
+          cleaning_rating: number
+          cleaning_status: string
+          commission_amount: number
+          created_at: string
+          guest_name: string
+          guest_phone: string
+          id: string
+          is_communicated: boolean
+          net_revenue: number
+          next_check_in_date: string
+          next_checkin_time: string
+          number_of_guests: number
+          payment_date: string
+          payment_status: string
+          platform: string
+          properties: Json
+          property_id: string
+          receipt_sent: boolean
+          reservation_code: string
+          reservation_status: string
+          total_revenue: number
+        }[]
+      }
+      fn_get_all_cleaner_reservations: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          base_revenue: number
+          check_in_date: string
+          check_out_date: string
+          checkin_time: string
+          checkout_time: string
+          cleaner_info: Json
+          cleaner_user_id: string
+          cleaning_allocation: string
+          cleaning_fee: number
+          cleaning_notes: string
+          cleaning_payment_status: string
+          cleaning_rating: number
+          cleaning_status: string
+          commission_amount: number
+          created_at: string
+          guest_name: string
+          guest_phone: string
+          id: string
+          is_communicated: boolean
+          net_revenue: number
+          next_check_in_date: string
+          next_checkin_time: string
+          number_of_guests: number
+          payment_date: string
+          payment_status: string
+          platform: string
+          properties: Json
+          property_id: string
+          receipt_sent: boolean
+          reservation_code: string
+          reservation_status: string
+          total_revenue: number
         }[]
       }
       fn_get_available_reservations: {
@@ -712,6 +789,14 @@ export type Database = {
       get_my_properties_count: {
         Args: Record<PropertyKey, never>
         Returns: number
+      }
+      master_reassign_cleaning: {
+        Args: { new_cleaner_id: string; reservation_id: string }
+        Returns: string
+      }
+      master_unassign_cleaning: {
+        Args: { reservation_id: string }
+        Returns: string
       }
     }
     Enums: {
