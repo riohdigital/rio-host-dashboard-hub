@@ -9,19 +9,31 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useMasterCleaningData } from '@/hooks/useMasterCleaningData';
+import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
+import { useDateRange } from '@/hooks/dashboard/useDateRange';
 import CleanerSelector from '@/components/master-cleaning/CleanerSelector';
 import MasterCleaningCard from '@/components/master-cleaning/MasterCleaningCard';
 import CleaningStats from '@/components/master-cleaning/CleaningStats';
-import type { ReservationWithCleanerInfo } from '@/types/master-cleaning';
+import type { ReservationWithCleanerInfo, CleanerProfile } from '@/types/master-cleaning';
 
 const MasterCleaningDashboard = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { allCleanings, availableCleanings, cleaners, isLoading, refetch } = useMasterCleaningData();
+  
+  // Integração com filtros globais
+  const { selectedProperties, selectedPeriod } = useGlobalFilters();
+  const { startDateString, endDateString } = useDateRange(selectedPeriod);
+  
+  const { allCleanings, availableCleanings, cleaners, isLoading, refetch } = useMasterCleaningData({
+    startDate: startDateString,
+    endDate: endDateString,
+    propertyIds: selectedProperties
+  });
   
   const [selectedCleaner, setSelectedCleaner] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
+  const [propertyCleaners, setPropertyCleaners] = useState<Record<string, CleanerProfile[]>>({});
 
   // Mutações para reassignação e remoção
   const reassignMutation = useMutation({
@@ -122,20 +134,36 @@ const MasterCleaningDashboard = () => {
     unassignMutation.mutate(reservationId);
   };
 
-  const renderCleaningGrid = (cleanings: ReservationWithCleanerInfo[]) => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {cleanings.map((cleaning) => (
-        <MasterCleaningCard
-          key={cleaning.id}
-          reservation={cleaning}
-          cleaners={cleaners}
-          onReassign={handleReassign}
-          onUnassign={handleUnassign}
-          isLoading={reassignMutation.isPending || unassignMutation.isPending}
-        />
-      ))}
-    </div>
-  );
+  const renderCleaningGrid = (cleanings: ReservationWithCleanerInfo[]) => {
+    if (cleanings.length === 0) {
+      return (
+        <div className="text-center py-8 text-muted-foreground">
+          Nenhuma faxina encontrada
+        </div>
+      );
+    }
+
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {cleanings.map((cleaning) => (
+          <MasterCleaningCard
+            key={cleaning.id}
+            reservation={cleaning}
+            cleaners={propertyCleaners[cleaning.property_id] || []}
+            onReassign={handleReassign}
+            onUnassign={handleUnassign}
+            onPropertyCleanersLoad={(propertyId, cleaners) => {
+              setPropertyCleaners(prev => ({
+                ...prev,
+                [propertyId]: cleaners
+              }));
+            }}
+            isLoading={reassignMutation.isPending || unassignMutation.isPending}
+          />
+        ))}
+      </div>
+    );
+  };
 
   if (isLoading) {
     return (

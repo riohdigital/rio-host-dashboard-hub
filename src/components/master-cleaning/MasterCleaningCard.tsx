@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { UserX, UserCheck, Calendar, Clock, MapPin, User } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import type { ReservationWithCleanerInfo, CleanerProfile } from '@/types/master-cleaning';
 
 interface MasterCleaningCardProps {
@@ -13,6 +14,7 @@ interface MasterCleaningCardProps {
   cleaners: CleanerProfile[];
   onReassign: (reservationId: string, cleanerId: string) => void;
   onUnassign: (reservationId: string) => void;
+  onPropertyCleanersLoad?: (propertyId: string, cleaners: CleanerProfile[]) => void;
   isLoading?: boolean;
 }
 
@@ -37,10 +39,78 @@ const MasterCleaningCard = ({
   reservation, 
   cleaners, 
   onReassign, 
-  onUnassign, 
+  onUnassign,
+  onPropertyCleanersLoad,
   isLoading = false 
 }: MasterCleaningCardProps) => {
   const [selectedCleaner, setSelectedCleaner] = React.useState<string>('');
+  const [propertyCleaners, setPropertyCleaners] = React.useState<CleanerProfile[]>(cleaners);
+  const [loadingCleaners, setLoadingCleaners] = React.useState(false);
+
+  // Buscar faxineiras da propriedade usando a mesma lógica do ReservationForm
+  const fetchCleanersForProperty = async (propertyId: string) => {
+    if (propertyCleaners.length > 0) return; // Já carregou
+    
+    setLoadingCleaners(true);
+    try {
+      const { data: cleanerLinks, error: linkError } = await (supabase as any)
+        .from('cleaner_properties')
+        .select('user_id')
+        .eq('property_id', propertyId);
+      
+      if (linkError) throw linkError;
+      
+      const userIds = (cleanerLinks || []).map((link) => link.user_id).filter(Boolean);
+      if (userIds.length === 0) {
+        setPropertyCleaners([]);
+        onPropertyCleanersLoad?.(propertyId, []);
+        return;
+      }
+      
+      const { data: profiles, error: profError } = await supabase
+        .from('user_profiles')
+        .select(`
+          id,
+          user_id,
+          full_name,
+          email,
+          is_active,
+          cleaner_profiles(phone)
+        `)
+        .eq('role', 'faxineira')
+        .eq('is_active', true)
+        .in('user_id', userIds);
+      
+      if (profError) throw profError;
+      
+      const formattedCleaners = (profiles || []).map(profile => ({
+        id: profile.id,
+        user_id: profile.user_id,
+        full_name: profile.full_name,
+        email: profile.email,
+        is_active: profile.is_active,
+        phone: (profile.cleaner_profiles as any)?.[0]?.phone
+      }));
+      
+      setPropertyCleaners(formattedCleaners);
+      onPropertyCleanersLoad?.(propertyId, formattedCleaners);
+    } catch (e) {
+      console.error('Erro ao buscar faxineiras da propriedade:', e);
+      setPropertyCleaners([]);
+      onPropertyCleanersLoad?.(propertyId, []);
+    } finally {
+      setLoadingCleaners(false);
+    }
+  };
+
+  // Carregar faxineiras quando o componente montar ou quando não houver faxineiras
+  React.useEffect(() => {
+    if (cleaners.length === 0) {
+      fetchCleanersForProperty(reservation.property_id);
+    } else {
+      setPropertyCleaners(cleaners);
+    }
+  }, [reservation.property_id, cleaners.length]);
 
   const handleReassign = () => {
     if (selectedCleaner) {
@@ -141,16 +211,28 @@ const MasterCleaningCard = ({
             
             <div className="flex items-center gap-2">
               <Select value={selectedCleaner} onValueChange={setSelectedCleaner}>
-                <SelectTrigger className="flex-1 bg-background">
-                  <SelectValue placeholder="Selecionar faxineira" />
-                </SelectTrigger>
-                <SelectContent className="bg-background border-border">
-                  {cleaners.map((cleaner) => (
-                    <SelectItem key={cleaner.user_id} value={cleaner.user_id}>
-                      {cleaner.full_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
+                {loadingCleaners ? (
+                  <SelectTrigger className="flex-1 bg-background cursor-not-allowed opacity-50">
+                    <SelectValue placeholder="Carregando faxineiras..." />
+                  </SelectTrigger>
+                ) : propertyCleaners.length > 0 ? (
+                  <>
+                    <SelectTrigger className="flex-1 bg-background">
+                      <SelectValue placeholder="Selecionar faxineira" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background border-border">
+                      {propertyCleaners.map((cleaner) => (
+                        <SelectItem key={cleaner.user_id} value={cleaner.user_id}>
+                          {cleaner.full_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </>
+                ) : (
+                  <SelectTrigger className="flex-1 bg-background cursor-not-allowed opacity-50">
+                    <SelectValue placeholder="Nenhuma faxineira disponível" />
+                  </SelectTrigger>
+                )}
               </Select>
               
               <Button

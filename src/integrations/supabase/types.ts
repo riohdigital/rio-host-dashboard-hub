@@ -638,7 +638,9 @@ export type Database = {
         }[]
       }
       fn_get_all_available_reservations: {
-        Args: Record<PropertyKey, never>
+        Args:
+          | Record<PropertyKey, never>
+          | { end_date?: string; property_ids?: string[]; start_date?: string }
         Returns: {
           base_revenue: number
           check_in_date: string
@@ -674,7 +676,9 @@ export type Database = {
         }[]
       }
       fn_get_all_cleaner_reservations: {
-        Args: Record<PropertyKey, never>
+        Args:
+          | Record<PropertyKey, never>
+          | { end_date?: string; property_ids?: string[]; start_date?: string }
         Returns: {
           base_revenue: number
           check_in_date: string

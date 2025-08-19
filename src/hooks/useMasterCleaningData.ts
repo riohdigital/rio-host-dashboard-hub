@@ -2,11 +2,21 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { ReservationWithCleanerInfo, CleanerProfile } from '@/types/master-cleaning';
 
-export const useMasterCleaningData = () => {
+interface UseMasterCleaningDataParams {
+  startDate?: string;
+  endDate?: string;
+  propertyIds?: string[];
+}
+
+export const useMasterCleaningData = (params?: UseMasterCleaningDataParams) => {
   const allCleaningsQuery = useQuery({
-    queryKey: ['master-all-cleanings'],
+    queryKey: ['master-all-cleanings', params?.startDate, params?.endDate, params?.propertyIds],
     queryFn: async (): Promise<ReservationWithCleanerInfo[]> => {
-      const { data, error } = await supabase.rpc('fn_get_all_cleaner_reservations' as any);
+      const { data, error } = await supabase.rpc('fn_get_all_cleaner_reservations' as any, {
+        start_date: params?.startDate || '1900-01-01',
+        end_date: params?.endDate || '2099-12-31',
+        property_ids: params?.propertyIds?.length && !params.propertyIds.includes('todas') ? params.propertyIds : null
+      });
       if (error) throw error;
       return data || [];
     },
@@ -14,9 +24,13 @@ export const useMasterCleaningData = () => {
   });
 
   const availableCleaningsQuery = useQuery({
-    queryKey: ['master-available-cleanings'],
+    queryKey: ['master-available-cleanings', params?.startDate, params?.endDate, params?.propertyIds],
     queryFn: async (): Promise<ReservationWithCleanerInfo[]> => {
-      const { data, error } = await supabase.rpc('fn_get_all_available_reservations' as any);
+      const { data, error } = await supabase.rpc('fn_get_all_available_reservations' as any, {
+        start_date: params?.startDate || '1900-01-01',
+        end_date: params?.endDate || '2099-12-31',
+        property_ids: params?.propertyIds?.length && !params.propertyIds.includes('todas') ? params.propertyIds : null
+      });
       if (error) throw error;
       return data || [];
     },
