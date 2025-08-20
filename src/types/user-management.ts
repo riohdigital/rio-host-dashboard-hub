@@ -51,8 +51,14 @@ export type PermissionType =
   | 'users_manage'
   | 'system_settings'
   | 'anfitriao_alerta_view'
+  | 'anfitriao_alerta_create'
+  | 'anfitriao_alerta_edit'
+  | 'anfitriao_alerta_delete'
   | 'anfitriao_alerta_manage'
-  | 'gestao_faxinas_view';
+  | 'gestao_faxinas_view'
+  | 'gestao_faxinas_assign'
+  | 'gestao_faxinas_reassign'
+  | 'gestao_faxinas_manage';
 
 export interface PermissionCategory {
   name: string;
@@ -102,15 +108,21 @@ export const PERMISSION_CATEGORIES: PermissionCategory[] = [
     name: 'anfitriao_alerta',
     label: 'Anfitrião Alerta',
     permissions: [
-      { type: 'anfitriao_alerta_view', label: 'Visualizar alertas', description: 'Ver configurações de alertas' },
-      { type: 'anfitriao_alerta_manage', label: 'Gerenciar alertas', description: 'Criar e editar configurações de alertas' },
+      { type: 'anfitriao_alerta_view', label: 'Ver configurações de alertas', description: 'Permite visualizar configurações do Anfitrião Alerta' },
+      { type: 'anfitriao_alerta_create', label: 'Criar destinatários de alertas', description: 'Permite criar novos destinatários de alertas' },
+      { type: 'anfitriao_alerta_edit', label: 'Editar destinatários de alertas', description: 'Permite editar destinatários de alertas existentes' },
+      { type: 'anfitriao_alerta_delete', label: 'Remover destinatários de alertas', description: 'Permite remover destinatários de alertas' },
+      { type: 'anfitriao_alerta_manage', label: 'Gerenciar alertas', description: 'Permite gerenciar configurações completas do sistema de alertas' },
     ]
   },
   {
     name: 'gestao_faxinas',
     label: 'Gestão de Faxinas',
     permissions: [
-      { type: 'gestao_faxinas_view', label: 'Ver gestão de faxinas', description: 'Visualizar painel de gestão de faxinas' },
+      { type: 'gestao_faxinas_view', label: 'Ver dashboard de gestão de faxinas', description: 'Permite visualizar o dashboard de gestão de faxinas' },
+      { type: 'gestao_faxinas_assign', label: 'Atribuir faxinas para faxineiras', description: 'Permite atribuir faxinas para faxineiras disponíveis' },
+      { type: 'gestao_faxinas_reassign', label: 'Reatribuir faxinas já designadas', description: 'Permite reatribuir faxinas que já foram designadas' },
+      { type: 'gestao_faxinas_manage', label: 'Gerenciar status e configurações de faxinas', description: 'Permite gerenciar status e configurações gerais de faxinas' },
     ]
   },
   {
