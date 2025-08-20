@@ -2,12 +2,16 @@ import React, { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNotificationDestinations } from '@/hooks/useNotificationDestinations';
+import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import DestinationCard from './DestinationCard';
 import DestinationForm from './DestinationForm';
 
 const DestinationsList = () => {
   const { destinations, loading } = useNotificationDestinations();
+  const { hasPermission } = useUserPermissions();
   const [showForm, setShowForm] = useState(false);
+  
+  const canCreate = hasPermission('anfitriao_alerta_create');
 
   if (loading) {
     return (
@@ -21,10 +25,12 @@ const DestinationsList = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-semibold text-foreground">Destinatários de Alertas</h2>
-        <Button onClick={() => setShowForm(true)} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Novo Destinatário
-        </Button>
+        {canCreate && (
+          <Button onClick={() => setShowForm(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Novo Destinatário
+          </Button>
+        )}
       </div>
 
       {destinations.length === 0 ? (
@@ -32,10 +38,12 @@ const DestinationsList = () => {
           <div className="text-muted-foreground mb-4">
             Nenhum destinatário configurado ainda
           </div>
-          <Button onClick={() => setShowForm(true)} variant="outline" className="gap-2">
-            <Plus className="h-4 w-4" />
-            Criar Primeiro Destinatário
-          </Button>
+          {canCreate && (
+            <Button onClick={() => setShowForm(true)} variant="outline" className="gap-2">
+              <Plus className="h-4 w-4" />
+              Criar Primeiro Destinatário
+            </Button>
+          )}
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -45,7 +53,7 @@ const DestinationsList = () => {
         </div>
       )}
 
-      {showForm && (
+      {showForm && canCreate && (
         <DestinationForm
           onClose={() => setShowForm(false)}
           onSuccess={() => setShowForm(false)}

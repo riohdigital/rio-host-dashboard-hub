@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { NotificationDestination, useNotificationDestinations } from '@/hooks/useNotificationDestinations';
+import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import AuthenticationDialog from './AuthenticationDialog';
 import DestinationSettingsDialog from './DestinationSettingsDialog';
 
@@ -13,8 +14,12 @@ interface DestinationCardProps {
 
 const DestinationCard = ({ destination }: DestinationCardProps) => {
   const { deleteDestination } = useNotificationDestinations();
+  const { hasPermission } = useUserPermissions();
   const [showAuth, setShowAuth] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  
+  const canEdit = hasPermission('anfitriao_alerta_edit');
+  const canDelete = hasPermission('anfitriao_alerta_delete');
 
   const handleDelete = async () => {
     if (confirm('Tem certeza que deseja remover este destinatário?')) {
@@ -51,7 +56,7 @@ const DestinationCard = ({ destination }: DestinationCardProps) => {
           </div>
 
           <div className="flex gap-2">
-            {!destination.is_authenticated && (
+            {!destination.is_authenticated && canEdit && (
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -61,32 +66,36 @@ const DestinationCard = ({ destination }: DestinationCardProps) => {
                 Autenticar
               </Button>
             )}
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setShowSettings(true)}
-            >
-              <Settings className="h-4 w-4" />
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleDelete}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            {canEdit && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowSettings(true)}
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+            )}
+            {canDelete && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleDelete}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
 
-      {showAuth && (
+      {showAuth && canEdit && (
         <AuthenticationDialog
           destination={destination}
           onClose={() => setShowAuth(false)}
         />
       )}
 
-      {showSettings && (
+      {showSettings && canEdit && (
         <DestinationSettingsDialog
           destination={destination}
           onClose={() => setShowSettings(false)}

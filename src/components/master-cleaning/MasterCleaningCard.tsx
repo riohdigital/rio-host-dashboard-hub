@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { UserX, UserCheck, Calendar, Clock, MapPin, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import type { ReservationWithCleanerInfo, CleanerProfile } from '@/types/master-cleaning';
 
 interface MasterCleaningCardProps {
@@ -44,9 +45,13 @@ const MasterCleaningCard = ({
   onPropertyCleanersLoad,
   isLoading = false 
 }: MasterCleaningCardProps) => {
+  const { hasPermission } = useUserPermissions();
   const [selectedCleaner, setSelectedCleaner] = React.useState<string>('');
   const [propertyCleaners, setPropertyCleaners] = React.useState<CleanerProfile[]>(cleaners);
   const [loadingCleaners, setLoadingCleaners] = React.useState(false);
+  
+  const canAssign = hasPermission('gestao_faxinas_assign');
+  const canReassign = hasPermission('gestao_faxinas_reassign');
 
   // Buscar faxineiras da propriedade usando a mesma lógica do ReservationForm
   const fetchCleanersForProperty = async (propertyId: string) => {
@@ -167,16 +172,18 @@ const MasterCleaningCard = ({
                   </span>
                 )}
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onUnassign(reservation.id)}
-                disabled={isLoading}
-                className="text-destructive hover:text-destructive"
-              >
-                <UserX className="h-4 w-4 mr-1" />
-                Remover
-              </Button>
+              {canReassign && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onUnassign(reservation.id)}
+                  disabled={isLoading}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <UserX className="h-4 w-4 mr-1" />
+                  Remover
+                </Button>
+              )}
             </div>
           </div>
         ) : (
@@ -186,41 +193,43 @@ const MasterCleaningCard = ({
               <span className="text-sm text-muted-foreground">Sem faxineira atribuída</span>
             </div>
             
-            <div className="flex items-center gap-2">
-              <Select value={selectedCleaner} onValueChange={setSelectedCleaner}>
-                {loadingCleaners ? (
-                  <SelectTrigger className="flex-1 bg-background cursor-not-allowed opacity-50">
-                    <SelectValue placeholder="Carregando faxineiras..." />
-                  </SelectTrigger>
-                ) : propertyCleaners.length > 0 ? (
-                  <>
-                    <SelectTrigger className="flex-1 bg-background">
-                      <SelectValue placeholder="Selecionar faxineira" />
+            {canAssign && (
+              <div className="flex items-center gap-2">
+                <Select value={selectedCleaner} onValueChange={setSelectedCleaner}>
+                  {loadingCleaners ? (
+                    <SelectTrigger className="flex-1 bg-background cursor-not-allowed opacity-50">
+                      <SelectValue placeholder="Carregando faxineiras..." />
                     </SelectTrigger>
-                    <SelectContent className="bg-background border-border z-50">
-                      {propertyCleaners.map((cleaner) => (
-                        <SelectItem key={cleaner.user_id} value={cleaner.user_id}>
-                          {cleaner.full_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </>
-                ) : (
-                  <SelectTrigger className="flex-1 bg-background cursor-not-allowed opacity-50">
-                    <SelectValue placeholder="Nenhuma faxineira disponível" />
-                  </SelectTrigger>
-                )}
-              </Select>
-              
-              <Button
-                size="sm"
-                onClick={handleReassign}
-                disabled={!selectedCleaner || isLoading}
-              >
-                <UserCheck className="h-4 w-4 mr-1" />
-                Atribuir
-              </Button>
-            </div>
+                  ) : propertyCleaners.length > 0 ? (
+                    <>
+                      <SelectTrigger className="flex-1 bg-background">
+                        <SelectValue placeholder="Selecionar faxineira" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background border-border z-50">
+                        {propertyCleaners.map((cleaner) => (
+                          <SelectItem key={cleaner.user_id} value={cleaner.user_id}>
+                            {cleaner.full_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </>
+                  ) : (
+                    <SelectTrigger className="flex-1 bg-background cursor-not-allowed opacity-50">
+                      <SelectValue placeholder="Nenhuma faxineira disponível" />
+                    </SelectTrigger>
+                  )}
+                </Select>
+                
+                <Button
+                  size="sm"
+                  onClick={handleReassign}
+                  disabled={!selectedCleaner || isLoading}
+                >
+                  <UserCheck className="h-4 w-4 mr-1" />
+                  Atribuir
+                </Button>
+              </div>
+            )}
           </div>
         )}
 
