@@ -1,6 +1,7 @@
 import React from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { parseDate, formatDateSafe } from '@/lib/dateUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -95,7 +96,7 @@ const MasterCleaningCard = ({
     }
   };
 
-  const checkOutDate = new Date(reservation.check_out_date);
+  const checkOutDate = parseDate(reservation.check_out_date);
   const isUrgent = checkOutDate <= new Date(Date.now() + 24 * 60 * 60 * 1000);
 
   return (
@@ -124,7 +125,7 @@ const MasterCleaningCard = ({
             <Calendar className="h-4 w-4 text-muted-foreground" />
             <span className="text-muted-foreground">Check-out:</span>
             <span className="font-medium text-foreground">
-              {format(checkOutDate, "dd/MM/yyyy", { locale: ptBR })}
+              {formatDateSafe(reservation.check_out_date)}
             </span>
           </div>
           
@@ -226,7 +227,7 @@ const MasterCleaningCard = ({
         {/* Próximo check-in se houver */}
         {reservation.next_check_in_date && (
           <div className="text-xs text-muted-foreground bg-primary/5 p-2 rounded">
-            <strong>Próximo check-in:</strong> {format(new Date(reservation.next_check_in_date), "dd/MM/yyyy", { locale: ptBR })}
+            <strong>Próximo check-in:</strong> {formatDateSafe(reservation.next_check_in_date)}
             {reservation.next_checkin_time && ` às ${reservation.next_checkin_time}`}
           </div>
         )}
