@@ -3,7 +3,7 @@ export interface UserProfile {
   user_id: string;
   email: string;
   full_name?: string;
-  role: 'master' | 'owner' | 'editor' | 'viewer' | 'faxineira';
+  role: 'master' | 'owner' | 'gestor' | 'faxineira';
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -49,7 +49,10 @@ export type PermissionType =
   | 'dashboard_expenses'
   | 'dashboard_profit'
   | 'users_manage'
-  | 'system_settings';
+  | 'system_settings'
+  | 'anfitriao_alerta_view'
+  | 'anfitriao_alerta_manage'
+  | 'gestao_faxinas_view';
 
 export interface PermissionCategory {
   name: string;
@@ -93,6 +96,21 @@ export const PERMISSION_CATEGORIES: PermissionCategory[] = [
       { type: 'expenses_edit', label: 'Editar despesas', description: 'Modificar despesas existentes' },
       { type: 'investments_view', label: 'Ver investimentos', description: 'Visualizar investimentos' },
       { type: 'investments_create', label: 'Criar investimentos', description: 'Adicionar novos investimentos' },
+    ]
+  },
+  {
+    name: 'anfitriao_alerta',
+    label: 'Anfitrião Alerta',
+    permissions: [
+      { type: 'anfitriao_alerta_view', label: 'Visualizar alertas', description: 'Ver configurações de alertas' },
+      { type: 'anfitriao_alerta_manage', label: 'Gerenciar alertas', description: 'Criar e editar configurações de alertas' },
+    ]
+  },
+  {
+    name: 'gestao_faxinas',
+    label: 'Gestão de Faxinas',
+    permissions: [
+      { type: 'gestao_faxinas_view', label: 'Ver gestão de faxinas', description: 'Visualizar painel de gestão de faxinas' },
     ]
   },
   {

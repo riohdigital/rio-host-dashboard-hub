@@ -24,7 +24,7 @@ const UserCreateModal: React.FC<UserCreateModalProps> = ({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState<'master' | 'owner' | 'editor' | 'viewer' | 'faxineira'>('viewer');
+  const [role, setRole] = useState<'master' | 'owner' | 'gestor' | 'faxineira'>('gestor');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -65,7 +65,7 @@ const UserCreateModal: React.FC<UserCreateModalProps> = ({
     setEmail('');
     setPassword('');
     setFullName('');
-    setRole('viewer');
+    setRole('gestor');
     onClose();
   };
 
@@ -88,11 +88,10 @@ const UserCreateModal: React.FC<UserCreateModalProps> = ({
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="role">Tipo de Usuário</Label>
-                    <Select value={role} onValueChange={(value) => setRole(value as any)}>
+                    <Select value={role} onValueChange={(value) => setRole(value as 'master' | 'owner' | 'gestor' | 'faxineira')}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="viewer">Visualizador</SelectItem>
-                            <SelectItem value="editor">Editor</SelectItem>
+                            <SelectItem value="gestor">Gestor</SelectItem>
                             <SelectItem value="owner">Proprietário</SelectItem>
                             <SelectItem value="master">Mestre</SelectItem>
                             <SelectItem value="faxineira">Faxineira</SelectItem>

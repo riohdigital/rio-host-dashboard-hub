@@ -13,8 +13,7 @@ interface UserPermissionsContextType {
   canAccessProperty: (propertyId: string) => 'full' | 'read_only' | 'restricted' | null;
   isMaster: () => boolean;
   isOwner: () => boolean;
-  isEditor: () => boolean;
-  isViewer: () => boolean;
+  isGestor: () => boolean;
   getAccessibleProperties: () => string[];
   refetch: () => Promise<void>;
 }
@@ -113,8 +112,7 @@ export const UserPermissionsProvider: React.FC<{ children: React.ReactNode }> = 
 
   const isMaster = useCallback((): boolean => userProfile?.role === 'master', [userProfile?.role]);
   const isOwner = useCallback((): boolean => userProfile?.role === 'owner', [userProfile?.role]);
-  const isEditor = useCallback((): boolean => userProfile?.role === 'editor', [userProfile?.role]);
-  const isViewer = useCallback((): boolean => userProfile?.role === 'viewer', [userProfile?.role]);
+  const isGestor = useCallback((): boolean => userProfile?.role === 'gestor', [userProfile?.role]);
 
   const getAccessibleProperties = useCallback((): string[] => {
     if (isMaster() || hasPermission('properties_view_all')) return [];
@@ -131,13 +129,12 @@ export const UserPermissionsProvider: React.FC<{ children: React.ReactNode }> = 
     canAccessProperty,
     isMaster,
     isOwner,
-    isEditor,
-    isViewer,
+    isGestor,
     getAccessibleProperties,
     refetch: () => fetchUserData(true)
   }), [
     userProfile, permissions, propertyAccess, loading,
-    hasPermission, canAccessProperty, isMaster, isOwner, isEditor, isViewer, 
+    hasPermission, canAccessProperty, isMaster, isOwner, isGestor, 
     getAccessibleProperties, fetchUserData
   ]);
 

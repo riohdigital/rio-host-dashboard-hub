@@ -14,7 +14,7 @@ interface UserInviteFormProps {
 const UserInviteForm: React.FC<UserInviteFormProps> = ({ onUserInvited }) => {
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState<'owner' | 'editor' | 'viewer'>('viewer');
+  const [role, setRole] = useState<'owner' | 'gestor'>('gestor');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -87,7 +87,7 @@ const UserInviteForm: React.FC<UserInviteFormProps> = ({ onUserInvited }) => {
       // Limpar formulário
       setEmail('');
       setFullName('');
-      setRole('viewer');
+      setRole('gestor');
       
       onUserInvited();
     } catch (error: any) {
@@ -138,14 +138,13 @@ const UserInviteForm: React.FC<UserInviteFormProps> = ({ onUserInvited }) => {
 
           <div className="space-y-2">
             <Label htmlFor="inviteRole">Role Inicial</Label>
-            <Select value={role} onValueChange={(value) => setRole(value as 'owner' | 'editor' | 'viewer')}>
+            <Select value={role} onValueChange={(value) => setRole(value as 'owner' | 'gestor')}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="owner">Proprietário</SelectItem>
-                <SelectItem value="editor">Editor</SelectItem>
-                <SelectItem value="viewer">Visualizador</SelectItem>
+                <SelectItem value="gestor">Gestor</SelectItem>
               </SelectContent>
             </Select>
           </div>
