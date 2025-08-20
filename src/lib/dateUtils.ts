@@ -11,14 +11,13 @@ export const parseDate = (dateString: string): Date => {
     return new Date(dateString);
   }
   
-  // Para datas no formato YYYY-MM-DD, forçar interpretação como horário local
-  // adicionando horário meio-dia para evitar problemas de timezone
+  // Para datas no formato YYYY-MM-DD, usar UTC para evitar problemas de timezone
   const dateParts = dateString.split('-');
   if (dateParts.length === 3) {
     const year = parseInt(dateParts[0]);
     const month = parseInt(dateParts[1]) - 1; // Mês é 0-indexado
     const day = parseInt(dateParts[2]);
-    return new Date(year, month, day, 12, 0, 0); // Meio-dia para evitar DST issues
+    return new Date(Date.UTC(year, month, day, 12, 0, 0)); // UTC para consistência
   }
   
   // Fallback para o comportamento padrão
