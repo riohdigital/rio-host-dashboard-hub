@@ -15,11 +15,13 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useUserRole } from '@/hooks/useUserRole';
+import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import GlobalFilters from './GlobalFilters';
 
 const Sidebar = () => {
   const { toast } = useToast();
   const { isCleaner, isMaster, isOwner } = useUserRole();
+  const { hasPermission } = useUserPermissions();
 
   const handleLogout = async () => {
     try {
@@ -52,8 +54,8 @@ const Sidebar = () => {
     { name: 'Propriedades', icon: Home, path: '/propriedades' },
     { name: 'Investimentos & ROI', icon: TrendingUp, path: '/investimentos' },
     { name: 'Relatórios', icon: FileText, path: '/relatorios' },
-    ...(isMaster || isOwner ? [{ name: 'Anfitrião Alerta', icon: Bell, path: '/anfitriao-alerta' }] : []),
-    ...(isMaster ? [{ name: 'Gestão de Faxinas', icon: Calendar, path: '/gestao-faxinas' }] : []),
+    ...(hasPermission('anfitriao_alerta_view') ? [{ name: 'Anfitrião Alerta', icon: Bell, path: '/anfitriao-alerta' }] : []),
+    ...(hasPermission('gestao_faxinas_view') ? [{ name: 'Gestão de Faxinas', icon: Calendar, path: '/gestao-faxinas' }] : []),
     { name: 'Configurações', icon: Settings, path: '/configuracoes' },
   ];
 

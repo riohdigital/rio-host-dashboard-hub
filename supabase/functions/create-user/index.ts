@@ -7,7 +7,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-type AppRole = 'master' | 'owner' | 'editor' | 'viewer' | 'faxineira';
+type AppRole = 'master' | 'owner' | 'gestor' | 'faxineira';
 
 interface CreateUserRequest {
   email: string;
@@ -39,7 +39,7 @@ const handler = async (req: Request): Promise<Response> => {
       email: inputEmail,
       password,
       fullName,
-      role: inputRole = 'viewer',
+      role: inputRole = 'gestor',
       phone,
       address,
       propertyIds = [],
