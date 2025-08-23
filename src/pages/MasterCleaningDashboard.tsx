@@ -77,6 +77,27 @@ const MasterCleaningDashboard = () => {
     }
   });
 
+  const toggleCompleteMutation = useMutation({
+    mutationFn: async (reservationId: string) => {
+      const { data, error } = await supabase.rpc('fn_toggle_cleaning_status' as any, {
+        p_reservation_id: reservationId
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      toast({ title: "Sucesso!", description: "Status da faxina atualizado com sucesso." });
+      refetch();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao alterar status da faxina",
+        variant: "destructive"
+      });
+    }
+  });
+
   // Filtros
   const filteredCleanings = useMemo(() => {
     let filtered = allCleanings;
@@ -134,6 +155,10 @@ const MasterCleaningDashboard = () => {
     unassignMutation.mutate(reservationId);
   };
 
+  const handleToggleComplete = (reservationId: string) => {
+    toggleCompleteMutation.mutate(reservationId);
+  };
+
   const renderCleaningGrid = (cleanings: ReservationWithCleanerInfo[]) => {
     if (cleanings.length === 0) {
       return (
@@ -152,13 +177,14 @@ const MasterCleaningDashboard = () => {
             cleaners={propertyCleaners[cleaning.property_id] || []}
             onReassign={handleReassign}
             onUnassign={handleUnassign}
+            onToggleComplete={handleToggleComplete}
             onPropertyCleanersLoad={(propertyId, cleaners) => {
               setPropertyCleaners(prev => ({
                 ...prev,
                 [propertyId]: cleaners
               }));
             }}
-            isLoading={reassignMutation.isPending || unassignMutation.isPending}
+            isLoading={reassignMutation.isPending || unassignMutation.isPending || toggleCompleteMutation.isPending}
           />
         ))}
       </div>

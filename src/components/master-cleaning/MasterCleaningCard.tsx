@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { UserX, UserCheck, Calendar, Clock, MapPin, User } from 'lucide-react';
+import { UserX, UserCheck, Calendar, Clock, MapPin, User, CheckCircle, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import type { ReservationWithCleanerInfo, CleanerProfile } from '@/types/master-cleaning';
@@ -17,6 +17,7 @@ interface MasterCleaningCardProps {
   onReassign: (reservationId: string, cleanerId: string) => void;
   onUnassign: (reservationId: string) => void;
   onPropertyCleanersLoad?: (propertyId: string, cleaners: CleanerProfile[]) => void;
+  onToggleComplete?: (reservationId: string) => void;
   isLoading?: boolean;
 }
 
@@ -43,6 +44,7 @@ const MasterCleaningCard = ({
   onReassign, 
   onUnassign,
   onPropertyCleanersLoad,
+  onToggleComplete,
   isLoading = false 
 }: MasterCleaningCardProps) => {
   const { hasPermission } = useUserPermissions();
@@ -52,15 +54,16 @@ const MasterCleaningCard = ({
   
   const canAssign = hasPermission('gestao_faxinas_assign');
   const canReassign = hasPermission('gestao_faxinas_reassign');
+  const canManageCleanings = hasPermission('gestao_faxinas_manage');
 
-  // Buscar faxineiras da propriedade usando a mesma lógica do ReservationForm
+  // Buscar faxineiras da propriedade usando a nova função com permissões
   const fetchCleanersForProperty = async (propertyId: string) => {
     if (propertyCleaners.length > 0) return; // Já carregou
     
     setLoadingCleaners(true);
     try {
-      const { data, error } = await supabase.rpc('fn_get_cleaners_for_properties' as any, {
-        property_ids: [propertyId]
+      const { data, error } = await supabase.rpc('fn_get_property_cleaners_for_user' as any, {
+        p_property_id: propertyId
       });
 
       if (error) throw error;
@@ -103,6 +106,7 @@ const MasterCleaningCard = ({
 
   const checkOutDate = parseDate(reservation.check_out_date);
   const isUrgent = checkOutDate <= new Date(Date.now() + 24 * 60 * 60 * 1000);
+  const isCompleted = reservation.cleaning_status === 'Realizada';
 
   return (
     <Card className={`w-full ${isUrgent ? 'border-destructive' : 'border-border'}`}>
@@ -116,6 +120,7 @@ const MasterCleaningCard = ({
               {reservation.reservation_status}
             </Badge>
             <Badge variant={getCleaningStatusVariant(reservation.cleaning_status)}>
+              {isCompleted && <CheckCircle className="w-3 h-3 mr-1" />}
               {reservation.cleaning_status}
             </Badge>
             {isUrgent && <Badge variant="destructive">Urgente</Badge>}
@@ -172,18 +177,40 @@ const MasterCleaningCard = ({
                   </span>
                 )}
               </div>
-              {canReassign && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onUnassign(reservation.id)}
-                  disabled={isLoading}
-                  className="text-destructive hover:text-destructive"
-                >
-                  <UserX className="h-4 w-4 mr-1" />
-                  Remover
-                </Button>
-              )}
+              <div className="flex gap-2">
+                {canReassign && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onUnassign(reservation.id)}
+                    disabled={isLoading}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <UserX className="h-4 w-4 mr-1" />
+                    Remover
+                  </Button>
+                )}
+                {canManageCleanings && (
+                  <Button
+                    variant={isCompleted ? "outline" : "default"}
+                    size="sm"
+                    onClick={() => onToggleComplete?.(reservation.id)}
+                    disabled={isLoading}
+                  >
+                    {isCompleted ? (
+                      <>
+                        <XCircle className="w-4 h-4 mr-1" />
+                        Desmarcar
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="w-4 h-4 mr-1" />
+                        Concluir
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         ) : (

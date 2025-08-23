@@ -170,22 +170,18 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
 
     const fetchCleanersForProperty = async (propertyId: string) => {
         try {
-            // Usar any para evitar erros de TypeScript com tabelas não reconhecidas
-            const { data: cleanerLinks, error: linkError } = await (supabase as any).from('cleaner_properties').select('user_id').eq('property_id', propertyId);
-            if (linkError) throw linkError;
-            
-            const userIds = (cleanerLinks || []).map((link) => link.user_id).filter(Boolean);
-            if (userIds.length === 0) {
-                setCleaners([]);
-                return;
-            }
-            
-            const { data: profiles, error: profError } = await supabase.from('user_profiles').select('user_id, full_name, email').eq('role', 'faxineira').in('user_id', userIds);
-            if (profError) throw profError;
-            
-            setCleaners((profiles || []).map(p => ({ user_id: p.user_id, full_name: p.full_name, email: p.email })));
-        } catch (e) {
-            console.error('Erro ao buscar faxineiras da propriedade:', e);
+            const { data, error } = await supabase.rpc('fn_get_property_cleaners_for_user' as any, {
+                p_property_id: propertyId
+            });
+            if (error) throw error;
+            const cleanersList = (data || []).map((profile: any) => ({
+                user_id: profile.user_id,
+                full_name: profile.full_name,
+                email: profile.email
+            }));
+            setCleaners(cleanersList);
+        } catch (error) {
+            console.error('Erro ao buscar faxineiras:', error);
             setCleaners([]);
         }
     };
