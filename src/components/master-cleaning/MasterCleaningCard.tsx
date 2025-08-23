@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { UserX, UserCheck, Calendar, Clock, MapPin, User, CheckCircle, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserPermissions } from '@/contexts/UserPermissionsContext';
@@ -105,8 +106,12 @@ const MasterCleaningCard = ({
   };
 
   const checkOutDate = parseDate(reservation.check_out_date);
-  const isUrgent = checkOutDate <= new Date(Date.now() + 24 * 60 * 60 * 1000);
   const isCompleted = reservation.cleaning_status === 'Realizada';
+  const isFinalized = reservation.reservation_status === 'Finalizada';
+  // Only show urgent if checkout is near AND the task is not completed
+  const isUrgent = checkOutDate <= new Date(Date.now() + 24 * 60 * 60 * 1000) 
+    && !isCompleted 
+    && !isFinalized;
 
   return (
     <Card className={`w-full ${isUrgent ? 'border-destructive' : 'border-border'}`}>
@@ -164,20 +169,38 @@ const MasterCleaningCard = ({
 
         {/* Informações da faxineira */}
         {reservation.cleaner_info ? (
-          <div className="bg-muted/30 p-3 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <UserCheck className="h-4 w-4 text-primary" />
-                <span className="font-medium text-foreground">
-                  {reservation.cleaner_info.full_name}
-                </span>
+          <div className="bg-muted/30 p-3 rounded-lg space-y-3">
+            {/* Nome e telefone em linhas separadas */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <UserCheck className="h-4 w-4 text-primary flex-shrink-0" />
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="font-medium text-foreground truncate">
+                          {reservation.cleaner_info.full_name}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {reservation.cleaner_info.full_name}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
                 {reservation.cleaner_info.phone && (
-                  <span className="text-sm text-muted-foreground">
-                    • {reservation.cleaner_info.phone}
-                  </span>
+                  <div className="flex items-center gap-2 mt-1 ml-6">
+                    <span className="text-sm text-muted-foreground">
+                      Tel: {reservation.cleaner_info.phone}
+                    </span>
+                  </div>
                 )}
               </div>
-              <div className="flex gap-2">
+            </div>
+            
+            {/* Botões em linha separada com flexbox wrap */}
+            {(canReassign || canManageCleanings) && (
+              <div className="flex flex-wrap gap-2">
                 {canReassign && (
                   <Button
                     variant="outline"
@@ -196,6 +219,7 @@ const MasterCleaningCard = ({
                     size="sm"
                     onClick={() => onToggleComplete?.(reservation.id)}
                     disabled={isLoading}
+                    className="flex-shrink-0"
                   >
                     {isCompleted ? (
                       <>
@@ -211,7 +235,7 @@ const MasterCleaningCard = ({
                   </Button>
                 )}
               </div>
-            </div>
+            )}
           </div>
         ) : (
           <div className="bg-muted/30 p-3 rounded-lg">
