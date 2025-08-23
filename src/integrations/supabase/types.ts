@@ -797,6 +797,21 @@ export type Database = {
           user_id: string
         }[]
       }
+      fn_get_property_cleaners_for_user: {
+        Args: { p_property_id: string }
+        Returns: {
+          email: string
+          full_name: string
+          id: string
+          is_active: boolean
+          phone: string
+          user_id: string
+        }[]
+      }
+      fn_toggle_cleaning_status: {
+        Args: { p_reservation_id: string }
+        Returns: string
+      }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: string
