@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
 import { useDateRange } from '@/hooks/dashboard/useDateRange';
 import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import ProfessionalReceiptTemplate from './ProfessionalReceiptTemplate'; // ADICIONADO: Novo template
 
 // CÓDIGO ORIGINAL MANTIDO
@@ -143,39 +144,84 @@ const ReceiptGenerator = () => {
   // =================================================================================
   // ===== INÍCIO DA ALTERAÇÃO 1: NOVA FUNÇÃO generatePDF =============================
   // =================================================================================
-  const generatePDF = (reservation: Reservation) => {
+  const generatePDF = async (reservation: Reservation) => {
     toast({ title: "Gerando PDF...", description: "Aguarde, estamos preparando seu documento." });
 
     const container = document.createElement('div');
     container.style.position = 'absolute';
     container.style.left = '-9999px';
+    container.style.width = '800px';
     document.body.appendChild(container);
 
     const templateElement = React.createElement(ProfessionalReceiptTemplate, { reservation, receiptType });
     const tempRoot = ReactDOM.createRoot(container);
     tempRoot.render(templateElement);
     
-    setTimeout(() => {
-      const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
-      const elementToPrint = container.children[0];
+    // Wait for render and images to load
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const elementToPrint = container.children[0] as HTMLElement;
+    if (!elementToPrint) {
+      toast({ title: "Erro", description: "Ocorreu um problema ao criar o template.", variant: "destructive"});
+      document.body.removeChild(container);
+      return;
+    }
 
-      if (!elementToPrint) {
-        toast({ title: "Erro", description: "Ocorreu um problema ao criar o template.", variant: "destructive"});
-        document.body.removeChild(container);
-        return;
-      }
-
-      pdf.html(elementToPrint as HTMLElement, {
-        callback: function (doc) {
-          const filename = `${receiptType === 'payment' ? 'recibo-pagamento' : 'recibo-reserva'}-${reservation.reservation_code}.pdf`;
-          doc.save(filename);
-          document.body.removeChild(container);
-          toast({ title: "Sucesso", description: "Recibo gerado!" });
-        },
-        html2canvas: { scale: 0.65, useCORS: true },
-        margin: [0, 0, 0, 0]
+    // Wait for all images to load
+    const images = elementToPrint.getElementsByTagName('img');
+    const imagePromises = Array.from(images).map(img => {
+      if (img.complete) return Promise.resolve();
+      return new Promise(resolve => {
+        img.onload = resolve;
+        img.onerror = resolve;
       });
-    }, 1000);
+    });
+    await Promise.all(imagePromises);
+
+    try {
+      // Use html2canvas like batch generation
+      const canvas = await html2canvas(elementToPrint, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff'
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      // Calculate dimensions to fit A4
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      
+      // Scale to fit width with margins
+      const margins = 10;
+      const availableWidth = pdfWidth - (margins * 2);
+      const scale = availableWidth / imgWidth * 2;
+      const scaledHeight = imgHeight * scale;
+      
+      // Center on page
+      const x = margins;
+      const y = (pdfHeight - scaledHeight) / 2;
+      
+      pdf.addImage(imgData, 'PNG', x, y > 0 ? y : margins, availableWidth, scaledHeight);
+      
+      const filename = `${receiptType === 'payment' ? 'recibo-pagamento' : 'recibo-reserva'}-${reservation.reservation_code}.pdf`;
+      pdf.save(filename);
+      
+      toast({ title: "Sucesso", description: "Recibo gerado!" });
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast({ title: "Erro", description: "Erro ao gerar PDF", variant: "destructive" });
+    } finally {
+      document.body.removeChild(container);
+    }
   };
   // =================================================================================
   // ===== FIM DA ALTERAÇÃO 1 ========================================================
