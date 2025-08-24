@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Download, Brush, Calendar, User } from 'lucide-react';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Download, Brush, Calendar, User, ChevronDown } from 'lucide-react';
 import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
 import { useDateRange } from '@/hooks/dashboard/useDateRange';
 import { supabase } from '@/integrations/supabase/client';
@@ -50,31 +51,56 @@ const CleanerPaymentsReport: React.FC = () => {
         const { data, error } = await query.order('check_in_date', { ascending: false }).limit(100);
         if (error) throw error;
 
+        // Collect all cleaner IDs that are not null
         const cleanerIds = Array.from(new Set((data || []).map((r: any) => r.cleaner_user_id).filter(Boolean)));
+        
+        // Debug log to see what cleaner IDs we found
+        console.log('Found cleaner IDs:', cleanerIds);
+        
         let profilesMap: Record<string, string> = {};
-        if (cleanerIds.length) {
+        if (cleanerIds.length > 0) {
           const { data: profiles, error: profErr } = await supabase
             .from('user_profiles')
             .select('user_id, full_name, email')
             .in('user_id', cleanerIds);
-          if (profErr) throw profErr;
+          
+          if (profErr) {
+            console.error('Error fetching profiles:', profErr);
+            throw profErr;
+          }
+          
+          // Debug log to see what profiles we got back
+          console.log('Fetched profiles:', profiles);
+          
           profilesMap = (profiles || []).reduce((acc: any, p: any) => {
             acc[p.user_id] = p.full_name || p.email || '—';
             return acc;
           }, {});
+          
+          // Debug log to see the final profiles map
+          console.log('Profiles map:', profilesMap);
         }
 
-        const mapped: CleanerRow[] = (data || []).map((r: any) => ({
-          id: r.id,
-          reservation_code: r.reservation_code,
-          cleaner_user_id: r.cleaner_user_id,
-          cleaner_name: profilesMap[r.cleaner_user_id] || 'Não atribuído',
-          property_name: r.properties?.name ?? '—',
-          check_in_date: r.check_in_date,
-          check_out_date: r.check_out_date,
-          cleaning_payment_status: r.cleaning_payment_status,
-          cleaning_fee: Number(r.cleaning_fee ?? 0),
-        }));
+        const mapped: CleanerRow[] = (data || []).map((r: any) => {
+          const cleanerName = r.cleaner_user_id 
+            ? (profilesMap[r.cleaner_user_id] || `ID: ${r.cleaner_user_id}`)
+            : 'Não atribuído';
+            
+          // Debug log for each reservation
+          console.log(`Reservation ${r.reservation_code}: cleaner_user_id=${r.cleaner_user_id}, cleaner_name=${cleanerName}`);
+          
+          return {
+            id: r.id,
+            reservation_code: r.reservation_code,
+            cleaner_user_id: r.cleaner_user_id,
+            cleaner_name: cleanerName,
+            property_name: r.properties?.name ?? '—',
+            check_in_date: r.check_in_date,
+            check_out_date: r.check_out_date,
+            cleaning_payment_status: r.cleaning_payment_status,
+            cleaning_fee: Number(r.cleaning_fee ?? 0),
+          };
+        });
 
         setRows(mapped);
       } catch (e) {
@@ -90,13 +116,28 @@ const CleanerPaymentsReport: React.FC = () => {
 
   const grouped = useMemo(() => {
     const byCleaner: Record<string, { cleaner_name: string; items: CleanerRow[]; total: number; pendente: number }> = {};
+    
     rows.forEach((r) => {
-      const key = r.cleaner_user_id || 'na';
-      if (!byCleaner[key]) byCleaner[key] = { cleaner_name: r.cleaner_name, items: [], total: 0, pendente: 0 };
+      // Use cleaner_user_id as key, or 'unassigned' for null
+      const key = r.cleaner_user_id || 'unassigned';
+      
+      if (!byCleaner[key]) {
+        byCleaner[key] = { 
+          cleaner_name: r.cleaner_name, 
+          items: [], 
+          total: 0, 
+          pendente: 0 
+        };
+      }
+      
       byCleaner[key].items.push(r);
       byCleaner[key].total += r.cleaning_fee;
-      if (r.cleaning_payment_status !== 'Paga') byCleaner[key].pendente += r.cleaning_fee;
+      
+      if (r.cleaning_payment_status !== 'Paga') {
+        byCleaner[key].pendente += r.cleaning_fee;
+      }
     });
+    
     return byCleaner;
   }, [rows]);
 
@@ -149,37 +190,64 @@ const CleanerPaymentsReport: React.FC = () => {
               </Button>
             </div>
             <Separator />
-            <div className="space-y-6">
+            
+            <Accordion type="multiple" className="space-y-2">
               {Object.entries(grouped).map(([key, g]) => (
-                <div key={key} className="border rounded-md p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="font-medium">{g.cleaner_name}</div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <Badge variant="secondary">Total: R$ {g.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</Badge>
-                      <Badge variant={g.pendente > 0 ? 'destructive' : 'secondary'}>Pendente: R$ {g.pendente.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</Badge>
+                <AccordionItem key={key} value={key} className="border rounded-lg">
+                  <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                    <div className="flex items-center justify-between w-full pr-2">
+                      <div className="flex items-center gap-3">
+                        <User className="h-4 w-4 text-primary" />
+                        <div className="font-medium">{g.cleaner_name}</div>
+                        <Badge variant="outline" className="ml-2">
+                          {g.items.length} {g.items.length === 1 ? 'reserva' : 'reservas'}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Badge variant="secondary">
+                          Total: R$ {g.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </Badge>
+                        {g.pendente > 0 && (
+                          <Badge variant="destructive">
+                            Pendente: R$ {g.pendente.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <div className="mt-3 divide-y">
-                    {g.items.map((r) => (
-                      <div key={r.id} className="py-2 flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-3">
-                          <Badge variant="outline">{r.reservation_code}</Badge>
-                          <div className="hidden md:flex items-center gap-1 text-muted-foreground">
-                            <Calendar className="h-3 w-3" /> {r.check_in_date} - {r.check_out_date}
+                  </AccordionTrigger>
+                  
+                  <AccordionContent className="px-4 pb-4">
+                    <div className="divide-y">
+                      {g.items.map((r) => (
+                        <div key={r.id} className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                            <Badge variant="outline">{r.reservation_code}</Badge>
+                            <div className="text-sm text-muted-foreground">
+                              {r.property_name}
+                            </div>
+                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                              <Calendar className="h-3 w-3" />
+                              {r.check_in_date} - {r.check_out_date}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="font-medium">
+                              R$ {r.cleaning_fee.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </div>
+                            <Badge 
+                              variant={r.cleaning_payment_status === 'Paga' ? 'secondary' : 'destructive'}
+                              className="whitespace-nowrap"
+                            >
+                              {r.cleaning_payment_status || 'Pendente'}
+                            </Badge>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <div>R$ {r.cleaning_fee.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                          <Badge variant={r.cleaning_payment_status === 'Paga' ? 'secondary' : 'destructive'}>
-                            {r.cleaning_payment_status || '—'}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                      ))}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
               ))}
-            </div>
+            </Accordion>
           </div>
         )}
       </CardContent>
