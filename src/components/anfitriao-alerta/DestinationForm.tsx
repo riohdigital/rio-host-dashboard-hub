@@ -76,7 +76,8 @@ const DestinationForm = ({ onClose, onSuccess }: DestinationFormProps) => {
                     </FormControl>
                     <SelectContent>
                       <SelectItem value="proprietario">Proprietário</SelectItem>
-                      <SelectItem value="gerente">Gerente</SelectItem>
+                      <SelectItem value="co-anfitriao">Co-Anfitrião</SelectItem>
+                      <SelectItem value="gestor">Gestor</SelectItem>
                       <SelectItem value="faxineira">Faxineira</SelectItem>
                       <SelectItem value="outro">Outro</SelectItem>
                     </SelectContent>

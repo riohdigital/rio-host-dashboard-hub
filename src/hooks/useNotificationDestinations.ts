@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -16,14 +16,25 @@ export interface NotificationDestination {
   created_at: string;
 }
 
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
 export const useNotificationDestinations = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [destinations, setDestinations] = useState<NotificationDestination[]>([]);
   const [loading, setLoading] = useState(true);
+  const lastFetchTime = useRef<number>(0);
+  const hasFetchedData = useRef(false);
 
-  const fetchDestinations = async () => {
+  const fetchDestinations = async (forceRefresh = false) => {
     if (!user) return;
+
+    // Check cache
+    const now = Date.now();
+    if (!forceRefresh && hasFetchedData.current && (now - lastFetchTime.current < CACHE_DURATION)) {
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
@@ -35,6 +46,8 @@ export const useNotificationDestinations = () => {
 
       if (error) throw error;
       setDestinations(data || []);
+      lastFetchTime.current = now;
+      hasFetchedData.current = true;
     } catch (error: any) {
       console.error('Erro ao buscar destinatários:', error);
       toast({
@@ -63,7 +76,7 @@ export const useNotificationDestinations = () => {
 
       if (error) throw error;
 
-      await fetchDestinations();
+      await fetchDestinations(true); // Force refresh after create
       toast({
         title: "Sucesso",
         description: "Destinatário criado com sucesso",
@@ -72,9 +85,10 @@ export const useNotificationDestinations = () => {
       return data;
     } catch (error: any) {
       console.error('Erro ao criar destinatário:', error);
+      const errorMessage = error.message || "Não foi possível criar o destinatário";
       toast({
         title: "Erro",
-        description: "Não foi possível criar o destinatário",
+        description: errorMessage,
         variant: "destructive",
       });
       return null;
@@ -90,7 +104,7 @@ export const useNotificationDestinations = () => {
 
       if (error) throw error;
 
-      await fetchDestinations();
+      await fetchDestinations(true); // Force refresh after update
       toast({
         title: "Sucesso",
         description: "Destinatário atualizado com sucesso",
@@ -114,7 +128,7 @@ export const useNotificationDestinations = () => {
 
       if (error) throw error;
 
-      await fetchDestinations();
+      await fetchDestinations(true); // Force refresh after delete
       toast({
         title: "Sucesso",
         description: "Destinatário removido com sucesso",
@@ -139,6 +153,6 @@ export const useNotificationDestinations = () => {
     createDestination,
     updateDestination,
     deleteDestination,
-    refetch: fetchDestinations
+    refetch: () => fetchDestinations(true) // Force refresh on manual refetch
   };
 };
