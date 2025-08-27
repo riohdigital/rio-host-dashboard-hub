@@ -16,13 +16,19 @@ const HeroSection = ({ onGetStarted, isLoggedIn }: HeroSectionProps) => {
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
       {/* Animated Background */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-secondary/10">
-        <div className="absolute inset-0 bg-grid-pattern opacity-5" />
+        <div 
+          className="absolute inset-0 opacity-5"
+          style={{
+            backgroundImage: 'linear-gradient(to right, hsl(var(--border)) 1px, transparent 1px), linear-gradient(to bottom, hsl(var(--border)) 1px, transparent 1px)',
+            backgroundSize: '50px 50px'
+          }}
+        />
       </div>
 
       {/* Floating Elements */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="floating-element absolute top-1/4 left-1/4 w-72 h-72 bg-primary/20 rounded-full blur-3xl animate-float" />
-        <div className="floating-element absolute bottom-1/4 right-1/4 w-96 h-96 bg-secondary/20 rounded-full blur-3xl animate-float-delayed" />
+        <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-primary/20 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-secondary/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
       </div>
 
       <div className="container mx-auto px-4 relative z-10">
@@ -131,28 +137,6 @@ const HeroSection = ({ onGetStarted, isLoggedIn }: HeroSectionProps) => {
           </motion.button>
         </div>
       </div>
-
-      <style jsx>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(0) rotate(0deg); }
-          50% { transform: translateY(-20px) rotate(180deg); }
-        }
-        @keyframes float-delayed {
-          0%, 100% { transform: translateY(0) rotate(0deg); }
-          50% { transform: translateY(-30px) rotate(-180deg); }
-        }
-        .animate-float {
-          animation: float 20s ease-in-out infinite;
-        }
-        .animate-float-delayed {
-          animation: float-delayed 25s ease-in-out infinite;
-        }
-        .bg-grid-pattern {
-          background-image: linear-gradient(to right, hsl(var(--border)) 1px, transparent 1px),
-                            linear-gradient(to bottom, hsl(var(--border)) 1px, transparent 1px);
-          background-size: 50px 50px;
-        }
-      `}</style>
     </section>
   );
 };
