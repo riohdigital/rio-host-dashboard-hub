@@ -20,6 +20,7 @@ import FaxineiraDashboard from "./pages/FaxineiraDashboard";
 import AnfitriaoAlertaPage from "./pages/AnfitriaoAlertaPage";
 import MasterCleaningDashboardPage from "./pages/MasterCleaningDashboardPage";
 import NotFound from "./pages/NotFound";
+import LandingPage from "./pages/LandingPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -51,8 +52,9 @@ const App = () => {
             {!user ? (
               // Rotas públicas para usuários não logados
               <>
+                <Route path="/" element={<LandingPage />} />
                 <Route path="/auth" element={<AuthPage />} />
-                <Route path="*" element={<Navigate to="/auth" replace />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
               </>
             ) : (
               // Rotas privadas para usuários logados
