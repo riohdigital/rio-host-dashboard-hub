@@ -44,8 +44,8 @@ const CleanerPaymentsReport: React.FC = () => {
         }
         if (selectedPeriod !== 'general') {
           query = query
-            .lte('check_in_date', endDateString)
-            .gte('check_out_date', startDateString);
+            .gte('check_out_date', startDateString)
+            .lte('check_out_date', endDateString);
         }
 
         const { data, error } = await query.order('check_in_date', { ascending: false }).limit(100);

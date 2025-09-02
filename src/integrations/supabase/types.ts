@@ -251,7 +251,7 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -625,6 +625,10 @@ export type Database = {
         Args: { cleaner_id: string; reservation_id: string }
         Returns: string
       }
+      assign_cleaning_with_permissions: {
+        Args: { cleaner_id: string; reservation_id: string }
+        Returns: string
+      }
       can_manage_property_access: {
         Args: Record<PropertyKey, never>
         Returns: boolean
@@ -825,6 +829,14 @@ export type Database = {
         Returns: string
       }
       master_unassign_cleaning: {
+        Args: { reservation_id: string }
+        Returns: string
+      }
+      reassign_cleaning_with_permissions: {
+        Args: { new_cleaner_id: string; reservation_id: string }
+        Returns: string
+      }
+      unassign_cleaning_with_permissions: {
         Args: { reservation_id: string }
         Returns: string
       }

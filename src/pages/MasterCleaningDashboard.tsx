@@ -38,7 +38,7 @@ const MasterCleaningDashboard = () => {
   // Mutações para reassignação e remoção
   const reassignMutation = useMutation({
     mutationFn: async ({ reservationId, cleanerId }: { reservationId: string; cleanerId: string }) => {
-      const { error } = await supabase.rpc('master_reassign_cleaning' as any, {
+      const { error } = await supabase.rpc('reassign_cleaning_with_permissions' as any, {
         reservation_id: reservationId,
         new_cleaner_id: cleanerId
       });
@@ -59,7 +59,7 @@ const MasterCleaningDashboard = () => {
 
   const unassignMutation = useMutation({
     mutationFn: async (reservationId: string) => {
-      const { error } = await supabase.rpc('master_unassign_cleaning' as any, {
+      const { error } = await supabase.rpc('unassign_cleaning_with_permissions' as any, {
         reservation_id: reservationId
       });
       if (error) throw error;
@@ -72,6 +72,28 @@ const MasterCleaningDashboard = () => {
       toast({
         title: "Erro",
         description: error.message || "Erro ao remover faxineira",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Mutation for initial assignment 
+  const assignMutation = useMutation({
+    mutationFn: async ({ reservationId, cleanerId }: { reservationId: string; cleanerId: string }) => {
+      const { error } = await supabase.rpc('assign_cleaning_with_permissions' as any, {
+        reservation_id: reservationId,
+        cleaner_id: cleanerId
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Sucesso!", description: "Faxina atribuída com sucesso." });
+      refetch();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao atribuir faxina",
         variant: "destructive"
       });
     }
@@ -148,7 +170,16 @@ const MasterCleaningDashboard = () => {
   }, [availableCleanings, searchTerm]);
 
   const handleReassign = (reservationId: string, cleanerId: string) => {
-    reassignMutation.mutate({ reservationId, cleanerId });
+    // Check if it's an assignment (no current cleaner) or reassignment
+    const reservation = [...allCleanings, ...availableCleanings].find(r => r.id === reservationId);
+    
+    if (reservation?.cleaner_user_id) {
+      // It's a reassignment
+      reassignMutation.mutate({ reservationId, cleanerId });
+    } else {
+      // It's an initial assignment - use the existing assign function
+      assignMutation.mutate({ reservationId, cleanerId });
+    }
   };
 
   const handleUnassign = (reservationId: string) => {
@@ -184,7 +215,7 @@ const MasterCleaningDashboard = () => {
                 [propertyId]: cleaners
               }));
             }}
-            isLoading={reassignMutation.isPending || unassignMutation.isPending || toggleCompleteMutation.isPending}
+            isLoading={reassignMutation.isPending || unassignMutation.isPending || assignMutation.isPending || toggleCompleteMutation.isPending}
           />
         ))}
       </div>
