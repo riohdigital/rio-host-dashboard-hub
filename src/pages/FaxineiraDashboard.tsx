@@ -86,7 +86,7 @@ const FaxineiraDashboard = () => {
     const signUpMutation = useMutation({
         mutationFn: async (reservationId: string): Promise<void> => {
             if (!user) throw new Error("Usuário não autenticado");
-            const { error } = await supabase.rpc('assign_cleaning_to_cleaner' as any, {
+            const { error } = await supabase.rpc('assign_cleaning_with_permissions' as any, {
                 reservation_id: reservationId,
                 cleaner_id: user.id
             });
