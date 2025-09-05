@@ -526,7 +526,7 @@ export const EnhancedReportTemplate = ({ report }: EnhancedReportTemplateProps) 
       <Separator />
 
       {/* Report Content */}
-      {report.type === 'financial' && renderFinancialReport()}
+      {(report.type === 'financial' || report.type === 'financial_owner' || report.type === 'financial_expenses') && renderFinancialReport()}
       {report.type === 'occupancy' && renderOccupancyReport()}
       {(report.type === 'property' || report.type === 'property_performance') && renderPropertyPerformanceReport()}
       {report.type === 'platform' && renderPlatformReport()}
@@ -534,6 +534,8 @@ export const EnhancedReportTemplate = ({ report }: EnhancedReportTemplateProps) 
       {report.type === 'checkins' && renderCheckinsReport()}
       {![
         'financial',
+        'financial_owner',
+        'financial_expenses',
         'occupancy',
         'property',
         'property_performance',
