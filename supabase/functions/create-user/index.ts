@@ -81,13 +81,14 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const ensureCleanerLinks = async (userId: string) => {
-      // Garante cleaner_profiles com phone/address/notes
+      // Garante cleaner_profiles com phone/address/notes/pix
       const { error: upsertCleanerError } = await supabaseAdmin
         .from('cleaner_profiles')
         .upsert({
           user_id: userId,
           phone: phone ?? null,
           address: address ?? null,
+          pix: raw.pix ?? null,
           notes: notes ?? null,
           updated_at: new Date().toISOString(),
         }, { onConflict: 'user_id' });

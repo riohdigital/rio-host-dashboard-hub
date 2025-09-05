@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface ReportFilters {
-  reportType: string;
+  reportType: 'financial_owner' | 'financial_expenses' | 'occupancy' | 'property' | 'platform' | 'expenses' | 'checkins';
   propertyId?: string;
   platform?: string;
   startDate: string;
@@ -31,9 +31,13 @@ export const useReportData = () => {
       let title;
 
       switch (filters.reportType) {
-        case 'financial':
+        case 'financial_expenses':
           data = await generateFinancialReport(filters);
-          title = 'Relatório Financeiro';
+          title = 'Relatório Financeiro (ComDespesas)';
+          break;
+        case 'financial_owner':
+          data = await generateFinancialOwnerReport(filters);
+          title = 'Relatório Financeiro (Proprietário)';
           break;
         case 'occupancy':
           data = await generateOccupancyReport(filters);
@@ -82,6 +86,7 @@ export const useReportData = () => {
 };
 
 // Funções para gerar diferentes tipos de relatórios
+// Relatório Financeiro com Despesas (antigo modelo)
 const generateFinancialReport = async (filters: ReportFilters) => {
   try {
     console.log('Generating financial report with filters:', filters);
@@ -247,6 +252,144 @@ const propertiesData = filteredProperties.map(property => {
     };
   } catch (error) {
     console.error('Error generating financial report:', error);
+    throw error;
+  }
+};
+
+// Relatório Financeiro do Proprietário (apenas net_revenue)
+const generateFinancialOwnerReport = async (filters: ReportFilters) => {
+  try {
+    console.log('Generating financial owner report with filters:', filters);
+    
+    // Fetch reservations
+    let reservationsQuery = supabase
+      .from('reservations')
+      .select(`
+        *,
+        properties (
+          name,
+          nickname
+        )
+      `)
+      .gte('check_in_date', filters.startDate)
+      .lte('check_in_date', filters.endDate);
+
+    // Apply property filter if specified
+    if (filters.propertyId && filters.propertyId !== 'all') {
+      reservationsQuery = reservationsQuery.eq('property_id', filters.propertyId);
+    }
+
+    // Apply global property filter for reservations
+    if (filters.selectedProperties && filters.selectedProperties.length > 0 && !filters.selectedProperties.includes('todas')) {
+      reservationsQuery = reservationsQuery.in('property_id', filters.selectedProperties);
+    }
+
+    // Apply global platform filter for reservations
+    if (filters.selectedPlatform && filters.selectedPlatform !== 'all') {
+      reservationsQuery = reservationsQuery.eq('platform', filters.selectedPlatform);
+    }
+
+    const { data: reservations, error: reservationsError } = await reservationsQuery;
+    console.log('Reservations fetched for owner report:', reservations);
+
+    if (reservationsError) {
+      console.error('Reservations error:', reservationsError);
+      throw reservationsError;
+    }
+
+    // Calculate totals using net_revenue
+    const totalRevenue = reservations?.reduce((sum, r) => sum + (Number(r.net_revenue) || 0), 0) || 0;
+    
+    // Calculate received and pending amounts based on net_revenue
+    const receivedAmount = (reservations || [])
+      .filter((r: any) => r.payment_status === 'Pago' || r.payment_status === 'Recebido')
+      .reduce((sum: number, r: any) => sum + (Number(r.net_revenue) || 0), 0);
+    
+    const pendingAmount = totalRevenue - receivedAmount;
+
+    // Fetch properties for detailed report
+    const { data: properties } = await supabase
+      .from('properties')
+      .select('id, name, nickname');
+
+    const periodStart = new Date(filters.startDate);
+    const periodEnd = new Date(filters.endDate);
+    const periodDays = Math.max(1, Math.ceil((periodEnd.getTime() - periodStart.getTime()) / (1000 * 60 * 60 * 24)));
+
+    // Group by property - Filter by selected property if specified
+    let filteredProperties = properties || [];
+    if (filters.propertyId && filters.propertyId !== 'all') {
+      filteredProperties = filteredProperties.filter(p => p.id === filters.propertyId);
+    }
+
+    // Apply global property filter if available
+    if (filters.selectedProperties && filters.selectedProperties.length > 0 && !filters.selectedProperties.includes('todas')) {
+      filteredProperties = filteredProperties.filter(p => filters.selectedProperties!.includes(p.id));
+    }
+
+    const propertiesData = filteredProperties.map(property => {
+      const propertyReservations = (reservations || []).filter(r => r.property_id === property.id);
+      const propertyRevenue = propertyReservations.reduce((sum, r) => sum + (Number(r.net_revenue) || 0), 0);
+      const propertyReceived = propertyReservations
+        .filter(r => r.payment_status === 'Pago' || r.payment_status === 'Recebido')
+        .reduce((sum: number, r: any) => sum + (Number(r.net_revenue) || 0), 0);
+      const propertyPending = propertyRevenue - propertyReceived;
+
+      // Ocupação da propriedade no período
+      const occupiedNights = propertyReservations.reduce((sum, r) => {
+        const ci = new Date(r.check_in_date);
+        const co = new Date(r.check_out_date);
+        const overlapStart = ci > periodStart ? ci : periodStart;
+        const overlapEnd = co < periodEnd ? co : periodEnd;
+        const nights = Math.max(0, Math.ceil((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)));
+        return sum + nights;
+      }, 0);
+      const occupancyRate = (occupiedNights / periodDays) * 100;
+
+      // Platform breakdown for this property (using net_revenue)
+      const platformsData = propertyReservations.reduce((acc: any[], reservation) => {
+        const existing = acc.find(item => item.name === reservation.platform);
+        if (existing) {
+          existing.revenue += Number(reservation.net_revenue) || 0;
+          existing.count += 1;
+        } else {
+          acc.push({
+            name: reservation.platform,
+            revenue: Number(reservation.net_revenue) || 0,
+            count: 1
+          });
+        }
+        return acc;
+      }, [] as any[]);
+
+      return {
+        name: property.nickname || property.name,
+        totalRevenue: propertyRevenue,
+        receivedAmount: propertyReceived,
+        pendingAmount: propertyPending,
+        totalReservations: propertyReservations.length,
+        platforms: platformsData,
+        reservations: propertyReservations.map(r => ({ code: r.reservation_code })),
+        occupancyRate
+      };
+    });
+
+    return {
+      totalRevenue, // Now using net_revenue
+      totalExpenses: 0, // No expenses in owner report
+      netProfit: totalRevenue, // For owner, net profit = net revenue
+      profitMargin: 100, // 100% since no expenses
+      monthlyRevenue: calculateMonthlyRevenue(reservations || [], 'net_revenue'),
+      platformRevenue: calculatePlatformDistribution(reservations || [], 'net_revenue'),
+      expensesByCategory: [], // No expenses in owner report
+      properties: propertiesData,
+      receivedAmount,
+      pendingAmount,
+      totalReservations: reservations?.length || 0,
+      reservations: reservations || []
+    };
+  } catch (error) {
+    console.error('Error generating financial owner report:', error);
     throw error;
   }
 };
@@ -526,7 +669,7 @@ const generateCheckinsReport = async (filters: ReportFilters) => {
 };
 
 // Funções auxiliares para cálculos
-const calculateMonthlyRevenue = (reservations: any[]) => {
+const calculateMonthlyRevenue = (reservations: any[], revenueField: string = 'total_revenue') => {
   const monthlyData: any = {};
   
   reservations.forEach(r => {
@@ -614,7 +757,7 @@ const calculateMonthlyComparison = (reservations: any[], expenses: any[]) => {
   }));
 };
 
-const calculatePlatformDistribution = (reservations: any[]) => {
+const calculatePlatformDistribution = (reservations: any[], revenueField: string = 'total_revenue') => {
   const platformData: any = {};
   
   reservations.forEach(r => {

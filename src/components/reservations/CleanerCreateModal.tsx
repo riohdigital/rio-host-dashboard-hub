@@ -31,6 +31,7 @@ const CleanerCreateModal: React.FC<CleanerCreateModalProps> = ({
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
+  const [pix, setPix] = useState('');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -115,6 +116,7 @@ const CleanerCreateModal: React.FC<CleanerCreateModalProps> = ({
           role: 'faxineira', 
           phone, 
           address,
+          pix,
           propertyIds: selectedProperties,
           notes: notes?.trim() || null
         }
@@ -138,7 +140,7 @@ const CleanerCreateModal: React.FC<CleanerCreateModalProps> = ({
   };
 
   const handleClose = () => {
-    setEmail(''); setPassword(''); setFullName(''); setPhone(''); setAddress(''); setNotes('');
+    setEmail(''); setPassword(''); setFullName(''); setPhone(''); setAddress(''); setPix(''); setNotes('');
     setSelectedProperties([]); setAccessibleProperties([]);
     onClose();
   };
@@ -171,6 +173,15 @@ const CleanerCreateModal: React.FC<CleanerCreateModalProps> = ({
           <div className="space-y-2">
             <Label htmlFor="address-cleaner">Endereço</Label>
             <Input id="address-cleaner" value={address} onChange={(e) => setAddress(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="pix-cleaner">PIX</Label>
+            <Input 
+              id="pix-cleaner" 
+              value={pix} 
+              onChange={(e) => setPix(e.target.value)} 
+              placeholder="Chave PIX da faxineira"
+            />
           </div>
           <div className="space-y-2">
             <Label>Vincular Propriedades *</Label>

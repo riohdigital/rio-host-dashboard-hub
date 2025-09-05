@@ -26,7 +26,7 @@ const RelatoriosPage: React.FC = () => {
   const { generateReport, loading: reportLoading } = useReportData();
   const { exportToPDF, exportToExcel } = usePDFExport();
   
-  const [reportType, setReportType] = useState<string>('financial');
+  const [reportType, setReportType] = useState<'financial_owner' | 'financial_expenses' | 'occupancy' | 'property' | 'platform' | 'expenses' | 'checkins'>('financial_owner');
   const [customStartDate, setCustomStartDate] = useState<Date | undefined>();
   const [customEndDate, setCustomEndDate] = useState<Date | undefined>();
   const [selectedProperty, setSelectedProperty] = useState<string>('all');
@@ -60,7 +60,8 @@ const RelatoriosPage: React.FC = () => {
   }
 
   const reportTypes = [
-    { value: 'financial', label: 'Relatório Financeiro', icon: DollarSign },
+    { value: 'financial_owner', label: 'Relatório Financeiro (Proprietário)', icon: DollarSign },
+    { value: 'financial_expenses', label: 'Relatório Financeiro (ComDespesas)', icon: DollarSign },
     { value: 'occupancy', label: 'Relatório de Ocupação', icon: Calendar },
     { value: 'property', label: 'Performance por Propriedade', icon: TrendingUp },
     { value: 'platform', label: 'Relatório de Plataformas', icon: PieChart },
@@ -173,7 +174,7 @@ const RelatoriosPage: React.FC = () => {
             {/* Tipo de Relatório */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Tipo de Relatório</label>
-              <Select value={reportType} onValueChange={setReportType}>
+              <Select value={reportType} onValueChange={(value) => setReportType(value as any)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o tipo" />
                 </SelectTrigger>

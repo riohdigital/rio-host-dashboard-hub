@@ -35,6 +35,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
   const [permissions, setPermissions] = useState<UserPermission[]>([]);
   const [propertyAccess, setPropertyAccess] = useState<UserPropertyAccess[]>([]);
   const [loading, setLoading] = useState(false);
+  const [cleanerPix, setCleanerPix] = useState('');
   const { toast } = useToast();
 
   const [allProperties, setAllProperties] = useState<Property[]>([]);
@@ -74,6 +75,17 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
       const { data, error } = await (supabase as any).from('cleaner_properties').select('property_id').eq('user_id', userId);
       if (error) throw error;
       setCleanerLinkedProperties((data || []).map((link: any) => link.property_id));
+      
+      // Buscar PIX da faxineira
+      const { data: cleanerProfile } = await supabase
+        .from('cleaner_profiles')
+        .select('pix')
+        .eq('user_id', userId)
+        .single();
+      
+      if (cleanerProfile) {
+        setCleanerPix(cleanerProfile.pix || '');
+      }
     } catch (error) {
       console.error('Erro ao buscar propriedades da faxineira:', error);
     }
@@ -137,6 +149,12 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
       
       // 3. Lógica condicional para salvar os acessos
       if (role === 'faxineira') {
+        // Atualizar PIX no cleaner_profiles
+        await supabase
+          .from('cleaner_profiles')
+          .update({ pix: cleanerPix })
+          .eq('user_id', user.user_id);
+        
         await (supabase as any).from('cleaner_properties').delete().eq('user_id', user.user_id);
         if (cleanerLinkedProperties.length > 0) {
           const linksToInsert = cleanerLinkedProperties.map(propId => ({
@@ -197,6 +215,18 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
                 <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Digite o nome completo" />
               </div>
             </div>
+            
+            {role === 'faxineira' && (
+              <div className="space-y-2">
+                <Label htmlFor="pix">PIX</Label>
+                <Input
+                  id="pix"
+                  value={cleanerPix}
+                  onChange={(e) => setCleanerPix(e.target.value)}
+                  placeholder="Chave PIX da faxineira"
+                />
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="role">Role</Label>
