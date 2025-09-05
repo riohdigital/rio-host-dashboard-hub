@@ -7,7 +7,8 @@ export interface ReportFilters {
   platform?: string;
   startDate: string;
   endDate: string;
-  selectedProperties?: string[]; // Adicionar propriedades selecionadas do filtro global
+  selectedProperties?: string[];
+  selectedPlatform?: string; // Add global platform filter
 }
 
 export interface ReportData {
@@ -106,6 +107,11 @@ const generateFinancialReport = async (filters: ReportFilters) => {
     // Apply global property filter for reservations
     if (filters.selectedProperties && filters.selectedProperties.length > 0 && !filters.selectedProperties.includes('todas')) {
       reservationsQuery = reservationsQuery.in('property_id', filters.selectedProperties);
+    }
+
+    // Apply global platform filter for reservations
+    if (filters.selectedPlatform && filters.selectedPlatform !== 'all') {
+      reservationsQuery = reservationsQuery.eq('platform', filters.selectedPlatform);
     }
 
     const { data: reservations, error: reservationsError } = await reservationsQuery;
@@ -266,6 +272,10 @@ const generateOccupancyReport = async (filters: ReportFilters) => {
     query = query.in('property_id', filters.selectedProperties);
   }
 
+  if (filters.selectedPlatform && filters.selectedPlatform !== 'all') {
+    query = query.eq('platform', filters.selectedPlatform);
+  }
+
   const { data: reservations, error } = await query;
   if (error) throw error;
 
@@ -316,6 +326,10 @@ const generatePropertyReport = async (filters: ReportFilters) => {
 
   if (filters.selectedProperties && filters.selectedProperties.length > 0 && !filters.selectedProperties.includes('todas')) {
     query = query.in('property_id', filters.selectedProperties);
+  }
+
+  if (filters.selectedPlatform && filters.selectedPlatform !== 'all') {
+    query = query.eq('platform', filters.selectedPlatform);
   }
 
   const { data: reservations, error } = await query;
@@ -389,6 +403,9 @@ const generatePlatformReport = async (filters: ReportFilters) => {
   if (filters.platform && filters.platform !== 'all') {
     query = query.eq('platform', filters.platform);
   }
+  if (filters.selectedPlatform && filters.selectedPlatform !== 'all') {
+    query = query.eq('platform', filters.selectedPlatform);
+  }
 
   const { data: reservations, error } = await query;
   if (error) throw error;
@@ -431,6 +448,9 @@ const generateExpensesReport = async (filters: ReportFilters) => {
   }
   if (filters.selectedProperties && filters.selectedProperties.length > 0 && !filters.selectedProperties.includes('todas')) {
     revenueQuery = revenueQuery.in('property_id', filters.selectedProperties);
+  }
+  if (filters.selectedPlatform && filters.selectedPlatform !== 'all') {
+    revenueQuery = revenueQuery.eq('platform', filters.selectedPlatform);
   }
 
   // Buscar despesas
@@ -487,6 +507,9 @@ const generateCheckinsReport = async (filters: ReportFilters) => {
   }
   if (filters.selectedProperties && filters.selectedProperties.length > 0 && !filters.selectedProperties.includes('todas')) {
     query = query.in('property_id', filters.selectedProperties);
+  }
+  if (filters.selectedPlatform && filters.selectedPlatform !== 'all') {
+    query = query.eq('platform', filters.selectedPlatform);
   }
 
   const { data: reservations, error } = await query;

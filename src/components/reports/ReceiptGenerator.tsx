@@ -52,7 +52,7 @@ const ReceiptGenerator = () => {
   const [receiptType, setReceiptType] = useState<ReceiptType>('reservation');
   const [previewReservation, setPreviewReservation] = useState<Reservation | null>(null);
   const { toast } = useToast();
-  const { selectedProperties, selectedPeriod } = useGlobalFilters();
+  const { selectedProperties, selectedPeriod, selectedPlatform } = useGlobalFilters();
   const { startDateString, endDateString } = useDateRange(selectedPeriod);
 
   // Implementação com duas consultas separadas para evitar problemas de join
@@ -85,6 +85,11 @@ const ReceiptGenerator = () => {
           query = query
             .lte('check_in_date', endDateString)
             .gte('check_out_date', startDateString);
+        }
+
+        // Apply platform filter
+        if (selectedPlatform && selectedPlatform !== 'all') {
+          query = query.eq('platform', selectedPlatform);
         }
   
         const { data: reservationsData, error: reservationsError } = await query
@@ -139,7 +144,7 @@ const ReceiptGenerator = () => {
     };
 
     fetchReservations();
-  }, [selectedProperties, selectedPeriod, startDateString, endDateString, toast]);
+  }, [selectedProperties, selectedPeriod, selectedPlatform, startDateString, endDateString, toast]);
 
   // =================================================================================
   // ===== INÍCIO DA ALTERAÇÃO 1: NOVA FUNÇÃO generatePDF =============================
@@ -230,9 +235,14 @@ const ReceiptGenerator = () => {
   // NOVO SISTEMA DE RECIBO CONSOLIDADO
   const generateBatchPDF = async () => {
     try {
-      const filteredReservations = receiptType === 'payment' 
+      let filteredReservations = receiptType === 'payment' 
         ? reservations.filter(r => r.payment_status === 'Pago')
         : reservations;
+
+      // Apply platform filter to batch generation
+      if (selectedPlatform && selectedPlatform !== 'all') {
+        filteredReservations = filteredReservations.filter(r => r.platform === selectedPlatform);
+      }
       
       if (filteredReservations.length === 0) {
         toast({

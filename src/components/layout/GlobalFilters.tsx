@@ -10,7 +10,7 @@ import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import PropertyMultiSelect from '@/components/dashboard/PropertyMultiSelect';
 
 const GlobalFilters = () => {
-  const { selectedProperties, selectedPeriod, setSelectedProperties, setSelectedPeriod } = useGlobalFilters();
+  const { selectedProperties, selectedPeriod, selectedPlatform, setSelectedProperties, setSelectedPeriod, setSelectedPlatform } = useGlobalFilters();
   const [properties, setProperties] = useState<Property[]>([]);
   const [propertySelectOpen, setPropertySelectOpen] = useState(false);
   const [propertiesLoading, setPropertiesLoading] = useState(true);
@@ -129,6 +129,20 @@ const GlobalFilters = () => {
           onToggle={() => setPropertySelectOpen(!propertySelectOpen)}
           compact={true}
         />
+
+        <Select value={selectedPlatform} onValueChange={setSelectedPlatform}>
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue placeholder="Plataforma" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas as Plataformas</SelectItem>
+            <SelectItem value="Airbnb">Airbnb</SelectItem>
+            <SelectItem value="Booking.com">Booking.com</SelectItem>
+            <SelectItem value="Direto">Direto</SelectItem>
+            <SelectItem value="VRBO">VRBO</SelectItem>
+            <SelectItem value="Hospedagem.com">Hospedagem.com</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
     </div>
   );

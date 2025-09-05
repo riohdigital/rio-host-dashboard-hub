@@ -18,7 +18,7 @@ import CleanerPaymentsReport from '@/components/reports/CleanerPaymentsReport';
 import MainLayout from '@/components/layout/MainLayout';
 
 const RelatoriosPage: React.FC = () => {
-  const { selectedPeriod, selectedProperties } = useGlobalFilters();
+  const { selectedPeriod, selectedProperties, selectedPlatform } = useGlobalFilters();
   const { startDateString, endDateString } = useDateRange(selectedPeriod);
   const { permissions, isMaster } = useUserPermissions();
   const { toast } = useToast();
@@ -30,15 +30,15 @@ const RelatoriosPage: React.FC = () => {
   const [customStartDate, setCustomStartDate] = useState<Date | undefined>();
   const [customEndDate, setCustomEndDate] = useState<Date | undefined>();
   const [selectedProperty, setSelectedProperty] = useState<string>('all');
-  const [selectedPlatform, setSelectedPlatform] = useState<string>('all');
+  const [localPlatform, setLocalPlatform] = useState<string>('all');
   const [currentReport, setCurrentReport] = useState<ReportData | null>(null);
 
-  // Atualizar automaticamente a prévia quando período ou propriedades globais mudarem
+  // Atualizar automaticamente a prévia quando período, propriedades ou plataforma globais mudarem
   useEffect(() => {
     if (currentReport) {
       handleGenerateReport();
     }
-  }, [selectedPeriod, startDateString, endDateString, selectedProperties]);
+  }, [selectedPeriod, startDateString, endDateString, selectedProperties, selectedPlatform]);
 
   // Verificar permissões
   const canViewReports = isMaster() || 
@@ -73,10 +73,11 @@ const RelatoriosPage: React.FC = () => {
       const filters = {
         reportType,
         propertyId: selectedProperty,
-        platform: selectedPlatform,
+        platform: localPlatform,
         startDate: customStartDate ? customStartDate.toISOString().split('T')[0] : startDateString,
         endDate: customEndDate ? customEndDate.toISOString().split('T')[0] : endDateString,
-        selectedProperties // Passar as propriedades selecionadas no filtro global
+        selectedProperties, // Passar as propriedades selecionadas no filtro global
+        selectedPlatform // Passar a plataforma selecionada no filtro global
       };
 
       const report = await generateReport(filters);
@@ -195,7 +196,7 @@ const RelatoriosPage: React.FC = () => {
             {/* Plataforma */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Plataforma</label>
-              <Select value={selectedPlatform} onValueChange={setSelectedPlatform}>
+              <Select value={localPlatform} onValueChange={setLocalPlatform}>
                 <SelectTrigger>
                   <SelectValue placeholder="Todas as plataformas" />
                 </SelectTrigger>

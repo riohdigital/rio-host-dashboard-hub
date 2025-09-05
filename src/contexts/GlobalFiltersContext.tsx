@@ -4,8 +4,10 @@ import React, { createContext, useContext, useState, useCallback, useMemo, useRe
 interface GlobalFiltersContextType {
   selectedProperties: string[];
   selectedPeriod: string;
+  selectedPlatform: string;
   setSelectedProperties: (properties: string[]) => void;
   setSelectedPeriod: (period: string) => void;
+  setSelectedPlatform: (platform: string) => void;
 }
 
 const GlobalFiltersContext = createContext<GlobalFiltersContextType | undefined>(undefined);
@@ -13,7 +15,8 @@ const GlobalFiltersContext = createContext<GlobalFiltersContextType | undefined>
 export const GlobalFiltersProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [selectedProperties, setSelectedPropertiesState] = useState<string[]>(['todas']);
   const [selectedPeriod, setSelectedPeriodState] = useState('current_year');
-  const stableSettersRef = useRef({ setSelectedProperties: null as any, setSelectedPeriod: null as any });
+  const [selectedPlatform, setSelectedPlatformState] = useState('all');
+  const stableSettersRef = useRef({ setSelectedProperties: null as any, setSelectedPeriod: null as any, setSelectedPlatform: null as any });
 
   const setSelectedProperties = useCallback((properties: string[]) => {
     // Evitar atualizações desnecessárias
@@ -29,16 +32,23 @@ export const GlobalFiltersProvider: React.FC<{ children: React.ReactNode }> = ({
     setSelectedPeriodState(prev => prev === period ? prev : period);
   }, []);
 
+  const setSelectedPlatform = useCallback((platform: string) => {
+    setSelectedPlatformState(prev => prev === platform ? prev : platform);
+  }, []);
+
   // Manter referências estáveis dos setters
   stableSettersRef.current.setSelectedProperties = setSelectedProperties;
   stableSettersRef.current.setSelectedPeriod = setSelectedPeriod;
+  stableSettersRef.current.setSelectedPlatform = setSelectedPlatform;
 
   const value = useMemo(() => ({
     selectedProperties,
     selectedPeriod,
+    selectedPlatform,
     setSelectedProperties: stableSettersRef.current.setSelectedProperties,
     setSelectedPeriod: stableSettersRef.current.setSelectedPeriod,
-  }), [selectedProperties, selectedPeriod]);
+    setSelectedPlatform: stableSettersRef.current.setSelectedPlatform,
+  }), [selectedProperties, selectedPeriod, selectedPlatform]);
 
   return (
     <GlobalFiltersContext.Provider value={value}>

@@ -24,7 +24,7 @@ interface CleanerRow {
 }
 
 const CleanerPaymentsReport: React.FC = () => {
-  const { selectedProperties, selectedPeriod } = useGlobalFilters();
+  const { selectedProperties, selectedPeriod, selectedPlatform } = useGlobalFilters();
   const { startDateString, endDateString } = useDateRange(selectedPeriod);
   const { toast } = useToast();
   const { exportToExcel } = usePDFExport();
@@ -35,59 +35,44 @@ const CleanerPaymentsReport: React.FC = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        let query = supabase
-          .from('reservations')
-          .select(`id, reservation_code, cleaner_user_id, cleaning_payment_status, cleaning_fee, check_in_date, check_out_date, properties(name)`);
-
+        
+        // Build property IDs array for the function call
+        let propertyIds: string[] | null = null;
         if (selectedProperties.length > 0 && !selectedProperties.includes('todas')) {
-          query = query.in('property_id', selectedProperties);
+          propertyIds = selectedProperties;
         }
+
+        // Prepare date range
+        let startDate = '1900-01-01';
+        let endDate = '2099-12-31';
         if (selectedPeriod !== 'general') {
-          query = query
-            .gte('check_out_date', startDateString)
-            .lte('check_out_date', endDateString);
+          startDate = startDateString;
+          endDate = endDateString;
         }
 
-        const { data, error } = await query.order('check_in_date', { ascending: false }).limit(100);
-        if (error) throw error;
+        // Use the database function that properly joins with cleaner profiles
+        const { data: allReservations, error: functionError } = await supabase
+          .rpc('fn_get_all_cleaner_reservations', {
+            start_date: startDate,
+            end_date: endDate,
+            property_ids: propertyIds
+          });
 
-        // Collect all cleaner IDs that are not null
-        const cleanerIds = Array.from(new Set((data || []).map((r: any) => r.cleaner_user_id).filter(Boolean)));
-        
-        // Debug log to see what cleaner IDs we found
-        console.log('Found cleaner IDs:', cleanerIds);
-        
-        let profilesMap: Record<string, string> = {};
-        if (cleanerIds.length > 0) {
-          const { data: profiles, error: profErr } = await supabase
-            .from('user_profiles')
-            .select('user_id, full_name, email')
-            .in('user_id', cleanerIds);
-          
-          if (profErr) {
-            console.error('Error fetching profiles:', profErr);
-            throw profErr;
-          }
-          
-          // Debug log to see what profiles we got back
-          console.log('Fetched profiles:', profiles);
-          
-          profilesMap = (profiles || []).reduce((acc: any, p: any) => {
-            acc[p.user_id] = p.full_name || p.email || '—';
-            return acc;
-          }, {});
-          
-          // Debug log to see the final profiles map
-          console.log('Profiles map:', profilesMap);
+        if (functionError) {
+          console.error('Function error:', functionError);
+          throw functionError;
         }
 
-        const mapped: CleanerRow[] = (data || []).map((r: any) => {
-          const cleanerName = r.cleaner_user_id 
-            ? (profilesMap[r.cleaner_user_id] || `ID: ${r.cleaner_user_id}`)
-            : 'Não atribuído';
-            
-          // Debug log for each reservation
-          console.log(`Reservation ${r.reservation_code}: cleaner_user_id=${r.cleaner_user_id}, cleaner_name=${cleanerName}`);
+        // Filter by platform if needed
+        let filteredReservations = allReservations || [];
+        if (selectedPlatform && selectedPlatform !== 'all') {
+          filteredReservations = filteredReservations.filter((r: any) => r.platform === selectedPlatform);
+        }
+
+        const mapped: CleanerRow[] = filteredReservations.map((r: any) => {
+          const cleanerName = r.cleaner_info?.full_name || 
+                             r.cleaner_info?.email || 
+                             'Não atribuído';
           
           return {
             id: r.id,
@@ -112,7 +97,7 @@ const CleanerPaymentsReport: React.FC = () => {
     };
 
     fetchData();
-  }, [selectedProperties, selectedPeriod, startDateString, endDateString, toast]);
+  }, [selectedProperties, selectedPeriod, selectedPlatform, startDateString, endDateString, toast]);
 
   const grouped = useMemo(() => {
     const byCleaner: Record<string, { cleaner_name: string; items: CleanerRow[]; total: number; pendente: number }> = {};
