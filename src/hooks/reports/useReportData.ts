@@ -374,12 +374,20 @@ const generateFinancialOwnerReport = async (filters: ReportFilters) => {
       };
     });
 
+    // Determine if we should use multi-property line chart
+    const hasMultipleProperties = filteredProperties.length > 1;
+    const monthlyRevenueData = hasMultipleProperties 
+      ? calculateMonthlyRevenueByProperty(reservations || [], 'net_revenue')
+      : { data: calculateMonthlyRevenue(reservations || [], 'net_revenue'), properties: [] };
+
     return {
       totalRevenue, // Now using net_revenue
       totalExpenses: 0, // No expenses in owner report
       netProfit: totalRevenue, // For owner, net profit = net revenue
       profitMargin: 100, // 100% since no expenses
-      monthlyRevenue: calculateMonthlyRevenue(reservations || [], 'net_revenue'),
+      monthlyRevenue: monthlyRevenueData.data,
+      monthlyRevenueProperties: monthlyRevenueData.properties,
+      hasMultipleProperties,
       platformRevenue: calculatePlatformDistribution(reservations || [], 'net_revenue'),
       expensesByCategory: [], // No expenses in owner report
       properties: propertiesData,
@@ -677,13 +685,42 @@ const calculateMonthlyRevenue = (reservations: any[], revenueField: string = 'to
     if (!monthlyData[month]) {
       monthlyData[month] = 0;
     }
-    monthlyData[month] += Number(r.net_revenue) || 0;
+    monthlyData[month] += Number(r[revenueField]) || 0;
   });
 
   return Object.entries(monthlyData).map(([month, revenue]) => ({
     month,
     revenue
   }));
+};
+
+const calculateMonthlyRevenueByProperty = (reservations: any[], revenueField: string = 'total_revenue') => {
+  const propertiesData: any = {};
+  const monthlyData: any = {};
+  
+  reservations.forEach(r => {
+    const month = new Date(r.check_in_date).toISOString().slice(0, 7);
+    const propertyName = r.properties?.name || r.property_name || `Propriedade ${r.property_id?.slice(-4)}`;
+    
+    if (!propertiesData[propertyName]) {
+      propertiesData[propertyName] = true;
+    }
+    
+    if (!monthlyData[month]) {
+      monthlyData[month] = { month };
+    }
+    
+    if (!monthlyData[month][propertyName]) {
+      monthlyData[month][propertyName] = 0;
+    }
+    
+    monthlyData[month][propertyName] += Number(r[revenueField]) || 0;
+  });
+
+  const result = Object.values(monthlyData);
+  const properties = Object.keys(propertiesData);
+  
+  return { data: result, properties };
 };
 
 const calculateExpensesByCategory = (expenses: any[]) => {
@@ -765,7 +802,7 @@ const calculatePlatformDistribution = (reservations: any[], revenueField: string
     if (!platformData[platform]) {
       platformData[platform] = { revenue: 0, count: 0 };
     }
-    platformData[platform].revenue += Number(r.total_revenue) || 0;
+    platformData[platform].revenue += Number(r[revenueField]) || 0;
     platformData[platform].count += 1;
   });
 

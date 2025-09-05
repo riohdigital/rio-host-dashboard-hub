@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -131,33 +131,70 @@ export const EnhancedReportTemplate = ({ report }: EnhancedReportTemplateProps) 
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={report.data.monthlyRevenue}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis 
-                dataKey="month" 
-                className="text-xs"
-                tick={{ fontSize: 12 }}
-              />
-              <YAxis 
-                className="text-xs"
-                tick={{ fontSize: 12 }}
-                tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
-              />
-              <Tooltip 
-                formatter={(value) => [formatCurrency(Number(value)), 'Receita']}
-                labelFormatter={(label) => `Período: ${label}`}
-                contentStyle={{ 
-                  backgroundColor: 'hsl(var(--background))', 
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '6px'
-                }}
-              />
-              <Bar 
-                dataKey="revenue" 
-                fill="hsl(var(--primary))" 
-                radius={[4, 4, 0, 0]}
-              />
-            </BarChart>
+            {report.data.hasMultipleProperties ? (
+              <LineChart data={report.data.monthlyRevenue}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis 
+                  dataKey="month" 
+                  className="text-xs"
+                  tick={{ fontSize: 12 }}
+                />
+                <YAxis 
+                  className="text-xs"
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
+                />
+                <Tooltip 
+                  formatter={(value, name) => [formatCurrency(Number(value)), name]}
+                  labelFormatter={(label) => `Período: ${label}`}
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--background))', 
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '6px'
+                  }}
+                />
+                <Legend />
+                {report.data.monthlyRevenueProperties?.map((property: string, index: number) => (
+                  <Line
+                    key={property}
+                    type="monotone"
+                    dataKey={property}
+                    stroke={COLORS[index % COLORS.length]}
+                    strokeWidth={2}
+                    dot={{ fill: COLORS[index % COLORS.length], strokeWidth: 2, r: 4 }}
+                    activeDot={{ r: 6, stroke: COLORS[index % COLORS.length], strokeWidth: 2 }}
+                  />
+                ))}
+              </LineChart>
+            ) : (
+              <BarChart data={report.data.monthlyRevenue}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis 
+                  dataKey="month" 
+                  className="text-xs"
+                  tick={{ fontSize: 12 }}
+                />
+                <YAxis 
+                  className="text-xs"
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
+                />
+                <Tooltip 
+                  formatter={(value) => [formatCurrency(Number(value)), 'Receita']}
+                  labelFormatter={(label) => `Período: ${label}`}
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--background))', 
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '6px'
+                  }}
+                />
+                <Bar 
+                  dataKey="revenue" 
+                  fill="hsl(var(--primary))" 
+                  radius={[4, 4, 0, 0]}
+                />
+              </BarChart>
+            )}
           </ResponsiveContainer>
         </CardContent>
       </Card>
