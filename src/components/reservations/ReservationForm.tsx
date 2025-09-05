@@ -26,6 +26,7 @@ const reservationSchema = z.object({
     platform: z.string().min(1, 'Plataforma é obrigatória'),
     reservation_code: z.string().min(1, 'Código da reserva é obrigatório'),
     guest_name: z.string().optional(),
+    guest_email: z.string().email('E-mail inválido').optional().or(z.literal('')),
     guest_phone: z.string().optional(),
     number_of_guests: z.number().min(1).optional(),
     check_in_date: z.string().min(1, 'Data de check-in é obrigatória'),
@@ -360,6 +361,11 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                 <div>
                     <Label htmlFor="guest_name">Nome do Hóspede</Label>
                     <Input id="guest_name" {...register('guest_name')} placeholder="Nome do hóspede" />
+                </div>
+                <div>
+                    <Label htmlFor="guest_email">E-mail do Hóspede</Label>
+                    <Input id="guest_email" type="email" {...register('guest_email')} placeholder="email@exemplo.com" />
+                    {errors.guest_email && <span className="text-red-500 text-sm">{errors.guest_email.message}</span>}
                 </div>
                 <div>
                     <Label htmlFor="guest_phone">Telefone do Hóspede</Label>

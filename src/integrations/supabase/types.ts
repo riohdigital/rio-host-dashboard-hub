@@ -119,6 +119,83 @@ export type Database = {
         }
         Relationships: []
       }
+      email_templates: {
+        Row: {
+          body_html: string
+          body_text: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          subject: string
+          template_name: string
+          template_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          body_html: string
+          body_text?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          subject: string
+          template_name: string
+          template_type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          body_html?: string
+          body_text?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          subject?: string
+          template_name?: string
+          template_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      email_triggers: {
+        Row: {
+          created_at: string
+          custom_datetime: string | null
+          id: string
+          is_active: boolean
+          template_id: string
+          trigger_offset_minutes: number | null
+          trigger_type: string
+        }
+        Insert: {
+          created_at?: string
+          custom_datetime?: string | null
+          id?: string
+          is_active?: boolean
+          template_id: string
+          trigger_offset_minutes?: number | null
+          trigger_type: string
+        }
+        Update: {
+          created_at?: string
+          custom_datetime?: string | null
+          id?: string
+          is_active?: boolean
+          template_id?: string
+          trigger_offset_minutes?: number | null
+          trigger_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_triggers_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "email_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expense_categories: {
         Row: {
           created_at: string
@@ -385,6 +462,7 @@ export type Database = {
           cleaning_status: string | null
           commission_amount: number | null
           created_at: string | null
+          guest_email: string | null
           guest_name: string | null
           guest_phone: string | null
           id: string
@@ -415,6 +493,7 @@ export type Database = {
           cleaning_status?: string | null
           commission_amount?: number | null
           created_at?: string | null
+          guest_email?: string | null
           guest_name?: string | null
           guest_phone?: string | null
           id?: string
@@ -445,6 +524,7 @@ export type Database = {
           cleaning_status?: string | null
           commission_amount?: number | null
           created_at?: string | null
+          guest_email?: string | null
           guest_name?: string | null
           guest_phone?: string | null
           id?: string
@@ -505,6 +585,57 @@ export type Database = {
             columns: ["reservation_id"]
             isOneToOne: false
             referencedRelation: "reservations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sent_emails: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          recipient_email: string
+          recipient_type: string
+          reservation_id: string | null
+          sent_at: string
+          status: string
+          template_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          recipient_email: string
+          recipient_type: string
+          reservation_id?: string | null
+          sent_at?: string
+          status?: string
+          template_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          recipient_email?: string
+          recipient_type?: string
+          reservation_id?: string | null
+          sent_at?: string
+          status?: string
+          template_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sent_emails_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sent_emails_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "email_templates"
             referencedColumns: ["id"]
           },
         ]
