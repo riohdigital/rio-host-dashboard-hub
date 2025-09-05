@@ -160,9 +160,10 @@ export const EnhancedReportTemplate = ({ report }: EnhancedReportTemplateProps) 
                     type="monotone"
                     dataKey={property}
                     stroke={COLORS[index % COLORS.length]}
-                    strokeWidth={2}
-                    dot={{ fill: COLORS[index % COLORS.length], strokeWidth: 2, r: 4 }}
-                    activeDot={{ r: 6, stroke: COLORS[index % COLORS.length], strokeWidth: 2 }}
+                    strokeWidth={3}
+                    connectNulls={true}
+                    dot={{ fill: COLORS[index % COLORS.length], strokeWidth: 1, r: 2 }}
+                    activeDot={{ r: 5, stroke: COLORS[index % COLORS.length], strokeWidth: 2, fill: 'hsl(var(--background))' }}
                   />
                 ))}
               </LineChart>

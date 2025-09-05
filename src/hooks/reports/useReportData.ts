@@ -377,7 +377,7 @@ const generateFinancialOwnerReport = async (filters: ReportFilters) => {
     // Determine if we should use multi-property line chart
     const hasMultipleProperties = filteredProperties.length > 1;
     const monthlyRevenueData = hasMultipleProperties 
-      ? calculateMonthlyRevenueByProperty(reservations || [], 'net_revenue')
+      ? calculateMonthlyRevenueByProperty(reservations || [], 'net_revenue', filters.startDate, filters.endDate)
       : { data: calculateMonthlyRevenue(reservations || [], 'net_revenue'), properties: [] };
 
     return {
@@ -694,10 +694,11 @@ const calculateMonthlyRevenue = (reservations: any[], revenueField: string = 'to
   }));
 };
 
-const calculateMonthlyRevenueByProperty = (reservations: any[], revenueField: string = 'total_revenue') => {
+const calculateMonthlyRevenueByProperty = (reservations: any[], revenueField: string = 'total_revenue', startDate?: string, endDate?: string) => {
   const propertiesData: any = {};
   const monthlyData: any = {};
   
+  // Primeiro, coleta todas as propriedades e meses com reservas
   reservations.forEach(r => {
     const month = new Date(r.check_in_date).toISOString().slice(0, 7);
     const propertyName = r.properties?.name || r.property_name || `Propriedade ${r.property_id?.slice(-4)}`;
@@ -717,7 +718,31 @@ const calculateMonthlyRevenueByProperty = (reservations: any[], revenueField: st
     monthlyData[month][propertyName] += Number(r[revenueField]) || 0;
   });
 
-  const result = Object.values(monthlyData);
+  // Se há startDate e endDate, preenche todos os meses do período
+  if (startDate && endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const properties = Object.keys(propertiesData);
+    
+    for (let d = new Date(start.getFullYear(), start.getMonth(), 1); d <= end; d.setMonth(d.getMonth() + 1)) {
+      const monthKey = d.toISOString().slice(0, 7);
+      
+      if (!monthlyData[monthKey]) {
+        monthlyData[monthKey] = { month: monthKey };
+      }
+      
+      // Garante que todas as propriedades têm valor (mesmo que 0) em todos os meses
+      properties.forEach(property => {
+        if (!monthlyData[monthKey][property]) {
+          monthlyData[monthKey][property] = 0;
+        }
+      });
+    }
+  }
+
+  const result = Object.keys(monthlyData)
+    .sort()
+    .map(month => monthlyData[month]);
   const properties = Object.keys(propertiesData);
   
   return { data: result, properties };
