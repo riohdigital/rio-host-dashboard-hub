@@ -26,10 +26,10 @@ import UpcomingReservations from './UpcomingReservations';
 import RecentReservations from './RecentReservations';
 
 const Dashboard = () => {
-  const { selectedProperties, selectedPeriod } = useGlobalFilters();
+  const { selectedProperties, selectedPeriod, customStartDate, customEndDate } = useGlobalFilters();
   const { hasPermission } = useUserPermissions();
 
-  const { startDateString, endDateString, totalDays, periodType } = useDateRange(selectedPeriod);
+  const { startDateString, endDateString, totalDays, periodType } = useDateRange(selectedPeriod, customStartDate, customEndDate);
 
   // Usando os hooks para buscar dados
   const { data: financialData, loading: financialLoading, fetchFinancialData } = useFinancialData(startDateString, endDateString, selectedProperties, totalDays);

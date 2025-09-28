@@ -9,7 +9,7 @@ import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
 
 const DespesasPage = () => {
   const { hasPermission, loading } = useUserPermissions();
-  const { selectedProperties, selectedPeriod } = useGlobalFilters();
+  const { selectedProperties, selectedPeriod, customStartDate, customEndDate } = useGlobalFilters();
 
   if (loading) {
     return (

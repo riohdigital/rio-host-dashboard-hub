@@ -18,8 +18,8 @@ import CleanerPaymentsReport from '@/components/reports/CleanerPaymentsReport';
 import MainLayout from '@/components/layout/MainLayout';
 
 const RelatoriosPage: React.FC = () => {
-  const { selectedPeriod, selectedProperties, selectedPlatform } = useGlobalFilters();
-  const { startDateString, endDateString } = useDateRange(selectedPeriod);
+  const { selectedPeriod, selectedProperties, selectedPlatform, customStartDate: globalCustomStartDate, customEndDate: globalCustomEndDate } = useGlobalFilters();
+  const { startDateString, endDateString } = useDateRange(selectedPeriod, globalCustomStartDate, globalCustomEndDate);
   const { permissions, isMaster } = useUserPermissions();
   const { toast } = useToast();
   const { properties, loading: propertiesLoading } = useProperties();

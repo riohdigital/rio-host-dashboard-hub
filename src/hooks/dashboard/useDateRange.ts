@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-export const useDateRange = (selectedPeriod: string) => {
+export const useDateRange = (selectedPeriod: string, customStartDate?: Date, customEndDate?: Date) => {
   return useMemo(() => {
     const now = new Date();
     now.setHours(0, 0, 0, 0);
@@ -68,6 +68,18 @@ export const useDateRange = (selectedPeriod: string) => {
         endDate = new Date(2099, 11, 31);
         periodType = 'current';
         break;
+      case 'custom':
+        if (customStartDate && customEndDate) {
+          startDate = new Date(customStartDate);
+          endDate = new Date(customEndDate);
+          periodType = 'current';
+        } else {
+          // Fallback para ano atual se datas não definidas
+          startDate = new Date(now.getFullYear(), 0, 1);
+          endDate = new Date(now.getFullYear(), 11, 31);
+          periodType = 'current';
+        }
+        break;
       default:
         startDate = new Date(now.getFullYear(), 0, 1);
         endDate = new Date(now.getFullYear(), 11, 31);
@@ -80,5 +92,5 @@ export const useDateRange = (selectedPeriod: string) => {
     const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     
     return { startDate, endDate, startDateString, endDateString, periodType, totalDays };
-  }, [selectedPeriod]);
+  }, [selectedPeriod, customStartDate, customEndDate]);
 };
