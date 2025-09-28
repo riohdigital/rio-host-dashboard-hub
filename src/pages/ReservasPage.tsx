@@ -79,10 +79,10 @@ const ReservasPage = () => {
     const [editingReservation, setEditingReservation] = useState<Reservation | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedStatus, setSelectedStatus] = useState('all');
-    const [selectedPlatform, setSelectedPlatform] = useState('all');
+    const [selectedPaymentStatus, setSelectedPaymentStatus] = useState('all');
     const { toast } = useToast();
     const { hasPermission, getAccessibleProperties, loading: permissionsLoading } = useUserPermissions();
-    const { selectedProperties, selectedPeriod, customStartDate, customEndDate } = useGlobalFilters();
+    const { selectedProperties, selectedPeriod, selectedPlatform, customStartDate, customEndDate } = useGlobalFilters();
     const { startDateString, endDateString } = useDateRange(selectedPeriod, customStartDate, customEndDate);
     const queryClient = useQueryClient();
 
@@ -91,8 +91,8 @@ const ReservasPage = () => {
     console.log("Estado 'showForm':", showForm);
     console.log("Reserva em edição:", editingReservation ? editingReservation.id : null);
 
-    const queryKey = useMemo(() => ['reservations', selectedPeriod, startDateString, endDateString, selectedProperties], 
-        [selectedPeriod, startDateString, endDateString, selectedProperties]);
+    const queryKey = useMemo(() => ['reservations', selectedPeriod, startDateString, endDateString, selectedProperties, selectedPlatform, selectedPaymentStatus], 
+        [selectedPeriod, startDateString, endDateString, selectedProperties, selectedPlatform, selectedPaymentStatus]);
 
     const { data, isLoading: dataLoading } = useQuery({
         queryKey: queryKey,
@@ -162,10 +162,11 @@ const ReservasPage = () => {
                 (reservation.property_id && selectedProperties.includes(reservation.property_id));
             const matchesStatus = selectedStatus === 'all' || reservation.reservation_status === selectedStatus;
             const matchesPlatform = selectedPlatform === 'all' || reservation.platform === selectedPlatform;
+            const matchesPaymentStatus = selectedPaymentStatus === 'all' || reservation.payment_status === selectedPaymentStatus;
             
-            return matchesSearch && matchesProperty && matchesStatus && matchesPlatform;
+            return matchesSearch && matchesProperty && matchesStatus && matchesPlatform && matchesPaymentStatus;
         });
-    }, [reservations, searchTerm, selectedProperties, selectedStatus, selectedPlatform, properties]);
+    }, [reservations, searchTerm, selectedProperties, selectedStatus, selectedPlatform, selectedPaymentStatus, properties]);
 
     const totals = useMemo(() => filteredReservations.reduce((acc, reservation) => {
         acc.count += 1;
@@ -240,7 +241,7 @@ const ReservasPage = () => {
                                 />
                             </div>
                             <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                                <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Todos os status" /></SelectTrigger>
+                                <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Status da reserva" /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">Todos os status</SelectItem>
                                     <SelectItem value="Confirmada">Confirmada</SelectItem>
@@ -249,13 +250,12 @@ const ReservasPage = () => {
                                     <SelectItem value="Cancelada">Cancelada</SelectItem>
                                 </SelectContent>
                             </Select>
-                            <Select value={selectedPlatform} onValueChange={setSelectedPlatform}>
-                                <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Todas as plataformas" /></SelectTrigger>
+                            <Select value={selectedPaymentStatus} onValueChange={setSelectedPaymentStatus}>
+                                <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Status do pagamento" /></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="all">Todas as plataformas</SelectItem>
-                                    <SelectItem value="Airbnb">Airbnb</SelectItem>
-                                    <SelectItem value="Booking.com">Booking.com</SelectItem>
-                                    <SelectItem value="Direto">Direto</SelectItem>
+                                    <SelectItem value="all">Todos os status de pagamento</SelectItem>
+                                    <SelectItem value="Pago">Pago</SelectItem>
+                                    <SelectItem value="Pendente">Pendente</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
