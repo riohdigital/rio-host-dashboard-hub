@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DatePicker } from "@/components/ui/date-picker";
+
 import { Badge } from "@/components/ui/badge";
 import { Download, FileText, DollarSign, Calendar, TrendingUp, PieChart } from "lucide-react";
 import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
@@ -27,8 +27,6 @@ const RelatoriosPage: React.FC = () => {
   const { exportToPDF, exportToExcel } = usePDFExport();
   
   const [reportType, setReportType] = useState<'financial_owner' | 'financial_expenses' | 'occupancy' | 'property' | 'platform' | 'expenses' | 'checkins'>('financial_owner');
-  const [customStartDate, setCustomStartDate] = useState<Date | undefined>();
-  const [customEndDate, setCustomEndDate] = useState<Date | undefined>();
   const [selectedProperty, setSelectedProperty] = useState<string>('all');
   const [localPlatform, setLocalPlatform] = useState<string>('all');
   const [currentReport, setCurrentReport] = useState<ReportData | null>(null);
@@ -75,8 +73,8 @@ const RelatoriosPage: React.FC = () => {
         reportType,
         propertyId: selectedProperty,
         platform: localPlatform,
-        startDate: customStartDate ? customStartDate.toISOString().split('T')[0] : startDateString,
-        endDate: customEndDate ? customEndDate.toISOString().split('T')[0] : endDateString,
+        startDate: startDateString,
+        endDate: endDateString,
         selectedProperties, // Passar as propriedades selecionadas no filtro global
         selectedPlatform // Passar a plataforma selecionada no filtro global
       };
@@ -211,26 +209,6 @@ const RelatoriosPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Período Personalizado */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Período Personalizado (Opcional)</label>
-            <div className="flex gap-4">
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">Data Início</label>
-                <DatePicker
-                  date={customStartDate}
-                  onDateChange={setCustomStartDate}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">Data Fim</label>
-                <DatePicker
-                  date={customEndDate}
-                  onDateChange={setCustomEndDate}
-                />
-              </div>
-            </div>
-          </div>
 
           {/* Período Atual */}
           <div className="flex items-center gap-2">

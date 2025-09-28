@@ -24,8 +24,8 @@ interface CleanerRow {
 }
 
 const CleanerPaymentsReport: React.FC = () => {
-  const { selectedProperties, selectedPeriod, selectedPlatform } = useGlobalFilters();
-  const { startDateString, endDateString } = useDateRange(selectedPeriod);
+  const { selectedProperties, selectedPeriod, selectedPlatform, customStartDate, customEndDate } = useGlobalFilters();
+  const { startDateString, endDateString } = useDateRange(selectedPeriod, customStartDate, customEndDate);
   const { toast } = useToast();
   const { exportToExcel } = usePDFExport();
   const [rows, setRows] = useState<CleanerRow[]>([]);
@@ -97,7 +97,7 @@ const CleanerPaymentsReport: React.FC = () => {
     };
 
     fetchData();
-  }, [selectedProperties, selectedPeriod, selectedPlatform, startDateString, endDateString, toast]);
+  }, [selectedProperties, selectedPeriod, selectedPlatform, startDateString, endDateString, customStartDate, customEndDate, toast]);
 
   const grouped = useMemo(() => {
     const byCleaner: Record<string, { cleaner_name: string; items: CleanerRow[]; total: number; pendente: number }> = {};

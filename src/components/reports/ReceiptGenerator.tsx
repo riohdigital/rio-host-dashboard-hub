@@ -52,8 +52,8 @@ const ReceiptGenerator = () => {
   const [receiptType, setReceiptType] = useState<ReceiptType>('reservation');
   const [previewReservation, setPreviewReservation] = useState<Reservation | null>(null);
   const { toast } = useToast();
-  const { selectedProperties, selectedPeriod, selectedPlatform } = useGlobalFilters();
-  const { startDateString, endDateString } = useDateRange(selectedPeriod);
+  const { selectedProperties, selectedPeriod, selectedPlatform, customStartDate, customEndDate } = useGlobalFilters();
+  const { startDateString, endDateString } = useDateRange(selectedPeriod, customStartDate, customEndDate);
 
   // Implementação com duas consultas separadas para evitar problemas de join
   useEffect(() => {
@@ -144,7 +144,7 @@ const ReceiptGenerator = () => {
     };
 
     fetchReservations();
-  }, [selectedProperties, selectedPeriod, selectedPlatform, startDateString, endDateString, toast]);
+  }, [selectedProperties, selectedPeriod, selectedPlatform, startDateString, endDateString, customStartDate, customEndDate, toast]);
 
   // =================================================================================
   // ===== INÍCIO DA ALTERAÇÃO 1: NOVA FUNÇÃO generatePDF =============================
