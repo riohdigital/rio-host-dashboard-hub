@@ -29,8 +29,8 @@ const InvestmentsPage = () => {
   const { investments, loading: investmentsLoading, createInvestment, deleteInvestment } = usePropertyInvestments();
   const { roiData, loading: roiLoading, refetch: refetchROI } = useROICalculations();
   const { hasPermission, getAccessibleProperties, loading: permissionsLoading } = useUserPermissions();
-  const { selectedProperties, selectedPeriod } = useGlobalFilters();
-  const { startDateString, endDateString } = useDateRange(selectedPeriod);
+  const { selectedProperties, selectedPeriod, customStartDate, customEndDate } = useGlobalFilters();
+  const { startDateString, endDateString } = useDateRange(selectedPeriod, customStartDate, customEndDate);
   const { isVisible, shouldRefetch } = usePageVisibility();
 
   // Carregar propriedades
@@ -188,7 +188,7 @@ useEffect(() => {
       }
     })();
   }
-}, [selectedPeriod, startDateString, endDateString, permissionsLoading, getAccessibleProperties]);
+}, [selectedPeriod, startDateString, endDateString, permissionsLoading, getAccessibleProperties, customStartDate, customEndDate]);
 
   const handleCreateInvestment = async (investmentData: any) => {
     await createInvestment(investmentData);

@@ -21,8 +21,8 @@ const MasterCleaningDashboard = () => {
   const queryClient = useQueryClient();
   
   // Integração com filtros globais
-  const { selectedProperties, selectedPeriod } = useGlobalFilters();
-  const { startDateString, endDateString } = useDateRange(selectedPeriod);
+  const { selectedProperties, selectedPeriod, customStartDate, customEndDate } = useGlobalFilters();
+  const { startDateString, endDateString } = useDateRange(selectedPeriod, customStartDate, customEndDate);
   
   const { allCleanings, availableCleanings, cleaners, isLoading, refetch } = useMasterCleaningData({
     startDate: startDateString,

@@ -82,8 +82,8 @@ const ReservasPage = () => {
     const [selectedPlatform, setSelectedPlatform] = useState('all');
     const { toast } = useToast();
     const { hasPermission, getAccessibleProperties, loading: permissionsLoading } = useUserPermissions();
-    const { selectedProperties, selectedPeriod } = useGlobalFilters();
-    const { startDateString, endDateString } = useDateRange(selectedPeriod);
+    const { selectedProperties, selectedPeriod, customStartDate, customEndDate } = useGlobalFilters();
+    const { startDateString, endDateString } = useDateRange(selectedPeriod, customStartDate, customEndDate);
     const queryClient = useQueryClient();
 
     // LOG: Verificando o estado a cada renderização
