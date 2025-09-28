@@ -49,7 +49,7 @@ const DespesasPage = () => {
           <h1 className="text-3xl font-bold text-gradient-primary">Gestão de Despesas</h1>
           <p className="text-gray-600 mt-2">Controle e monitore todas as despesas das suas propriedades</p>
         </div>
-        <ExpensesList key={`${selectedPeriod}-${[...selectedProperties].sort().join('|')}`} />
+        <ExpensesList key={`${selectedPeriod}-${[...selectedProperties].sort().join('|')}-${customStartDate?.toISOString()}-${customEndDate?.toISOString()}`} />
       </div>
     </MainLayout>
   );

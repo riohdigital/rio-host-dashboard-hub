@@ -38,7 +38,7 @@ const RelatoriosPage: React.FC = () => {
     if (currentReport) {
       handleGenerateReport();
     }
-  }, [selectedPeriod, startDateString, endDateString, selectedProperties, selectedPlatform]);
+  }, [selectedPeriod, startDateString, endDateString, selectedProperties, selectedPlatform, globalCustomStartDate, globalCustomEndDate]);
 
   // Verificar permissões
   const canViewReports = isMaster() || 
