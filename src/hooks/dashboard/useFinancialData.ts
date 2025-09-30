@@ -71,18 +71,55 @@ export const useFinancialData = (
       const expenses = expensesRes.data || [];
       const properties = propertiesRes.data || [];
 
-      // --- CORREÇÃO APLICADA AQUI ---
-      // A Receita Total agora é a soma de 'base_revenue' (sem a taxa de limpeza).
-      const totalRevenue = reservations.reduce((sum, r) => sum + (r.base_revenue || 0), 0);
-      
-      const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-      const totalNetRevenue = reservations.reduce((sum, r) => sum + (r.net_revenue || 0), 0);
-      const netProfit = totalNetRevenue - totalExpenses;
-
-      // Calcula apenas os dias que estão dentro do período analisado
+      // Calcula datas do período para cálculos proporcionais
       const periodStart = new Date(startDateString + 'T00:00:00');
       const periodEnd = new Date(endDateString + 'T00:00:00');
       
+      // Calcula receita PROPORCIONAL aos dias dentro do período
+      const totalRevenue = reservations.reduce((sum, r) => {
+        const checkIn = new Date(r.check_in_date + 'T00:00:00');
+        const checkOut = new Date(r.check_out_date + 'T00:00:00');
+        const totalDays = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (totalDays === 0) return sum;
+        
+        // Calcula sobreposição
+        const overlapStart = checkIn > periodStart ? checkIn : periodStart;
+        const overlapEnd = checkOut < periodEnd ? checkOut : periodEnd;
+        
+        if (overlapStart >= overlapEnd) return sum;
+        
+        const daysInPeriod = Math.ceil((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24));
+        const proportion = daysInPeriod / totalDays;
+        
+        return sum + ((r.base_revenue || 0) * proportion);
+      }, 0);
+      
+      const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+      
+      // Calcula receita líquida PROPORCIONAL aos dias dentro do período
+      const totalNetRevenue = reservations.reduce((sum, r) => {
+        const checkIn = new Date(r.check_in_date + 'T00:00:00');
+        const checkOut = new Date(r.check_out_date + 'T00:00:00');
+        const totalDays = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (totalDays === 0) return sum;
+        
+        // Calcula sobreposição
+        const overlapStart = checkIn > periodStart ? checkIn : periodStart;
+        const overlapEnd = checkOut < periodEnd ? checkOut : periodEnd;
+        
+        if (overlapStart >= overlapEnd) return sum;
+        
+        const daysInPeriod = Math.ceil((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24));
+        const proportion = daysInPeriod / totalDays;
+        
+        return sum + ((r.net_revenue || 0) * proportion);
+      }, 0);
+      
+      const netProfit = totalNetRevenue - totalExpenses;
+
+      // Calcula apenas os dias que estão dentro do período analisado
       const totalBookedDays = reservations.reduce((sum, r) => {
         const checkIn = new Date(r.check_in_date + 'T00:00:00');
         const checkOut = new Date(r.check_out_date + 'T00:00:00');
