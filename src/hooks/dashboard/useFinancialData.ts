@@ -36,11 +36,12 @@ export const useFinancialData = (
     setError(null);
 
     try {
+      // Busca reservas que se sobrepõem ao período (não apenas as que começam nele)
       let reservationsQuery = supabase
         .from('reservations')
         .select('*, properties(name, nickname)')
-        .gte('check_in_date', startDateString)
-        .lte('check_in_date', endDateString);
+        .gte('check_out_date', startDateString)  // check-out depois do início do período
+        .lte('check_in_date', endDateString);     // check-in antes do fim do período
 
       let expensesQuery = supabase
         .from('expenses')
@@ -78,10 +79,25 @@ export const useFinancialData = (
       const totalNetRevenue = reservations.reduce((sum, r) => sum + (r.net_revenue || 0), 0);
       const netProfit = totalNetRevenue - totalExpenses;
 
+      // Calcula apenas os dias que estão dentro do período analisado
+      const periodStart = new Date(startDateString + 'T00:00:00');
+      const periodEnd = new Date(endDateString + 'T00:00:00');
+      
       const totalBookedDays = reservations.reduce((sum, r) => {
         const checkIn = new Date(r.check_in_date + 'T00:00:00');
         const checkOut = new Date(r.check_out_date + 'T00:00:00');
-        return sum + Math.ceil(Math.abs(checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
+        
+        // Calcula a sobreposição entre a reserva e o período
+        const overlapStart = checkIn > periodStart ? checkIn : periodStart;
+        const overlapEnd = checkOut < periodEnd ? checkOut : periodEnd;
+        
+        // Se há sobreposição, conta os dias
+        if (overlapStart < overlapEnd) {
+          const daysInPeriod = Math.ceil(Math.abs(overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24));
+          return sum + daysInPeriod;
+        }
+        
+        return sum;
       }, 0);
       
       const propertiesCount = properties.length;
