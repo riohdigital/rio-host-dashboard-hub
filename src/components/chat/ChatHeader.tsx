@@ -19,20 +19,20 @@ interface ChatHeaderProps {
 
 export const ChatHeader = ({ onClose, onClear }: ChatHeaderProps) => {
   return (
-    <div className="flex items-center justify-between p-4 border-b bg-card">
-      <div className="flex items-center gap-2">
-        <div className="p-2 rounded-full bg-primary/10">
-          <Bot className="w-5 h-5 text-primary" />
+    <div className="flex items-center justify-between p-5 border-b bg-gradient-primary rounded-t-2xl">
+      <div className="flex items-center gap-3">
+        <div className="p-2 rounded-full bg-white/20 backdrop-blur-sm">
+          <Bot className="w-5 h-5 text-white" />
         </div>
         <div>
-          <h3 className="font-semibold text-foreground">Assistente RiohHost</h3>
-          <p className="text-xs text-muted-foreground">Sempre pronto para ajudar</p>
+          <h3 className="font-semibold text-white">Assistente RiohHost</h3>
+          <p className="text-xs text-white/80">Sempre pronto para ajudar</p>
         </div>
       </div>
       <div className="flex items-center gap-1">
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-white hover:bg-white/20">
               <Trash2 className="w-4 h-4" />
             </Button>
           </AlertDialogTrigger>
@@ -49,7 +49,7 @@ export const ChatHeader = ({ onClose, onClear }: ChatHeaderProps) => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-white hover:bg-white/20" onClick={onClose}>
           <X className="w-4 h-4" />
         </Button>
       </div>

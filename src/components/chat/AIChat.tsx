@@ -30,7 +30,7 @@ export const AIChat = () => {
         <Button
           onClick={toggleChat}
           size="lg"
-          className="rounded-full shadow-lg hover:shadow-xl transition-all gap-2 animate-scale-in"
+          className="rounded-full shadow-lg hover:shadow-[0_8px_30px_rgba(139,92,246,0.4)] transition-all duration-300 gap-2 animate-pulse-soft hover:scale-110 hover:rotate-3 active:scale-95 bg-gradient-primary text-white border-0"
         >
           <MessageSquare className="w-5 h-5" />
           <span className="font-medium">Chat AI</span>
@@ -41,7 +41,7 @@ export const AIChat = () => {
       {isOpen && (
         <Card
           className={cn(
-            'w-[400px] h-[600px] flex flex-col shadow-2xl',
+            'w-[400px] h-[600px] flex flex-col shadow-2xl shadow-purple-500/20 rounded-2xl',
             'animate-slide-in-right'
           )}
         >

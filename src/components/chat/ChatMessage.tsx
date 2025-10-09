@@ -36,12 +36,12 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
       <div
         className={cn(
           'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center',
-          isUser && 'bg-primary',
+          isUser && 'bg-gradient-accent',
           isAssistant && 'bg-muted'
         )}
       >
         {isUser ? (
-          <User className="w-4 h-4 text-primary-foreground" />
+          <User className="w-4 h-4 text-white" />
         ) : (
           <Bot className="w-4 h-4 text-muted-foreground" />
         )}
@@ -51,9 +51,9 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
       <div className={cn('flex-1 max-w-[70%]', isUser && 'flex flex-col items-end')}>
         <div
           className={cn(
-            'rounded-lg p-3 break-words',
-            isUser && 'bg-primary text-primary-foreground',
-            isAssistant && 'bg-muted text-foreground'
+            'rounded-lg p-3 break-words transition-all duration-200 hover:shadow-md',
+            isUser && 'bg-gradient-primary text-white',
+            isAssistant && 'bg-muted text-foreground border border-border/50'
           )}
         >
           <p className="text-sm whitespace-pre-wrap">{message.content}</p>

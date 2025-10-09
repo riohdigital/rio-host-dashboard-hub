@@ -94,7 +94,7 @@ export const ChatInput = ({ onSend, isLoading }: ChatInputProps) => {
           placeholder="Digite sua mensagem ou envie um print..."
           className={cn(
             'min-h-[44px] max-h-[120px] resize-none',
-            'focus-visible:ring-1'
+            'focus-visible:ring-2 focus-visible:ring-purple-500'
           )}
           disabled={isLoading}
         />
@@ -103,7 +103,11 @@ export const ChatInput = ({ onSend, isLoading }: ChatInputProps) => {
           onClick={handleSend}
           disabled={isLoading || (!message.trim() && attachments.length === 0)}
           size="icon"
-          className="flex-shrink-0"
+          className={cn(
+            'flex-shrink-0 bg-gradient-primary text-white border-0',
+            'hover:shadow-lg hover:scale-105 active:scale-95 transition-all duration-200',
+            message.trim() && 'animate-pulse-soft'
+          )}
         >
           <Send className="w-4 h-4" />
         </Button>
