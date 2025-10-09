@@ -72,45 +72,94 @@ export const useAIChat = () => {
     setIsLoading(true);
 
     try {
-      // Prepara dados para o webhook
-      const formData = new FormData();
-      formData.append('message', content);
-      formData.append('timestamp', new Date().toISOString());
-      
-      if (attachments) {
-        attachments.forEach((file, index) => {
-          formData.append(`attachment_${index}`, file);
-        });
-      }
+      // Converte anexos para base64
+      const attachmentsBase64 = await Promise.all(
+        (attachments || []).map(async (file) => {
+          const base64 = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const result = reader.result as string;
+              resolve(result.split(',')[1]); // Remove o prefixo data:image/...;base64,
+            };
+            reader.readAsDataURL(file);
+          });
+          
+          return {
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            data: base64,
+          };
+        })
+      );
+
+      // Prepara payload JSON
+      const payload = {
+        message: content,
+        timestamp: new Date().toISOString(),
+        attachments: attachmentsBase64,
+      };
+
+      console.log('🚀 Enviando para N8N:', {
+        url: N8N_WEBHOOK_URL,
+        message: content,
+        attachmentsCount: attachmentsBase64.length,
+      });
 
       // Envia para o webhook N8N
       const response = await fetch(N8N_WEBHOOK_URL, {
         method: 'POST',
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
       });
 
+      console.log('📥 Resposta N8N:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
+      });
+
+      // Captura corpo da resposta como texto primeiro
+      const responseText = await response.text();
+      console.log('📄 Corpo da resposta:', responseText);
+
       if (!response.ok) {
-        throw new Error('Erro ao comunicar com a IA');
+        throw new Error(`Erro HTTP ${response.status}: ${responseText}`);
       }
 
-      const data = await response.json();
+      // Tenta fazer parse do JSON
+      let data;
+      try {
+        data = JSON.parse(responseText);
+        console.log('✅ JSON parseado:', data);
+      } catch (e) {
+        console.error('❌ Erro ao fazer parse do JSON:', e);
+        throw new Error(`Resposta inválida do servidor: ${responseText.substring(0, 100)}`);
+      }
       
       updateMessageStatus(userMessageId, 'sent');
 
       // Adiciona resposta da IA
       addMessage({
         role: 'assistant',
-        content: data.response || 'Desculpe, não consegui processar sua solicitação.',
+        content: data.response || data.message || 'Desculpe, não consegui processar sua solicitação.',
         status: 'sent',
       });
 
     } catch (error) {
-      console.error('Erro ao enviar mensagem:', error);
+      console.error('❌ Erro completo ao enviar mensagem:', {
+        error,
+        message: error instanceof Error ? error.message : 'Erro desconhecido',
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      
       updateMessageStatus(userMessageId, 'error');
       
       toast({
         title: 'Erro ao enviar mensagem',
-        description: 'Não foi possível comunicar com a IA. Tente novamente.',
+        description: error instanceof Error ? error.message : 'Não foi possível comunicar com a IA. Tente novamente.',
         variant: 'destructive',
       });
     } finally {

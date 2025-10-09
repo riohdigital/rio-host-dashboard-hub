@@ -24,7 +24,7 @@ export const AIChat = () => {
   }, [messages]);
 
   return (
-    <div className="fixed bottom-4 left-4 z-[9999]">
+    <div className="fixed bottom-4 right-4 z-[9999]">
       {/* Botão flutuante quando fechado */}
       {!isOpen && (
         <Button
