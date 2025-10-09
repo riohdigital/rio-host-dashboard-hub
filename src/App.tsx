@@ -21,6 +21,7 @@ import AnfitriaoAlertaPage from "./pages/AnfitriaoAlertaPage";
 import MasterCleaningDashboardPage from "./pages/MasterCleaningDashboardPage";
 import NotFound from "./pages/NotFound";
 import LandingPage from "./pages/LandingPage";
+import { AIChat } from "@/components/chat/AIChat";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -63,6 +64,7 @@ const App = () => {
                 element={
                   <UserPermissionsProvider>
                     <GlobalFiltersProvider>
+                      <AIChat />
                       {/* O PrivateRoutes agora envolve todas as páginas internas */}
                       <Routes>
                         <Route element={<PrivateRoutes />}>
