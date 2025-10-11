@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ChatMessage, MessageStatus } from '@/types/chat';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 const STORAGE_KEY = 'riohhost_chat_messages';
 const N8N_WEBHOOK_URL = 'https://n8n-n8n.dgyrua.easypanel.host/webhook/DashBoard%20RiohHost%20ChatAI';
@@ -10,6 +11,7 @@ export const useAIChat = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   // Carregar mensagens do localStorage
   useEffect(() => {
@@ -55,6 +57,16 @@ export const useAIChat = () => {
   const sendMessage = useCallback(async (content: string, attachments?: File[]) => {
     if (!content.trim() && !attachments?.length) return;
 
+    // Verifica se o usuário está autenticado
+    if (!user?.id) {
+      toast({
+        title: 'Erro de autenticação',
+        description: 'Você precisa estar logado para usar o chat.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     // Adiciona mensagem do usuário
     const userMessageId = addMessage({
       role: 'user',
@@ -96,12 +108,14 @@ export const useAIChat = () => {
       // Prepara payload JSON
       const payload = {
         message: content,
+        userId: user.id,
         timestamp: new Date().toISOString(),
         attachments: attachmentsBase64,
       };
 
       console.log('🚀 Enviando para N8N:', {
         url: N8N_WEBHOOK_URL,
+        userId: user.id,
         message: content,
         attachmentsCount: attachmentsBase64.length,
       });
@@ -165,7 +179,7 @@ export const useAIChat = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [addMessage, updateMessageStatus, toast]);
+  }, [addMessage, updateMessageStatus, toast, user]);
 
   const toggleChat = useCallback(() => {
     setIsOpen(prev => !prev);
