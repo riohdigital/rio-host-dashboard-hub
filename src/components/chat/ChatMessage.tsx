@@ -1,6 +1,7 @@
 import { ChatMessage as ChatMessageType } from '@/types/chat';
 import { Bot, User, Clock, AlertCircle, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import ReactMarkdown from 'react-markdown';
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -56,7 +57,45 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
             isAssistant && 'bg-muted text-foreground border border-border/50'
           )}
         >
-          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+          <div className="text-sm prose prose-sm max-w-none dark:prose-invert">
+            <ReactMarkdown
+              components={{
+                p: ({ children }) => (
+                  <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>
+                ),
+                ul: ({ children }) => (
+                  <ul className="ml-4 mb-2 space-y-1 list-disc marker:text-muted-foreground">
+                    {children}
+                  </ul>
+                ),
+                li: ({ children }) => (
+                  <li className="leading-relaxed">{children}</li>
+                ),
+                strong: ({ children }) => (
+                  <strong className="font-semibold text-foreground">{children}</strong>
+                ),
+                em: ({ children }) => (
+                  <em className="italic">{children}</em>
+                ),
+                code: ({ children }) => (
+                  <code className="px-1.5 py-0.5 rounded bg-muted text-sm font-mono">
+                    {children}
+                  </code>
+                ),
+                h1: ({ children }) => (
+                  <h1 className="text-lg font-bold mb-2 mt-3 first:mt-0">{children}</h1>
+                ),
+                h2: ({ children }) => (
+                  <h2 className="text-base font-semibold mb-2 mt-3 first:mt-0">{children}</h2>
+                ),
+                h3: ({ children }) => (
+                  <h3 className="text-sm font-semibold mb-1 mt-2 first:mt-0">{children}</h3>
+                ),
+              }}
+            >
+              {message.content}
+            </ReactMarkdown>
+          </div>
           
           {/* Attachments */}
           {message.attachments && message.attachments.length > 0 && (
