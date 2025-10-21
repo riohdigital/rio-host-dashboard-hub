@@ -553,6 +553,24 @@ export type Database = {
           },
         ]
       }
+      riohhost_chat_history: {
+        Row: {
+          id: number
+          message: Json
+          session_id: string
+        }
+        Insert: {
+          id?: number
+          message: Json
+          session_id: string
+        }
+        Update: {
+          id?: number
+          message?: Json
+          session_id?: string
+        }
+        Relationships: []
+      }
       sent_alerts: {
         Row: {
           alert_type: string

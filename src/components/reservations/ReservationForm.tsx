@@ -284,6 +284,10 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                 cleaning_rating: data.cleaning_rating ?? 0,
             };
             delete submissionData.cleaning_destination;
+            // Trigger no banco calcula automaticamente esses valores
+            delete submissionData.base_revenue;
+            delete submissionData.commission_amount;
+            delete submissionData.net_revenue;
 
             if (reservation) {
                 const { error } = await supabase.from('reservations').update(submissionData).eq('id', reservation.id);
