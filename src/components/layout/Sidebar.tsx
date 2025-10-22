@@ -50,6 +50,7 @@ const Sidebar = () => {
   ] : [
     { name: 'Dashboard', icon: BarChart3, path: '/dashboard' },
     { name: 'Reservas', icon: Calendar, path: '/reservas' },
+    { name: 'Calendário', icon: Calendar, path: '/calendario' },
     { name: 'Despesas', icon: Tag, path: '/despesas' },
     { name: 'Propriedades', icon: Home, path: '/propriedades' },
     { name: 'Investimentos & ROI', icon: TrendingUp, path: '/investimentos' },

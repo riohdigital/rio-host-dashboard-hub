@@ -10,6 +10,7 @@ import PrivateRoutes from "./components/auth/PrivateRoutes";
 import AuthPage from "./components/auth/AuthPage";
 import DashboardPage from "./pages/DashboardPage";
 import ReservasPage from "./pages/ReservasPage";
+import CalendarioPage from "./pages/CalendarioPage";
 import DespesasPage from "./pages/DespesasPage";
 import PropriedadesPage from "./pages/PropriedadesPage";
 import InvestmentsPage from "./pages/InvestmentsPage";
@@ -71,6 +72,7 @@ const App = () => {
                           <Route path="/" element={<Navigate to="/dashboard" replace />} />
                           <Route path="/dashboard" element={<DashboardPage />} />
                           <Route path="/reservas" element={<ReservasPage />} />
+                          <Route path="/calendario" element={<CalendarioPage />} />
                           <Route path="/despesas" element={<DespesasPage />} />
                           <Route path="/propriedades" element={<PropriedadesPage />} />
                           <Route path="/investimentos" element={<InvestmentsPage />} />
