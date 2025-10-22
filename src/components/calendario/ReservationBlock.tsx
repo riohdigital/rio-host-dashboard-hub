@@ -3,6 +3,8 @@ import { CalendarReservation } from '@/types/calendar';
 import { cn } from '@/lib/utils';
 import { formatDateSafe } from '@/lib/dateUtils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Home, User, CreditCard, Calendar as CalendarIcon, Clock } from 'lucide-react';
+import { format } from 'date-fns';
 
 interface ReservationBlockProps {
   reservation: CalendarReservation;
@@ -25,6 +27,22 @@ const getPaymentBorder = (status?: string) => {
   if (status === 'Pago') return 'border-2 border-yellow-400';
   if (status === 'Pendente') return 'border-2 border-dashed border-orange-400';
   return '';
+};
+
+const getPlatformIcon = (platform: string) => {
+  switch (platform.toLowerCase()) {
+    case 'airbnb': return '🏠';
+    case 'booking': return '📘';
+    default: return '📋';
+  }
+};
+
+const getPlatformColor = (platform: string) => {
+  switch (platform.toLowerCase()) {
+    case 'airbnb': return 'bg-pink-500';
+    case 'booking': return 'bg-blue-500';
+    default: return 'bg-gray-500';
+  }
 };
 
 export const ReservationBlock: React.FC<ReservationBlockProps> = ({
@@ -60,25 +78,82 @@ export const ReservationBlock: React.FC<ReservationBlockProps> = ({
               'absolute h-12 rounded-md cursor-pointer transition-all hover:z-10 hover:shadow-lg',
               statusColor,
               paymentBorder,
-              'flex items-center justify-start px-2 overflow-hidden'
+              'flex items-center gap-1.5 px-2 overflow-hidden'
             )}
           >
+            {/* Ícone de plataforma */}
+            <span className="text-base flex-shrink-0">{getPlatformIcon(reservation.platform)}</span>
+            
+            {/* Código e nome */}
             <span className="text-xs font-medium text-white truncate">
-              {reservation.reservation_code} - {reservation.guest_name || 'Sem nome'}
+              {reservation.reservation_code}
+              {reservation.guest_name && ` • ${reservation.guest_name}`}
             </span>
           </div>
         </TooltipTrigger>
         
-        <TooltipContent side="top" className="max-w-xs">
-          <div className="space-y-1">
-            <p className="font-semibold">{reservation.reservation_code}</p>
-            <p className="text-sm">Hóspede: {reservation.guest_name || 'Não informado'}</p>
-            <p className="text-sm">Check-in: {formatDateSafe(reservation.check_in_date)}</p>
-            <p className="text-sm">Check-out: {formatDateSafe(reservation.check_out_date)}</p>
-            <p className="text-sm">Status: {reservation.reservation_status}</p>
-            <p className="text-sm">Pagamento: {reservation.payment_status || 'Não informado'}</p>
+        <TooltipContent side="top" className="max-w-sm">
+          <div className="space-y-2">
+            {/* Cabeçalho */}
+            <div className="border-b pb-2">
+              <p className="font-bold text-base">{reservation.reservation_code}</p>
+              <p className="text-sm flex items-center gap-1.5 text-muted-foreground">
+                <Home className="h-3.5 w-3.5" />
+                {reservation.properties?.nickname || reservation.properties?.name}
+              </p>
+            </div>
+
+            {/* Informações do hóspede */}
+            <div className="space-y-1">
+              <p className="text-sm flex items-center gap-1.5">
+                <User className="h-3.5 w-3.5" />
+                <span className="font-medium">Hóspede:</span> {reservation.guest_name || 'Sem nome'}
+              </p>
+              {reservation.number_of_guests && (
+                <p className="text-sm text-muted-foreground ml-5">
+                  {reservation.number_of_guests} {reservation.number_of_guests === 1 ? 'pessoa' : 'pessoas'}
+                </p>
+              )}
+            </div>
+
+            {/* Datas */}
+            <div className="space-y-1">
+              <p className="text-sm flex items-center gap-1.5">
+                <CalendarIcon className="h-3.5 w-3.5" />
+                <span className="font-medium">Check-in:</span> {format(new Date(reservation.check_in_date), 'dd/MM/yyyy')}
+                {reservation.checkin_time && ` às ${reservation.checkin_time}`}
+              </p>
+              <p className="text-sm flex items-center gap-1.5 ml-5">
+                <span className="font-medium">Check-out:</span> {format(new Date(reservation.check_out_date), 'dd/MM/yyyy')}
+                {reservation.checkout_time && ` às ${reservation.checkout_time}`}
+              </p>
+            </div>
+
+            {/* Status e plataforma */}
+            <div className="flex items-center justify-between pt-2 border-t">
+              <div className="flex items-center gap-2">
+                <div className={cn('w-2 h-2 rounded-full', getPlatformColor(reservation.platform))} />
+                <span className="text-xs">{reservation.platform}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium">{reservation.reservation_status}</span>
+                {reservation.payment_status && (
+                  <>
+                    <span className="text-xs text-muted-foreground">•</span>
+                    <span className="text-xs flex items-center gap-1">
+                      <CreditCard className="h-3 w-3" />
+                      {reservation.payment_status}
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Receita */}
             {reservation.total_revenue && (
-              <p className="text-sm">Receita: R$ {reservation.total_revenue.toFixed(2)}</p>
+              <p className="text-sm font-semibold pt-2 border-t">
+                Receita: {reservation.total_revenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+              </p>
             )}
           </div>
         </TooltipContent>

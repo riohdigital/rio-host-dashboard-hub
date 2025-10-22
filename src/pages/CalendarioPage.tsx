@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
 import { useCalendarView } from '@/hooks/useCalendarView';
 import { useCalendarData } from '@/hooks/useCalendarData';
+import { useOccupancyStats } from '@/hooks/useOccupancyStats';
 import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
 import { useProperties } from '@/hooks/useProperties';
 import { CalendarHeader } from '@/components/calendario/CalendarHeader';
 import { TimelineView } from '@/components/calendario/TimelineView';
+import { GridView } from '@/components/calendario/GridView';
+import { CalendarLegend } from '@/components/calendario/CalendarLegend';
+import { OccupancyStatsCard } from '@/components/calendario/OccupancyStatsCard';
 import { CalendarReservation } from '@/types/calendar';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import ReservationForm from '@/components/reservations/ReservationForm';
@@ -12,7 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 const CalendarioPage: React.FC = () => {
   const { selectedProperties, selectedPlatform } = useGlobalFilters();
-  const { dateRange, goToNextPeriod, goToPreviousPeriod, goToToday, currentDate } = useCalendarView();
+  const { view, setView, dateRange, goToNextPeriod, goToPreviousPeriod, goToToday, currentDate } = useCalendarView();
   const [selectedReservation, setSelectedReservation] = useState<CalendarReservation | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
@@ -50,10 +54,20 @@ const CalendarioPage: React.FC = () => {
 
   const isLoading = isLoadingProperties || isLoadingReservations;
 
+  // Calcular estatísticas de ocupação
+  const occupancyStats = useOccupancyStats(
+    filteredProperties,
+    reservations,
+    dateRange.start,
+    dateRange.end
+  );
+
   return (
     <div className="p-6 space-y-6">
       <CalendarHeader
         currentDate={currentDate}
+        view={view}
+        onViewChange={setView}
         onPrevious={goToPreviousPeriod}
         onNext={goToNextPeriod}
         onToday={goToToday}
@@ -65,13 +79,38 @@ const CalendarioPage: React.FC = () => {
           <Skeleton className="h-96 w-full" />
         </div>
       ) : (
-        <TimelineView
-          reservations={reservations}
-          properties={filteredProperties}
-          startDate={dateRange.start}
-          endDate={dateRange.end}
-          onReservationClick={handleReservationClick}
-        />
+        <>
+          {/* Estatísticas de Ocupação */}
+          <OccupancyStatsCard stats={occupancyStats} />
+
+          {/* Grade de calendário */}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <div className="lg:col-span-3">
+              {view === 'timeline' ? (
+                <TimelineView
+                  reservations={reservations}
+                  properties={filteredProperties}
+                  startDate={dateRange.start}
+                  endDate={dateRange.end}
+                  onReservationClick={handleReservationClick}
+                />
+              ) : (
+                <GridView
+                  reservations={reservations}
+                  properties={filteredProperties}
+                  startDate={dateRange.start}
+                  endDate={dateRange.end}
+                  onReservationClick={handleReservationClick}
+                />
+              )}
+            </div>
+
+            {/* Legenda */}
+            <div className="lg:col-span-1">
+              <CalendarLegend />
+            </div>
+          </div>
+        </>
       )}
 
       {/* Modal de edição */}
