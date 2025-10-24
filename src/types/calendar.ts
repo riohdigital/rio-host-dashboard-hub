@@ -37,3 +37,11 @@ export interface DateRange {
   start: Date;
   end: Date;
 }
+
+export interface Conflict {
+  propertyId: string;
+  propertyName: string;
+  reservations: CalendarReservation[];
+  conflictType: 'overlap' | 'gap_too_short';
+  message: string;
+}

@@ -1,26 +1,29 @@
 import React from 'react';
 import { CalendarReservation } from '@/types/calendar';
-import { cn } from '@/lib/utils';
-import { formatDateSafe } from '@/lib/dateUtils';
+import { differenceInDays, format } from 'date-fns';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Home, User, CreditCard, Calendar as CalendarIcon, Clock } from 'lucide-react';
-import { format } from 'date-fns';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+import { AlertTriangle, Home, Users, Clock, CreditCard } from 'lucide-react';
 
 interface ReservationBlockProps {
   reservation: CalendarReservation;
   startDate: Date;
+  endDate: Date;
   dayWidth: number;
-  onClick: () => void;
+  onReservationClick: (reservation: CalendarReservation) => void;
+  style?: React.CSSProperties;
+  hasConflict?: boolean;
 }
 
 const getStatusColor = (status: string) => {
   const statusColors: Record<string, string> = {
-    'Confirmada': 'bg-blue-500',
-    'Em Andamento': 'bg-green-500',
-    'Finalizada': 'bg-gray-500',
-    'Cancelada': 'bg-red-500',
+    'Confirmada': 'bg-blue-500 text-white',
+    'Em Andamento': 'bg-green-500 text-white',
+    'Finalizada': 'bg-gray-500 text-white',
+    'Cancelada': 'bg-red-500 text-white',
   };
-  return statusColors[status] || 'bg-gray-400';
+  return statusColors[status] || 'bg-gray-400 text-white';
 };
 
 const getPaymentBorder = (status?: string) => {
@@ -29,130 +32,120 @@ const getPaymentBorder = (status?: string) => {
   return '';
 };
 
-const getPlatformIcon = (platform: string) => {
-  switch (platform.toLowerCase()) {
-    case 'airbnb': return '🏠';
-    case 'booking': return '📘';
-    default: return '📋';
-  }
-};
-
 const getPlatformColor = (platform: string) => {
   switch (platform.toLowerCase()) {
-    case 'airbnb': return 'bg-pink-500';
-    case 'booking': return 'bg-blue-500';
-    default: return 'bg-gray-500';
+    case 'airbnb': return 'bg-pink-500 text-white';
+    case 'booking': return 'bg-blue-600 text-white';
+    default: return 'bg-gray-600 text-white';
   }
 };
 
-export const ReservationBlock: React.FC<ReservationBlockProps> = ({
+export const ReservationBlock = React.memo<ReservationBlockProps>(({
   reservation,
   startDate,
+  endDate,
   dayWidth,
-  onClick,
+  onReservationClick,
+  style,
+  hasConflict = false,
 }) => {
-  // Calcular posição e largura do bloco
   const checkIn = new Date(reservation.check_in_date);
   const checkOut = new Date(reservation.check_out_date);
   
-  const daysFromStart = Math.floor((checkIn.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-  const duration = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
+  const daysFromStart = differenceInDays(checkIn, startDate);
+  const duration = differenceInDays(checkOut, checkIn);
   
-  const left = daysFromStart * dayWidth;
-  const width = duration * dayWidth - 4; // -4 para espaçamento
+  const position = {
+    left: Math.max(0, daysFromStart * dayWidth),
+    width: Math.max(dayWidth - 4, duration * dayWidth - 4),
+  };
 
   const statusColor = getStatusColor(reservation.reservation_status);
   const paymentBorder = getPaymentBorder(reservation.payment_status);
+  const platformColor = getPlatformColor(reservation.platform);
 
   return (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
           <div
-            onClick={onClick}
-            style={{
-              left: `${left}px`,
-              width: `${width}px`,
-            }}
+            onClick={() => onReservationClick(reservation)}
             className={cn(
-              'absolute h-12 rounded-md cursor-pointer transition-all hover:z-10 hover:shadow-lg',
+              'absolute h-8 rounded cursor-pointer transition-all hover:z-10 hover:shadow-lg',
+              'flex items-center px-2 text-xs font-medium',
               statusColor,
               paymentBorder,
-              'flex items-center gap-1.5 px-2 overflow-hidden'
+              hasConflict && 'border-2 border-red-600 bg-red-50 dark:bg-red-900/20 animate-pulse'
             )}
+            style={{
+              left: `${position.left}px`,
+              width: `${position.width}px`,
+              ...style,
+            }}
           >
-            {/* Ícone de plataforma */}
-            <span className="text-base flex-shrink-0">{getPlatformIcon(reservation.platform)}</span>
-            
-            {/* Código e nome */}
-            <span className="text-xs font-medium text-white truncate">
-              {reservation.reservation_code}
-              {reservation.guest_name && ` • ${reservation.guest_name}`}
-            </span>
+            <span className="truncate flex-1">{reservation.reservation_code}</span>
+            {hasConflict && (
+              <AlertTriangle className="h-3 w-3 text-red-600 ml-1 flex-shrink-0" />
+            )}
+            <Badge
+              variant="outline"
+              className={cn('ml-1 px-1 py-0 h-4 text-[10px] flex-shrink-0', platformColor)}
+            >
+              {reservation.platform.substring(0, 1)}
+            </Badge>
           </div>
         </TooltipTrigger>
-        
-        <TooltipContent side="top" className="max-w-sm">
+        <TooltipContent className="max-w-sm p-3">
           <div className="space-y-2">
-            {/* Cabeçalho */}
-            <div className="border-b pb-2">
-              <p className="font-bold text-base">{reservation.reservation_code}</p>
-              <p className="text-sm flex items-center gap-1.5 text-muted-foreground">
-                <Home className="h-3.5 w-3.5" />
-                {reservation.properties?.nickname || reservation.properties?.name}
-              </p>
+            {hasConflict && (
+              <div className="flex items-center gap-2 text-red-600 font-semibold text-xs mb-2 pb-2 border-b border-red-200">
+                <AlertTriangle className="h-4 w-4" />
+                <span>Conflito detectado!</span>
+              </div>
+            )}
+            
+            <div className="flex items-center gap-2">
+              <Home className="h-3 w-3 text-muted-foreground" />
+              <p className="font-semibold text-sm">{reservation.reservation_code}</p>
             </div>
-
-            {/* Informações do hóspede */}
-            <div className="space-y-1">
-              <p className="text-sm flex items-center gap-1.5">
-                <User className="h-3.5 w-3.5" />
-                <span className="font-medium">Hóspede:</span> {reservation.guest_name || 'Sem nome'}
-              </p>
-              {reservation.number_of_guests && (
-                <p className="text-sm text-muted-foreground ml-5">
-                  {reservation.number_of_guests} {reservation.number_of_guests === 1 ? 'pessoa' : 'pessoas'}
+            
+            {reservation.guest_name && (
+              <div className="flex items-center gap-2">
+                <Users className="h-3 w-3 text-muted-foreground" />
+                <p className="text-xs">
+                  {reservation.guest_name}
+                  {reservation.number_of_guests && ` (${reservation.number_of_guests} hóspede${reservation.number_of_guests > 1 ? 's' : ''})`}
                 </p>
-              )}
-            </div>
-
-            {/* Datas */}
-            <div className="space-y-1">
-              <p className="text-sm flex items-center gap-1.5">
-                <CalendarIcon className="h-3.5 w-3.5" />
-                <span className="font-medium">Check-in:</span> {format(new Date(reservation.check_in_date), 'dd/MM/yyyy')}
-                {reservation.checkin_time && ` às ${reservation.checkin_time}`}
-              </p>
-              <p className="text-sm flex items-center gap-1.5 ml-5">
-                <span className="font-medium">Check-out:</span> {format(new Date(reservation.check_out_date), 'dd/MM/yyyy')}
-                {reservation.checkout_time && ` às ${reservation.checkout_time}`}
+              </div>
+            )}
+            
+            <div className="flex items-center gap-2">
+              <Clock className="h-3 w-3 text-muted-foreground" />
+              <p className="text-xs">
+                {format(new Date(reservation.check_in_date), 'dd/MM/yyyy')} {reservation.checkin_time || '15:00'} -{' '}
+                {format(new Date(reservation.check_out_date), 'dd/MM/yyyy')} {reservation.checkout_time || '11:00'}
               </p>
             </div>
-
-            {/* Status e plataforma */}
-            <div className="flex items-center justify-between pt-2 border-t">
-              <div className="flex items-center gap-2">
-                <div className={cn('w-2 h-2 rounded-full', getPlatformColor(reservation.platform))} />
-                <span className="text-xs">{reservation.platform}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-medium">{reservation.reservation_status}</span>
-                {reservation.payment_status && (
-                  <>
-                    <span className="text-xs text-muted-foreground">•</span>
-                    <span className="text-xs flex items-center gap-1">
-                      <CreditCard className="h-3 w-3" />
-                      {reservation.payment_status}
-                    </span>
-                  </>
-                )}
-              </div>
+            
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className={cn('text-xs', platformColor)}>
+                {reservation.platform}
+              </Badge>
+              <Badge variant="outline" className="text-xs">
+                {reservation.reservation_status}
+              </Badge>
             </div>
-
-            {/* Receita */}
+            
+            {reservation.payment_status && (
+              <div className="flex items-center gap-2">
+                <CreditCard className="h-3 w-3 text-muted-foreground" />
+                <p className="text-xs">Pagamento: {reservation.payment_status}</p>
+              </div>
+            )}
+            
             {reservation.total_revenue && (
-              <p className="text-sm font-semibold pt-2 border-t">
-                Receita: {reservation.total_revenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+              <p className="text-xs font-semibold text-primary">
+                R$ {reservation.total_revenue.toFixed(2)}
               </p>
             )}
           </div>
@@ -160,4 +153,14 @@ export const ReservationBlock: React.FC<ReservationBlockProps> = ({
       </Tooltip>
     </TooltipProvider>
   );
-};
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.reservation.id === nextProps.reservation.id &&
+    prevProps.hasConflict === nextProps.hasConflict &&
+    prevProps.dayWidth === nextProps.dayWidth &&
+    prevProps.startDate.getTime() === nextProps.startDate.getTime() &&
+    prevProps.endDate.getTime() === nextProps.endDate.getTime()
+  );
+});
+
+ReservationBlock.displayName = 'ReservationBlock';

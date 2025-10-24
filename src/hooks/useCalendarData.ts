@@ -1,7 +1,9 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { CalendarReservation } from '@/types/calendar';
 import { startOfMonth, endOfMonth, format } from 'date-fns';
+import { toast } from 'sonner';
 
 interface UseCalendarDataParams {
   startDate: Date;
@@ -16,7 +18,9 @@ export const useCalendarData = ({
   propertyIds,
   platform 
 }: UseCalendarDataParams) => {
-  return useQuery({
+  const queryClient = useQueryClient();
+
+  const query = useQuery({
     queryKey: ['calendar-reservations', startDate, endDate, propertyIds, platform],
     queryFn: async () => {
       let query = supabase
@@ -55,4 +59,40 @@ export const useCalendarData = ({
     },
     staleTime: 1000 * 60 * 5, // 5 minutos
   });
+
+  // Realtime subscription
+  useEffect(() => {
+    const channel = supabase
+      .channel('calendar-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'reservations',
+        },
+        (payload) => {
+          console.log('Realtime update:', payload);
+          
+          // Invalidar query para re-fetch
+          queryClient.invalidateQueries({ queryKey: ['calendar-reservations'] });
+          
+          // Toast de notificação
+          if (payload.eventType === 'INSERT') {
+            toast.success('Nova reserva adicionada!');
+          } else if (payload.eventType === 'UPDATE') {
+            toast.info('Reserva atualizada!');
+          } else if (payload.eventType === 'DELETE') {
+            toast.warning('Reserva removida!');
+          }
+        }
+      )
+      .subscribe();
+    
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
+  return query;
 };
