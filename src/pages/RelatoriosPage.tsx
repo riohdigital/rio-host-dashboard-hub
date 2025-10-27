@@ -15,7 +15,6 @@ import { usePDFExport } from '@/hooks/reports/usePDFExport';
 import { EnhancedReportTemplate } from '@/components/reports/EnhancedReportTemplate';
 import ReceiptGenerator from '@/components/reports/ReceiptGenerator';
 import CleanerPaymentsReport from '@/components/reports/CleanerPaymentsReport';
-import MainLayout from '@/components/layout/MainLayout';
 
 const RelatoriosPage: React.FC = () => {
   const { selectedPeriod, selectedProperties, selectedPlatform, customStartDate: globalCustomStartDate, customEndDate: globalCustomEndDate } = useGlobalFilters();
@@ -45,15 +44,13 @@ const RelatoriosPage: React.FC = () => {
 
   if (!canViewReports) {
     return (
-      <MainLayout>
-        <div className="container mx-auto p-6">
-          <Card>
-            <CardContent className="text-center py-8">
-              <p>Você não tem permissão para acessar os relatórios.</p>
-            </CardContent>
-          </Card>
-        </div>
-      </MainLayout>
+      <div className="container mx-auto p-6">
+        <Card>
+          <CardContent className="text-center py-8">
+            <p>Você não tem permissão para acessar os relatórios.</p>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
@@ -148,8 +145,7 @@ const RelatoriosPage: React.FC = () => {
 
 
   return (
-    <MainLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold">Relatórios</h1>
@@ -288,8 +284,7 @@ const RelatoriosPage: React.FC = () => {
 
       {/* Geração de Recibos */}
       <ReceiptGenerator />
-      </div>
-    </MainLayout>
+    </div>
   );
 };
 

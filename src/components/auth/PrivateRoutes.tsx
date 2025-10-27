@@ -2,6 +2,7 @@ import React from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import { Loader2 } from 'lucide-react';
+import MainLayout from '@/components/layout/MainLayout';
 
 const PrivateRoutes = () => {
   // Usamos seu hook para saber o role e se ele ainda está carregando
@@ -41,7 +42,11 @@ const PrivateRoutes = () => {
   }
 
   // 4. Se nenhuma regra de redirecionamento foi aplicada, permite o acesso à rota solicitada.
-  return <Outlet />;
+  return (
+    <MainLayout>
+      <Outlet />
+    </MainLayout>
+  );
 };
 
 export default PrivateRoutes;

@@ -4,7 +4,6 @@ import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
 import { useDateRange } from '@/hooks/dashboard/useDateRange';
 import { usePageVisibility } from '@/hooks/usePageVisibility';
 import { TrendingUp, DollarSign, Plus, BarChart3, AlertTriangle, Receipt } from 'lucide-react';
-import MainLayout from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -234,11 +233,9 @@ useEffect(() => {
 
   if (totalLoading) {
     return (
-      <MainLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">Carregando permissões...</div>
-        </div>
-      </MainLayout>
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">Carregando permissões...</div>
+      </div>
     );
   }
 
@@ -247,30 +244,27 @@ useEffect(() => {
 
   if (!canViewInvestments) {
     return (
-      <MainLayout>
-        <div className="space-y-8">
-          <div className="flex justify-between items-start">
-            <div>
-              <h1 className="text-3xl font-bold text-gradient-primary">Investimentos & ROI</h1>
-              <p className="text-gray-600 mt-2">
-                Controle seus investimentos e acompanhe o retorno sobre investimento
-              </p>
-            </div>
+      <div className="space-y-8">
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold text-gradient-primary">Investimentos & ROI</h1>
+            <p className="text-gray-600 mt-2">
+              Controle seus investimentos e acompanhe o retorno sobre investimento
+            </p>
           </div>
-          <Alert>
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>
-              Você não tem permissão para acessar esta seção. Entre em contato com o administrador para solicitar acesso.
-            </AlertDescription>
-          </Alert>
         </div>
-      </MainLayout>
+        <Alert>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            Você não tem permissão para acessar esta seção. Entre em contato com o administrador para solicitar acesso.
+          </AlertDescription>
+        </Alert>
+      </div>
     );
   }
 
   return (
-    <MainLayout>
-      <div className="space-y-8">
+    <div className="space-y-8">
         {/* Header */}
         <div className="flex justify-between items-start">
           <div>
@@ -406,7 +400,6 @@ useEffect(() => {
           />
         </div>
       </div>
-    </MainLayout>
   );
 };
 

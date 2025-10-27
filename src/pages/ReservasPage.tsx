@@ -18,7 +18,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { Reservation } from '@/types/reservation';
 import { Property } from '@/types/property';
 import { useToast } from '@/hooks/use-toast';
-import MainLayout from '@/components/layout/MainLayout';
 import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -186,11 +185,9 @@ const ReservasPage = () => {
 
     if (totalLoading && !data) {
         return (
-            <MainLayout>
-                <div className="flex items-center justify-center min-h-[400px]">
-                    <Loader2 className="h-8 w-8 animate-spin" />
-                </div>
-            </MainLayout>
+            <div className="flex items-center justify-center min-h-[400px]">
+                <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
         );
     }
 
@@ -201,20 +198,17 @@ const ReservasPage = () => {
 
     if (!canViewReservations) {
         return (
-            <MainLayout>
-                <div className="container mx-auto py-8 px-4">
-                    <Alert variant="destructive">
-                        <AlertTriangle className="h-4 w-4" />
-                        <AlertDescription>Você não tem permissão para visualizar reservas.</AlertDescription>
-                    </Alert>
-                </div>
-            </MainLayout>
+            <div className="container mx-auto py-8 px-4">
+                <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>Você não tem permissão para visualizar reservas.</AlertDescription>
+                </Alert>
+            </div>
         );
     }
 
     return (
-        <MainLayout>
-            <div className="container mx-auto py-8 px-4">
+        <div className="container mx-auto py-8 px-4">
                 <div className="flex items-center justify-between mb-8">
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900">Reservas</h1>
@@ -436,7 +430,6 @@ const ReservasPage = () => {
                     </div>
                 )}
             </div>
-        </MainLayout>
     );
 };
 
