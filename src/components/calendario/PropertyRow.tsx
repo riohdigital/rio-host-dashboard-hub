@@ -47,8 +47,9 @@ export const PropertyRow: React.FC<PropertyRowProps> = ({
               key={reservation.id}
               reservation={reservation}
               startDate={startDate}
+              endDate={endDate}
               dayWidth={dayWidth}
-              onClick={() => onReservationClick(reservation)}
+              onReservationClick={onReservationClick}
             />
           ))}
         </div>
