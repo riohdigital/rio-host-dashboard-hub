@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, ChevronUp, TrendingUp } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { ChevronDown, ChevronUp, TrendingUp, DollarSign, Calendar } from 'lucide-react';
 import { OccupancyStats } from '@/hooks/useOccupancyStats';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
@@ -11,7 +12,7 @@ interface OccupancyStatsCardProps {
 }
 
 export const OccupancyStatsCard: React.FC<OccupancyStatsCardProps> = ({ stats }) => {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false); // Começa fechado por padrão
 
   // Dados para o gráfico
   const chartData = stats.map(stat => ({
@@ -22,7 +23,7 @@ export const OccupancyStatsCard: React.FC<OccupancyStatsCardProps> = ({ stats })
 
   // Calcular totais
   const totalRevenue = stats.reduce((sum, s) => sum + s.totalRevenue, 0);
-  const avgOccupancy = stats.length > 0 
+  const averageOccupancy = stats.length > 0 
     ? stats.reduce((sum, s) => sum + s.occupancyRate, 0) / stats.length 
     : 0;
   const totalReservations = stats.reduce((sum, s) => sum + s.reservationCount, 0);
@@ -35,41 +36,55 @@ export const OccupancyStatsCard: React.FC<OccupancyStatsCardProps> = ({ stats })
   };
 
   return (
-    <Card className="w-full">
-      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+            <CardTitle className="text-lg flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-primary" />
-              <CardTitle className="text-base font-semibold">Estatísticas de Ocupação</CardTitle>
+              Estatísticas de Ocupação
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              {/* Resumo sempre visível */}
+              <div className="flex items-center gap-4 text-sm mr-4">
+                <div className="flex items-center gap-1">
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-semibold text-primary">
+                    {averageOccupancy.toFixed(1)}%
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-semibold text-primary">
+                    R$ {totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <Badge variant="secondary">{totalReservations}</Badge>
+                </div>
+              </div>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm">
+                  {isOpen ? (
+                    <>
+                      <ChevronUp className="h-4 w-4 mr-1" />
+                      Ocultar
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="h-4 w-4 mr-1" />
+                      Detalhes
+                    </>
+                  )}
+                </Button>
+              </CollapsibleTrigger>
             </div>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" size="sm">
-                {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              </Button>
-            </CollapsibleTrigger>
           </div>
         </CardHeader>
 
         <CollapsibleContent>
-          <CardContent className="space-y-6">
-            {/* Resumo Geral */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Taxa Média de Ocupação</p>
-                <p className="text-2xl font-bold">{avgOccupancy.toFixed(1)}%</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Receita Total</p>
-                <p className="text-2xl font-bold">
-                  {totalRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Total de Reservas</p>
-                <p className="text-2xl font-bold">{totalReservations}</p>
-              </div>
-            </div>
+          <CardContent className="space-y-6 pt-2">
 
             {/* Gráfico de Barras */}
             {chartData.length > 0 && (
@@ -170,7 +185,7 @@ export const OccupancyStatsCard: React.FC<OccupancyStatsCardProps> = ({ stats })
             </div>
           </CardContent>
         </CollapsibleContent>
-      </Collapsible>
-    </Card>
+      </Card>
+    </Collapsible>
   );
 };

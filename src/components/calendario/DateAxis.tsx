@@ -21,7 +21,7 @@ export const DateAxis: React.FC<DateAxisProps> = ({ startDate, endDate, dayWidth
         </div>
 
         {/* Dias */}
-        <div className="flex flex-1 overflow-x-auto">
+        <div className="flex flex-1 overflow-x-auto relative">
           {days.map((day) => {
             const isTodayDate = isToday(day);
             const isWeekendDate = isWeekend(day);
@@ -31,11 +31,15 @@ export const DateAxis: React.FC<DateAxisProps> = ({ startDate, endDate, dayWidth
                 key={day.toISOString()}
                 style={{ minWidth: `${dayWidth}px`, width: `${dayWidth}px` }}
                 className={cn(
-                  'border-r flex flex-col items-center justify-center py-2',
+                  'border-r flex flex-col items-center justify-center py-2 relative',
                   isTodayDate && 'bg-primary/10',
                   isWeekendDate && !isTodayDate && 'bg-muted/30'
                 )}
               >
+                {/* Linha vertical indicadora de "hoje" */}
+                {isTodayDate && (
+                  <div className="absolute inset-x-0 top-0 bottom-0 w-0.5 bg-primary/50 left-1/2 -translate-x-1/2 z-10" />
+                )}
                 <span className="text-xs font-medium text-muted-foreground">
                   {format(day, 'EEE', { locale: ptBR })}
                 </span>

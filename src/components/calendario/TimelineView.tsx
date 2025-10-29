@@ -10,16 +10,16 @@ interface TimelineViewProps {
   properties: Property[];
   startDate: Date;
   endDate: Date;
+  dayWidth: number;
   onReservationClick: (reservation: CalendarReservation) => void;
 }
-
-const DAY_WIDTH = 60; // largura de cada dia em pixels
 
 export const TimelineView: React.FC<TimelineViewProps> = ({
   reservations,
   properties,
   startDate,
   endDate,
+  dayWidth,
   onReservationClick,
 }) => {
   // Agrupar reservas por propriedade
@@ -47,11 +47,17 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     );
   }
 
+  // Calcular altura dinâmica baseada no número de propriedades
+  const scrollHeight = Math.min(
+    Math.max(400, properties.length * 72 + 100),
+    window.innerHeight - 400
+  );
+
   return (
     <div className="border rounded-lg bg-card overflow-hidden">
-      <DateAxis startDate={startDate} endDate={endDate} dayWidth={DAY_WIDTH} />
+      <DateAxis startDate={startDate} endDate={endDate} dayWidth={dayWidth} />
       
-      <ScrollArea className="h-[600px]">
+      <ScrollArea style={{ height: `${scrollHeight}px` }}>
         <div>
           {properties.map((property, index) => (
             <PropertyRow
@@ -61,7 +67,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               reservations={reservationsByProperty[property.id] || []}
               startDate={startDate}
               endDate={endDate}
-              dayWidth={DAY_WIDTH}
+              dayWidth={dayWidth}
               onReservationClick={onReservationClick}
               isEven={index % 2 === 0}
             />

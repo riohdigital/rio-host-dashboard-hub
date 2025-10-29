@@ -1,7 +1,7 @@
 import { Reservation } from './reservation';
 import { Property } from './property';
 
-export type CalendarView = 'timeline' | 'grid' | 'property' | 'comparison';
+export type CalendarView = 'timeline' | 'grid' | 'list' | 'property' | 'comparison';
 
 export interface CalendarReservation extends Reservation {
   properties?: {

@@ -1,24 +1,42 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCalendarView } from '@/hooks/useCalendarView';
 import { useCalendarData } from '@/hooks/useCalendarData';
 import { useOccupancyStats } from '@/hooks/useOccupancyStats';
 import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
 import { useProperties } from '@/hooks/useProperties';
+import { useDateRange } from '@/hooks/dashboard/useDateRange';
 import { CalendarHeader } from '@/components/calendario/CalendarHeader';
 import { TimelineView } from '@/components/calendario/TimelineView';
 import { GridView } from '@/components/calendario/GridView';
+import { CompactListView } from '@/components/calendario/CompactListView';
 import { CalendarLegend } from '@/components/calendario/CalendarLegend';
 import { OccupancyStatsCard } from '@/components/calendario/OccupancyStatsCard';
 import { CalendarReservation } from '@/types/calendar';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
 import ReservationForm from '@/components/reservations/ReservationForm';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Info } from 'lucide-react';
 
 const CalendarioPage: React.FC = () => {
-  const { selectedProperties, selectedPlatform } = useGlobalFilters();
-  const { view, setView, dateRange, goToNextPeriod, goToPreviousPeriod, goToToday, currentDate } = useCalendarView();
+  const { selectedProperties, selectedPlatform, selectedPeriod, customStartDate, customEndDate } = useGlobalFilters();
+  const { view, setView, goToNextPeriod, goToPreviousPeriod, goToToday, currentDate } = useCalendarView();
   const [selectedReservation, setSelectedReservation] = useState<CalendarReservation | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [dayWidth, setDayWidth] = useState(() => {
+    // Carregar do localStorage ou usar padrão
+    const saved = localStorage.getItem('calendar-day-width');
+    return saved ? parseInt(saved) : 60;
+  });
+
+  // FASE 1: Usar filtros globais para dateRange (igual à página de Reservas)
+  const { startDate, endDate } = useDateRange(selectedPeriod, customStartDate, customEndDate);
+
+  // Persistir dayWidth no localStorage
+  useEffect(() => {
+    localStorage.setItem('calendar-day-width', dayWidth.toString());
+  }, [dayWidth]);
 
   // Buscar propriedades
   const { properties: allProperties = [], loading: isLoadingProperties } = useProperties();
@@ -28,10 +46,10 @@ const CalendarioPage: React.FC = () => {
     ? allProperties
     : allProperties.filter(p => selectedProperties.includes(p.id));
 
-  // Buscar reservas com filtros
+  // Buscar reservas com filtros CORRETOS usando startDate e endDate dos filtros globais
   const { data: reservations = [], isLoading: isLoadingReservations, refetch } = useCalendarData({
-    startDate: dateRange.start,
-    endDate: dateRange.end,
+    startDate: startDate,
+    endDate: endDate,
     propertyIds: selectedProperties,
     platform: selectedPlatform,
   });
@@ -54,12 +72,12 @@ const CalendarioPage: React.FC = () => {
 
   const isLoading = isLoadingProperties || isLoadingReservations;
 
-  // Calcular estatísticas de ocupação
+  // Calcular estatísticas de ocupação usando startDate e endDate corretos
   const occupancyStats = useOccupancyStats(
     filteredProperties,
     reservations,
-    dateRange.start,
-    dateRange.end
+    startDate,
+    endDate
   );
 
   return (
@@ -71,6 +89,8 @@ const CalendarioPage: React.FC = () => {
         onPrevious={goToPreviousPeriod}
         onNext={goToNextPeriod}
         onToday={goToToday}
+        dayWidth={dayWidth}
+        onDayWidthChange={setDayWidth}
       />
 
       {isLoading ? (
@@ -80,35 +100,54 @@ const CalendarioPage: React.FC = () => {
         </div>
       ) : (
         <>
-          {/* Estatísticas de Ocupação */}
+          {/* Estatísticas de Ocupação - Compacta e colapsável */}
           <OccupancyStatsCard stats={occupancyStats} />
 
-          {/* Grade de calendário */}
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            <div className="lg:col-span-3">
-              {view === 'timeline' ? (
-                <TimelineView
-                  reservations={reservations}
-                  properties={filteredProperties}
-                  startDate={dateRange.start}
-                  endDate={dateRange.end}
-                  onReservationClick={handleReservationClick}
-                />
-              ) : (
-                <GridView
-                  reservations={reservations}
-                  properties={filteredProperties}
-                  startDate={dateRange.start}
-                  endDate={dateRange.end}
-                  onReservationClick={handleReservationClick}
-                />
-              )}
-            </div>
+          {/* Layout melhorado - Calendário em largura total */}
+          <div className="relative">
+            {view === 'timeline' ? (
+              <TimelineView
+                reservations={reservations}
+                properties={filteredProperties}
+                startDate={startDate}
+                endDate={endDate}
+                dayWidth={dayWidth}
+                onReservationClick={handleReservationClick}
+              />
+            ) : view === 'grid' ? (
+              <GridView
+                reservations={reservations}
+                properties={filteredProperties}
+                startDate={startDate}
+                endDate={endDate}
+                onReservationClick={handleReservationClick}
+              />
+            ) : view === 'list' ? (
+              <CompactListView
+                reservations={reservations}
+                properties={filteredProperties}
+                startDate={startDate}
+                endDate={endDate}
+                onReservationClick={handleReservationClick}
+              />
+            ) : null}
 
-            {/* Legenda */}
-            <div className="lg:col-span-1">
-              <CalendarLegend />
-            </div>
+            {/* Legenda em Sheet colapsável (lado direito) */}
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="fixed right-6 top-24 z-50 shadow-lg"
+                >
+                  <Info className="h-4 w-4 mr-2" />
+                  Legenda
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right">
+                <CalendarLegend />
+              </SheetContent>
+            </Sheet>
           </div>
         </>
       )}

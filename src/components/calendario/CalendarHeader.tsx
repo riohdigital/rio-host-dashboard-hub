@@ -1,10 +1,11 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, List, Grid3x3 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, List, Grid3x3, ListChecks } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { CalendarView } from '@/types/calendar';
+import { CalendarDensityControl } from './CalendarDensityControl';
 
 interface CalendarHeaderProps {
   currentDate: Date;
@@ -13,6 +14,8 @@ interface CalendarHeaderProps {
   onPrevious: () => void;
   onNext: () => void;
   onToday: () => void;
+  dayWidth?: number;
+  onDayWidthChange?: (width: number) => void;
 }
 
 export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
@@ -22,6 +25,8 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
   onPrevious,
   onNext,
   onToday,
+  dayWidth,
+  onDayWidthChange,
 }) => {
   return (
     <div className="flex flex-col gap-4 mb-6">
@@ -55,17 +60,33 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
       </div>
 
       {/* Toggle de visualização */}
-      <div className="flex justify-center">
-        <ToggleGroup type="single" value={view} onValueChange={(value) => value && onViewChange(value as CalendarView)}>
-          <ToggleGroupItem value="timeline" aria-label="Visão Timeline" className="gap-2">
-            <List className="h-4 w-4" />
-            <span className="hidden sm:inline">Timeline</span>
-          </ToggleGroupItem>
-          <ToggleGroupItem value="grid" aria-label="Visão Grade" className="gap-2">
-            <Grid3x3 className="h-4 w-4" />
-            <span className="hidden sm:inline">Grade Mensal</span>
-          </ToggleGroupItem>
-        </ToggleGroup>
+      <div className="flex flex-col gap-4">
+        <div className="flex justify-center">
+          <ToggleGroup type="single" value={view} onValueChange={(value) => value && onViewChange(value as CalendarView)}>
+            <ToggleGroupItem value="timeline" aria-label="Visão Timeline" className="gap-2">
+              <List className="h-4 w-4" />
+              <span className="hidden sm:inline">Timeline</span>
+            </ToggleGroupItem>
+            <ToggleGroupItem value="grid" aria-label="Visão Grade" className="gap-2">
+              <Grid3x3 className="h-4 w-4" />
+              <span className="hidden sm:inline">Grade Mensal</span>
+            </ToggleGroupItem>
+            <ToggleGroupItem value="list" aria-label="Visão Lista" className="gap-2">
+              <ListChecks className="h-4 w-4" />
+              <span className="hidden sm:inline">Lista Compacta</span>
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </div>
+
+        {/* Controles de densidade (apenas para timeline) */}
+        {view === 'timeline' && dayWidth !== undefined && onDayWidthChange && (
+          <div className="flex justify-center">
+            <CalendarDensityControl
+              dayWidth={dayWidth}
+              onDayWidthChange={onDayWidthChange}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
