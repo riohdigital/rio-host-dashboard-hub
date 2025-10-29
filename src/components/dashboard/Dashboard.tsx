@@ -1,8 +1,9 @@
 
 'use client';
 
-import React, { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { Loader2 } from 'lucide-react';
 
@@ -11,6 +12,7 @@ import { useDateRange } from '@/hooks/dashboard/useDateRange';
 import { useFinancialData } from '@/hooks/dashboard/useFinancialData';
 import { useOperationalData } from '@/hooks/dashboard/useOperationalData';
 import { useAnnualGrowthData } from '@/hooks/dashboard/useAnnualGrowthData';
+import { useFinancialDataWithCompetence } from '@/hooks/dashboard/useFinancialDataWithCompetence';
 import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
 
@@ -19,6 +21,7 @@ import KPICard from './KPICard';
 import NetProfitKPI from './NetProfitKPI';
 import MonthlyRevenueKPI from './MonthlyRevenueKPI';
 import RevenueBreakdownCard from './RevenueBreakdownCard';
+import { RevenueCompetenceCard } from './RevenueCompetenceCard';
 import AnnualGrowthChart from './AnnualGrowthChart';
 import PaymentStatusCard from './PaymentStatusCard';
 import PaymentSummaryCard from './PaymentSummaryCard';
@@ -29,6 +32,7 @@ import RecentReservations from './RecentReservations';
 const Dashboard = () => {
   const { selectedProperties, selectedPeriod, selectedPlatform, customStartDate, customEndDate } = useGlobalFilters();
   const { hasPermission } = useUserPermissions();
+  const [competenceMode, setCompetenceMode] = useState<'operational' | 'financial'>('operational');
 
   const { startDateString, endDateString, totalDays, periodType } = useDateRange(selectedPeriod, customStartDate, customEndDate);
 
@@ -36,11 +40,19 @@ const Dashboard = () => {
   const { data: financialData, loading: financialLoading, fetchFinancialData } = useFinancialData(startDateString, endDateString, selectedProperties, selectedPlatform, totalDays);
   const { data: operationalData, loading: operationalLoading, fetchOperationalData } = useOperationalData(startDateString, endDateString, selectedProperties);
   const { data: annualGrowthData, loading: annualGrowthLoading, fetchAnnualGrowthData } = useAnnualGrowthData(selectedProperties);
+  const { data: competenceData, loading: loadingCompetence, fetchData: fetchCompetenceData } = useFinancialDataWithCompetence(
+    startDateString,
+    endDateString,
+    selectedProperties,
+    selectedPlatform,
+    totalDays
+  );
 
   useEffect(() => {
     fetchFinancialData();
     fetchOperationalData();
     fetchAnnualGrowthData();
+    fetchCompetenceData();
   }, [selectedPeriod, selectedProperties, selectedPlatform, customStartDate, customEndDate, startDateString, endDateString]);
   
   const isLoading = financialLoading || operationalLoading || annualGrowthLoading;
@@ -51,33 +63,77 @@ const Dashboard = () => {
     <div className="p-6 space-y-8 bg-[#F8F9FA]">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gradient-primary">Dashboard Analítico</h1>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Modo de Visualização:</span>
+          <Select value={competenceMode} onValueChange={(v: any) => setCompetenceMode(v)}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="operational">📅 Operacional</SelectItem>
+              <SelectItem value="financial">💰 Financeiro</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {isLoading ? (
         <div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="h-8 w-8 text-primary animate-spin" /></div>
       ) : (
         <>
-          <h2 className="text-2xl font-bold text-gray-700 -mb-4">Visão Financeira {periodType === 'future' && <span className="text-sm font-normal text-gray-500">(Previsão)</span>}</h2>
+          <h2 className="text-2xl font-bold text-gray-700 -mb-4">
+            {competenceMode === 'operational' ? 'Visão Operacional' : 'Visão Financeira'} 
+            {periodType === 'future' && <span className="text-sm font-normal text-gray-500"> (Previsão)</span>}
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {hasPermission('dashboard_revenue') && (
+            {hasPermission('dashboard_revenue') && competenceMode === 'operational' && (
               <MonthlyRevenueKPI 
-                totalRevenue={financialData.totalGrossRevenue} 
+                totalRevenue={competenceData.operational.totalRevenue} 
                 selectedPeriod="Período Selecionado" 
-                subtitle="Receita Bruta Total"
+                subtitle="Receita Bruta - Reservas Ativas"
+              />
+            )}
+            {hasPermission('dashboard_revenue') && competenceMode === 'financial' && (
+              <MonthlyRevenueKPI 
+                totalRevenue={competenceData.financial.totalGrossRevenue} 
+                selectedPeriod="Período Selecionado" 
+                subtitle="Receita Bruta Recebida"
               />
             )}
             {hasPermission('dashboard_expenses') && (
               <KPICard title="Despesas Totais" value={`R$ ${financialData.totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} isPositive={false} icon={<div className="h-4 w-4" />} />
             )}
-            {hasPermission('dashboard_profit') && (
+            {hasPermission('dashboard_profit') && competenceMode === 'operational' && (
               <NetProfitKPI 
-                netRevenue={financialData.totalNetRevenue}
-                commission={financialData.totalCommission}
-                baseRevenue={financialData.totalBaseRevenue}
+                netRevenue={competenceData.operational.totalNetRevenue}
+                commission={0}
+                baseRevenue={competenceData.operational.totalRevenue}
               />
             )}
-            {hasPermission('dashboard_occupancy') && (
-              <KPICard title="Taxa de Ocupação" value={`${financialData.occupancyRate.toFixed(1)}%`} icon={<div className="h-4 w-4" />} />
+            {hasPermission('dashboard_profit') && competenceMode === 'financial' && (
+              <NetProfitKPI 
+                netRevenue={competenceData.financial.totalNetRevenue}
+                commission={0}
+                baseRevenue={competenceData.financial.totalGrossRevenue}
+              />
+            )}
+            {hasPermission('dashboard_occupancy') && competenceMode === 'operational' && (
+              <KPICard title="Taxa de Ocupação" value={`${competenceData.operational.occupancyRate.toFixed(1)}%`} icon={<div className="h-4 w-4" />} />
+            )}
+            {hasPermission('dashboard_occupancy') && competenceMode === 'financial' && (
+              <RevenueCompetenceCard 
+                mode="financial"
+                financial={{
+                  totalNetRevenue: competenceData.financial.totalNetRevenue,
+                  airbnbRevenue: competenceData.financial.airbnbRevenue,
+                  bookingRevenue: competenceData.financial.bookingRevenue,
+                  directRevenue: competenceData.financial.directRevenue,
+                }}
+                futureBooking={{
+                  total: competenceData.futureRevenue.bookingComTotal,
+                  nextMonth: competenceData.futureRevenue.nextPaymentMonth,
+                }}
+              />
             )}
           </div>
 

@@ -12,6 +12,7 @@ export interface Reservation {
   check_out_date: string;
   checkin_time?: string;
   checkout_time?: string;
+  payment_date?: string;
   total_revenue: number;
   base_revenue?: number;
   commission_amount?: number;
