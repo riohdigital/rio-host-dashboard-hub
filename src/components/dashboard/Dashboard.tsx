@@ -18,6 +18,7 @@ import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
 import KPICard from './KPICard';
 import NetProfitKPI from './NetProfitKPI';
 import MonthlyRevenueKPI from './MonthlyRevenueKPI';
+import RevenueBreakdownCard from './RevenueBreakdownCard';
 import AnnualGrowthChart from './AnnualGrowthChart';
 import PaymentStatusCard from './PaymentStatusCard';
 import PaymentSummaryCard from './PaymentSummaryCard';
@@ -59,17 +60,36 @@ const Dashboard = () => {
           <h2 className="text-2xl font-bold text-gray-700 -mb-4">Visão Financeira {periodType === 'future' && <span className="text-sm font-normal text-gray-500">(Previsão)</span>}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {hasPermission('dashboard_revenue') && (
-              <MonthlyRevenueKPI totalRevenue={financialData.totalRevenue} selectedPeriod="Período Selecionado" />
+              <MonthlyRevenueKPI 
+                totalRevenue={financialData.totalGrossRevenue} 
+                selectedPeriod="Período Selecionado" 
+                subtitle="Receita Bruta Total"
+              />
             )}
             {hasPermission('dashboard_expenses') && (
               <KPICard title="Despesas Totais" value={`R$ ${financialData.totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} isPositive={false} icon={<div className="h-4 w-4" />} />
             )}
             {hasPermission('dashboard_profit') && (
-              <NetProfitKPI reservations={financialData.reservationsForPeriod} />
+              <NetProfitKPI 
+                netRevenue={financialData.totalNetRevenue}
+                commission={financialData.totalCommission}
+                baseRevenue={financialData.totalBaseRevenue}
+              />
             )}
             {hasPermission('dashboard_occupancy') && (
               <KPICard title="Taxa de Ocupação" value={`${financialData.occupancyRate.toFixed(1)}%`} icon={<div className="h-4 w-4" />} />
             )}
+          </div>
+
+          {/* Breakdown Detalhado */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+            <RevenueBreakdownCard 
+              grossRevenue={financialData.totalGrossRevenue}
+              baseRevenue={financialData.totalBaseRevenue}
+              commission={financialData.totalCommission}
+              netRevenue={financialData.totalNetRevenue}
+              expenses={financialData.totalExpenses}
+            />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">

@@ -2,9 +2,12 @@ import { useState, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface FinancialData {
-  totalRevenue: number;
+  totalGrossRevenue: number;      // Receita bruta total (total_revenue)
+  totalBaseRevenue: number;       // Base de cálculo (base_revenue)
+  totalCommission: number;        // Comissão (commission_amount)
+  totalNetRevenue: number;        // Líquido proprietário (net_revenue)
   totalExpenses: number;
-  netProfit: number;
+  netProfit: number;              // net_revenue - despesas
   occupancyRate: number;
   revenueByPlatform: Array<{ name: string; value: number }>;
   reservationsForPeriod: any[];
@@ -17,7 +20,10 @@ export const useFinancialData = (
   totalDays: number
 ) => {
   const [data, setData] = useState<FinancialData>({
-    totalRevenue: 0,
+    totalGrossRevenue: 0,
+    totalBaseRevenue: 0,
+    totalCommission: 0,
+    totalNetRevenue: 0,
     totalExpenses: 0,
     netProfit: 0,
     occupancyRate: 0,
@@ -71,9 +77,11 @@ export const useFinancialData = (
       const expenses = expensesRes.data || [];
       const properties = propertiesRes.data || [];
 
-      const totalRevenue = reservations.reduce((sum, r) => sum + (r.base_revenue || 0), 0);
-      const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+      const totalGrossRevenue = reservations.reduce((sum, r) => sum + (r.total_revenue || 0), 0);
+      const totalBaseRevenue = reservations.reduce((sum, r) => sum + (r.base_revenue || 0), 0);
+      const totalCommission = reservations.reduce((sum, r) => sum + (r.commission_amount || 0), 0);
       const totalNetRevenue = reservations.reduce((sum, r) => sum + (r.net_revenue || 0), 0);
+      const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
       const netProfit = totalNetRevenue - totalExpenses;
 
       // Calcula apenas os dias que estão dentro do período analisado
@@ -111,7 +119,10 @@ export const useFinancialData = (
       ).map(([name, value]) => ({ name, value }));
       
       setData({
-        totalRevenue,
+        totalGrossRevenue,
+        totalBaseRevenue,
+        totalCommission,
+        totalNetRevenue,
         totalExpenses,
         netProfit,
         occupancyRate,

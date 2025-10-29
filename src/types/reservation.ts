@@ -21,7 +21,11 @@ export interface Reservation {
   is_communicated?: boolean;
   receipt_sent?: boolean;
   created_at: string;
-  // Novos campos relacionados à faxina
+  // Campos de rastreamento de criação
+  created_by?: string | null;
+  created_by_source?: string;
+  automation_metadata?: any;
+  // Campos relacionados à faxina
   cleaner_user_id?: string | null;
   cleaning_payment_status?: string | null;
   cleaning_rating?: number | null;

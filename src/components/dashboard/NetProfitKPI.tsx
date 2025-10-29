@@ -4,21 +4,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { TrendingUp } from 'lucide-react';
 
 interface NetProfitKPIProps {
-  reservations: any[];
+  netRevenue: number;
+  commission: number;
+  baseRevenue: number;
 }
 
-const NetProfitKPI = ({ reservations }: NetProfitKPIProps) => {
+const NetProfitKPI = ({ netRevenue, commission, baseRevenue }: NetProfitKPIProps) => {
   const [viewType, setViewType] = useState<'net' | 'commission' | 'combined'>('net');
-
-  const totalNetRevenue = reservations.reduce((sum, r) => {
-    return sum + (r.net_revenue || 0);
-  }, 0);
-
-  // --- CORREÇÃO APLICADA AQUI ---
-  // A comissão total agora é a soma de 'commission_amount'.
-  const totalCommission = reservations.reduce((sum, r) => {
-    return sum + (r.commission_amount || 0);
-  }, 0);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -32,13 +24,13 @@ const NetProfitKPI = ({ reservations }: NetProfitKPIProps) => {
   const getValue = () => {
     switch (viewType) {
       case 'net':
-        return formatCurrency(totalNetRevenue);
+        return formatCurrency(netRevenue);
       case 'commission':
-        return formatCurrency(totalCommission);
+        return formatCurrency(commission);
       case 'combined':
-        return formatCurrency(totalNetRevenue + totalCommission);
+        return formatCurrency(baseRevenue);
       default:
-        return formatCurrency(totalNetRevenue);
+        return formatCurrency(netRevenue);
     }
   };
 
