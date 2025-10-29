@@ -1,4 +1,4 @@
-import React from 'react';
+import { useMemo } from 'react';
 import { CalendarReservation } from '@/types/calendar';
 import { Property } from '@/types/property';
 import { format } from 'date-fns';
@@ -17,15 +17,15 @@ interface CompactListViewProps {
   onReservationClick: (reservation: CalendarReservation) => void;
 }
 
-export const CompactListView: React.FC<CompactListViewProps> = ({
+export const CompactListView = ({
   reservations,
   properties,
   startDate,
   endDate,
   onReservationClick,
-}) => {
+}: CompactListViewProps) => {
   // Agrupar reservas por propriedade
-  const reservationsByProperty = React.useMemo(() => {
+  const reservationsByProperty = useMemo(() => {
     const grouped: Record<string, CalendarReservation[]> = {};
     
     properties.forEach(property => {

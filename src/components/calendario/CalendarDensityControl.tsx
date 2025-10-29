@@ -1,4 +1,3 @@
-import React from 'react';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
@@ -16,11 +15,11 @@ const PRESETS = {
   expanded: 100,
 };
 
-export const CalendarDensityControl: React.FC<CalendarDensityControlProps> = ({
+export const CalendarDensityControl = ({
   dayWidth,
   onDayWidthChange,
   className,
-}) => {
+}: CalendarDensityControlProps) => {
   const handlePreset = (preset: keyof typeof PRESETS) => {
     onDayWidthChange(PRESETS[preset]);
   };

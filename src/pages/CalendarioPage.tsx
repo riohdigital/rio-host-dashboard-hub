@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useCalendarView } from '@/hooks/useCalendarView';
 import { useCalendarData } from '@/hooks/useCalendarData';
 import { useOccupancyStats } from '@/hooks/useOccupancyStats';
@@ -19,7 +19,7 @@ import ReservationForm from '@/components/reservations/ReservationForm';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Info } from 'lucide-react';
 
-const CalendarioPage: React.FC = () => {
+const CalendarioPage = () => {
   const { selectedProperties, selectedPlatform, selectedPeriod, customStartDate, customEndDate } = useGlobalFilters();
   const { view, setView, goToNextPeriod, goToPreviousPeriod, goToToday, currentDate } = useCalendarView();
   const [selectedReservation, setSelectedReservation] = useState<CalendarReservation | null>(null);
