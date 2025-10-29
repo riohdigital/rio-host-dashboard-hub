@@ -3,7 +3,6 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { Loader2 } from 'lucide-react';
 
@@ -32,9 +31,12 @@ import RecentReservations from './RecentReservations';
 const Dashboard = () => {
   const { selectedProperties, selectedPeriod, selectedPlatform, customStartDate, customEndDate } = useGlobalFilters();
   const { hasPermission } = useUserPermissions();
-  const [competenceMode, setCompetenceMode] = useState<'operational' | 'financial'>('operational');
 
   const { startDateString, endDateString, totalDays, periodType } = useDateRange(selectedPeriod, customStartDate, customEndDate);
+  
+  // Dashboard inteligente: automaticamente mostra regime de caixa ou previsão
+  const showCashBasis = periodType === 'past' || periodType === 'current';
+  const showForecast = periodType === 'future';
 
   // Usando os hooks para buscar dados
   const { data: financialData, loading: financialLoading, fetchFinancialData } = useFinancialData(startDateString, endDateString, selectedProperties, selectedPlatform, totalDays);
@@ -63,18 +65,6 @@ const Dashboard = () => {
     <div className="p-6 space-y-8 bg-[#F8F9FA]">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gradient-primary">Dashboard Analítico</h1>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Modo de Visualização:</span>
-          <Select value={competenceMode} onValueChange={(v: any) => setCompetenceMode(v)}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="operational">📅 Operacional</SelectItem>
-              <SelectItem value="financial">💰 Financeiro</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
       </div>
 
       {isLoading ? (
@@ -82,47 +72,46 @@ const Dashboard = () => {
       ) : (
         <>
           <h2 className="text-2xl font-bold text-gray-700 -mb-4">
-            {competenceMode === 'operational' ? 'Visão Operacional' : 'Visão Financeira'} 
-            {periodType === 'future' && <span className="text-sm font-normal text-gray-500"> (Previsão)</span>}
+            {showForecast ? '📊 Previsão de Receita' : '💰 Receita do Período'}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {hasPermission('dashboard_revenue') && competenceMode === 'operational' && (
+            {hasPermission('dashboard_revenue') && showForecast && (
               <MonthlyRevenueKPI 
                 totalRevenue={competenceData.operational.totalRevenue} 
                 selectedPeriod="Período Selecionado" 
-                subtitle="Receita Bruta - Reservas Ativas"
+                subtitle="Receita Prevista das Reservas"
               />
             )}
-            {hasPermission('dashboard_revenue') && competenceMode === 'financial' && (
+            {hasPermission('dashboard_revenue') && showCashBasis && (
               <MonthlyRevenueKPI 
                 totalRevenue={competenceData.financial.totalGrossRevenue} 
                 selectedPeriod="Período Selecionado" 
-                subtitle="Receita Bruta Recebida"
+                subtitle="Receita Recebida no Período"
               />
             )}
             {hasPermission('dashboard_expenses') && (
-              <KPICard title="Despesas Totais" value={`R$ ${financialData.totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} isPositive={false} icon={<div className="h-4 w-4" />} />
+              <KPICard title="Despesas do Período" value={`R$ ${financialData.totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} isPositive={false} icon={<div className="h-4 w-4" />} />
             )}
-            {hasPermission('dashboard_profit') && competenceMode === 'operational' && (
+            {hasPermission('dashboard_profit') && showForecast && (
               <NetProfitKPI 
                 netRevenue={competenceData.operational.totalNetRevenue}
                 commission={0}
                 baseRevenue={competenceData.operational.totalRevenue}
               />
             )}
-            {hasPermission('dashboard_profit') && competenceMode === 'financial' && (
+            {hasPermission('dashboard_profit') && showCashBasis && (
               <NetProfitKPI 
                 netRevenue={competenceData.financial.totalNetRevenue}
                 commission={0}
                 baseRevenue={competenceData.financial.totalGrossRevenue}
               />
             )}
-            {hasPermission('dashboard_occupancy') && competenceMode === 'operational' && (
-              <KPICard title="Taxa de Ocupação" value={`${competenceData.operational.occupancyRate.toFixed(1)}%`} icon={<div className="h-4 w-4" />} />
+            {hasPermission('dashboard_occupancy') && showForecast && (
+              <KPICard title="Taxa de Ocupação Prevista" value={`${competenceData.operational.occupancyRate.toFixed(1)}%`} icon={<div className="h-4 w-4" />} />
             )}
-            {hasPermission('dashboard_occupancy') && competenceMode === 'financial' && (
+            {hasPermission('dashboard_occupancy') && showCashBasis && (
               <RevenueCompetenceCard 
-                mode="financial"
+                periodType={periodType}
                 financial={{
                   totalNetRevenue: competenceData.financial.totalNetRevenue,
                   airbnbRevenue: competenceData.financial.airbnbRevenue,
@@ -140,10 +129,10 @@ const Dashboard = () => {
           {/* Breakdown Detalhado */}
           <div className="mt-6">
             <RevenueBreakdownCard 
-              grossRevenue={competenceMode === 'operational' ? competenceData.operational.totalRevenue : competenceData.financial.totalGrossRevenue}
-              baseRevenue={competenceMode === 'operational' ? competenceData.operational.totalRevenue : competenceData.financial.totalGrossRevenue}
-              commission={competenceMode === 'operational' ? (competenceData.operational.totalRevenue - competenceData.operational.totalNetRevenue) : (competenceData.financial.totalGrossRevenue - competenceData.financial.totalNetRevenue)}
-              netRevenue={competenceMode === 'operational' ? competenceData.operational.totalNetRevenue : competenceData.financial.totalNetRevenue}
+              grossRevenue={showForecast ? competenceData.operational.totalRevenue : competenceData.financial.totalGrossRevenue}
+              baseRevenue={showForecast ? competenceData.operational.totalRevenue : competenceData.financial.totalGrossRevenue}
+              commission={showForecast ? (competenceData.operational.totalRevenue - competenceData.operational.totalNetRevenue) : (competenceData.financial.totalGrossRevenue - competenceData.financial.totalNetRevenue)}
+              netRevenue={showForecast ? competenceData.operational.totalNetRevenue : competenceData.financial.totalNetRevenue}
               expenses={financialData.totalExpenses}
             />
           </div>
