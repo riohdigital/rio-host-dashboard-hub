@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -79,6 +80,7 @@ const ReservasPage = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedStatus, setSelectedStatus] = useState('all');
     const [selectedPaymentStatus, setSelectedPaymentStatus] = useState('all');
+    const [activeTab, setActiveTab] = useState('active');
     const { toast } = useToast();
     const { hasPermission, getAccessibleProperties, loading: permissionsLoading } = useUserPermissions();
     const { selectedProperties, selectedPeriod, selectedPlatform, customStartDate, customEndDate } = useGlobalFilters();
@@ -147,8 +149,13 @@ const ReservasPage = () => {
         queryClient.invalidateQueries({ queryKey });
     };
 
-    const filteredReservations = useMemo(() => {
-        return reservations.filter(reservation => {
+    // Separar reservas por tipo de competência
+    const reservationsByCompetence = useMemo(() => {
+        const active: any[] = [];
+        const received: any[] = [];
+        const future: any[] = [];
+        
+        reservations.forEach((reservation: any) => {
             const property = reservation.properties;
             const lowerSearchTerm = searchTerm.toLowerCase();
             const matchesSearch = !searchTerm || 
@@ -163,9 +170,45 @@ const ReservasPage = () => {
             const matchesPlatform = selectedPlatform === 'all' || reservation.platform === selectedPlatform;
             const matchesPaymentStatus = selectedPaymentStatus === 'all' || reservation.payment_status === selectedPaymentStatus;
             
-            return matchesSearch && matchesProperty && matchesStatus && matchesPlatform && matchesPaymentStatus;
+            if (!matchesSearch || !matchesProperty || !matchesStatus || !matchesPlatform || !matchesPaymentStatus) {
+                return;
+            }
+            
+            // Ativas no Período: reservas que ocupam o período
+            const checkIn = new Date(reservation.check_in_date);
+            const checkOut = new Date(reservation.check_out_date);
+            const periodStart = new Date(startDateString);
+            const periodEnd = new Date(endDateString);
+            
+            if (checkIn <= periodEnd && checkOut >= periodStart) {
+                active.push(reservation);
+            }
+            
+            // Receitas Recebidas: payment_date dentro do período
+            if (reservation.payment_date) {
+                const paymentDate = new Date(reservation.payment_date);
+                if (paymentDate >= periodStart && paymentDate <= periodEnd) {
+                    received.push(reservation);
+                }
+            }
+            
+            // Receitas Futuras: Booking.com com checkout no período mas payment_date fora
+            if (reservation.platform === 'Booking.com' && checkOut >= periodStart && checkOut <= periodEnd) {
+                if (!reservation.payment_date || new Date(reservation.payment_date) > periodEnd) {
+                    future.push(reservation);
+                }
+            }
         });
-    }, [reservations, searchTerm, selectedProperties, selectedStatus, selectedPlatform, selectedPaymentStatus, properties]);
+        
+        return { active, received, future };
+    }, [reservations, searchTerm, selectedProperties, selectedStatus, selectedPlatform, selectedPaymentStatus, startDateString, endDateString]);
+
+    const filteredReservations = useMemo(() => {
+        if (activeTab === 'active') return reservationsByCompetence.active;
+        if (activeTab === 'received') return reservationsByCompetence.received;
+        if (activeTab === 'future') return reservationsByCompetence.future;
+        return [];
+    }, [activeTab, reservationsByCompetence]);
 
     const totals = useMemo(() => filteredReservations.reduce((acc, reservation) => {
         acc.count += 1;
@@ -256,10 +299,27 @@ const ReservasPage = () => {
                     </CardContent>
                 </Card>
 
-                <Card>
-                    <CardContent className="p-0">
-                        <div className="overflow-x-auto">
-                            <Table>
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                    <TabsList className="grid w-full grid-cols-3 mb-4">
+                        <TabsTrigger value="active">
+                            Ativas no Período
+                            <Badge variant="secondary" className="ml-2">{reservationsByCompetence.active.length}</Badge>
+                        </TabsTrigger>
+                        <TabsTrigger value="received">
+                            Receitas Recebidas
+                            <Badge variant="secondary" className="ml-2">{reservationsByCompetence.received.length}</Badge>
+                        </TabsTrigger>
+                        <TabsTrigger value="future">
+                            Receitas Futuras (Booking)
+                            <Badge variant="secondary" className="ml-2">{reservationsByCompetence.future.length}</Badge>
+                        </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value={activeTab}>
+                        <Card>
+                            <CardContent className="p-0">
+                                <div className="overflow-x-auto">
+                                    <Table>
                                 <TableHeader>
                                     <TableRow className="bg-gray-50 hover:bg-gray-50">
                                         <TableHead>Código</TableHead>
@@ -397,10 +457,12 @@ const ReservasPage = () => {
                                         </TableCell>
                                     </TableRow>
                                 </TableFooter>
-                            </Table>
-                        </div>
-                    </CardContent>
-                </Card>
+                                    </Table>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                </Tabs>
                 
                 {(() => {
                     if (typeof window !== 'undefined') {
