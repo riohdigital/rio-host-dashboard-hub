@@ -17,6 +17,7 @@ export const useFinancialData = (
   startDateString: string,
   endDateString: string,
   selectedProperties: string[],
+  selectedPlatform: string,
   totalDays: number
 ) => {
   const [data, setData] = useState<FinancialData>({
@@ -36,6 +37,10 @@ export const useFinancialData = (
   const propertyFilter = useMemo(() => {
     return selectedProperties.includes('todas') ? null : selectedProperties.filter(id => id !== 'todas');
   }, [selectedProperties]);
+
+  const platformFilter = useMemo(() => {
+    return selectedPlatform === 'all' ? null : selectedPlatform;
+  }, [selectedPlatform]);
 
   const fetchFinancialData = useCallback(async () => {
     setLoading(true);
@@ -62,6 +67,10 @@ export const useFinancialData = (
         expensesQuery = expensesQuery.in('property_id', propertyFilter);
         propertiesQuery = propertiesQuery.in('id', propertyFilter);
       }
+
+      if (platformFilter) {
+        reservationsQuery = reservationsQuery.eq('platform', platformFilter);
+      }
       
       const [reservationsRes, expensesRes, propertiesRes] = await Promise.all([
         reservationsQuery,
@@ -77,12 +86,33 @@ export const useFinancialData = (
       const expenses = expensesRes.data || [];
       const properties = propertiesRes.data || [];
 
+      console.group('🔍 Debug Financial Data - Dashboard');
+      console.log('📅 Período:', startDateString, 'até', endDateString);
+      console.log('🏠 Propriedades selecionadas:', selectedProperties);
+      console.log('🌐 Plataforma selecionada:', selectedPlatform);
+      console.log('🔧 Filtro de propriedades aplicado:', propertyFilter);
+      console.log('🔧 Filtro de plataforma aplicado:', platformFilter);
+      console.log('📊 Reservas encontradas:', reservations.length);
+      if (reservations.length > 0) {
+        console.log('Primeiras 3 reservas:', reservations.slice(0, 3).map(r => ({
+          code: r.reservation_code,
+          platform: r.platform,
+          total: r.total_revenue
+        })));
+      }
+      console.groupEnd();
+
       const totalGrossRevenue = reservations.reduce((sum, r) => sum + (r.total_revenue || 0), 0);
       const totalBaseRevenue = reservations.reduce((sum, r) => sum + (r.base_revenue || 0), 0);
       const totalCommission = reservations.reduce((sum, r) => sum + (r.commission_amount || 0), 0);
       const totalNetRevenue = reservations.reduce((sum, r) => sum + (r.net_revenue || 0), 0);
       const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
       const netProfit = totalNetRevenue - totalExpenses;
+
+      console.log('💰 Gross Revenue:', totalGrossRevenue);
+      console.log('💰 Base Revenue:', totalBaseRevenue);
+      console.log('💰 Commission:', totalCommission);
+      console.log('💰 Net Revenue:', totalNetRevenue);
 
       // Calcula apenas os dias que estão dentro do período analisado
       const periodStart = new Date(startDateString + 'T00:00:00');
@@ -136,7 +166,7 @@ export const useFinancialData = (
     } finally {
       setLoading(false);
     }
-  }, [startDateString, endDateString, propertyFilter, totalDays]);
+  }, [startDateString, endDateString, propertyFilter, platformFilter, totalDays]);
   
   return { data, loading, error, fetchFinancialData };
 };

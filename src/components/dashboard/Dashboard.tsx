@@ -27,13 +27,13 @@ import UpcomingReservations from './UpcomingReservations';
 import RecentReservations from './RecentReservations';
 
 const Dashboard = () => {
-  const { selectedProperties, selectedPeriod, customStartDate, customEndDate } = useGlobalFilters();
+  const { selectedProperties, selectedPeriod, selectedPlatform, customStartDate, customEndDate } = useGlobalFilters();
   const { hasPermission } = useUserPermissions();
 
   const { startDateString, endDateString, totalDays, periodType } = useDateRange(selectedPeriod, customStartDate, customEndDate);
 
   // Usando os hooks para buscar dados
-  const { data: financialData, loading: financialLoading, fetchFinancialData } = useFinancialData(startDateString, endDateString, selectedProperties, totalDays);
+  const { data: financialData, loading: financialLoading, fetchFinancialData } = useFinancialData(startDateString, endDateString, selectedProperties, selectedPlatform, totalDays);
   const { data: operationalData, loading: operationalLoading, fetchOperationalData } = useOperationalData(startDateString, endDateString, selectedProperties);
   const { data: annualGrowthData, loading: annualGrowthLoading, fetchAnnualGrowthData } = useAnnualGrowthData(selectedProperties);
 
@@ -82,7 +82,7 @@ const Dashboard = () => {
           </div>
 
           {/* Breakdown Detalhado */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+          <div className="mt-6">
             <RevenueBreakdownCard 
               grossRevenue={financialData.totalGrossRevenue}
               baseRevenue={financialData.totalBaseRevenue}
