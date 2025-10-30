@@ -9,6 +9,8 @@ interface FinancialDataWithCompetence {
     occupancyRate: number;
     totalRevenue: number;
     totalNetRevenue: number;
+    totalRevenueWithFuture: number;
+    totalNetRevenueWithFuture: number;
     reservations: Reservation[];
   };
   financial: {
@@ -34,7 +36,7 @@ export const useFinancialDataWithCompetence = (
   totalDays: number
 ) => {
   const [data, setData] = useState<FinancialDataWithCompetence>({
-    operational: { totalReservations: 0, occupancyRate: 0, totalRevenue: 0, totalNetRevenue: 0, reservations: [] },
+    operational: { totalReservations: 0, occupancyRate: 0, totalRevenue: 0, totalNetRevenue: 0, totalRevenueWithFuture: 0, totalNetRevenueWithFuture: 0, reservations: [] },
     financial: { totalGrossRevenue: 0, totalNetRevenue: 0, airbnbRevenue: 0, bookingRevenue: 0, directRevenue: 0, reservations: [] },
     futureRevenue: { bookingComTotal: 0, nextPaymentMonth: '', reservations: [] },
   });
@@ -128,6 +130,13 @@ export const useFinancialDataWithCompetence = (
       const operationalTotalRevenue = operationalReservations.reduce((sum, r) => sum + (r.total_revenue || 0), 0);
       const operationalTotalNetRevenue = operationalReservations.reduce((sum, r) => sum + (r.net_revenue || 0), 0);
 
+      // Calcular receitas futuras do Booking para incluir na receita operacional
+      const futureBookingRevenue = futureBookingReservations.reduce((sum, r) => sum + (r.total_revenue || 0), 0);
+      const futureBookingNetRevenue = futureBookingReservations.reduce((sum, r) => sum + (r.net_revenue || 0), 0);
+      
+      const operationalTotalWithFuture = operationalTotalRevenue + futureBookingRevenue;
+      const operationalNetWithFuture = operationalTotalNetRevenue + futureBookingNetRevenue;
+
       // Calcular métricas financeiras
       const totalGrossRevenue = financialReservations.reduce((sum, r) => sum + (r.total_revenue || 0), 0);
       const totalNetRevenue = financialReservations.reduce((sum, r) => sum + (r.net_revenue || 0), 0);
@@ -157,6 +166,8 @@ export const useFinancialDataWithCompetence = (
           occupancyRate,
           totalRevenue: operationalTotalRevenue,
           totalNetRevenue: operationalTotalNetRevenue,
+          totalRevenueWithFuture: operationalTotalWithFuture,
+          totalNetRevenueWithFuture: operationalNetWithFuture,
           reservations: operationalReservations,
         },
         financial: {

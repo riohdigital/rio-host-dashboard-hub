@@ -84,7 +84,7 @@ const Dashboard = () => {
             )}
             {hasPermission('dashboard_revenue') && showCashBasis && (
               <MonthlyRevenueKPI 
-                totalRevenue={competenceData.financial.totalGrossRevenue} 
+                totalRevenue={competenceData.operational.totalRevenueWithFuture} 
                 selectedPeriod="Período Selecionado" 
                 subtitle="Receita Recebida no Período"
               />
@@ -101,9 +101,9 @@ const Dashboard = () => {
             )}
             {hasPermission('dashboard_profit') && showCashBasis && (
               <NetProfitKPI 
-                netRevenue={competenceData.financial.totalNetRevenue}
+                netRevenue={competenceData.operational.totalNetRevenueWithFuture}
                 commission={0}
-                baseRevenue={competenceData.financial.totalGrossRevenue}
+                baseRevenue={competenceData.operational.totalRevenueWithFuture}
               />
             )}
             {hasPermission('dashboard_occupancy') && showForecast && (
@@ -133,10 +133,10 @@ const Dashboard = () => {
           {/* Breakdown Detalhado */}
           <div className="mt-6">
             <RevenueBreakdownCard 
-              grossRevenue={showForecast ? competenceData.operational.totalRevenue : competenceData.financial.totalGrossRevenue}
-              baseRevenue={showForecast ? competenceData.operational.totalRevenue : competenceData.financial.totalGrossRevenue}
-              commission={showForecast ? (competenceData.operational.totalRevenue - competenceData.operational.totalNetRevenue) : (competenceData.financial.totalGrossRevenue - competenceData.financial.totalNetRevenue)}
-              netRevenue={showForecast ? competenceData.operational.totalNetRevenue : competenceData.financial.totalNetRevenue}
+              grossRevenue={showForecast ? competenceData.operational.totalRevenue : competenceData.operational.totalRevenueWithFuture}
+              baseRevenue={showForecast ? competenceData.operational.totalRevenue : competenceData.operational.totalRevenueWithFuture}
+              commission={showForecast ? (competenceData.operational.totalRevenue - competenceData.operational.totalNetRevenue) : (competenceData.operational.totalRevenueWithFuture - competenceData.operational.totalNetRevenueWithFuture)}
+              netRevenue={showForecast ? competenceData.operational.totalNetRevenue : competenceData.operational.totalNetRevenueWithFuture}
               expenses={financialData.totalExpenses}
             />
           </div>
