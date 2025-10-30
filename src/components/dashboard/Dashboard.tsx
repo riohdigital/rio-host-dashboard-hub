@@ -74,7 +74,7 @@ const Dashboard = () => {
           <h2 className="text-2xl font-bold text-gray-700 -mb-4">
             {showForecast ? '📊 Previsão de Receita' : '💰 Receita do Período'}
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {hasPermission('dashboard_revenue') && showForecast && (
               <MonthlyRevenueKPI 
                 totalRevenue={competenceData.operational.totalRevenue} 
@@ -109,7 +109,11 @@ const Dashboard = () => {
             {hasPermission('dashboard_occupancy') && showForecast && (
               <KPICard title="Taxa de Ocupação Prevista" value={`${competenceData.operational.occupancyRate.toFixed(1)}%`} icon={<div className="h-4 w-4" />} />
             )}
-            {hasPermission('dashboard_occupancy') && showCashBasis && (
+          </div>
+
+          {/* Detalhamento por Plataforma - Expandido */}
+          {hasPermission('dashboard_occupancy') && showCashBasis && (
+            <div className="mt-6">
               <RevenueCompetenceCard 
                 periodType={periodType}
                 financial={{
@@ -123,8 +127,8 @@ const Dashboard = () => {
                   nextMonth: competenceData.futureRevenue.nextPaymentMonth,
                 }}
               />
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Breakdown Detalhado */}
           <div className="mt-6">

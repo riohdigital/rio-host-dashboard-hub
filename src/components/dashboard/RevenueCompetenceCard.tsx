@@ -1,7 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Separator } from '@/components/ui/separator';
-import { TrendingUp } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 interface RevenueCompetenceCardProps {
   periodType: 'past' | 'current' | 'future';
@@ -22,6 +20,27 @@ export const RevenueCompetenceCard = ({
   financial, 
   futureBooking 
 }: RevenueCompetenceCardProps) => {
+  const platforms = [
+    {
+      name: 'Airbnb',
+      timing: 'Recebe em D+1',
+      value: financial.airbnbRevenue,
+      color: 'bg-[#FF5A5F]',
+    },
+    {
+      name: 'Booking.com',
+      timing: 'Recebe mês seguinte',
+      value: financial.bookingRevenue,
+      color: 'bg-[#003580]',
+    },
+    {
+      name: 'Reservas Diretas',
+      timing: 'Recebe no check-in',
+      value: financial.directRevenue,
+      color: 'bg-[#10B981]',
+    },
+  ];
+
   return (
     <Card className="bg-white card-elevated">
       <CardHeader>
@@ -33,53 +52,50 @@ export const RevenueCompetenceCard = ({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
-          <div>
-            <div className="text-3xl font-bold text-gradient-success">
-              R$ {financial.totalNetRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-            </div>
-            <p className="text-sm text-muted-foreground">Total Recebido</p>
+        <div className="space-y-6">
+          {/* Grid de Plataformas */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {platforms.map((platform) => (
+              <div 
+                key={platform.name}
+                className="relative p-6 rounded-lg border border-border/50 bg-gradient-to-br from-background to-muted/20 hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-center gap-2 mb-3">
+                  <div className={`w-3 h-3 rounded-full ${platform.color}`} />
+                  <h3 className="font-semibold text-foreground">{platform.name}</h3>
+                </div>
+                <Badge variant="outline" className="mb-3 text-xs">
+                  {platform.timing}
+                </Badge>
+                <div className="text-2xl font-bold text-gradient-success">
+                  R$ {platform.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </div>
+              </div>
+            ))}
           </div>
-          
-          <Separator />
-          
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Airbnb (recebe em D+1)</span>
-              <span className="font-semibold">
-                R$ {financial.airbnbRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Booking.com (recebe mês seguinte)</span>
-              <span className="font-semibold">
-                R$ {financial.bookingRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Reservas Diretas (recebe no check-in)</span>
-              <span className="font-semibold">
-                R$ {financial.directRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </span>
-            </div>
-          </div>
-          
+
+          {/* Alerta de Booking Futuro */}
           {futureBooking && futureBooking.total > 0 && (
-            <>
-              <Separator />
-              <Alert className="border-blue-200 bg-blue-50">
-                <TrendingUp className="h-4 w-4 text-blue-600" />
-                <AlertTitle className="text-blue-900">📊 Receita Futura - Booking.com</AlertTitle>
-                <AlertDescription className="text-blue-700">
-                  <div className="font-semibold text-lg mt-1">
-                    R$ {futureBooking.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </div>
-                  <div className="text-sm mt-1">
-                    Previsão de recebimento: {futureBooking.nextMonth}
-                  </div>
-                </AlertDescription>
-              </Alert>
-            </>
+            <div className="flex items-center gap-4 p-4 rounded-lg border border-blue-200 bg-blue-50">
+              <div className="flex-shrink-0">
+                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                  <span className="text-xl">📊</span>
+                </div>
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold text-blue-900 mb-1">
+                  Receita Futura - Booking.com
+                </h4>
+                <p className="text-sm text-blue-700">
+                  Previsão de recebimento: {futureBooking.nextMonth}
+                </p>
+              </div>
+              <div className="text-right">
+                <div className="text-2xl font-bold text-blue-900">
+                  R$ {futureBooking.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </CardContent>
