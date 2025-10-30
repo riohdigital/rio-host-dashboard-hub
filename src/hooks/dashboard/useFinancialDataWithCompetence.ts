@@ -61,8 +61,8 @@ export const useFinancialDataWithCompetence = (
       let operationalQuery = supabase
         .from('reservations')
         .select('*, properties(name, nickname)')
-        .gte('check_in_date', startDateString)
-        .lte('check_in_date', endDateString);
+        .gte('check_out_date', startDateString)
+        .lte('check_out_date', endDateString);
 
       // 2. RESERVAS FINANCEIRAS (payment_date no período)
       let financialQuery = supabase
