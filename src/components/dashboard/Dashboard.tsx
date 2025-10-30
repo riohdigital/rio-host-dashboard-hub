@@ -95,14 +95,14 @@ const Dashboard = () => {
             {hasPermission('dashboard_profit') && showForecast && (
               <NetProfitKPI 
                 netRevenue={competenceData.operational.totalNetRevenue}
-                commission={0}
+                commission={competenceData.operational.totalCommission}
                 baseRevenue={competenceData.operational.totalRevenue}
               />
             )}
             {hasPermission('dashboard_profit') && showCashBasis && (
               <NetProfitKPI 
                 netRevenue={competenceData.operational.totalNetRevenueWithFuture}
-                commission={0}
+                commission={competenceData.operational.totalCommissionWithFuture}
                 baseRevenue={competenceData.operational.totalRevenueWithFuture}
               />
             )}
@@ -133,10 +133,10 @@ const Dashboard = () => {
           {/* Breakdown Detalhado */}
           <div className="mt-6">
             <RevenueBreakdownCard 
-              grossRevenue={competenceData.operational.totalRevenue}
-              baseRevenue={competenceData.operational.totalRevenue}
-              commission={competenceData.operational.totalRevenue - competenceData.operational.totalNetRevenue}
-              netRevenue={competenceData.operational.totalNetRevenue}
+              grossRevenue={competenceData.operational.totalRevenueWithFuture}
+              baseRevenue={competenceData.operational.totalRevenueWithFuture}
+              commission={competenceData.operational.totalCommissionWithFuture}
+              netRevenue={competenceData.operational.totalNetRevenueWithFuture}
               expenses={financialData.totalExpenses}
             />
           </div>
