@@ -117,10 +117,10 @@ const Dashboard = () => {
               <RevenueCompetenceCard 
                 periodType={periodType}
                 financial={{
-                  totalNetRevenue: competenceData.financial.totalNetRevenue,
-                  airbnbRevenue: competenceData.financial.airbnbRevenue,
-                  bookingRevenue: competenceData.financial.bookingRevenue,
-                  directRevenue: competenceData.financial.directRevenue,
+                  totalNetRevenue: competenceData.operational.totalNetRevenue,
+                  airbnbRevenue: competenceData.operational.airbnbRevenue,
+                  bookingRevenue: competenceData.operational.bookingRevenue,
+                  directRevenue: competenceData.operational.directRevenue,
                 }}
                 futureBooking={{
                   total: competenceData.futureRevenue.bookingComTotal,

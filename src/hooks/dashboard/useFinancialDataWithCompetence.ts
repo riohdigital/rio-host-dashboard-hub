@@ -11,6 +11,9 @@ interface FinancialDataWithCompetence {
     totalNetRevenue: number;
     totalRevenueWithFuture: number;
     totalNetRevenueWithFuture: number;
+    airbnbRevenue: number;
+    bookingRevenue: number;
+    directRevenue: number;
     reservations: Reservation[];
   };
   financial: {
@@ -36,7 +39,7 @@ export const useFinancialDataWithCompetence = (
   totalDays: number
 ) => {
   const [data, setData] = useState<FinancialDataWithCompetence>({
-    operational: { totalReservations: 0, occupancyRate: 0, totalRevenue: 0, totalNetRevenue: 0, totalRevenueWithFuture: 0, totalNetRevenueWithFuture: 0, reservations: [] },
+    operational: { totalReservations: 0, occupancyRate: 0, totalRevenue: 0, totalNetRevenue: 0, totalRevenueWithFuture: 0, totalNetRevenueWithFuture: 0, airbnbRevenue: 0, bookingRevenue: 0, directRevenue: 0, reservations: [] },
     financial: { totalGrossRevenue: 0, totalNetRevenue: 0, airbnbRevenue: 0, bookingRevenue: 0, directRevenue: 0, reservations: [] },
     futureRevenue: { bookingComTotal: 0, nextPaymentMonth: '', reservations: [] },
   });
@@ -130,6 +133,19 @@ export const useFinancialDataWithCompetence = (
       const operationalTotalRevenue = operationalReservations.reduce((sum, r) => sum + (r.total_revenue || 0), 0);
       const operationalTotalNetRevenue = operationalReservations.reduce((sum, r) => sum + (r.net_revenue || 0), 0);
 
+      // Calcular breakdown por plataforma das reservas operacionais
+      const operationalAirbnbRevenue = operationalReservations
+        .filter(r => r.platform === 'Airbnb')
+        .reduce((sum, r) => sum + (r.net_revenue || 0), 0);
+      
+      const operationalBookingRevenue = operationalReservations
+        .filter(r => r.platform === 'Booking.com')
+        .reduce((sum, r) => sum + (r.net_revenue || 0), 0);
+      
+      const operationalDirectRevenue = operationalReservations
+        .filter(r => r.platform === 'Direto')
+        .reduce((sum, r) => sum + (r.net_revenue || 0), 0);
+
       // Calcular receitas futuras do Booking para incluir na receita operacional
       const futureBookingRevenue = futureBookingReservations.reduce((sum, r) => sum + (r.total_revenue || 0), 0);
       const futureBookingNetRevenue = futureBookingReservations.reduce((sum, r) => sum + (r.net_revenue || 0), 0);
@@ -168,6 +184,9 @@ export const useFinancialDataWithCompetence = (
           totalNetRevenue: operationalTotalNetRevenue,
           totalRevenueWithFuture: operationalTotalWithFuture,
           totalNetRevenueWithFuture: operationalNetWithFuture,
+          airbnbRevenue: operationalAirbnbRevenue,
+          bookingRevenue: operationalBookingRevenue,
+          directRevenue: operationalDirectRevenue,
           reservations: operationalReservations,
         },
         financial: {
