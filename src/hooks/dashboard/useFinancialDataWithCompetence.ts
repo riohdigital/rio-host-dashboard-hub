@@ -159,8 +159,12 @@ export const useFinancialDataWithCompetence = (
       const futureBookingRevenue = futureBookingReservations.reduce((sum, r) => sum + (r.total_revenue || 0), 0);
       const futureBookingNetRevenue = futureBookingReservations.reduce((sum, r) => sum + (r.net_revenue || 0), 0);
       
-      const operationalTotalWithFuture = operationalTotalRevenue + futureBookingRevenue;
-      const operationalNetWithFuture = operationalTotalNetRevenue + futureBookingNetRevenue;
+      // Só somar receitas futuras se não estiver filtrando por Booking.com
+      // Quando filtra por Booking, as receitas operacionais JÁ SÃO as futuras
+      const shouldAddFutureRevenue = platformFilter !== 'Booking.com';
+      
+      const operationalTotalWithFuture = operationalTotalRevenue + (shouldAddFutureRevenue ? futureBookingRevenue : 0);
+      const operationalNetWithFuture = operationalTotalNetRevenue + (shouldAddFutureRevenue ? futureBookingNetRevenue : 0);
 
       // Calcular métricas financeiras
       const totalGrossRevenue = financialReservations.reduce((sum, r) => sum + (r.total_revenue || 0), 0);
