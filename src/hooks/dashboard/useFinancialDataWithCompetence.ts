@@ -58,23 +58,91 @@ export const useFinancialDataWithCompetence = (
     
     try {
       // 1. RESERVAS OPERACIONAIS
-      // Booking: check-out no período
-      // Airbnb/Direto: check-in no período
-      let operationalQuery = supabase
-        .from('reservations')
-        .select('*, properties(name, nickname)');
-
-      // Aplicar filtro de data baseado na plataforma
-      if (!platformFilter || platformFilter === 'Booking.com') {
-        // Booking ou todas: usar check-out
-        operationalQuery = operationalQuery
+      // Query mista: cada plataforma usa sua regra de data
+      let operationalReservations: Reservation[] = [];
+      
+      if (!platformFilter) {
+        // TODAS AS PLATAFORMAS: buscar separadamente
+        
+        // Booking: check-out no período
+        let bookingQuery = supabase
+          .from('reservations')
+          .select('*, properties(name, nickname)')
+          .eq('platform', 'Booking.com')
           .gte('check_out_date', startDateString)
           .lte('check_out_date', endDateString);
-      } else {
-        // Airbnb/Direto: usar check-in
-        operationalQuery = operationalQuery
+        
+        // Airbnb: check-in no período
+        let airbnbQuery = supabase
+          .from('reservations')
+          .select('*, properties(name, nickname)')
+          .eq('platform', 'Airbnb')
           .gte('check_in_date', startDateString)
           .lte('check_in_date', endDateString);
+        
+        // Direto: check-in no período
+        let directQuery = supabase
+          .from('reservations')
+          .select('*, properties(name, nickname)')
+          .eq('platform', 'Direto')
+          .gte('check_in_date', startDateString)
+          .lte('check_in_date', endDateString);
+        
+        if (propertyFilter && propertyFilter.length > 0) {
+          bookingQuery = bookingQuery.in('property_id', propertyFilter);
+          airbnbQuery = airbnbQuery.in('property_id', propertyFilter);
+          directQuery = directQuery.in('property_id', propertyFilter);
+        }
+        
+        const [bookingRes, airbnbRes, directRes] = await Promise.all([
+          bookingQuery,
+          airbnbQuery,
+          directQuery
+        ]);
+        
+        if (bookingRes.error) throw bookingRes.error;
+        if (airbnbRes.error) throw airbnbRes.error;
+        if (directRes.error) throw directRes.error;
+        
+        operationalReservations = [
+          ...(bookingRes.data || []),
+          ...(airbnbRes.data || []),
+          ...(directRes.data || [])
+        ] as Reservation[];
+        
+      } else if (platformFilter === 'Booking.com') {
+        // Booking: check-out no período
+        let operationalQuery = supabase
+          .from('reservations')
+          .select('*, properties(name, nickname)')
+          .eq('platform', platformFilter)
+          .gte('check_out_date', startDateString)
+          .lte('check_out_date', endDateString);
+        
+        if (propertyFilter && propertyFilter.length > 0) {
+          operationalQuery = operationalQuery.in('property_id', propertyFilter);
+        }
+        
+        const operationalRes = await operationalQuery;
+        if (operationalRes.error) throw operationalRes.error;
+        operationalReservations = (operationalRes.data || []) as Reservation[];
+        
+      } else {
+        // Airbnb/Direto: check-in no período
+        let operationalQuery = supabase
+          .from('reservations')
+          .select('*, properties(name, nickname)')
+          .eq('platform', platformFilter)
+          .gte('check_in_date', startDateString)
+          .lte('check_in_date', endDateString);
+        
+        if (propertyFilter && propertyFilter.length > 0) {
+          operationalQuery = operationalQuery.in('property_id', propertyFilter);
+        }
+        
+        const operationalRes = await operationalQuery;
+        if (operationalRes.error) throw operationalRes.error;
+        operationalReservations = (operationalRes.data || []) as Reservation[];
       }
 
       // 2. RESERVAS FINANCEIRAS (payment_date no período)
@@ -85,12 +153,10 @@ export const useFinancialDataWithCompetence = (
         .lte('payment_date', endDateString);
 
       if (propertyFilter && propertyFilter.length > 0) {
-        operationalQuery = operationalQuery.in('property_id', propertyFilter);
         financialQuery = financialQuery.in('property_id', propertyFilter);
       }
 
       if (platformFilter) {
-        operationalQuery = operationalQuery.eq('platform', platformFilter);
         financialQuery = financialQuery.eq('platform', platformFilter);
       }
 
@@ -116,18 +182,15 @@ export const useFinancialDataWithCompetence = (
         futureBookingReservations = (futureBookingRes.data || []) as Reservation[];
       }
 
-      const [operationalRes, financialRes, propertiesRes] = await Promise.all([
-        operationalQuery,
+      const [financialRes, propertiesRes] = await Promise.all([
         financialQuery,
         propertyFilter && propertyFilter.length > 0
           ? supabase.from('properties').select('id').in('id', propertyFilter)
           : supabase.from('properties').select('id'),
       ]);
 
-      if (operationalRes.error) throw operationalRes.error;
       if (financialRes.error) throw financialRes.error;
 
-      const operationalReservations = (operationalRes.data || []) as Reservation[];
       const financialReservations = (financialRes.data || []) as Reservation[];
       const properties = propertiesRes.data || [];
 
