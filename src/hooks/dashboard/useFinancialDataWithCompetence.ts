@@ -57,12 +57,25 @@ export const useFinancialDataWithCompetence = (
     setLoading(true);
     
     try {
-      // 1. RESERVAS OPERACIONAIS (ocupam o período)
+      // 1. RESERVAS OPERACIONAIS
+      // Booking: check-out no período
+      // Airbnb/Direto: check-in no período
       let operationalQuery = supabase
         .from('reservations')
-        .select('*, properties(name, nickname)')
-        .gte('check_out_date', startDateString)
-        .lte('check_out_date', endDateString);
+        .select('*, properties(name, nickname)');
+
+      // Aplicar filtro de data baseado na plataforma
+      if (!platformFilter || platformFilter === 'Booking.com') {
+        // Booking ou todas: usar check-out
+        operationalQuery = operationalQuery
+          .gte('check_out_date', startDateString)
+          .lte('check_out_date', endDateString);
+      } else {
+        // Airbnb/Direto: usar check-in
+        operationalQuery = operationalQuery
+          .gte('check_in_date', startDateString)
+          .lte('check_in_date', endDateString);
+      }
 
       // 2. RESERVAS FINANCEIRAS (payment_date no período)
       let financialQuery = supabase
@@ -159,9 +172,9 @@ export const useFinancialDataWithCompetence = (
       const futureBookingRevenue = futureBookingReservations.reduce((sum, r) => sum + (r.total_revenue || 0), 0);
       const futureBookingNetRevenue = futureBookingReservations.reduce((sum, r) => sum + (r.net_revenue || 0), 0);
       
-      // Só somar receitas futuras se não estiver filtrando por Booking.com
-      // Quando filtra por Booking, as receitas operacionais JÁ SÃO as futuras
-      const shouldAddFutureRevenue = platformFilter !== 'Booking.com';
+      // Só somar receitas futuras quando filtrar por Airbnb ou Direto
+      // Booking e "Todas": não somar (já incluídas em operacional)
+      const shouldAddFutureRevenue = platformFilter !== 'Booking.com' && platformFilter !== null;
       
       const operationalTotalWithFuture = operationalTotalRevenue + (shouldAddFutureRevenue ? futureBookingRevenue : 0);
       const operationalNetWithFuture = operationalTotalNetRevenue + (shouldAddFutureRevenue ? futureBookingNetRevenue : 0);
