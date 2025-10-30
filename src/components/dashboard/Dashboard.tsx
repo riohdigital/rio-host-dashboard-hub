@@ -133,10 +133,10 @@ const Dashboard = () => {
           {/* Breakdown Detalhado */}
           <div className="mt-6">
             <RevenueBreakdownCard 
-              grossRevenue={showForecast ? competenceData.operational.totalRevenue : competenceData.operational.totalRevenueWithFuture}
-              baseRevenue={showForecast ? competenceData.operational.totalRevenue : competenceData.operational.totalRevenueWithFuture}
-              commission={showForecast ? (competenceData.operational.totalRevenue - competenceData.operational.totalNetRevenue) : (competenceData.operational.totalRevenueWithFuture - competenceData.operational.totalNetRevenueWithFuture)}
-              netRevenue={showForecast ? competenceData.operational.totalNetRevenue : competenceData.operational.totalNetRevenueWithFuture}
+              grossRevenue={competenceData.operational.totalRevenue}
+              baseRevenue={competenceData.operational.totalRevenue}
+              commission={competenceData.operational.totalRevenue - competenceData.operational.totalNetRevenue}
+              netRevenue={competenceData.operational.totalNetRevenue}
               expenses={financialData.totalExpenses}
             />
           </div>
