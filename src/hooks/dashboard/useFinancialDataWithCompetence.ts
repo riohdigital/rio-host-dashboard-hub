@@ -71,19 +71,9 @@ export const useFinancialDataWithCompetence = (
         .gte('payment_date', startDateString)
         .lte('payment_date', endDateString);
 
-      // 3. RECEITAS FUTURAS BOOKING (checkout no período, payment_date depois)
-      let futureBookingQuery = supabase
-        .from('reservations')
-        .select('*, properties(name, nickname)')
-        .eq('platform', 'Booking.com')
-        .gte('check_out_date', startDateString)
-        .lte('check_out_date', endDateString)
-        .gt('payment_date', endDateString);
-
       if (propertyFilter && propertyFilter.length > 0) {
         operationalQuery = operationalQuery.in('property_id', propertyFilter);
         financialQuery = financialQuery.in('property_id', propertyFilter);
-        futureBookingQuery = futureBookingQuery.in('property_id', propertyFilter);
       }
 
       if (platformFilter) {
@@ -91,10 +81,31 @@ export const useFinancialDataWithCompetence = (
         financialQuery = financialQuery.eq('platform', platformFilter);
       }
 
-      const [operationalRes, financialRes, futureBookingRes, propertiesRes] = await Promise.all([
+      // 3. RECEITAS FUTURAS BOOKING (checkout no período, payment_date depois)
+      // Só buscar se não há filtro de plataforma OU se o filtro é Booking.com
+      let futureBookingReservations: Reservation[] = [];
+      
+      if (!platformFilter || platformFilter === 'Booking.com') {
+        let futureBookingQuery = supabase
+          .from('reservations')
+          .select('*, properties(name, nickname)')
+          .eq('platform', 'Booking.com')
+          .gte('check_out_date', startDateString)
+          .lte('check_out_date', endDateString)
+          .gt('payment_date', endDateString);
+
+        if (propertyFilter && propertyFilter.length > 0) {
+          futureBookingQuery = futureBookingQuery.in('property_id', propertyFilter);
+        }
+
+        const futureBookingRes = await futureBookingQuery;
+        if (futureBookingRes.error) throw futureBookingRes.error;
+        futureBookingReservations = (futureBookingRes.data || []) as Reservation[];
+      }
+
+      const [operationalRes, financialRes, propertiesRes] = await Promise.all([
         operationalQuery,
         financialQuery,
-        futureBookingQuery,
         propertyFilter && propertyFilter.length > 0
           ? supabase.from('properties').select('id').in('id', propertyFilter)
           : supabase.from('properties').select('id'),
@@ -102,11 +113,9 @@ export const useFinancialDataWithCompetence = (
 
       if (operationalRes.error) throw operationalRes.error;
       if (financialRes.error) throw financialRes.error;
-      if (futureBookingRes.error) throw futureBookingRes.error;
 
       const operationalReservations = (operationalRes.data || []) as Reservation[];
       const financialReservations = (financialRes.data || []) as Reservation[];
-      const futureBookingReservations = (futureBookingRes.data || []) as Reservation[];
       const properties = propertiesRes.data || [];
 
       // Calcular métricas operacionais
