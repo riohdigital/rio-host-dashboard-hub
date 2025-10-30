@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Reservation } from '@/types/reservation';
+import { parseDate } from '@/lib/dateUtils';
 
 interface FinancialDataWithCompetence {
   operational: {
@@ -147,7 +148,7 @@ export const useFinancialDataWithCompetence = (
       const bookingComTotal = futureBookingReservations.reduce((sum, r) => sum + (r.net_revenue || 0), 0);
       const nextPaymentDate = futureBookingReservations[0]?.payment_date;
       const nextPaymentMonth = nextPaymentDate 
-        ? new Date(nextPaymentDate).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+        ? parseDate(nextPaymentDate).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
         : '';
 
       setData({
