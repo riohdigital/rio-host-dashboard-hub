@@ -140,7 +140,10 @@ const MasterCleaningDashboard = () => {
       );
     }
 
-    return filtered;
+    // Ordenar por check_out_date crescente (do início para o fim do mês)
+    return filtered.sort((a, b) => 
+      new Date(a.check_out_date).getTime() - new Date(b.check_out_date).getTime()
+    );
   }, [allCleanings, selectedCleaner, searchTerm]);
 
   const assignedCleanings = useMemo(() => 
@@ -159,13 +162,20 @@ const MasterCleaningDashboard = () => {
   );
 
   const filteredAvailableCleanings = useMemo(() => {
-    if (!searchTerm) return availableCleanings;
+    let filtered = availableCleanings;
     
-    const searchLower = searchTerm.toLowerCase();
-    return availableCleanings.filter(cleaning => 
-      cleaning.properties?.name.toLowerCase().includes(searchLower) ||
-      cleaning.reservation_code.toLowerCase().includes(searchLower) ||
-      cleaning.guest_name?.toLowerCase().includes(searchLower)
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = availableCleanings.filter(cleaning => 
+        cleaning.properties?.name.toLowerCase().includes(searchLower) ||
+        cleaning.reservation_code.toLowerCase().includes(searchLower) ||
+        cleaning.guest_name?.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    // Ordenar por check_out_date crescente (do início para o fim do mês)
+    return filtered.sort((a, b) => 
+      new Date(a.check_out_date).getTime() - new Date(b.check_out_date).getTime()
     );
   }, [availableCleanings, searchTerm]);
 

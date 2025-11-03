@@ -1,6 +1,7 @@
 import React from 'react';
 import { CalendarReservation } from '@/types/calendar';
 import { differenceInDays, format } from 'date-fns';
+import { parseDate } from '@/lib/dateUtils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -49,8 +50,8 @@ export const ReservationBlock = React.memo<ReservationBlockProps>(({
   style,
   hasConflict = false,
 }) => {
-  const checkIn = new Date(reservation.check_in_date);
-  const checkOut = new Date(reservation.check_out_date);
+  const checkIn = parseDate(reservation.check_in_date);
+  const checkOut = parseDate(reservation.check_out_date);
   
   const daysFromStart = differenceInDays(checkIn, startDate);
   const duration = differenceInDays(checkOut, checkIn);
@@ -122,8 +123,8 @@ export const ReservationBlock = React.memo<ReservationBlockProps>(({
             <div className="flex items-center gap-2">
               <Clock className="h-3 w-3 text-muted-foreground" />
               <p className="text-xs">
-                {format(new Date(reservation.check_in_date), 'dd/MM/yyyy')} {reservation.checkin_time || '15:00'} -{' '}
-                {format(new Date(reservation.check_out_date), 'dd/MM/yyyy')} {reservation.checkout_time || '11:00'}
+                {format(parseDate(reservation.check_in_date), 'dd/MM/yyyy')} {reservation.checkin_time || '15:00'} -{' '}
+                {format(parseDate(reservation.check_out_date), 'dd/MM/yyyy')} {reservation.checkout_time || '11:00'}
               </p>
             </div>
             
