@@ -50,9 +50,9 @@ const CleanerPaymentsReport: React.FC = () => {
           endDate = endDateString;
         }
 
-        // Use the database function that properly joins with cleaner profiles
+        // Use the payment-specific function that filters by check_in_date
         const { data: allReservations, error: functionError } = await supabase
-          .rpc('fn_get_all_cleaner_reservations', {
+          .rpc('fn_get_cleaner_reservations_for_payment', {
             start_date: startDate,
             end_date: endDate,
             property_ids: propertyIds
