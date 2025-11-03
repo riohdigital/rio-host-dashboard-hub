@@ -1027,6 +1027,47 @@ export type Database = {
           total_revenue: number
         }[]
       }
+      fn_get_cleaner_reservations_for_payment: {
+        Args: {
+          end_date?: string
+          property_ids?: string[]
+          start_date?: string
+        }
+        Returns: {
+          base_revenue: number
+          check_in_date: string
+          check_out_date: string
+          checkin_time: string
+          checkout_time: string
+          cleaner_info: Json
+          cleaner_user_id: string
+          cleaning_allocation: string
+          cleaning_fee: number
+          cleaning_notes: string
+          cleaning_payment_status: string
+          cleaning_rating: number
+          cleaning_status: string
+          commission_amount: number
+          created_at: string
+          guest_name: string
+          guest_phone: string
+          id: string
+          is_communicated: boolean
+          net_revenue: number
+          next_check_in_date: string
+          next_checkin_time: string
+          number_of_guests: number
+          payment_date: string
+          payment_status: string
+          platform: string
+          properties: Json
+          property_id: string
+          receipt_sent: boolean
+          reservation_code: string
+          reservation_status: string
+          total_revenue: number
+        }[]
+      }
       fn_get_cleaners_for_properties: {
         Args: { property_ids?: string[] }
         Returns: {
