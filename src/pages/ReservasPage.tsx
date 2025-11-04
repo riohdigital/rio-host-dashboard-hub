@@ -152,6 +152,7 @@ const ReservasPage = () => {
     // Separar reservas por tipo de competência
     const reservationsByCompetence = useMemo(() => {
         const active: any[] = [];
+        const cashflow: any[] = [];
         const received: any[] = [];
         const future: any[] = [];
         
@@ -184,8 +185,18 @@ const ReservasPage = () => {
                 active.push(reservation);
             }
             
-            // Receitas Recebidas: payment_date dentro do período
-            if (reservation.payment_date) {
+            // Caixa do Período: receitas geradas no período (Airbnb + Direto recebidas + Booking futuras)
+            const paymentDate = reservation.payment_date ? new Date(reservation.payment_date) : null;
+            const isAirbnbReceived = reservation.platform === 'Airbnb' && paymentDate && paymentDate >= periodStart && paymentDate <= periodEnd;
+            const isDiretoReceived = reservation.platform === 'Direto' && paymentDate && paymentDate >= periodStart && paymentDate <= periodEnd;
+            const isBookingGenerated = reservation.platform === 'Booking.com' && checkOut >= periodStart && checkOut <= periodEnd;
+            
+            if (isAirbnbReceived || isDiretoReceived || isBookingGenerated) {
+                cashflow.push(reservation);
+            }
+            
+            // Receitas Recebidas (Airbnb e Direto): payment_date dentro do período, excluindo Booking
+            if (reservation.payment_date && reservation.platform !== 'Booking.com') {
                 const paymentDate = new Date(reservation.payment_date);
                 if (paymentDate >= periodStart && paymentDate <= periodEnd) {
                     received.push(reservation);
@@ -200,11 +211,12 @@ const ReservasPage = () => {
             }
         });
         
-        return { active, received, future };
+        return { active, cashflow, received, future };
     }, [reservations, searchTerm, selectedProperties, selectedStatus, selectedPlatform, selectedPaymentStatus, startDateString, endDateString]);
 
     const filteredReservations = useMemo(() => {
         if (activeTab === 'active') return reservationsByCompetence.active;
+        if (activeTab === 'cashflow') return reservationsByCompetence.cashflow;
         if (activeTab === 'received') return reservationsByCompetence.received;
         if (activeTab === 'future') return reservationsByCompetence.future;
         return [];
@@ -214,6 +226,17 @@ const ReservasPage = () => {
         acc.count += 1;
         acc.totalRevenue += reservation.total_revenue || 0;
         acc.netRevenue += reservation.net_revenue || 0;
+        
+        // Separar receitas recebidas vs futuras (para aba Caixa)
+        if (activeTab === 'cashflow') {
+            if (reservation.platform === 'Booking.com' && 
+                (!reservation.payment_date || new Date(reservation.payment_date) > new Date(endDateString))) {
+                acc.futureNetRevenue += reservation.net_revenue || 0;
+            } else {
+                acc.receivedNetRevenue += reservation.net_revenue || 0;
+            }
+        }
+        
         if (reservation.payment_status === 'Pago') acc.paidCount += 1;
         else acc.pendingCount += 1;
         
@@ -222,7 +245,18 @@ const ReservasPage = () => {
         else acc.diretoCount += 1;
         
         return acc;
-    }, { count: 0, totalRevenue: 0, netRevenue: 0, paidCount: 0, pendingCount: 0, airbnbCount: 0, bookingCount: 0, diretoCount: 0 }), [filteredReservations]);
+    }, { 
+        count: 0, 
+        totalRevenue: 0, 
+        netRevenue: 0, 
+        receivedNetRevenue: 0, 
+        futureNetRevenue: 0, 
+        paidCount: 0, 
+        pendingCount: 0, 
+        airbnbCount: 0, 
+        bookingCount: 0, 
+        diretoCount: 0 
+    }), [filteredReservations, activeTab, endDateString]);
 
     const totalLoading = dataLoading || permissionsLoading;
 
@@ -300,13 +334,17 @@ const ReservasPage = () => {
                 </Card>
 
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <TabsList className="grid w-full grid-cols-3 mb-4">
+                    <TabsList className="grid w-full grid-cols-4 mb-4">
                         <TabsTrigger value="active">
                             Ativas no Período
                             <Badge variant="secondary" className="ml-2">{reservationsByCompetence.active.length}</Badge>
                         </TabsTrigger>
+                        <TabsTrigger value="cashflow">
+                            Caixa do Período
+                            <Badge variant="secondary" className="ml-2">{reservationsByCompetence.cashflow.length}</Badge>
+                        </TabsTrigger>
                         <TabsTrigger value="received">
-                            Receitas Recebidas
+                            Receitas Recebidas (Airbnb e Direto)
                             <Badge variant="secondary" className="ml-2">{reservationsByCompetence.received.length}</Badge>
                         </TabsTrigger>
                         <TabsTrigger value="future">
@@ -445,7 +483,19 @@ const ReservasPage = () => {
                                         <TableCell colSpan={9} className="font-medium">Total de Reservas: {totals.count}</TableCell>
                                         <TableCell className="font-bold">
                                             <div className="space-y-1">
-                                                <div className="text-green-700">Líquido: R$ {totals.netRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                                                <div className="text-green-700">
+                                                    Líquido Total: R$ {totals.netRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                </div>
+                                                {activeTab === 'cashflow' && (
+                                                    <>
+                                                        <div className="text-sm text-blue-600">
+                                                            Recebido: R$ {totals.receivedNetRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                        </div>
+                                                        <div className="text-sm text-orange-600">
+                                                            A Receber: R$ {totals.futureNetRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                        </div>
+                                                    </>
+                                                )}
                                                 <div className="text-sm text-gray-600">Bruto: R$ {totals.totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                                             </div>
                                         </TableCell>
