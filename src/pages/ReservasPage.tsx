@@ -12,7 +12,8 @@ import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Edit, Trash2, Plus, Search, Loader2, AlertTriangle, MessageCircle } from 'lucide-react';
+import { Edit, Trash2, Plus, Search, Loader2, AlertTriangle, MessageCircle, Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import ReservationForm from '@/components/reservations/ReservationForm';
 import StatusSelector from '@/components/reservations/StatusSelector';
 import { supabase } from '@/integrations/supabase/client';
@@ -80,7 +81,7 @@ const ReservasPage = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedStatus, setSelectedStatus] = useState('all');
     const [selectedPaymentStatus, setSelectedPaymentStatus] = useState('all');
-    const [activeTab, setActiveTab] = useState('active');
+    const [activeTab, setActiveTab] = useState('cashflow');
     const { toast } = useToast();
     const { hasPermission, getAccessibleProperties, loading: permissionsLoading } = useUserPermissions();
     const { selectedProperties, selectedPeriod, selectedPlatform, customStartDate, customEndDate } = useGlobalFilters();
@@ -335,21 +336,69 @@ const ReservasPage = () => {
 
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                     <TabsList className="grid w-full grid-cols-4 mb-4">
-                        <TabsTrigger value="active">
-                            Ativas no Período
-                            <Badge variant="secondary" className="ml-2">{reservationsByCompetence.active.length}</Badge>
-                        </TabsTrigger>
                         <TabsTrigger value="cashflow">
-                            Caixa do Período
-                            <Badge variant="secondary" className="ml-2">{reservationsByCompetence.cashflow.length}</Badge>
+                            <div className="flex items-center gap-1.5">
+                                <span>Receita Gerada no Período</span>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors cursor-help" />
+                                        </TooltipTrigger>
+                                        <TooltipContent side="bottom" className="max-w-xs">
+                                            <p className="text-sm">Representa a receita efetivamente gerada no período selecionado: inclui Airbnb e Direto já recebidos + Booking.com com check-out no período (mesmo que o pagamento seja futuro). Este é o caixa real do mês.</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                                <Badge variant="secondary" className="ml-1">{reservationsByCompetence.cashflow.length}</Badge>
+                            </div>
                         </TabsTrigger>
                         <TabsTrigger value="received">
-                            Receitas Recebidas (Airbnb e Direto)
-                            <Badge variant="secondary" className="ml-2">{reservationsByCompetence.received.length}</Badge>
+                            <div className="flex items-center gap-1.5">
+                                <span>Receber no Período (Airbnb e Direto)</span>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors cursor-help" />
+                                        </TooltipTrigger>
+                                        <TooltipContent side="bottom" className="max-w-xs">
+                                            <p className="text-sm">Mostra reservas do Airbnb e Direto cujo pagamento foi efetivamente recebido dentro do período selecionado. Exclui Booking.com que paga no mês seguinte ao check-out.</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                                <Badge variant="secondary" className="ml-1">{reservationsByCompetence.received.length}</Badge>
+                            </div>
                         </TabsTrigger>
                         <TabsTrigger value="future">
-                            Receitas Futuras (Booking)
-                            <Badge variant="secondary" className="ml-2">{reservationsByCompetence.future.length}</Badge>
+                            <div className="flex items-center gap-1.5">
+                                <span>À Receber no Próximo Período (Booking)</span>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors cursor-help" />
+                                        </TooltipTrigger>
+                                        <TooltipContent side="bottom" className="max-w-xs">
+                                            <p className="text-sm">Reservas do Booking.com com check-out no período selecionado, mas cujo pagamento será recebido apenas no próximo período (mês seguinte ao check-out).</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                                <Badge variant="secondary" className="ml-1">{reservationsByCompetence.future.length}</Badge>
+                            </div>
+                        </TabsTrigger>
+                        <TabsTrigger value="active">
+                            <div className="flex items-center gap-1.5">
+                                <span>Ativas no Período</span>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors cursor-help" />
+                                        </TooltipTrigger>
+                                        <TooltipContent side="bottom" className="max-w-xs">
+                                            <p className="text-sm">Mostra todas as reservas que possuem intersecção com o período selecionado (check-in ou check-out dentro do período), independente de quando o pagamento foi recebido. Útil para visualizar a ocupação geral.</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                                <Badge variant="secondary" className="ml-1">{reservationsByCompetence.active.length}</Badge>
+                            </div>
                         </TabsTrigger>
                     </TabsList>
 
