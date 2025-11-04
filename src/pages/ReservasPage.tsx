@@ -344,7 +344,7 @@ const ReservasPage = () => {
                                     <TooltipTrigger asChild>
                                         <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors cursor-help" />
                                     </TooltipTrigger>
-                                    <TooltipContent side="bottom" align="center" className="max-w-sm z-50" sideOffset={8}>
+                                    <TooltipContent side="bottom" align="center" className="max-w-lg whitespace-normal" sideOffset={8}>
                                         <p className="text-sm">Representa a receita efetivamente gerada no período selecionado: inclui Airbnb e Direto já recebidos + Booking.com com check-out no período (mesmo que o pagamento seja futuro). Este é o caixa real do mês.</p>
                                     </TooltipContent>
                                 </Tooltip>
@@ -358,7 +358,7 @@ const ReservasPage = () => {
                                     <TooltipTrigger asChild>
                                         <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors cursor-help" />
                                     </TooltipTrigger>
-                                    <TooltipContent side="bottom" align="center" className="max-w-sm z-50" sideOffset={8}>
+                                    <TooltipContent side="bottom" align="center" className="max-w-lg whitespace-normal" sideOffset={8}>
                                         <p className="text-sm">Mostra reservas do Airbnb e Direto cujo pagamento foi efetivamente recebido dentro do período selecionado. Exclui Booking.com que paga no mês seguinte ao check-out.</p>
                                     </TooltipContent>
                                 </Tooltip>
@@ -372,7 +372,7 @@ const ReservasPage = () => {
                                     <TooltipTrigger asChild>
                                         <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors cursor-help" />
                                     </TooltipTrigger>
-                                    <TooltipContent side="bottom" align="center" className="max-w-sm z-50" sideOffset={8}>
+                                    <TooltipContent side="bottom" align="center" className="max-w-lg whitespace-normal" sideOffset={8}>
                                         <p className="text-sm">Reservas do Booking.com com check-out no período selecionado, mas cujo pagamento será recebido apenas no próximo período (mês seguinte ao check-out).</p>
                                     </TooltipContent>
                                 </Tooltip>
@@ -386,7 +386,7 @@ const ReservasPage = () => {
                                     <TooltipTrigger asChild>
                                         <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors cursor-help" />
                                     </TooltipTrigger>
-                                    <TooltipContent side="bottom" align="center" className="max-w-sm z-50" sideOffset={8}>
+                                    <TooltipContent side="bottom" align="center" className="max-w-lg whitespace-normal" sideOffset={8}>
                                         <p className="text-sm">Mostra todas as reservas que possuem intersecção com o período selecionado (check-in ou check-out dentro do período), independente de quando o pagamento foi recebido. Útil para visualizar a ocupação geral.</p>
                                     </TooltipContent>
                                 </Tooltip>
