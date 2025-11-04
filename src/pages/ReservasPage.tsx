@@ -334,69 +334,62 @@ const ReservasPage = () => {
                     </CardContent>
                 </Card>
 
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TooltipProvider delayDuration={200}>
+                    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                     <TabsList className="grid w-full grid-cols-4 mb-4">
                         <TabsTrigger value="cashflow">
                             <div className="flex items-center gap-1.5">
                                 <span>Receita Gerada no Período</span>
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors cursor-help" />
-                                        </TooltipTrigger>
-                                        <TooltipContent side="bottom" className="max-w-xs">
-                                            <p className="text-sm">Representa a receita efetivamente gerada no período selecionado: inclui Airbnb e Direto já recebidos + Booking.com com check-out no período (mesmo que o pagamento seja futuro). Este é o caixa real do mês.</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors cursor-help" />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom" align="center" className="max-w-sm z-50" sideOffset={8}>
+                                        <p className="text-sm">Representa a receita efetivamente gerada no período selecionado: inclui Airbnb e Direto já recebidos + Booking.com com check-out no período (mesmo que o pagamento seja futuro). Este é o caixa real do mês.</p>
+                                    </TooltipContent>
+                                </Tooltip>
                                 <Badge variant="secondary" className="ml-1">{reservationsByCompetence.cashflow.length}</Badge>
                             </div>
                         </TabsTrigger>
                         <TabsTrigger value="received">
                             <div className="flex items-center gap-1.5">
                                 <span>Receber no Período (Airbnb e Direto)</span>
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors cursor-help" />
-                                        </TooltipTrigger>
-                                        <TooltipContent side="bottom" className="max-w-xs">
-                                            <p className="text-sm">Mostra reservas do Airbnb e Direto cujo pagamento foi efetivamente recebido dentro do período selecionado. Exclui Booking.com que paga no mês seguinte ao check-out.</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors cursor-help" />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom" align="center" className="max-w-sm z-50" sideOffset={8}>
+                                        <p className="text-sm">Mostra reservas do Airbnb e Direto cujo pagamento foi efetivamente recebido dentro do período selecionado. Exclui Booking.com que paga no mês seguinte ao check-out.</p>
+                                    </TooltipContent>
+                                </Tooltip>
                                 <Badge variant="secondary" className="ml-1">{reservationsByCompetence.received.length}</Badge>
                             </div>
                         </TabsTrigger>
                         <TabsTrigger value="future">
                             <div className="flex items-center gap-1.5">
                                 <span>À Receber no Próximo Período (Booking)</span>
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors cursor-help" />
-                                        </TooltipTrigger>
-                                        <TooltipContent side="bottom" className="max-w-xs">
-                                            <p className="text-sm">Reservas do Booking.com com check-out no período selecionado, mas cujo pagamento será recebido apenas no próximo período (mês seguinte ao check-out).</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors cursor-help" />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom" align="center" className="max-w-sm z-50" sideOffset={8}>
+                                        <p className="text-sm">Reservas do Booking.com com check-out no período selecionado, mas cujo pagamento será recebido apenas no próximo período (mês seguinte ao check-out).</p>
+                                    </TooltipContent>
+                                </Tooltip>
                                 <Badge variant="secondary" className="ml-1">{reservationsByCompetence.future.length}</Badge>
                             </div>
                         </TabsTrigger>
                         <TabsTrigger value="active">
                             <div className="flex items-center gap-1.5">
                                 <span>Ativas no Período</span>
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors cursor-help" />
-                                        </TooltipTrigger>
-                                        <TooltipContent side="bottom" className="max-w-xs">
-                                            <p className="text-sm">Mostra todas as reservas que possuem intersecção com o período selecionado (check-in ou check-out dentro do período), independente de quando o pagamento foi recebido. Útil para visualizar a ocupação geral.</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors cursor-help" />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom" align="center" className="max-w-sm z-50" sideOffset={8}>
+                                        <p className="text-sm">Mostra todas as reservas que possuem intersecção com o período selecionado (check-in ou check-out dentro do período), independente de quando o pagamento foi recebido. Útil para visualizar a ocupação geral.</p>
+                                    </TooltipContent>
+                                </Tooltip>
                                 <Badge variant="secondary" className="ml-1">{reservationsByCompetence.active.length}</Badge>
                             </div>
                         </TabsTrigger>
@@ -561,7 +554,8 @@ const ReservasPage = () => {
                             </CardContent>
                         </Card>
                     </TabsContent>
-                </Tabs>
+                    </Tabs>
+                </TooltipProvider>
                 
                 {(() => {
                     if (typeof window !== 'undefined') {
