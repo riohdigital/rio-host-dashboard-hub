@@ -47,27 +47,6 @@ export type Database = {
           },
         ]
       }
-      anfitriao_alerta_chat_history: {
-        Row: {
-          createdAt: string | null
-          id: number
-          message: Json
-          sessionId: string
-        }
-        Insert: {
-          createdAt?: string | null
-          id?: number
-          message: Json
-          sessionId: string
-        }
-        Update: {
-          createdAt?: string | null
-          id?: number
-          message?: Json
-          sessionId?: string
-        }
-        Relationships: []
-      }
       cleaner_profiles: {
         Row: {
           address: string | null
@@ -299,6 +278,7 @@ export type Database = {
           is_authenticated: boolean | null
           preferences: Json | null
           user_id: string
+          whatsapp_instance_name: string | null
           whatsapp_number: string | null
         }
         Insert: {
@@ -311,6 +291,7 @@ export type Database = {
           is_authenticated?: boolean | null
           preferences?: Json | null
           user_id: string
+          whatsapp_instance_name?: string | null
           whatsapp_number?: string | null
         }
         Update: {
@@ -323,6 +304,7 @@ export type Database = {
           is_authenticated?: boolean | null
           preferences?: Json | null
           user_id?: string
+          whatsapp_instance_name?: string | null
           whatsapp_number?: string | null
         }
         Relationships: [
@@ -564,19 +546,34 @@ export type Database = {
       }
       riohhost_chat_history: {
         Row: {
+          category: string | null
+          created_at: string | null
           id: number
+          is_archived: boolean | null
           message: Json
+          reaction: string | null
           session_id: string
+          user_id: string | null
         }
         Insert: {
+          category?: string | null
+          created_at?: string | null
           id?: number
+          is_archived?: boolean | null
           message: Json
+          reaction?: string | null
           session_id: string
+          user_id?: string | null
         }
         Update: {
+          category?: string | null
+          created_at?: string | null
           id?: number
+          is_archived?: boolean | null
           message?: Json
+          reaction?: string | null
           session_id?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -779,7 +776,21 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      chat_usage_stats: {
+        Row: {
+          ai_messages: number | null
+          cleaning_queries: number | null
+          financial_queries: number | null
+          last_activity: string | null
+          negative_reactions: number | null
+          positive_reactions: number | null
+          reservation_queries: number | null
+          total_messages: number | null
+          user_id: string | null
+          user_messages: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       assign_cleaning_to_cleaner: {
@@ -791,6 +802,7 @@ export type Database = {
         Returns: string
       }
       can_manage_property_access: { Args: never; Returns: boolean }
+      categorize_message: { Args: { content: string }; Returns: string }
       debug_auth_context: {
         Args: never
         Returns: {
