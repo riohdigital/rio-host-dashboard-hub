@@ -1,41 +1,103 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ChatMessage, MessageStatus } from '@/types/chat';
+import { ChatMessage, MessageStatus, MessageReaction } from '@/types/chat';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
-const STORAGE_KEY = 'riohhost_chat_messages';
 const N8N_WEBHOOK_URL = 'https://n8n-n8n.dgyrua.easypanel.host/webhook/DashBoard%20RiohHost%20ChatAI';
 
 export const useAIChat = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [unreadCount, setUnreadCount] = useState(0);
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // Carregar mensagens do localStorage
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        setMessages(parsed.map((m: any) => ({
-          ...m,
-          timestamp: new Date(m.timestamp)
-        })));
-      } catch (error) {
-        console.error('Erro ao carregar histórico do chat:', error);
+  // ========== CARREGAR HISTÓRICO DO SUPABASE ==========
+  const loadMessages = useCallback(async () => {
+    if (!user?.id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('riohhost_chat_history')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('is_archived', false)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      const mappedMessages: ChatMessage[] = (data || []).map(row => {
+        const msg = row.message as any;
+        return {
+          id: row.id.toString(),
+          role: msg?.type === 'human' ? 'user' as const : 'assistant' as const,
+          content: msg?.content || '',
+          timestamp: new Date(row.created_at),
+          status: 'sent' as const,
+          category: row.category as any,
+          reaction: row.reaction as any,
+        };
+      });
+
+      setMessages(mappedMessages);
+    } catch (error) {
+      console.error('Erro ao carregar histórico:', error);
+      // Fallback para localStorage
+      const stored = localStorage.getItem('riohhost_chat_messages');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          setMessages(parsed.map((m: any) => ({
+            ...m,
+            timestamp: new Date(m.timestamp)
+          })));
+        } catch (e) {
+          console.error('Erro ao carregar do localStorage:', e);
+        }
       }
     }
-  }, []);
+  }, [user]);
 
-  // Salvar mensagens no localStorage
   useEffect(() => {
-    if (messages.length > 0) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
-    }
-  }, [messages]);
+    loadMessages();
+  }, [loadMessages]);
 
+  // ========== SALVAR MENSAGEM NO SUPABASE ==========
+  const saveMessageToSupabase = async (message: ChatMessage) => {
+    if (!user?.id) return;
+
+    try {
+      const { error } = await supabase
+        .from('riohhost_chat_history')
+        .insert({
+          user_id: user.id,
+          session_id: user.id,
+          message: {
+            type: message.role === 'user' ? 'human' : 'ai',
+            content: message.content,
+            additional_kwargs: {},
+            response_metadata: {},
+          },
+          category: message.category,
+          created_at: message.timestamp.toISOString(),
+        });
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Erro ao salvar mensagem:', error);
+      // Fallback para localStorage
+      const stored = localStorage.getItem('riohhost_chat_messages');
+      const messages = stored ? JSON.parse(stored) : [];
+      messages.push(message);
+      localStorage.setItem('riohhost_chat_messages', JSON.stringify(messages));
+    }
+  };
+
+  // ========== ADICIONAR MENSAGEM ==========
   const addMessage = useCallback((message: Omit<ChatMessage, 'id' | 'timestamp'>) => {
     const newMessage: ChatMessage = {
       ...message,
@@ -43,21 +105,52 @@ export const useAIChat = () => {
       timestamp: new Date(),
     };
     setMessages(prev => [...prev, newMessage]);
+    saveMessageToSupabase(newMessage);
     return newMessage.id;
-  }, []);
+  }, [user]);
 
+  // ========== ATUALIZAR STATUS ==========
   const updateMessageStatus = useCallback((messageId: string, status: MessageStatus) => {
-    setMessages(prev => 
-      prev.map(msg => 
+    setMessages(prev =>
+      prev.map(msg =>
         msg.id === messageId ? { ...msg, status } : msg
       )
     );
   }, []);
 
+  // ========== ADICIONAR REAÇÃO ==========
+  const addReaction = useCallback(async (messageId: string, reaction: MessageReaction) => {
+    if (!user?.id) return;
+
+    try {
+      // Atualizar localmente
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === messageId ? { ...msg, reaction } : msg
+        )
+      );
+
+      // Atualizar no Supabase
+      const { error } = await supabase
+        .from('riohhost_chat_history')
+        .update({ reaction })
+        .eq('id', parseInt(messageId));
+
+      if (error) throw error;
+
+      toast({
+        title: 'Feedback registrado',
+        description: 'Obrigado por avaliar a resposta!',
+      });
+    } catch (error) {
+      console.error('Erro ao adicionar reação:', error);
+    }
+  }, [user, toast]);
+
+  // ========== ENVIAR MENSAGEM ==========
   const sendMessage = useCallback(async (content: string, attachments?: File[]) => {
     if (!content.trim() && !attachments?.length) return;
 
-    // Verifica se o usuário está autenticado
     if (!user?.id) {
       toast({
         title: 'Erro de autenticação',
@@ -67,7 +160,6 @@ export const useAIChat = () => {
       return;
     }
 
-    // Adiciona mensagem do usuário
     const userMessageId = addMessage({
       role: 'user',
       content,
@@ -84,18 +176,17 @@ export const useAIChat = () => {
     setIsLoading(true);
 
     try {
-      // Converte anexos para base64
       const attachmentsBase64 = await Promise.all(
         (attachments || []).map(async (file) => {
           const base64 = await new Promise<string>((resolve) => {
             const reader = new FileReader();
             reader.onloadend = () => {
               const result = reader.result as string;
-              resolve(result.split(',')[1]); // Remove o prefixo data:image/...;base64,
+              resolve(result.split(',')[1]);
             };
             reader.readAsDataURL(file);
           });
-          
+
           return {
             name: file.name,
             type: file.type,
@@ -105,7 +196,6 @@ export const useAIChat = () => {
         })
       );
 
-      // Prepara payload JSON
       const payload = {
         message: content,
         userId: user.id,
@@ -113,14 +203,6 @@ export const useAIChat = () => {
         attachments: attachmentsBase64,
       };
 
-      console.log('🚀 Enviando para N8N:', {
-        url: N8N_WEBHOOK_URL,
-        userId: user.id,
-        message: content,
-        attachmentsCount: attachmentsBase64.length,
-      });
-
-      // Envia para o webhook N8N
       const response = await fetch(N8N_WEBHOOK_URL, {
         method: 'POST',
         headers: {
@@ -129,48 +211,36 @@ export const useAIChat = () => {
         body: JSON.stringify(payload),
       });
 
-      console.log('📥 Resposta N8N:', {
-        status: response.status,
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries()),
-      });
-
-      // Captura corpo da resposta como texto primeiro
       const responseText = await response.text();
-      console.log('📄 Corpo da resposta:', responseText);
 
       if (!response.ok) {
         throw new Error(`Erro HTTP ${response.status}: ${responseText}`);
       }
 
-      // Tenta fazer parse do JSON
       let data;
       try {
         data = JSON.parse(responseText);
-        console.log('✅ JSON parseado:', data);
       } catch (e) {
-        console.error('❌ Erro ao fazer parse do JSON:', e);
         throw new Error(`Resposta inválida do servidor: ${responseText.substring(0, 100)}`);
       }
-      
+
       updateMessageStatus(userMessageId, 'sent');
 
-      // Adiciona resposta da IA
       addMessage({
         role: 'assistant',
         content: data.response || data.message || 'Desculpe, não consegui processar sua solicitação.',
         status: 'sent',
       });
 
+      // Incrementar contador de não lidas se chat estiver fechado
+      if (!isOpen) {
+        setUnreadCount(prev => prev + 1);
+      }
+
     } catch (error) {
-      console.error('❌ Erro completo ao enviar mensagem:', {
-        error,
-        message: error instanceof Error ? error.message : 'Erro desconhecido',
-        stack: error instanceof Error ? error.stack : undefined,
-      });
-      
+      console.error('Erro ao enviar mensagem:', error);
       updateMessageStatus(userMessageId, 'error');
-      
+
       toast({
         title: 'Erro ao enviar mensagem',
         description: error instanceof Error ? error.message : 'Não foi possível comunicar com a IA. Tente novamente.',
@@ -179,27 +249,90 @@ export const useAIChat = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [addMessage, updateMessageStatus, toast, user]);
+  }, [addMessage, updateMessageStatus, toast, user, isOpen]);
 
+  // ========== TOGGLE CHAT ==========
   const toggleChat = useCallback(() => {
     setIsOpen(prev => !prev);
-  }, []);
+    if (!isOpen) {
+      setUnreadCount(0);
+    }
+  }, [isOpen]);
 
-  const clearChat = useCallback(() => {
-    setMessages([]);
-    localStorage.removeItem(STORAGE_KEY);
+  // ========== LIMPAR CHAT ==========
+  const clearChat = useCallback(async () => {
+    if (!user?.id) return;
+
+    try {
+      const { error } = await supabase
+        .from('riohhost_chat_history')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setMessages([]);
+      localStorage.removeItem('riohhost_chat_messages');
+      toast({
+        title: 'Histórico limpo',
+        description: 'Todas as mensagens foram removidas.',
+      });
+    } catch (error) {
+      console.error('Erro ao limpar histórico:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível limpar o histórico.',
+        variant: 'destructive',
+      });
+    }
+  }, [user, toast]);
+
+  // ========== EXPORTAR CONVERSA ==========
+  const exportChat = useCallback(() => {
+    const exportText = messages
+      .map(msg => {
+        const time = msg.timestamp.toLocaleString('pt-BR');
+        const sender = msg.role === 'user' ? 'Você' : 'Assistente';
+        return `[${time}] ${sender}: ${msg.content}`;
+      })
+      .join('\n\n');
+
+    const blob = new Blob([exportText], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `chat-riohhost-${new Date().toISOString().split('T')[0]}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+
     toast({
-      title: 'Histórico limpo',
-      description: 'Todas as mensagens foram removidas.',
+      title: 'Conversa exportada',
+      description: 'Arquivo baixado com sucesso!',
     });
-  }, [toast]);
+  }, [messages, toast]);
+
+  // ========== FILTRAR MENSAGENS ==========
+  const filteredMessages = messages.filter(msg => {
+    const matchesSearch = !searchQuery || 
+      msg.content.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = selectedCategory === 'all' || 
+      msg.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   return {
     isOpen,
-    messages,
+    messages: filteredMessages,
     isLoading,
+    unreadCount,
+    searchQuery,
+    selectedCategory,
+    setSearchQuery,
+    setSelectedCategory,
     sendMessage,
     toggleChat,
     clearChat,
+    exportChat,
+    addReaction,
   };
 };

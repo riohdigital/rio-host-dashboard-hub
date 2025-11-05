@@ -1,22 +1,25 @@
 import { ChatMessage as ChatMessageType } from '@/types/chat';
-import { Bot, User, Clock, AlertCircle, Check } from 'lucide-react';
+import { Bot, User, Clock, AlertCircle, Check, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 interface ChatMessageProps {
   message: ChatMessageType;
+  onReact?: (messageId: string, reaction: 'thumbs_up' | 'thumbs_down') => void;
 }
 
-export const ChatMessage = ({ message }: ChatMessageProps) => {
+export const ChatMessage = ({ message, onReact }: ChatMessageProps) => {
   const isUser = message.role === 'user';
   const isAssistant = message.role === 'assistant';
 
   const getStatusIcon = () => {
     if (!message.status) return null;
-    
+
     switch (message.status) {
       case 'sending':
-        return <Clock className="w-3 h-3 text-muted-foreground" />;
+        return <Clock className="w-3 h-3 text-muted-foreground animate-spin" />;
       case 'sent':
         return <Check className="w-3 h-3 text-muted-foreground" />;
       case 'error':
@@ -24,6 +27,24 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
       default:
         return null;
     }
+  };
+
+  const getCategoryBadge = () => {
+    if (!message.category) return null;
+
+    const categoryConfig: Record<string, { label: string; color: string }> = {
+      financeiro: { label: 'Financeiro', color: 'bg-green-500/10 text-green-500' },
+      reservas: { label: 'Reservas', color: 'bg-blue-500/10 text-blue-500' },
+      limpeza: { label: 'Limpeza', color: 'bg-purple-500/10 text-purple-500' },
+      geral: { label: 'Geral', color: 'bg-gray-500/10 text-gray-500' },
+    };
+
+    const config = categoryConfig[message.category];
+    return (
+      <Badge variant="outline" className={cn('text-xs', config.color)}>
+        {config.label}
+      </Badge>
+    );
   };
 
   return (
@@ -50,6 +71,13 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
 
       {/* Message Content */}
       <div className={cn('flex-1 max-w-[70%]', isUser && 'flex flex-col items-end')}>
+        {/* Category Badge */}
+        {message.category && (
+          <div className={cn('mb-1', isUser && 'flex justify-end')}>
+            {getCategoryBadge()}
+          </div>
+        )}
+
         <div
           className={cn(
             'rounded-lg p-3 break-words transition-all duration-200 hover:shadow-md',
@@ -78,18 +106,26 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
                   <em className="italic">{children}</em>
                 ),
                 code: ({ children }) => (
-                  <code className="px-1.5 py-0.5 rounded bg-muted text-sm font-mono">
+                  <code className="px-1.5 py-0.5 rounded bg-muted/50 text-sm font-mono border border-border/50">
                     {children}
                   </code>
                 ),
-                h1: ({ children }) => (
-                  <h1 className="text-lg font-bold mb-2 mt-3 first:mt-0">{children}</h1>
+                table: ({ children }) => (
+                  <div className="overflow-x-auto my-2">
+                    <table className="w-full border-collapse border border-border rounded-lg">
+                      {children}
+                    </table>
+                  </div>
                 ),
-                h2: ({ children }) => (
-                  <h2 className="text-base font-semibold mb-2 mt-3 first:mt-0">{children}</h2>
+                th: ({ children }) => (
+                  <th className="border border-border bg-muted px-3 py-2 text-left font-semibold">
+                    {children}
+                  </th>
                 ),
-                h3: ({ children }) => (
-                  <h3 className="text-sm font-semibold mb-1 mt-2 first:mt-0">{children}</h3>
+                td: ({ children }) => (
+                  <td className="border border-border px-3 py-2">
+                    {children}
+                  </td>
                 ),
               }}
             >
@@ -101,7 +137,7 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
           {message.attachments && message.attachments.length > 0 && (
             <div className="mt-2 space-y-2">
               {message.attachments.map((attachment) => (
-                <div key={attachment.id} className="rounded overflow-hidden">
+                <div key={attachment.id} className="rounded overflow-hidden border border-border">
                   {attachment.type === 'image' && (
                     <img
                       src={attachment.url}
@@ -115,8 +151,8 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
           )}
         </div>
 
-        {/* Timestamp and Status */}
-        <div className={cn('flex items-center gap-1 mt-1 px-1', isUser && 'flex-row-reverse')}>
+        {/* Timestamp, Status e Reações */}
+        <div className={cn('flex items-center gap-2 mt-1 px-1', isUser && 'flex-row-reverse')}>
           <span className="text-xs text-muted-foreground">
             {message.timestamp.toLocaleTimeString('pt-BR', {
               hour: '2-digit',
@@ -124,6 +160,34 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
             })}
           </span>
           {getStatusIcon()}
+
+          {/* Botões de Reação (só para mensagens do assistente) */}
+          {isAssistant && onReact && (
+            <div className="flex gap-1 ml-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  'h-6 w-6',
+                  message.reaction === 'thumbs_up' && 'text-green-500'
+                )}
+                onClick={() => onReact(message.id, 'thumbs_up')}
+              >
+                <ThumbsUp className="w-3 h-3" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  'h-6 w-6',
+                  message.reaction === 'thumbs_down' && 'text-red-500'
+                )}
+                onClick={() => onReact(message.id, 'thumbs_down')}
+              >
+                <ThumbsDown className="w-3 h-3" />
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </div>
