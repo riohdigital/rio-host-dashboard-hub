@@ -5,10 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Property } from '@/types/property';
 import { useAuth } from '@/hooks/useAuth';
+import AirbnbImportSection from './AirbnbImportSection';
 
 interface PropertyFormProps {
   property?: Property | null;
@@ -33,9 +35,10 @@ const PropertyForm = ({ property, onSuccess, onCancel }: PropertyFormProps) => {
     default_checkin_time: '15:00',
     default_checkout_time: '11:00'
   });
-const [loading, setLoading] = useState(false);
-const { toast } = useToast();
-const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [importedData, setImportedData] = useState(false);
+  const { toast } = useToast();
+  const { user } = useAuth();
 
   useEffect(() => {
     if (property) {
@@ -116,8 +119,49 @@ const { error: insertError } = await supabase
     }));
   };
 
+  const handleImportSuccess = (data: Partial<Property>) => {
+    setFormData(prev => ({
+      ...prev,
+      ...data,
+      // Manter campos que não devem ser sobrescritos
+      status: prev.status,
+      commission_rate: prev.commission_rate,
+      cleaning_fee: prev.cleaning_fee,
+    }));
+    setImportedData(true);
+    toast({
+      title: "✓ Dados importados com sucesso!",
+      description: "Revise as informações antes de salvar.",
+    });
+  };
+
+  const handleImportError = (error: string) => {
+    toast({
+      title: "✗ Erro na importação",
+      description: error,
+      variant: "destructive",
+    });
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Seção de Importação - Apenas em modo de criação */}
+      {!property && (
+        <AirbnbImportSection
+          onImportSuccess={handleImportSuccess}
+          onImportError={handleImportError}
+        />
+      )}
+
+      {importedData && (
+        <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg">
+          <p className="text-sm text-foreground flex items-center gap-2">
+            <Badge variant="secondary" className="bg-primary/20 text-primary">Importado</Badge>
+            <span>Dados importados do Airbnb. Revise antes de salvar.</span>
+          </p>
+        </div>
+      )}
+
       {/* Seção 1: Informações Principais */}
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-[#6A6DDF] border-b pb-2">
