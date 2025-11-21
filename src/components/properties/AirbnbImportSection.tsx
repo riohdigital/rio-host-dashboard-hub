@@ -6,6 +6,7 @@ import { Download, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Property } from '@/types/property';
 import ImportLoadingState from './ImportLoadingState';
+import { getPropertyFieldsSchema, getExpectedResponseFormat } from '@/utils/propertyFieldsSchema';
 
 interface AirbnbImportSectionProps {
   onImportSuccess: (data: Partial<Property>) => void;
@@ -41,16 +42,25 @@ const AirbnbImportSection = ({ onImportSuccess, onImportError }: AirbnbImportSec
     setIsImporting(true);
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 segundos (IA pode demorar)
 
     try {
+      const payload = {
+        airbnb_link: airbnbLink,
+        fields_to_extract: getPropertyFieldsSchema(),
+        expected_response_format: getExpectedResponseFormat(),
+        instructions: "Extraia os dados do anúncio do Airbnb e retorne APENAS um objeto JSON com os campos solicitados. Não inclua explicações, apenas o JSON."
+      };
+
+      console.log('📤 Payload enviado ao webhook:', payload);
+
       const response = await fetch('https://n8n-n8n.dgyrua.easypanel.host/webhook/detalhes_de_propriedade_airbnb', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        body: JSON.stringify({ airbnb_link: airbnbLink }),
+        body: JSON.stringify(payload),
         signal: controller.signal,
       });
 
