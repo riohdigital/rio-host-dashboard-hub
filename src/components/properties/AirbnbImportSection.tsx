@@ -6,7 +6,7 @@ import { Download, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Property } from '@/types/property';
 import ImportLoadingState from './ImportLoadingState';
-import { getPropertyFieldsSchema, getExpectedResponseFormat } from '@/utils/propertyFieldsSchema';
+import { getPropertyFieldsSchema } from '@/utils/propertyFieldsSchema';
 
 interface AirbnbImportSectionProps {
   onImportSuccess: (data: Partial<Property>) => void;
@@ -47,9 +47,7 @@ const AirbnbImportSection = ({ onImportSuccess, onImportError }: AirbnbImportSec
     try {
       const payload = {
         airbnb_link: airbnbLink,
-        fields_to_extract: getPropertyFieldsSchema(),
-        expected_response_format: getExpectedResponseFormat(),
-        instructions: "Extraia os dados do anúncio do Airbnb e retorne APENAS um objeto JSON com os campos solicitados. Não inclua explicações, apenas o JSON."
+        fields_to_extract: getPropertyFieldsSchema()
       };
 
       console.log('📤 Payload enviado ao webhook:', payload);
