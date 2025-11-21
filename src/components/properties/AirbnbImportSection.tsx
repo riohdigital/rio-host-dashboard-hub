@@ -62,16 +62,26 @@ const AirbnbImportSection = ({ onImportSuccess, onImportError }: AirbnbImportSec
 
       const data = await response.json();
 
+      // LOGGING DETALHADO PARA DEBUG
+      console.log('🔍 Resposta completa do webhook:', data);
+      console.log('🔍 Tipo da resposta:', typeof data);
+      console.log('🔍 É array?', Array.isArray(data));
+      console.log('🔍 Chaves disponíveis:', Object.keys(data || {}));
+
+      // Se for array, pegar o primeiro item
+      const webhookData = Array.isArray(data) ? data[0] : data;
+      console.log('🔍 Dados processados:', webhookData);
+
       // Mapear os dados retornados para o formato esperado
       const mappedData: Partial<Property> = {
-        name: data.title || data.name,
-        address: data.address,
-        property_type: data.property_type,
-        max_guests: data.max_guests ? parseInt(data.max_guests) : undefined,
-        base_nightly_price: data.price_per_night || data.base_nightly_price,
-        notes: data.description || data.notes,
-        default_checkin_time: data.check_in_time || data.default_checkin_time,
-        default_checkout_time: data.check_out_time || data.default_checkout_time,
+        name: webhookData.title || webhookData.name,
+        address: webhookData.address,
+        property_type: webhookData.property_type,
+        max_guests: webhookData.max_guests ? parseInt(webhookData.max_guests) : undefined,
+        base_nightly_price: webhookData.price_per_night || webhookData.base_nightly_price,
+        notes: webhookData.description || webhookData.notes,
+        default_checkin_time: webhookData.check_in_time || webhookData.default_checkin_time,
+        default_checkout_time: webhookData.check_out_time || webhookData.default_checkout_time,
         airbnb_link: airbnbLink, // Preencher automaticamente o link
       };
 
@@ -81,6 +91,13 @@ const AirbnbImportSection = ({ onImportSuccess, onImportError }: AirbnbImportSec
           delete mappedData[key as keyof typeof mappedData];
         }
       });
+
+      console.log('✅ Dados mapeados finais:', mappedData);
+
+      // Validar se algum dado foi extraído
+      if (Object.keys(mappedData).length === 0 || !mappedData.name) {
+        throw new Error('Nenhum dado foi extraído do anúncio. Verifique o link e tente novamente.');
+      }
 
       onImportSuccess(mappedData);
       setAirbnbLink(''); // Limpar o campo após sucesso
@@ -116,7 +133,7 @@ const AirbnbImportSection = ({ onImportSuccess, onImportError }: AirbnbImportSec
         </div>
 
         <p className="text-sm text-muted-foreground">
-          Cole o link do anúncio do Airbnb para preencher automaticamente os dados da propriedade.
+          Abra seu painel do Airbnb, entre em <strong>Anúncios</strong>, selecione seu anúncio, copie a URL (www) e cole aqui.
         </p>
 
         <div className="flex gap-2">
