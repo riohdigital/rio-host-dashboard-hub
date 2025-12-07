@@ -276,7 +276,7 @@ const ReservasPage = () => {
 
     if (!canViewReservations) {
         return (
-            <div className="container mx-auto py-8 px-4">
+            <div className="p-6">
                 <Alert variant="destructive">
                     <AlertTriangle className="h-4 w-4" />
                     <AlertDescription>Você não tem permissão para visualizar reservas.</AlertDescription>
@@ -286,8 +286,8 @@ const ReservasPage = () => {
     }
 
     return (
-        <div className="container mx-auto py-8 px-4">
-                <div className="flex items-center justify-between mb-8">
+        <div className="p-6 space-y-6">
+                <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900">Reservas</h1>
                         <p className="text-gray-600 mt-1">Gerencie suas reservas e acompanhe o status</p>
