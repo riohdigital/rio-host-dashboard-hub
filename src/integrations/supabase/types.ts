@@ -813,11 +813,7 @@ export type Database = {
       }
       fn_get_all_available_reservations:
         | {
-            Args: {
-              end_date?: string
-              property_ids?: string[]
-              start_date?: string
-            }
+            Args: never
             Returns: {
               base_revenue: number
               check_in_date: string
@@ -853,7 +849,11 @@ export type Database = {
             }[]
           }
         | {
-            Args: never
+            Args: {
+              end_date?: string
+              property_ids?: string[]
+              start_date?: string
+            }
             Returns: {
               base_revenue: number
               check_in_date: string

@@ -27,6 +27,7 @@ import PaymentSummaryCard from './PaymentSummaryCard';
 import CashflowCard from './CashflowCard';
 import UpcomingReservations from './UpcomingReservations';
 import RecentReservations from './RecentReservations';
+import { StrategicInsightsCard } from './StrategicInsightsCard';
 
 const Dashboard = () => {
   const { selectedProperties, selectedPeriod, selectedPlatform, customStartDate, customEndDate } = useGlobalFilters();
@@ -140,6 +141,13 @@ const Dashboard = () => {
               expenses={financialData.totalExpenses}
             />
           </div>
+
+          {/* Business Insights da IA */}
+          {hasPermission('dashboard_revenue') && (
+            <div className="mt-6">
+              <StrategicInsightsCard />
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
             <div className="lg:col-span-3"><AnnualGrowthChart monthlyData={annualGrowthData.monthlyData} yearlyData={annualGrowthData.yearlyData} loading={annualGrowthLoading} /></div>
