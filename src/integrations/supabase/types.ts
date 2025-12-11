@@ -377,6 +377,44 @@ export type Database = {
         }
         Relationships: []
       }
+      property_insights: {
+        Row: {
+          ai_analysis: Json
+          created_at: string | null
+          id: string
+          is_latest: boolean | null
+          metrics: Json
+          property_id: string
+          target_period: string
+        }
+        Insert: {
+          ai_analysis: Json
+          created_at?: string | null
+          id?: string
+          is_latest?: boolean | null
+          metrics: Json
+          property_id: string
+          target_period: string
+        }
+        Update: {
+          ai_analysis?: Json
+          created_at?: string | null
+          id?: string
+          is_latest?: boolean | null
+          metrics?: Json
+          property_id?: string
+          target_period?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_insights_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       property_investments: {
         Row: {
           amount: number
