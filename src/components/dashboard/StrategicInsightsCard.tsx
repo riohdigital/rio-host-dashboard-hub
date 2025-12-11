@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, TrendingUp, TrendingDown, AlertTriangle, CheckCircle2, Lightbulb, Target } from 'lucide-react';
+import { Sparkles, TrendingUp, TrendingDown, AlertTriangle, CheckCircle2, Target } from 'lucide-react';
 import { usePropertyInsights, PropertyInsight } from '@/hooks/usePropertyInsights';
 import { cn } from '@/lib/utils';
 
@@ -40,7 +40,7 @@ const ActionItem = ({ action, index }: { action: string; index: number }) => {
   return (
     <div 
       className={cn(
-        'flex items-start gap-3 p-3 rounded-lg transition-all cursor-pointer',
+        'flex items-start gap-3 p-2 rounded-lg transition-all cursor-pointer',
         checked 
           ? 'bg-emerald-50 border border-emerald-200' 
           : 'bg-muted/50 hover:bg-muted border border-transparent'
@@ -145,7 +145,7 @@ export function StrategicInsightsCard() {
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <div className="p-2 rounded-lg gradient-primary">
-                <Lightbulb className="h-5 w-5 text-white" />
+                <Sparkles className="h-5 w-5 text-white" />
               </div>
               <div>
                 <h3 className="font-semibold text-lg text-gradient-primary flex items-center gap-2">
@@ -224,7 +224,7 @@ export function StrategicInsightsCard() {
             <Sparkles className="h-4 w-4 text-violet-500" />
             Plano de Ação Sugerido
           </h4>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {currentInsight.actionPlan.map((action, index) => (
               <ActionItem key={index} action={action} index={index} />
             ))}
