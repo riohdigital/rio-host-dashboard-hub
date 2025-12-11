@@ -72,6 +72,11 @@ const Dashboard = () => {
         <div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="h-8 w-8 text-primary animate-spin" /></div>
       ) : (
         <>
+          {/* Business Insights da IA - Topo */}
+          {hasPermission('dashboard_revenue') && (
+            <StrategicInsightsCard />
+          )}
+
           <h2 className="text-2xl font-bold text-gray-700 -mb-4">
             {showForecast ? '📊 Previsão de Receita' : '💰 Receita do Período'}
           </h2>
@@ -142,12 +147,6 @@ const Dashboard = () => {
             />
           </div>
 
-          {/* Business Insights da IA */}
-          {hasPermission('dashboard_revenue') && (
-            <div className="mt-6">
-              <StrategicInsightsCard />
-            </div>
-          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
             <div className="lg:col-span-3"><AnnualGrowthChart monthlyData={annualGrowthData.monthlyData} yearlyData={annualGrowthData.yearlyData} loading={annualGrowthLoading} /></div>
