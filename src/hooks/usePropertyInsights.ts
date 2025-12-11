@@ -113,10 +113,15 @@ export function usePropertyInsights() {
           .eq('is_latest', true)
           .order('created_at', { ascending: false });
 
-        // Filter by selected properties if any
-        if (selectedProperties.length > 0) {
-          query = query.in('property_id', selectedProperties);
+        // Filter by selected properties if any - exclude invalid IDs like "todas"
+        const validPropertyIds = selectedProperties.filter(
+          id => id !== 'todas' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+        );
+
+        if (validPropertyIds.length > 0) {
+          query = query.in('property_id', validPropertyIds);
         }
+        // If validPropertyIds is empty (e.g., "todas" selected), fetch all insights without filter
 
         const { data, error: queryError } = await query;
 
