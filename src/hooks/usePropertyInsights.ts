@@ -1,114 +1,185 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
+import { supabase } from '@/integrations/supabase/client';
+
+// Interface alinhada com output do n8n
+export interface ActionPlanItem {
+  title: string;
+  description: string;
+  expected_impact: string;
+}
+
+export interface PropertyMetrics {
+  kpiPast: {
+    totalNetRevenue: number;
+    occupancyRate: number;
+    adr: number;
+    revPar: number;
+    avgLeadTime: number;
+    salesVelocity: string;
+    hhi: string;
+    mixText: string;
+    totalReservations: number;
+  };
+  kpiCurrent: {
+    totalNetRevenue: number;
+    occupancyRate: number;
+    adr: number;
+    revPar: number;
+    avgLeadTime: number;
+    salesVelocity: string;
+    hhi: string;
+    mixText: string;
+    totalReservations: number;
+  };
+  kpiFuture: {
+    totalNetRevenue: number;
+    occupancyRate: number;
+    adr: number;
+    revPar: number;
+    avgLeadTime: number;
+    salesVelocity: string;
+    hhi: string;
+    mixText: string;
+    totalReservations: number;
+  };
+}
+
+export interface AIAnalysis {
+  summary: string;
+  sentiment: 'positive' | 'warning' | 'critical';
+  diagnosis: string;
+  opportunity_alert: string;
+  strengths?: string[];
+  weaknesses?: string[];
+  action_plan: ActionPlanItem[];
+}
 
 export interface PropertyInsight {
   id: string;
-  propertyId: string;
-  propertyName: string;
-  targetMonth: string;
-  createdAt: string;
-  occupancyRate: number;
+  property_id: string;
+  property_name: string;
+  target_period: string;
+  created_at: string;
+  metrics: PropertyMetrics;
+  ai_analysis: AIAnalysis;
+  is_latest: boolean;
+  // Computed/derived fields for easy access
   sentiment: 'positive' | 'warning' | 'critical';
   summary: string;
+  diagnosis: string;
+  opportunity_alert: string;
   strengths: string[];
   weaknesses: string[];
-  actionPlan: string[];
+  actionPlan: ActionPlanItem[];
+  occupancyRate: number;
 }
 
-// Mock data for demonstration - will be replaced with Supabase query
-const mockInsights: PropertyInsight[] = [
-  {
-    id: '1',
-    propertyId: 'prop-1',
-    propertyName: 'Studio Centro',
-    targetMonth: '2025-01',
-    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    occupancyRate: 78,
-    sentiment: 'positive',
-    summary: 'Excelente desempenho! Ocupação 15% acima da média do mercado. ADR competitivo com potencial de aumento.',
-    strengths: [
-      'Alta ocupação nos finais de semana (95%)',
-      'ADR subiu 12% comparado ao mês anterior',
-      'Nenhum cancelamento registrado'
-    ],
-    weaknesses: [
-      'Terças e quartas com ocupação baixa (40%)',
-      'Gap de 5 dias sem reservas (15-20)'
-    ],
-    actionPlan: [
-      'Criar promoção "Mid-week Special" com 15% de desconto para Ter-Qua',
-      'Reduzir estadia mínima para 1 noite nos dias 15-20',
-      'Aumentar diária em 8% para reservas de última hora no fim de semana'
-    ]
-  },
-  {
-    id: '2',
-    propertyId: 'prop-2',
-    propertyName: 'Apartamento Praia',
-    targetMonth: '2025-01',
-    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    occupancyRate: 45,
-    sentiment: 'warning',
-    summary: 'Ocupação abaixo do esperado para alta temporada. Ação imediata recomendada para evitar perda de receita.',
-    strengths: [
-      'Avaliações excelentes (4.9 estrelas)',
-      'Preço competitivo para a região'
-    ],
-    weaknesses: [
-      'Ocupação 30% abaixo do esperado',
-      '12 dias livres na segunda quinzena',
-      'Booking window muito curto (média 3 dias)'
-    ],
-    actionPlan: [
-      'Ativar promoção relâmpago de 20% para reservas nos próximos 7 dias',
-      'Verificar posicionamento nas plataformas (fotos, descrição)',
-      'Considerar parceria com empresas locais para estadias corporativas'
-    ]
-  },
-  {
-    id: '3',
-    propertyId: 'prop-3',
-    propertyName: 'Cobertura Luxo',
-    targetMonth: '2025-01',
-    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    occupancyRate: 25,
-    sentiment: 'critical',
-    summary: 'Situação crítica! Apenas 25% de ocupação com alta temporada. Intervenção urgente necessária.',
-    strengths: [
-      'Imóvel premium com alto potencial de ADR'
-    ],
-    weaknesses: [
-      'Ocupação crítica de apenas 25%',
-      '20 dias consecutivos sem reservas',
-      'Nenhuma reserva confirmada para o próximo mês'
-    ],
-    actionPlan: [
-      'URGENTE: Reduzir diária em 25% imediatamente',
-      'Remover restrição de mínimo de noites',
-      'Atualizar fotos e descrição do anúncio',
-      'Considerar oferta de early check-in/late checkout gratuito'
-    ]
-  }
-];
+interface SupabaseInsightRow {
+  id: string;
+  property_id: string;
+  target_period: string;
+  created_at: string;
+  metrics: PropertyMetrics;
+  ai_analysis: AIAnalysis;
+  is_latest: boolean;
+}
 
 export function usePropertyInsights() {
   const { selectedProperties } = useGlobalFilters();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [insights, setInsights] = useState<PropertyInsight[]>([]);
   const [activePropertyIndex, setActivePropertyIndex] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
-  // Simulate fetching insights based on selected properties
-  const insights = useMemo(() => {
-    if (selectedProperties.length === 0) {
-      return mockInsights;
+  useEffect(() => {
+    async function fetchInsights() {
+      setLoading(true);
+      setError(null);
+
+      try {
+        // Build query for latest insights
+        let query = supabase
+          .from('property_insights')
+          .select(`
+            id,
+            property_id,
+            target_period,
+            created_at,
+            metrics,
+            ai_analysis,
+            is_latest
+          `)
+          .eq('is_latest', true)
+          .order('created_at', { ascending: false });
+
+        // Filter by selected properties if any
+        if (selectedProperties.length > 0) {
+          query = query.in('property_id', selectedProperties);
+        }
+
+        const { data, error: queryError } = await query;
+
+        if (queryError) {
+          console.error('Error fetching insights:', queryError);
+          setError(queryError.message);
+          setInsights([]);
+          return;
+        }
+
+        if (!data || data.length === 0) {
+          setInsights([]);
+          return;
+        }
+
+        // Fetch property names
+        const propertyIds = [...new Set(data.map(d => d.property_id))];
+        const { data: propertiesData } = await supabase
+          .from('properties')
+          .select('id, name, nickname')
+          .in('id', propertyIds);
+
+        const propertyMap = new Map(
+          propertiesData?.map(p => [p.id, p.nickname || p.name]) || []
+        );
+
+        // Transform Supabase data to PropertyInsight format
+        const transformedInsights: PropertyInsight[] = data.map(row => {
+          const aiAnalysis = row.ai_analysis as unknown as AIAnalysis;
+          const metrics = row.metrics as unknown as PropertyMetrics;
+
+          return {
+            id: row.id,
+            property_id: row.property_id,
+            property_name: propertyMap.get(row.property_id) || 'Propriedade',
+            target_period: row.target_period,
+            created_at: row.created_at,
+            metrics,
+            ai_analysis: aiAnalysis,
+            is_latest: row.is_latest,
+            // Derived fields for easy component access
+            sentiment: aiAnalysis.sentiment,
+            summary: aiAnalysis.summary,
+            diagnosis: aiAnalysis.diagnosis,
+            opportunity_alert: aiAnalysis.opportunity_alert,
+            strengths: aiAnalysis.strengths || [],
+            weaknesses: aiAnalysis.weaknesses || [],
+            actionPlan: aiAnalysis.action_plan || [],
+            occupancyRate: metrics?.kpiFuture?.occupancyRate || 0
+          };
+        });
+
+        setInsights(transformedInsights);
+      } catch (err) {
+        console.error('Unexpected error fetching insights:', err);
+        setError('Erro ao carregar insights');
+        setInsights([]);
+      } finally {
+        setLoading(false);
+      }
     }
-    
-    // In real implementation, filter by actual property IDs
-    // For now, return mock data mapped to selected properties
-    return selectedProperties.slice(0, 3).map((propId, index) => ({
-      ...mockInsights[index % mockInsights.length],
-      propertyId: propId,
-      propertyName: `Propriedade ${index + 1}`
-    }));
+
+    fetchInsights();
   }, [selectedProperties]);
 
   const currentInsight = insights[activePropertyIndex] || null;
@@ -130,6 +201,7 @@ export function usePropertyInsights() {
     activePropertyIndex,
     goToProperty,
     loading,
+    error,
     hasMultipleProperties: insights.length > 1
   };
 }
