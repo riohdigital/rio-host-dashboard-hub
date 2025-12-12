@@ -340,4 +340,22 @@ All colors MUST be HSL.
       transform: translateX(0);
     }
   }
+
+  /* Chevron Bounce Animation for Expand Indicator */
+  .chevron-bounce {
+    animation: chevronBounce 2s ease-in-out infinite;
+  }
+
+  @keyframes chevronBounce {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(3px);
+    }
+  }
+
+  .chevron-bounce.rotate-180 {
+    animation: none;
+  }
 }
