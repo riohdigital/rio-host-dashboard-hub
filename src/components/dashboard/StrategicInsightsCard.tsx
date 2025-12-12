@@ -2,9 +2,24 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Sparkles, TrendingUp, TrendingDown, AlertTriangle, CheckCircle2, Target, Zap } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Sparkles, TrendingUp, TrendingDown, AlertTriangle, CheckCircle2, Target, Zap, ChevronDown } from 'lucide-react';
 import { usePropertyInsights, PropertyInsight, ActionPlanItem } from '@/hooks/usePropertyInsights';
 import { cn } from '@/lib/utils';
+
+// Expand Indicator Component
+const ExpandIndicator = ({ isExpanded }: { isExpanded: boolean }) => (
+  <div className="w-full flex items-center justify-center gap-3 py-3 group cursor-pointer hover:bg-muted/30 transition-colors rounded-lg">
+    <div className="h-px w-12 bg-gradient-to-r from-transparent via-violet-300 to-transparent group-hover:w-16 transition-all duration-300" />
+    <ChevronDown 
+      className={cn(
+        "h-5 w-5 text-violet-500 transition-transform duration-300 chevron-bounce",
+        isExpanded && "rotate-180"
+      )} 
+    />
+    <div className="h-px w-12 bg-gradient-to-r from-transparent via-violet-300 to-transparent group-hover:w-16 transition-all duration-300" />
+  </div>
+);
 
 const SentimentBadge = ({ sentiment }: { sentiment: PropertyInsight['sentiment'] }) => {
   const config = {
@@ -164,6 +179,7 @@ export function StrategicInsightsCard() {
   } = usePropertyInsights();
   
   const [animationKey, setAnimationKey] = useState(0);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   // Trigger animation when property changes
   useEffect(() => {
@@ -188,155 +204,166 @@ export function StrategicInsightsCard() {
   });
 
   return (
-    <Card className="ai-card-glow bg-card relative overflow-hidden mb-6">
-      {/* Header */}
-      <CardHeader className="pb-4 relative">
-        <SparkleConstellation />
-        
-        <div className="flex items-start justify-between">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg gradient-primary">
-                <Sparkles className="h-5 w-5 text-white" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-lg text-gradient-primary flex items-center gap-2">
-                  Dicas da IA
-                  <Badge variant="secondary" className="text-xs font-normal">
-                    {currentInsight.property_name}
-                  </Badge>
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  Análise de {targetMonthFormatted} • Atualizado há {daysSinceUpdate} {daysSinceUpdate === 1 ? 'dia' : 'dias'}
-                </p>
-              </div>
-            </div>
-          </div>
-          <SentimentBadge sentiment={currentInsight.sentiment} />
-        </div>
-      </CardHeader>
-
-      {/* Content with animation */}
-      <CardContent key={animationKey} className="space-y-5 ai-card-content-enter">
-        {/* Summary */}
-        <div className="p-4 rounded-xl bg-gradient-to-br from-violet-50 to-blue-50 border border-violet-100">
-          <div className="flex items-start gap-3">
-            <Target className="h-5 w-5 text-violet-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <h4 className="font-medium text-sm text-violet-900 mb-1">Resumo</h4>
-              <p className="text-sm text-violet-700 leading-relaxed font-medium">
-                {currentInsight.summary}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Diagnosis */}
-        {currentInsight.diagnosis && (
-          <div className="p-4 rounded-xl bg-muted/50 border">
-            <h4 className="font-medium text-sm text-foreground mb-2 flex items-center gap-2">
-              <Target className="h-4 w-4 text-muted-foreground" />
-              Diagnóstico
-            </h4>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              {currentInsight.diagnosis}
-            </p>
-          </div>
-        )}
-
-        {/* Opportunity Alert */}
-        {currentInsight.opportunity_alert && (
-          <div className="p-4 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <h4 className="font-medium text-sm text-amber-900 mb-1">Alerta de Oportunidade</h4>
-                <p className="text-sm text-amber-800 leading-relaxed">
-                  {currentInsight.opportunity_alert}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Strengths & Weaknesses */}
-        {(currentInsight.strengths.length > 0 || currentInsight.weaknesses.length > 0) && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Strengths */}
-            {currentInsight.strengths.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium text-emerald-700 flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4" />
-                  Pontos Fortes
-                </h4>
-                <ul className="space-y-1">
-                  {currentInsight.strengths.map((strength, i) => (
-                    <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
-                      <span className="text-emerald-500 mt-1">•</span>
-                      {strength}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Weaknesses */}
-            {currentInsight.weaknesses.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium text-amber-700 flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4" />
-                  Pontos de Atenção
-                </h4>
-                <ul className="space-y-1">
-                  {currentInsight.weaknesses.map((weakness, i) => (
-                    <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
-                      <span className="text-amber-500 mt-1">•</span>
-                      {weakness}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Action Plan */}
-        {currentInsight.actionPlan.length > 0 && (
-          <div className="space-y-3">
-            <h4 className="font-medium text-foreground flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-violet-500" />
-              Plano de Ação Sugerido
-            </h4>
+    <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
+      <Card className="ai-card-glow bg-card relative overflow-hidden mb-6 shadow-lg hover:shadow-xl transition-shadow duration-300">
+        {/* Header - SEMPRE VISÍVEL */}
+        <CardHeader className="pb-4 relative">
+          <SparkleConstellation />
+          
+          <div className="flex items-start justify-between">
             <div className="space-y-2">
-              {currentInsight.actionPlan.map((action, index) => (
-                <RichActionItem key={index} action={action} index={index} />
-              ))}
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-lg gradient-primary">
+                  <Sparkles className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg text-gradient-primary flex items-center gap-2">
+                    Dicas da IA
+                    <Badge variant="secondary" className="text-xs font-normal">
+                      {currentInsight.property_name}
+                    </Badge>
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Análise de {targetMonthFormatted} • Atualizado há {daysSinceUpdate} {daysSinceUpdate === 1 ? 'dia' : 'dias'}
+                  </p>
+                </div>
+              </div>
             </div>
+            <SentimentBadge sentiment={currentInsight.sentiment} />
           </div>
-        )}
-      </CardContent>
+        </CardHeader>
 
-      {/* Footer with property navigation */}
-      {hasMultipleProperties && (
-        <CardFooter className="pt-4 border-t bg-muted/30">
-          <div className="w-full">
-            <p className="text-xs text-muted-foreground mb-3">
-              Insights disponíveis para {insights.length} propriedades:
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {insights.map((insight, index) => (
-                <PropertyPill
-                  key={insight.property_id}
-                  name={insight.property_name}
-                  isActive={index === activePropertyIndex}
-                  onClick={() => goToProperty(index)}
-                  sentiment={insight.sentiment}
-                />
-              ))}
+        {/* Summary - SEMPRE VISÍVEL */}
+        <CardContent key={animationKey} className="ai-card-content-enter pb-0">
+          <div className="p-4 rounded-xl bg-gradient-to-br from-violet-50 to-blue-50 border border-violet-100 dark:from-violet-950/30 dark:to-blue-950/30 dark:border-violet-800/30">
+            <div className="flex items-start gap-3">
+              <Target className="h-5 w-5 text-violet-600 dark:text-violet-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <h4 className="font-medium text-sm text-violet-900 dark:text-violet-200 mb-1">Resumo</h4>
+                <p className="text-sm text-violet-700 dark:text-violet-300 leading-relaxed font-medium">
+                  {currentInsight.summary}
+                </p>
+              </div>
             </div>
           </div>
-        </CardFooter>
-      )}
-    </Card>
+
+          {/* Expand Indicator */}
+          <CollapsibleTrigger asChild>
+            <ExpandIndicator isExpanded={isExpanded} />
+          </CollapsibleTrigger>
+        </CardContent>
+
+        {/* Conteúdo expandido - OCULTO POR PADRÃO */}
+        <CollapsibleContent className="data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up overflow-hidden">
+          <CardContent className="pt-0 space-y-5">
+            {/* Diagnosis */}
+            {currentInsight.diagnosis && (
+              <div className="p-4 rounded-xl bg-muted/50 border">
+                <h4 className="font-medium text-sm text-foreground mb-2 flex items-center gap-2">
+                  <Target className="h-4 w-4 text-muted-foreground" />
+                  Diagnóstico
+                </h4>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {currentInsight.diagnosis}
+                </p>
+              </div>
+            )}
+
+            {/* Opportunity Alert */}
+            {currentInsight.opportunity_alert && (
+              <div className="p-4 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 dark:from-amber-950/30 dark:to-orange-950/30 dark:border-amber-700/30">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-medium text-sm text-amber-900 dark:text-amber-200 mb-1">Alerta de Oportunidade</h4>
+                    <p className="text-sm text-amber-800 dark:text-amber-300 leading-relaxed">
+                      {currentInsight.opportunity_alert}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Strengths & Weaknesses */}
+            {(currentInsight.strengths.length > 0 || currentInsight.weaknesses.length > 0) && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Strengths */}
+                {currentInsight.strengths.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4" />
+                      Pontos Fortes
+                    </h4>
+                    <ul className="space-y-1">
+                      {currentInsight.strengths.map((strength, i) => (
+                        <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+                          <span className="text-emerald-500 mt-1">•</span>
+                          {strength}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Weaknesses */}
+                {currentInsight.weaknesses.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium text-amber-700 dark:text-amber-400 flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4" />
+                      Pontos de Atenção
+                    </h4>
+                    <ul className="space-y-1">
+                      {currentInsight.weaknesses.map((weakness, i) => (
+                        <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+                          <span className="text-amber-500 mt-1">•</span>
+                          {weakness}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Action Plan */}
+            {currentInsight.actionPlan.length > 0 && (
+              <div className="space-y-3">
+                <h4 className="font-medium text-foreground flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-violet-500" />
+                  Plano de Ação Sugerido
+                </h4>
+                <div className="space-y-2">
+                  {currentInsight.actionPlan.map((action, index) => (
+                    <RichActionItem key={index} action={action} index={index} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </CollapsibleContent>
+
+        {/* Footer with property navigation - SEMPRE VISÍVEL */}
+        {hasMultipleProperties && (
+          <CardFooter className="pt-4 border-t bg-muted/30">
+            <div className="w-full">
+              <p className="text-xs text-muted-foreground mb-3">
+                Insights disponíveis para {insights.length} propriedades:
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {insights.map((insight, index) => (
+                  <PropertyPill
+                    key={insight.property_id}
+                    name={insight.property_name}
+                    isActive={index === activePropertyIndex}
+                    onClick={() => goToProperty(index)}
+                    sentiment={insight.sentiment}
+                  />
+                ))}
+              </div>
+            </div>
+          </CardFooter>
+        )}
+      </Card>
+    </Collapsible>
   );
 }
