@@ -13,16 +13,18 @@ const ExpandIndicator = ({ isExpanded }: { isExpanded: boolean }) => (
   <TooltipProvider>
     <Tooltip>
       <TooltipTrigger asChild>
-        <div className="w-full flex items-center justify-center gap-3 py-3 group cursor-pointer hover:bg-muted/30 transition-colors rounded-lg">
-          <div className="h-px w-12 bg-gradient-to-r from-transparent via-violet-300 to-transparent group-hover:w-16 transition-all duration-300" />
-          <ChevronDown 
-            className={cn(
-              "h-5 w-5 text-violet-500 transition-transform duration-300 chevron-bounce",
-              isExpanded && "rotate-180"
-            )} 
-          />
-          <div className="h-px w-12 bg-gradient-to-r from-transparent via-violet-300 to-transparent group-hover:w-16 transition-all duration-300" />
-        </div>
+        <CollapsibleTrigger asChild>
+          <div className="w-full flex items-center justify-center gap-3 py-3 group cursor-pointer hover:bg-muted/30 transition-colors rounded-lg">
+            <div className="h-px w-12 bg-gradient-to-r from-transparent via-violet-300 to-transparent group-hover:w-16 transition-all duration-300" />
+            <ChevronDown 
+              className={cn(
+                "h-5 w-5 text-violet-500 transition-transform duration-300 chevron-bounce",
+                isExpanded && "rotate-180"
+              )} 
+            />
+            <div className="h-px w-12 bg-gradient-to-r from-transparent via-violet-300 to-transparent group-hover:w-16 transition-all duration-300" />
+          </div>
+        </CollapsibleTrigger>
       </TooltipTrigger>
       <TooltipContent>
         <p>{isExpanded ? "Recolher pensamento da IA" : "Expandir pensamento da IA"}</p>
@@ -275,9 +277,7 @@ export function StrategicInsightsCard() {
           <div className="w-full h-px bg-gradient-to-r from-transparent via-violet-200/60 to-transparent" />
 
           {/* Expand Indicator */}
-          <CollapsibleTrigger asChild>
-            <ExpandIndicator isExpanded={isExpanded} />
-          </CollapsibleTrigger>
+          <ExpandIndicator isExpanded={isExpanded} />
         </CardContent>
 
         {/* Conteúdo expandido - OCULTO POR PADRÃO */}
