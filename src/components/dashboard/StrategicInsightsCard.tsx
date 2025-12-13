@@ -3,22 +3,32 @@ import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Sparkles, TrendingUp, TrendingDown, AlertTriangle, CheckCircle2, Target, Zap, ChevronDown } from 'lucide-react';
 import { usePropertyInsights, PropertyInsight, ActionPlanItem } from '@/hooks/usePropertyInsights';
 import { cn } from '@/lib/utils';
 
-// Expand Indicator Component
+// Expand Indicator Component with Tooltip
 const ExpandIndicator = ({ isExpanded }: { isExpanded: boolean }) => (
-  <div className="w-full flex items-center justify-center gap-3 py-3 group cursor-pointer hover:bg-muted/30 transition-colors rounded-lg">
-    <div className="h-px w-12 bg-gradient-to-r from-transparent via-violet-300 to-transparent group-hover:w-16 transition-all duration-300" />
-    <ChevronDown 
-      className={cn(
-        "h-5 w-5 text-violet-500 transition-transform duration-300 chevron-bounce",
-        isExpanded && "rotate-180"
-      )} 
-    />
-    <div className="h-px w-12 bg-gradient-to-r from-transparent via-violet-300 to-transparent group-hover:w-16 transition-all duration-300" />
-  </div>
+  <TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className="w-full flex items-center justify-center gap-3 py-3 group cursor-pointer hover:bg-muted/30 transition-colors rounded-lg">
+          <div className="h-px w-12 bg-gradient-to-r from-transparent via-violet-300 to-transparent group-hover:w-16 transition-all duration-300" />
+          <ChevronDown 
+            className={cn(
+              "h-5 w-5 text-violet-500 transition-transform duration-300 chevron-bounce",
+              isExpanded && "rotate-180"
+            )} 
+          />
+          <div className="h-px w-12 bg-gradient-to-r from-transparent via-violet-300 to-transparent group-hover:w-16 transition-all duration-300" />
+        </div>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>{isExpanded ? "Recolher pensamento da IA" : "Expandir pensamento da IA"}</p>
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
 );
 
 const SentimentBadge = ({ sentiment }: { sentiment: PropertyInsight['sentiment'] }) => {
@@ -233,8 +243,9 @@ export function StrategicInsightsCard() {
           </div>
         </CardHeader>
 
-        {/* Summary - SEMPRE VISÍVEL */}
-        <CardContent key={animationKey} className="ai-card-content-enter pb-0">
+        {/* Summary & Diagnosis - SEMPRE VISÍVEIS */}
+        <CardContent key={animationKey} className="ai-card-content-enter pb-0 space-y-4">
+          {/* Resumo */}
           <div className="p-4 rounded-xl bg-gradient-to-br from-violet-50 to-blue-50 border border-violet-100 dark:from-violet-950/30 dark:to-blue-950/30 dark:border-violet-800/30">
             <div className="flex items-start gap-3">
               <Target className="h-5 w-5 text-violet-600 dark:text-violet-400 flex-shrink-0 mt-0.5" />
@@ -247,6 +258,22 @@ export function StrategicInsightsCard() {
             </div>
           </div>
 
+          {/* Diagnóstico - AGORA SEMPRE VISÍVEL */}
+          {currentInsight.diagnosis && (
+            <div className="p-4 rounded-xl bg-muted/50 border">
+              <h4 className="font-medium text-sm text-foreground mb-2 flex items-center gap-2">
+                <Target className="h-4 w-4 text-muted-foreground" />
+                Diagnóstico
+              </h4>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {currentInsight.diagnosis}
+              </p>
+            </div>
+          )}
+
+          {/* Fade Line */}
+          <div className="w-full h-px bg-gradient-to-r from-transparent via-violet-200/60 to-transparent" />
+
           {/* Expand Indicator */}
           <CollapsibleTrigger asChild>
             <ExpandIndicator isExpanded={isExpanded} />
@@ -256,18 +283,6 @@ export function StrategicInsightsCard() {
         {/* Conteúdo expandido - OCULTO POR PADRÃO */}
         <CollapsibleContent className="data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up overflow-hidden">
           <CardContent className="pt-0 space-y-5">
-            {/* Diagnosis */}
-            {currentInsight.diagnosis && (
-              <div className="p-4 rounded-xl bg-muted/50 border">
-                <h4 className="font-medium text-sm text-foreground mb-2 flex items-center gap-2">
-                  <Target className="h-4 w-4 text-muted-foreground" />
-                  Diagnóstico
-                </h4>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  {currentInsight.diagnosis}
-                </p>
-              </div>
-            )}
 
             {/* Opportunity Alert */}
             {currentInsight.opportunity_alert && (
