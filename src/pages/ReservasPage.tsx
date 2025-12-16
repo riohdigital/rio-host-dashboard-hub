@@ -47,7 +47,7 @@ const fetchReservationsAndProperties = async (getAccessibleProperties: () => str
     
     let query = supabase
         .from('reservations')
-        .select('*, properties!inner(*), cleaner:user_profiles!cleaner_user_id(full_name)')
+        .select('*, properties!inner(*)')
         .order('check_in_date', { ascending: false });
 
     if (selectedPeriod !== 'general') {
@@ -79,7 +79,25 @@ const fetchReservationsAndProperties = async (getAccessibleProperties: () => str
         };
     });
 
-    return { reservations: normalizedReservations, properties: Array.from(propertiesMap.values()) };
+    // Buscar nomes das faxineiras separadamente
+    const cleanerIds = [...new Set(
+        normalizedReservations
+            .filter(r => r.cleaner_user_id)
+            .map(r => r.cleaner_user_id)
+    )] as string[];
+    
+    let cleanerMap = new Map<string, string>();
+    
+    if (cleanerIds.length > 0) {
+        const { data: cleaners } = await supabase
+            .from('user_profiles')
+            .select('user_id, full_name')
+            .in('user_id', cleanerIds);
+        
+        cleanerMap = new Map(cleaners?.map(c => [c.user_id as string, c.full_name || '']) || []);
+    }
+
+    return { reservations: normalizedReservations, properties: Array.from(propertiesMap.values()), cleanerMap };
 };
 
 const ReservasPage = () => {
@@ -113,6 +131,7 @@ const ReservasPage = () => {
 
     const reservations = data?.reservations || [];
     const properties = data?.properties || [];
+    const cleanerMap = data?.cleanerMap || new Map<string, string>();
 
     const handleDelete = async (reservationId: string): Promise<void> => {
         try {
@@ -470,7 +489,7 @@ const ReservasPage = () => {
                                                 <TableCell>
                                                     <div className="space-y-1">
                                                         <span className="text-sm font-medium">
-                                                            {reservation.cleaner?.full_name || 'Não atribuída'}
+                                                            {reservation.cleaner_user_id ? cleanerMap.get(reservation.cleaner_user_id) || 'Não atribuída' : 'Não atribuída'}
                                                         </span>
                                                         <div>
                                                             <Badge 
