@@ -34,13 +34,20 @@ const formatTime = (timeString: string | null): string => {
     return timeString.slice(0, 5);
 };
 
+const calculateNights = (checkIn: string, checkOut: string): number => {
+    const start = new Date(checkIn);
+    const end = new Date(checkOut);
+    const diffTime = end.getTime() - start.getTime();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+};
+
 const fetchReservationsAndProperties = async (getAccessibleProperties: () => string[], hasPermission: (p: any) => boolean, selectedPeriod: string, startDateString: string, endDateString: string) => {
     const accessibleProperties = getAccessibleProperties();
     const hasFullAccess = hasPermission('reservations_view_all');
     
     let query = supabase
         .from('reservations')
-        .select('*, properties!inner(*)')
+        .select('*, properties!inner(*), cleaner:user_profiles!cleaner_user_id(full_name)')
         .order('check_in_date', { ascending: false });
 
     if (selectedPeriod !== 'general') {
@@ -408,6 +415,8 @@ const ReservasPage = () => {
                                         <TableHead>Contato</TableHead>
                                         <TableHead>Check-in</TableHead>
                                         <TableHead>Check-out</TableHead>
+                                        <TableHead className="text-center">Noites</TableHead>
+                                        <TableHead>Faxineira</TableHead>
                                         <TableHead>Plataforma</TableHead>
                                         <TableHead>Status</TableHead>
                                         <TableHead>Pagamento</TableHead>
@@ -424,7 +433,16 @@ const ReservasPage = () => {
                                             <TableRow key={reservation.id} className="hover:bg-gray-50">
                                                 <TableCell className="font-medium text-blue-600">{reservation.reservation_code}</TableCell>
                                                 <TableCell>{property?.nickname || property?.name}</TableCell>
-                                                <TableCell>{reservation.guest_name || '-'}</TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-2">
+                                                        <span>{reservation.guest_name || '-'}</span>
+                                                        {reservation.number_of_guests && (
+                                                            <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                                                {reservation.number_of_guests} 👥
+                                                            </Badge>
+                                                        )}
+                                                    </div>
+                                                </TableCell>
                                                 <TableCell>
                                                     {reservation.guest_phone ? (<Button variant="outline" size="sm" onClick={() => {
                                                         const phoneNumber = reservation.guest_phone?.replace(/\D/g, '');
@@ -442,6 +460,30 @@ const ReservasPage = () => {
                                                 <TableCell>
                                                     <div className="space-y-1"><div className="font-medium">{formatDate(reservation.check_out_date)}</div>
                                                         {reservation.checkout_time && (<div className="text-sm text-gray-500">{formatTime(reservation.checkout_time)}</div>)}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="text-center">
+                                                    <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                                                        {calculateNights(reservation.check_in_date, reservation.check_out_date)} noites
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="space-y-1">
+                                                        <span className="text-sm font-medium">
+                                                            {reservation.cleaner?.full_name || 'Não atribuída'}
+                                                        </span>
+                                                        <div>
+                                                            <Badge 
+                                                                variant="outline"
+                                                                className={
+                                                                    reservation.cleaning_status === 'Realizada' 
+                                                                        ? 'bg-green-50 text-green-700 border-green-200 text-xs' 
+                                                                        : 'bg-orange-50 text-orange-700 border-orange-200 text-xs'
+                                                                }
+                                                            >
+                                                                {reservation.cleaning_status || 'Pendente'}
+                                                            </Badge>
+                                                        </div>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell><Badge variant="secondary">{reservation.platform}</Badge></TableCell>
@@ -522,7 +564,7 @@ const ReservasPage = () => {
                                 </TableBody>
                                 <TableFooter>
                                     <TableRow>
-                                        <TableCell colSpan={9} className="font-medium">Total de Reservas: {totals.count}</TableCell>
+                                        <TableCell colSpan={11} className="font-medium">Total de Reservas: {totals.count}</TableCell>
                                         <TableCell className="font-bold">
                                             <div className="space-y-1">
                                                 <div className="text-green-700">
