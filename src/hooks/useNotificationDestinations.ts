@@ -21,7 +21,7 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 export const useNotificationDestinations = () => {
   const { user } = useAuth();
-  const { role } = useUserRole();
+  const { role, loading: roleLoading } = useUserRole();
   const { toast } = useToast();
   const [destinations, setDestinations] = useState<NotificationDestination[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,7 +29,8 @@ export const useNotificationDestinations = () => {
   const hasFetchedData = useRef(false);
 
   const fetchDestinations = async (forceRefresh = false) => {
-    if (!user) return;
+    // Wait for role to load before fetching
+    if (!user || roleLoading) return;
 
     // Check cache
     const now = Date.now();
@@ -160,8 +161,10 @@ export const useNotificationDestinations = () => {
   };
 
   useEffect(() => {
-    fetchDestinations();
-  }, [user, role]);
+    if (!roleLoading) {
+      fetchDestinations();
+    }
+  }, [user, role, roleLoading]);
 
   return {
     destinations,
