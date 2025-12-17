@@ -80,6 +80,37 @@ const handler = async (req: Request): Promise<Response> => {
       throw profileLookupError;
     }
 
+    // Cria/atualiza notification_destinations para faxineira receber alertas
+    const ensureNotificationDestination = async (userId: string, cleanerName: string, cleanerPhone: string | null) => {
+      console.log('[create-user] Ensuring notification_destination for cleaner:', userId);
+      
+      const { error } = await supabaseAdmin
+        .from('notification_destinations')
+        .upsert({
+          user_id: userId,
+          destination_name: cleanerName || 'Faxineira',
+          destination_role: 'faxineira',
+          whatsapp_number: cleanerPhone || '-',
+          is_authenticated: false,
+          preferences: {
+            cleaner_assignment: true,
+            cleaner_48h: true,
+            cleaner_24h: true,
+            cleaner_day_of_alerts: true
+          }
+        }, { 
+          onConflict: 'user_id,destination_role',
+          ignoreDuplicates: false 
+        });
+
+      if (error) {
+        console.error('[create-user] Error upserting notification_destination:', error);
+        // Não é crítico, apenas loga - o trigger do banco também tenta criar
+      } else {
+        console.log('[create-user] notification_destination ensured for cleaner:', userId);
+      }
+    };
+
     const ensureCleanerLinks = async (userId: string) => {
       // Garante cleaner_profiles com phone/address/notes/pix
       const { error: upsertCleanerError } = await supabaseAdmin
@@ -97,6 +128,9 @@ const handler = async (req: Request): Promise<Response> => {
         console.error('[create-user] Error upserting cleaner_profiles:', upsertCleanerError);
         throw upsertCleanerError;
       }
+
+      // Garantir notification_destinations para a faxineira
+      await ensureNotificationDestination(userId, fullName, phone ?? null);
 
       // Se propertyIds vier preenchido, refaz os vínculos (remove e re-insere)
       if (Array.isArray(propertyIds) && propertyIds.length > 0) {
