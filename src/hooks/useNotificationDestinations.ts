@@ -60,15 +60,22 @@ export const useNotificationDestinations = () => {
     }
   };
 
-  const createDestination = async (destination: Omit<NotificationDestination, 'id' | 'user_id' | 'created_at' | 'is_authenticated'>) => {
+  const createDestination = async (destination: Omit<NotificationDestination, 'id' | 'user_id' | 'created_at' | 'is_authenticated'> & { target_user_id?: string }) => {
     if (!user) return null;
 
     try {
+      // Extrair target_user_id e remover do objeto antes de inserir
+      const { target_user_id, ...destinationData } = destination;
+      
+      // Se target_user_id for fornecido (para faxineiras), usar esse ID
+      // Caso contrário, usar o ID do usuário logado (para outros roles)
+      const effectiveUserId = target_user_id || user.id;
+
       const { data, error } = await (supabase as any)
         .from('notification_destinations')
         .insert({
-          ...destination,
-          user_id: user.id,
+          ...destinationData,
+          user_id: effectiveUserId,
           is_authenticated: false
         })
         .select()
