@@ -31,6 +31,9 @@ export const useNotificationDestinations = () => {
   const fetchDestinations = async (forceRefresh = false) => {
     // Wait for role to load before fetching
     if (!user || roleLoading) return;
+    
+    // Ensure role is actually loaded (not null) before fetching
+    if (role === null) return;
 
     // Check cache
     const now = Date.now();
@@ -161,7 +164,7 @@ export const useNotificationDestinations = () => {
   };
 
   useEffect(() => {
-    if (!roleLoading) {
+    if (!roleLoading && role !== null) {
       fetchDestinations();
     }
   }, [user, role, roleLoading]);
