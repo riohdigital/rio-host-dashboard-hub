@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserRole } from '@/hooks/useUserRole';
 
 export interface NotificationDestination {
   id: string;
@@ -20,6 +21,7 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 export const useNotificationDestinations = () => {
   const { user } = useAuth();
+  const { role } = useUserRole();
   const { toast } = useToast();
   const [destinations, setDestinations] = useState<NotificationDestination[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,11 +40,18 @@ export const useNotificationDestinations = () => {
 
     try {
       setLoading(true);
-      const { data, error } = await (supabase as any)
+      
+      // Masters see ALL destinations, others see only their own
+      let query = (supabase as any)
         .from('notification_destinations')
         .select('*')
-        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
+      
+      if (role !== 'master') {
+        query = query.eq('user_id', user.id);
+      }
+      
+      const { data, error } = await query;
 
       if (error) throw error;
       setDestinations(data || []);
@@ -152,7 +161,7 @@ export const useNotificationDestinations = () => {
 
   useEffect(() => {
     fetchDestinations();
-  }, [user]);
+  }, [user, role]);
 
   return {
     destinations,
