@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
 import { useDateRange } from '@/hooks/dashboard/useDateRange';
 import { Button } from '@/components/ui/button';
@@ -125,8 +126,16 @@ const ReservasPage = () => {
         queryKey: queryKey,
         queryFn: () => fetchReservationsAndProperties(getAccessibleProperties, hasPermission, selectedPeriod, startDateString, endDateString),
         enabled: !permissionsLoading,
-        staleTime: 10000,
-        refetchOnWindowFocus: true,
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        refetchOnWindowFocus: false,
+    });
+
+    // Real-time subscription for reservations
+    useRealtimeSubscription({
+        table: 'reservations',
+        queryKeys: [queryKey],
+        showToasts: true,
+        enabled: !permissionsLoading
     });
 
     const reservations = data?.reservations || [];
