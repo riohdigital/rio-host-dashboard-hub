@@ -56,7 +56,7 @@ const Dashboard = () => {
     fetchOperationalData();
     fetchAnnualGrowthData();
     fetchCompetenceData();
-  }, [selectedPeriod, selectedProperties, selectedPlatform, customStartDate, customEndDate, startDateString, endDateString]);
+  }, [startDateString, endDateString, selectedProperties, selectedPlatform]);
   
   const isLoading = financialLoading || operationalLoading || annualGrowthLoading;
   

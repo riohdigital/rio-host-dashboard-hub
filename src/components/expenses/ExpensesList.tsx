@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
 import { useDateRange } from '@/hooks/dashboard/useDateRange';
 import { usePageVisibility } from '@/hooks/usePageVisibility';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -33,12 +34,19 @@ const ExpensesList = () => {
     fetchExpenses();
   }, [selectedProperties, selectedPeriod, startDate, endDate]);
 
-  // Effect para refetch quando página volta a ficar visível
+  // Effect para refetch quando página volta a ficar visível (com intervalo maior)
   useEffect(() => {
     if (isVisible && shouldRefetch()) {
       fetchExpenses();
     }
   }, [isVisible]);
+
+  // Real-time subscription for expenses
+  useRealtimeSubscription({
+    table: 'expenses',
+    queryKeys: [['expenses']],
+    showToasts: true
+  });
 
   const fetchExpenses = async () => {
     setLoading(true);

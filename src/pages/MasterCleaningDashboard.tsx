@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useMasterCleaningData } from '@/hooks/useMasterCleaningData';
 import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
 import { useDateRange } from '@/hooks/dashboard/useDateRange';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import CleanerSelector from '@/components/master-cleaning/CleanerSelector';
 import MasterCleaningCard from '@/components/master-cleaning/MasterCleaningCard';
 import CleaningStats from '@/components/master-cleaning/CleaningStats';
@@ -28,6 +29,16 @@ const MasterCleaningDashboard = () => {
     startDate: startDateString,
     endDate: endDateString,
     propertyIds: selectedProperties
+  });
+
+  // Real-time subscription for reservations (cleaning updates)
+  useRealtimeSubscription({
+    table: 'reservations',
+    queryKeys: [
+      ['master-all-cleanings', startDateString, endDateString, selectedProperties],
+      ['master-available-cleanings', startDateString, endDateString, selectedProperties]
+    ],
+    showToasts: true
   });
   
   const [selectedCleaner, setSelectedCleaner] = useState<string | null>(null);
