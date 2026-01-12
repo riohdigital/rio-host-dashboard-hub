@@ -10,7 +10,8 @@ import {
   LogOut,
   TrendingUp,
   FileText,
-  Bell
+  Bell,
+  Briefcase
 } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -20,7 +21,7 @@ import GlobalFilters from './GlobalFilters';
 
 const Sidebar = () => {
   const { toast } = useToast();
-  const { isCleaner, isMaster, isOwner } = useUserRole();
+  const { isCleaner, isMaster, isOwner, isGestor } = useUserRole();
   const { hasPermission } = useUserPermissions();
 
   const handleLogout = async () => {
@@ -57,6 +58,7 @@ const Sidebar = () => {
     { name: 'Relatórios', icon: FileText, path: '/relatorios' },
     ...(hasPermission('anfitriao_alerta_view') ? [{ name: 'Anfitrião Alerta', icon: Bell, path: '/anfitriao-alerta' }] : []),
     ...(hasPermission('gestao_faxinas_view') ? [{ name: 'Gestão de Faxinas', icon: Calendar, path: '/gestao-faxinas' }] : []),
+    ...((isMaster || isGestor || isOwner) ? [{ name: 'Painel Gestor', icon: Briefcase, path: '/painel-gestor' }] : []),
     { name: 'Configurações', icon: Settings, path: '/configuracoes' },
   ];
 
