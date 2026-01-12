@@ -10,6 +10,7 @@ import { PropertyPerformanceTable } from '@/components/painel-gestor/PropertyPer
 import { UpcomingEventsTimeline } from '@/components/painel-gestor/UpcomingEventsTimeline';
 import { CleaningRiskAlerts } from '@/components/painel-gestor/CleaningRiskAlerts';
 import { RecentActivityFeed } from '@/components/painel-gestor/RecentActivityFeed';
+import { CommissionDetailsCard } from '@/components/painel-gestor/CommissionDetailsCard';
 
 const PainelGestorPage = () => {
   const { isMaster, isGestor, isOwner, loading: permissionsLoading } = useUserPermissions();
@@ -22,6 +23,7 @@ const PainelGestorPage = () => {
     upcomingEvents,
     cleaningRiskAlerts,
     recentActivities,
+    commissionDetails,
     refetch 
   } = useGestorDashboard();
 
@@ -52,18 +54,25 @@ const PainelGestorPage = () => {
       {/* Cleaning Risk Alerts */}
       <CleaningRiskAlerts alerts={cleaningRiskAlerts} loading={loading} />
 
-      {/* Charts Row */}
+      {/* Charts and Commission Details Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <CommissionChart data={monthlyCommissions} loading={loading} />
         </div>
         <div>
-          <PlatformBreakdownChart data={platformBreakdown} loading={loading} />
+          <CommissionDetailsCard data={commissionDetails} loading={loading} />
         </div>
       </div>
 
-      {/* Property Performance Table */}
-      <PropertyPerformanceTable data={propertyPerformance} loading={loading} />
+      {/* Platform Breakdown */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <PropertyPerformanceTable data={propertyPerformance} loading={loading} />
+        </div>
+        <div>
+          <PlatformBreakdownChart data={platformBreakdown} loading={loading} />
+        </div>
+      </div>
 
       {/* Events and Activities Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
