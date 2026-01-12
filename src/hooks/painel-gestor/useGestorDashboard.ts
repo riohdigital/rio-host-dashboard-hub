@@ -22,6 +22,10 @@ export const useGestorDashboard = () => {
   const { startDate, endDate } = useDateRange(selectedPeriod, customStartDate, customEndDate);
   const { getAccessibleProperties, isMaster } = useUserPermissions();
   
+  // Convert dates to strings to ensure stable dependencies
+  const startDateString = useMemo(() => startDate.toISOString().split('T')[0], [startDate]);
+  const endDateString = useMemo(() => endDate.toISOString().split('T')[0], [endDate]);
+  
   const [loading, setLoading] = useState(true);
   const [kpis, setKpis] = useState<GestorKPIs>({
     totalCommission: 0,
@@ -63,8 +67,8 @@ export const useGestorDashboard = () => {
       let query = supabase
         .from('reservations')
         .select('commission_amount, total_revenue, cleaning_status, cleaner_user_id')
-        .gte('check_in_date', startDate.toISOString().split('T')[0])
-        .lte('check_in_date', endDate.toISOString().split('T')[0])
+        .gte('check_in_date', startDateString)
+        .lte('check_in_date', endDateString)
         .in('reservation_status', ['Confirmada', 'Em Andamento', 'Finalizada']);
 
       if (propertyFilter && propertyFilter.length > 0) {
@@ -102,8 +106,8 @@ export const useGestorDashboard = () => {
       let nightsQuery = supabase
         .from('reservations')
         .select('check_in_date, check_out_date')
-        .gte('check_out_date', startDate.toISOString().split('T')[0])
-        .lte('check_in_date', endDate.toISOString().split('T')[0])
+        .gte('check_out_date', startDateString)
+        .lte('check_in_date', endDateString)
         .in('reservation_status', ['Confirmada', 'Em Andamento', 'Finalizada']);
 
       if (propertyFilter && propertyFilter.length > 0) {
@@ -137,7 +141,7 @@ export const useGestorDashboard = () => {
     } catch (error) {
       console.error('Error fetching KPIs:', error);
     }
-  }, [startDate, endDate, propertyFilter]);
+  }, [startDateString, endDateString, startDate, endDate, propertyFilter]);
 
   const fetchMonthlyCommissions = useCallback(async () => {
     try {
@@ -145,8 +149,8 @@ export const useGestorDashboard = () => {
       let query = supabase
         .from('reservations')
         .select('check_in_date, commission_amount, total_revenue')
-        .gte('check_in_date', startDate.toISOString().split('T')[0])
-        .lte('check_in_date', endDate.toISOString().split('T')[0])
+        .gte('check_in_date', startDateString)
+        .lte('check_in_date', endDateString)
         .in('reservation_status', ['Confirmada', 'Em Andamento', 'Finalizada']);
 
       if (propertyFilter && propertyFilter.length > 0) {
@@ -186,7 +190,7 @@ export const useGestorDashboard = () => {
     } catch (error) {
       console.error('Error fetching monthly commissions:', error);
     }
-  }, [startDate, endDate, propertyFilter]);
+  }, [startDateString, endDateString, propertyFilter]);
 
   const fetchPropertyPerformance = useCallback(async () => {
     try {
@@ -202,8 +206,8 @@ export const useGestorDashboard = () => {
       let reservationsQuery = supabase
         .from('reservations')
         .select('property_id, commission_amount, total_revenue, cleaning_status, check_in_date, check_out_date')
-        .gte('check_in_date', startDate.toISOString().split('T')[0])
-        .lte('check_in_date', endDate.toISOString().split('T')[0])
+        .gte('check_in_date', startDateString)
+        .lte('check_in_date', endDateString)
         .in('reservation_status', ['Confirmada', 'Em Andamento', 'Finalizada']);
 
       if (propertyFilter && propertyFilter.length > 0) {
@@ -258,15 +262,15 @@ export const useGestorDashboard = () => {
     } catch (error) {
       console.error('Error fetching property performance:', error);
     }
-  }, [startDate, endDate, propertyFilter]);
+  }, [startDateString, endDateString, startDate, endDate, propertyFilter]);
 
   const fetchPlatformBreakdown = useCallback(async () => {
     try {
       let query = supabase
         .from('reservations')
         .select('platform, commission_amount, total_revenue')
-        .gte('check_in_date', startDate.toISOString().split('T')[0])
-        .lte('check_in_date', endDate.toISOString().split('T')[0])
+        .gte('check_in_date', startDateString)
+        .lte('check_in_date', endDateString)
         .in('reservation_status', ['Confirmada', 'Em Andamento', 'Finalizada']);
 
       if (propertyFilter && propertyFilter.length > 0) {
@@ -292,7 +296,7 @@ export const useGestorDashboard = () => {
     } catch (error) {
       console.error('Error fetching platform breakdown:', error);
     }
-  }, [startDate, endDate, propertyFilter]);
+  }, [startDateString, endDateString, propertyFilter]);
 
   const fetchUpcomingEvents = useCallback(async () => {
     try {
@@ -482,8 +486,8 @@ export const useGestorDashboard = () => {
           commission_amount, net_revenue,
           properties:property_id (name, nickname)
         `)
-        .gte('check_in_date', startDate.toISOString().split('T')[0])
-        .lte('check_in_date', endDate.toISOString().split('T')[0])
+        .gte('check_in_date', startDateString)
+        .lte('check_in_date', endDateString)
         .in('reservation_status', ['Confirmada', 'Em Andamento', 'Finalizada'])
         .not('commission_amount', 'is', null)
         .order('payment_date', { ascending: true });
@@ -525,7 +529,7 @@ export const useGestorDashboard = () => {
     } catch (error) {
       console.error('Error fetching commission details:', error);
     }
-  }, [startDate, endDate, propertyFilter]);
+  }, [startDateString, endDateString, propertyFilter]);
 
   const fetchAllData = useCallback(async () => {
     setLoading(true);
@@ -554,9 +558,10 @@ export const useGestorDashboard = () => {
     fetchCommissionDetails
   ]);
 
+  // Use primitive strings as direct dependencies to ensure re-fetch on filter changes
   useEffect(() => {
     fetchAllData();
-  }, [fetchAllData]);
+  }, [fetchAllData, startDateString, endDateString, selectedPeriod]);
 
   return {
     loading,
