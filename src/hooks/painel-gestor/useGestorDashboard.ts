@@ -56,7 +56,7 @@ export const useGestorDashboard = () => {
         .select('commission_amount, total_revenue, cleaning_status, cleaner_user_id')
         .gte('check_in_date', startDate.toISOString().split('T')[0])
         .lte('check_in_date', endDate.toISOString().split('T')[0])
-        .eq('reservation_status', 'Confirmada');
+        .in('reservation_status', ['Confirmada', 'Em Andamento', 'Finalizada']);
 
       if (propertyFilter && propertyFilter.length > 0) {
         query = query.in('property_id', propertyFilter);
@@ -95,7 +95,7 @@ export const useGestorDashboard = () => {
         .select('check_in_date, check_out_date')
         .gte('check_out_date', startDate.toISOString().split('T')[0])
         .lte('check_in_date', endDate.toISOString().split('T')[0])
-        .eq('reservation_status', 'Confirmada');
+        .in('reservation_status', ['Confirmada', 'Em Andamento', 'Finalizada']);
 
       if (propertyFilter && propertyFilter.length > 0) {
         nightsQuery = nightsQuery.in('property_id', propertyFilter);
@@ -134,17 +134,20 @@ export const useGestorDashboard = () => {
     try {
       const months: MonthlyCommission[] = [];
       
-      for (let i = 11; i >= 0; i--) {
-        const monthDate = subMonths(new Date(), i);
-        const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
-        const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
+      // Iterate through months within the selected period
+      let currentMonth = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+      const lastMonth = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+      
+      while (currentMonth <= lastMonth) {
+        const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+        const monthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
 
         let query = supabase
           .from('reservations')
           .select('commission_amount, total_revenue')
           .gte('check_in_date', monthStart.toISOString().split('T')[0])
           .lte('check_in_date', monthEnd.toISOString().split('T')[0])
-          .eq('reservation_status', 'Confirmada');
+          .in('reservation_status', ['Confirmada', 'Em Andamento', 'Finalizada']);
 
         if (propertyFilter && propertyFilter.length > 0) {
           query = query.in('property_id', propertyFilter);
@@ -153,19 +156,22 @@ export const useGestorDashboard = () => {
         const { data } = await query;
 
         months.push({
-          month: format(monthDate, 'MMM', { locale: ptBR }),
-          year: monthDate.getFullYear(),
+          month: format(currentMonth, 'MMM', { locale: ptBR }),
+          year: currentMonth.getFullYear(),
           commission: data?.reduce((sum, r) => sum + (r.commission_amount || 0), 0) || 0,
           reservations: data?.length || 0,
           revenue: data?.reduce((sum, r) => sum + (r.total_revenue || 0), 0) || 0
         });
+        
+        // Advance to next month
+        currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
       }
 
       setMonthlyCommissions(months);
     } catch (error) {
       console.error('Error fetching monthly commissions:', error);
     }
-  }, [propertyFilter]);
+  }, [startDate, endDate, propertyFilter]);
 
   const fetchPropertyPerformance = useCallback(async () => {
     try {
@@ -190,7 +196,7 @@ export const useGestorDashboard = () => {
           .eq('property_id', property.id)
           .gte('check_in_date', startDate.toISOString().split('T')[0])
           .lte('check_in_date', endDate.toISOString().split('T')[0])
-          .eq('reservation_status', 'Confirmada');
+          .in('reservation_status', ['Confirmada', 'Em Andamento', 'Finalizada']);
 
         const { data: reservations } = await query;
 
@@ -231,7 +237,7 @@ export const useGestorDashboard = () => {
         .select('platform, commission_amount, total_revenue')
         .gte('check_in_date', startDate.toISOString().split('T')[0])
         .lte('check_in_date', endDate.toISOString().split('T')[0])
-        .eq('reservation_status', 'Confirmada');
+        .in('reservation_status', ['Confirmada', 'Em Andamento', 'Finalizada']);
 
       if (propertyFilter && propertyFilter.length > 0) {
         query = query.in('property_id', propertyFilter);
