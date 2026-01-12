@@ -71,6 +71,27 @@ export interface RecentActivity {
   amount?: number;
 }
 
+export interface CommissionDetail {
+  id: string;
+  propertyName: string;
+  propertyNickname?: string;
+  guestName: string;
+  platform: string;
+  checkoutDate: string;
+  paymentDate: string;
+  commissionAmount: number;
+  netRevenue: number;
+  status: 'received' | 'pending';
+}
+
+export interface CommissionSummary {
+  totalReceived: number;
+  totalPending: number;
+  receivedCount: number;
+  pendingCount: number;
+  details: CommissionDetail[];
+}
+
 export interface GestorDashboardData {
   kpis: GestorKPIs;
   monthlyCommissions: MonthlyCommission[];
@@ -79,4 +100,5 @@ export interface GestorDashboardData {
   upcomingEvents: UpcomingEvent[];
   cleaningRiskAlerts: CleaningRiskAlert[];
   recentActivities: RecentActivity[];
+  commissionDetails: CommissionSummary;
 }

@@ -10,7 +10,9 @@ import {
   PlatformBreakdown,
   UpcomingEvent,
   CleaningRiskAlert,
-  RecentActivity 
+  RecentActivity,
+  CommissionSummary,
+  CommissionDetail
 } from '@/types/painel-gestor';
 import { format, subMonths, differenceInDays, parseISO, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -36,6 +38,13 @@ export const useGestorDashboard = () => {
   const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
   const [cleaningRiskAlerts, setCleaningRiskAlerts] = useState<CleaningRiskAlert[]>([]);
   const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
+  const [commissionDetails, setCommissionDetails] = useState<CommissionSummary>({
+    totalReceived: 0,
+    totalPending: 0,
+    receivedCount: 0,
+    pendingCount: 0,
+    details: []
+  });
 
   const accessiblePropertyIds = useMemo(() => {
     if (isMaster()) return null; // null = all properties
@@ -132,40 +141,46 @@ export const useGestorDashboard = () => {
 
   const fetchMonthlyCommissions = useCallback(async () => {
     try {
-      const months: MonthlyCommission[] = [];
-      
-      // Iterate through months within the selected period
-      let currentMonth = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
-      const lastMonth = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
-      
-      while (currentMonth <= lastMonth) {
-        const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
-        const monthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+      // Single query for all reservations in period - OPTIMIZED
+      let query = supabase
+        .from('reservations')
+        .select('check_in_date, commission_amount, total_revenue')
+        .gte('check_in_date', startDate.toISOString().split('T')[0])
+        .lte('check_in_date', endDate.toISOString().split('T')[0])
+        .in('reservation_status', ['Confirmada', 'Em Andamento', 'Finalizada']);
 
-        let query = supabase
-          .from('reservations')
-          .select('commission_amount, total_revenue')
-          .gte('check_in_date', monthStart.toISOString().split('T')[0])
-          .lte('check_in_date', monthEnd.toISOString().split('T')[0])
-          .in('reservation_status', ['Confirmada', 'Em Andamento', 'Finalizada']);
-
-        if (propertyFilter && propertyFilter.length > 0) {
-          query = query.in('property_id', propertyFilter);
-        }
-
-        const { data } = await query;
-
-        months.push({
-          month: format(currentMonth, 'MMM', { locale: ptBR }),
-          year: currentMonth.getFullYear(),
-          commission: data?.reduce((sum, r) => sum + (r.commission_amount || 0), 0) || 0,
-          reservations: data?.length || 0,
-          revenue: data?.reduce((sum, r) => sum + (r.total_revenue || 0), 0) || 0
-        });
-        
-        // Advance to next month
-        currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
+      if (propertyFilter && propertyFilter.length > 0) {
+        query = query.in('property_id', propertyFilter);
       }
+
+      const { data } = await query;
+
+      // Group by month in JavaScript
+      const monthlyMap = new Map<string, MonthlyCommission>();
+      
+      data?.forEach(r => {
+        const date = new Date(r.check_in_date);
+        const key = `${date.getFullYear()}-${String(date.getMonth()).padStart(2, '0')}`;
+        
+        const existing = monthlyMap.get(key) || {
+          month: format(date, 'MMM', { locale: ptBR }),
+          year: date.getFullYear(),
+          commission: 0,
+          reservations: 0,
+          revenue: 0
+        };
+        
+        existing.commission += r.commission_amount || 0;
+        existing.revenue += r.total_revenue || 0;
+        existing.reservations += 1;
+        
+        monthlyMap.set(key, existing);
+      });
+
+      // Sort chronologically
+      const months = Array.from(monthlyMap.entries())
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([_, value]) => value);
 
       setMonthlyCommissions(months);
     } catch (error) {
@@ -175,6 +190,7 @@ export const useGestorDashboard = () => {
 
   const fetchPropertyPerformance = useCallback(async () => {
     try {
+      // Fetch properties and reservations in parallel - OPTIMIZED
       let propertiesQuery = supabase
         .from('properties')
         .select('id, name, nickname, commission_rate');
@@ -183,26 +199,40 @@ export const useGestorDashboard = () => {
         propertiesQuery = propertiesQuery.in('id', propertyFilter);
       }
 
-      const { data: properties } = await propertiesQuery;
+      let reservationsQuery = supabase
+        .from('reservations')
+        .select('property_id, commission_amount, total_revenue, cleaning_status, check_in_date, check_out_date')
+        .gte('check_in_date', startDate.toISOString().split('T')[0])
+        .lte('check_in_date', endDate.toISOString().split('T')[0])
+        .in('reservation_status', ['Confirmada', 'Em Andamento', 'Finalizada']);
+
+      if (propertyFilter && propertyFilter.length > 0) {
+        reservationsQuery = reservationsQuery.in('property_id', propertyFilter);
+      }
+
+      const [{ data: properties }, { data: reservations }] = await Promise.all([
+        propertiesQuery,
+        reservationsQuery
+      ]);
 
       if (!properties) return;
 
-      const performance: PropertyPerformance[] = [];
+      // Group reservations by property_id in JavaScript
+      const reservationsByProperty = new Map<string, typeof reservations>();
+      reservations?.forEach(r => {
+        if (!r.property_id) return;
+        const existing = reservationsByProperty.get(r.property_id) || [];
+        existing.push(r);
+        reservationsByProperty.set(r.property_id, existing);
+      });
 
-      for (const property of properties) {
-        let query = supabase
-          .from('reservations')
-          .select('commission_amount, total_revenue, cleaning_status, check_in_date, check_out_date')
-          .eq('property_id', property.id)
-          .gte('check_in_date', startDate.toISOString().split('T')[0])
-          .lte('check_in_date', endDate.toISOString().split('T')[0])
-          .in('reservation_status', ['Confirmada', 'Em Andamento', 'Finalizada']);
+      const totalDays = differenceInDays(endDate, startDate) + 1;
 
-        const { data: reservations } = await query;
-
-        const totalDays = differenceInDays(endDate, startDate) + 1;
+      const performance: PropertyPerformance[] = properties.map(property => {
+        const propReservations = reservationsByProperty.get(property.id) || [];
+        
         let nightsBooked = 0;
-        reservations?.forEach(r => {
+        propReservations.forEach(r => {
           const checkIn = new Date(r.check_in_date);
           const checkOut = new Date(r.check_out_date);
           const effectiveStart = checkIn < startDate ? startDate : checkIn;
@@ -210,19 +240,19 @@ export const useGestorDashboard = () => {
           nightsBooked += Math.max(0, differenceInDays(effectiveEnd, effectiveStart));
         });
 
-        performance.push({
+        return {
           propertyId: property.id,
           propertyName: property.name,
           nickname: property.nickname || undefined,
-          reservations: reservations?.length || 0,
-          totalRevenue: reservations?.reduce((sum, r) => sum + (r.total_revenue || 0), 0) || 0,
-          commission: reservations?.reduce((sum, r) => sum + (r.commission_amount || 0), 0) || 0,
+          reservations: propReservations.length,
+          totalRevenue: propReservations.reduce((sum, r) => sum + (r.total_revenue || 0), 0),
+          commission: propReservations.reduce((sum, r) => sum + (r.commission_amount || 0), 0),
           commissionRate: (property.commission_rate || 0) * 100,
           occupancyRate: totalDays > 0 ? Math.min(100, (nightsBooked / totalDays) * 100) : 0,
-          completedCleanings: reservations?.filter(r => r.cleaning_status === 'Realizada').length || 0,
-          pendingCleanings: reservations?.filter(r => r.cleaning_status === 'Pendente' || !r.cleaning_status).length || 0
-        });
-      }
+          completedCleanings: propReservations.filter(r => r.cleaning_status === 'Realizada').length,
+          pendingCleanings: propReservations.filter(r => r.cleaning_status === 'Pendente' || !r.cleaning_status).length
+        };
+      });
 
       setPropertyPerformance(performance.sort((a, b) => b.commission - a.commission));
     } catch (error) {
@@ -441,6 +471,62 @@ export const useGestorDashboard = () => {
     }
   }, [propertyFilter]);
 
+  const fetchCommissionDetails = useCallback(async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      
+      let query = supabase
+        .from('reservations')
+        .select(`
+          id, guest_name, platform, check_out_date, payment_date, 
+          commission_amount, net_revenue,
+          properties:property_id (name, nickname)
+        `)
+        .gte('check_in_date', startDate.toISOString().split('T')[0])
+        .lte('check_in_date', endDate.toISOString().split('T')[0])
+        .in('reservation_status', ['Confirmada', 'Em Andamento', 'Finalizada'])
+        .not('commission_amount', 'is', null)
+        .order('payment_date', { ascending: true });
+
+      if (propertyFilter && propertyFilter.length > 0) {
+        query = query.in('property_id', propertyFilter);
+      }
+
+      const { data } = await query;
+
+      const details: CommissionDetail[] = (data || []).map(r => {
+        const property = r.properties as { name: string; nickname: string | null } | null;
+        const status = r.payment_date && r.payment_date <= today ? 'received' : 'pending';
+        
+        return {
+          id: r.id,
+          propertyName: property?.name || 'Propriedade',
+          propertyNickname: property?.nickname || undefined,
+          guestName: r.guest_name || 'Hóspede',
+          platform: r.platform || 'Direto',
+          checkoutDate: r.check_out_date,
+          paymentDate: r.payment_date || '',
+          commissionAmount: r.commission_amount || 0,
+          netRevenue: r.net_revenue || 0,
+          status
+        };
+      });
+
+      const received = details.filter(d => d.status === 'received');
+      const pending = details.filter(d => d.status === 'pending');
+
+      setCommissionDetails({
+        totalReceived: received.reduce((sum, d) => sum + d.commissionAmount, 0),
+        totalPending: pending.reduce((sum, d) => sum + d.commissionAmount, 0),
+        receivedCount: received.length,
+        pendingCount: pending.length,
+        details
+      });
+    } catch (error) {
+      console.error('Error fetching commission details:', error);
+    }
+  }, [startDate, endDate, propertyFilter]);
+
   const fetchAllData = useCallback(async () => {
     setLoading(true);
     try {
@@ -451,7 +537,8 @@ export const useGestorDashboard = () => {
         fetchPlatformBreakdown(),
         fetchUpcomingEvents(),
         fetchCleaningRiskAlerts(),
-        fetchRecentActivities()
+        fetchRecentActivities(),
+        fetchCommissionDetails()
       ]);
     } finally {
       setLoading(false);
@@ -463,7 +550,8 @@ export const useGestorDashboard = () => {
     fetchPlatformBreakdown,
     fetchUpcomingEvents,
     fetchCleaningRiskAlerts,
-    fetchRecentActivities
+    fetchRecentActivities,
+    fetchCommissionDetails
   ]);
 
   useEffect(() => {
@@ -479,6 +567,7 @@ export const useGestorDashboard = () => {
     upcomingEvents,
     cleaningRiskAlerts,
     recentActivities,
+    commissionDetails,
     refetch: fetchAllData
   };
 };
