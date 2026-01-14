@@ -48,6 +48,12 @@ const getPaymentInfo = (platform: string) => {
 };
 
 const CommissionItem = ({ item }: { item: CommissionDetail }) => {
+  // Para Airbnb/Direto mostra check-in (pois é a data de referência do pagamento)
+  // Para Booking mostra checkout (pois é a data de referência do pagamento)
+  const isBooking = item.platform === 'Booking.com';
+  const referenceDate = isBooking ? item.checkoutDate : item.checkInDate;
+  const referenceDateLabel = isBooking ? 'Checkout' : 'Check-in';
+  
   return (
     <div className="flex items-center justify-between py-3 border-b border-border/50 last:border-0">
       <div className="flex-1 min-w-0">
@@ -60,7 +66,7 @@ const CommissionItem = ({ item }: { item: CommissionDetail }) => {
         <div className="text-xs text-muted-foreground">
           <span>{item.guestName}</span>
           <span className="mx-1">•</span>
-          <span>Checkout: {format(parseISO(item.checkoutDate), 'dd/MM/yyyy', { locale: ptBR })}</span>
+          <span>{referenceDateLabel}: {referenceDate ? format(parseISO(referenceDate), 'dd/MM/yyyy', { locale: ptBR }) : '-'}</span>
         </div>
         <div className="text-xs text-muted-foreground mt-0.5">
           <span>Pagamento: {item.paymentDate ? format(parseISO(item.paymentDate), 'dd/MM/yyyy', { locale: ptBR }) : '-'}</span>
