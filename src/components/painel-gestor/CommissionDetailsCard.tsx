@@ -97,14 +97,32 @@ export const CommissionDetailsCard = ({ data, loading }: CommissionDetailsCardPr
     );
   }
 
-  // Ordenar por data de pagamento (próximo pagamento primeiro)
+  // Função de ordenação: Booking por checkout, Airbnb/Direto por data de pagamento
+  const sortByRelevantDate = (a: CommissionDetail, b: CommissionDetail) => {
+    // Para Booking.com, ordenar por checkout (data de referência do pagamento)
+    if (a.platform === 'Booking.com' && b.platform === 'Booking.com') {
+      return new Date(a.checkoutDate).getTime() - new Date(b.checkoutDate).getTime();
+    }
+    
+    // Para Airbnb/Direto, ordenar por data de pagamento
+    if (a.platform !== 'Booking.com' && b.platform !== 'Booking.com') {
+      return new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime();
+    }
+    
+    // Misto: Airbnb/Direto primeiro (pagamento D+1), depois Booking (mês seguinte)
+    if (a.platform === 'Booking.com') return 1;
+    if (b.platform === 'Booking.com') return -1;
+    
+    return new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime();
+  };
+
   const receivedItems = data.details
     .filter(d => d.status === 'received')
-    .sort((a, b) => new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime());
+    .sort(sortByRelevantDate);
   
   const pendingItems = data.details
     .filter(d => d.status === 'pending')
-    .sort((a, b) => new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime());
+    .sort(sortByRelevantDate);
 
   return (
     <Card>

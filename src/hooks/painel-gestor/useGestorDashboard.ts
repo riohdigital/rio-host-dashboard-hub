@@ -320,8 +320,11 @@ export const useGestorDashboard = () => {
 
   const fetchUpcomingEvents = useCallback(async () => {
     try {
-      // Usar período selecionado globalmente
-      // Fetch check-ins no período
+      // Calcular data efetiva: máximo entre hoje e startDateString (mostrar apenas eventos futuros)
+      const today = new Date().toISOString().split('T')[0];
+      const effectiveStartDate = today > startDateString ? today : startDateString;
+      
+      // Fetch check-ins no período (apenas futuros)
       let checkInsQuery = supabase
         .from('reservations')
         .select(`
@@ -329,7 +332,7 @@ export const useGestorDashboard = () => {
           cleaning_status, cleaner_user_id, platform,
           properties:property_id (name, nickname)
         `)
-        .gte('check_in_date', startDateString)
+        .gte('check_in_date', effectiveStartDate)
         .lte('check_in_date', endDateString)
         .in('reservation_status', ['Confirmada', 'Em Andamento', 'Finalizada'])
         .order('check_in_date', { ascending: true });
@@ -350,7 +353,7 @@ export const useGestorDashboard = () => {
           cleaning_status, cleaner_user_id, platform,
           properties:property_id (name, nickname)
         `)
-        .gte('check_out_date', startDateString)
+        .gte('check_out_date', effectiveStartDate)
         .lte('check_out_date', endDateString)
         .in('reservation_status', ['Confirmada', 'Em Andamento', 'Finalizada'])
         .order('check_out_date', { ascending: true });
@@ -370,7 +373,7 @@ export const useGestorDashboard = () => {
           id, check_out_date, guest_name, cleaning_status, cleaner_user_id, platform,
           properties:property_id (name, nickname)
         `)
-        .gte('check_out_date', startDateString)
+        .gte('check_out_date', effectiveStartDate)
         .lte('check_out_date', endDateString)
         .in('reservation_status', ['Confirmada', 'Em Andamento', 'Finalizada'])
         .neq('cleaning_status', 'Realizada') // Apenas faxinas pendentes/em andamento
