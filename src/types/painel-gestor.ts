@@ -38,7 +38,7 @@ export interface PlatformBreakdown {
 
 export interface UpcomingEvent {
   id: string;
-  type: 'check-in' | 'check-out';
+  type: 'check-in' | 'check-out' | 'cleaning';
   date: string;
   time?: string;
   guestName: string;

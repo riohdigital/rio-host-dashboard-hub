@@ -75,6 +75,10 @@ export const useGestorDashboard = () => {
         query = query.in('property_id', propertyFilter);
       }
 
+      if (selectedPlatform !== 'all') {
+        query = query.eq('platform', selectedPlatform);
+      }
+
       const { data: reservations, error } = await query;
 
       if (error) throw error;
@@ -114,6 +118,10 @@ export const useGestorDashboard = () => {
         nightsQuery = nightsQuery.in('property_id', propertyFilter);
       }
 
+      if (selectedPlatform !== 'all') {
+        nightsQuery = nightsQuery.eq('platform', selectedPlatform);
+      }
+
       const { data: nightsData } = await nightsQuery;
       
       let totalNightsBooked = 0;
@@ -141,7 +149,7 @@ export const useGestorDashboard = () => {
     } catch (error) {
       console.error('Error fetching KPIs:', error);
     }
-  }, [startDateString, endDateString, startDate, endDate, propertyFilter]);
+  }, [startDateString, endDateString, startDate, endDate, propertyFilter, selectedPlatform]);
 
   const fetchMonthlyCommissions = useCallback(async () => {
     try {
@@ -155,6 +163,10 @@ export const useGestorDashboard = () => {
 
       if (propertyFilter && propertyFilter.length > 0) {
         query = query.in('property_id', propertyFilter);
+      }
+
+      if (selectedPlatform !== 'all') {
+        query = query.eq('platform', selectedPlatform);
       }
 
       const { data } = await query;
@@ -190,7 +202,7 @@ export const useGestorDashboard = () => {
     } catch (error) {
       console.error('Error fetching monthly commissions:', error);
     }
-  }, [startDateString, endDateString, propertyFilter]);
+  }, [startDateString, endDateString, propertyFilter, selectedPlatform]);
 
   const fetchPropertyPerformance = useCallback(async () => {
     try {
@@ -212,6 +224,10 @@ export const useGestorDashboard = () => {
 
       if (propertyFilter && propertyFilter.length > 0) {
         reservationsQuery = reservationsQuery.in('property_id', propertyFilter);
+      }
+
+      if (selectedPlatform !== 'all') {
+        reservationsQuery = reservationsQuery.eq('platform', selectedPlatform);
       }
 
       const [{ data: properties }, { data: reservations }] = await Promise.all([
@@ -262,7 +278,7 @@ export const useGestorDashboard = () => {
     } catch (error) {
       console.error('Error fetching property performance:', error);
     }
-  }, [startDateString, endDateString, startDate, endDate, propertyFilter]);
+  }, [startDateString, endDateString, startDate, endDate, propertyFilter, selectedPlatform]);
 
   const fetchPlatformBreakdown = useCallback(async () => {
     try {
@@ -275,6 +291,10 @@ export const useGestorDashboard = () => {
 
       if (propertyFilter && propertyFilter.length > 0) {
         query = query.in('property_id', propertyFilter);
+      }
+
+      if (selectedPlatform !== 'all') {
+        query = query.eq('platform', selectedPlatform);
       }
 
       const { data } = await query;
@@ -296,16 +316,12 @@ export const useGestorDashboard = () => {
     } catch (error) {
       console.error('Error fetching platform breakdown:', error);
     }
-  }, [startDateString, endDateString, propertyFilter]);
+  }, [startDateString, endDateString, propertyFilter, selectedPlatform]);
 
   const fetchUpcomingEvents = useCallback(async () => {
     try {
-      const today = new Date();
-      const nextWeek = addDays(today, 7);
-      const todayStr = today.toISOString().split('T')[0];
-      const nextWeekStr = nextWeek.toISOString().split('T')[0];
-
-      // Fetch check-ins
+      // Usar período selecionado globalmente
+      // Fetch check-ins no período
       let checkInsQuery = supabase
         .from('reservations')
         .select(`
@@ -313,16 +329,20 @@ export const useGestorDashboard = () => {
           cleaning_status, cleaner_user_id, platform,
           properties:property_id (name, nickname)
         `)
-        .gte('check_in_date', todayStr)
-        .lte('check_in_date', nextWeekStr)
-        .eq('reservation_status', 'Confirmada')
+        .gte('check_in_date', startDateString)
+        .lte('check_in_date', endDateString)
+        .in('reservation_status', ['Confirmada', 'Em Andamento', 'Finalizada'])
         .order('check_in_date', { ascending: true });
 
       if (propertyFilter && propertyFilter.length > 0) {
         checkInsQuery = checkInsQuery.in('property_id', propertyFilter);
       }
 
-      // Fetch check-outs
+      if (selectedPlatform !== 'all') {
+        checkInsQuery = checkInsQuery.eq('platform', selectedPlatform);
+      }
+
+      // Fetch check-outs no período
       let checkOutsQuery = supabase
         .from('reservations')
         .select(`
@@ -330,22 +350,49 @@ export const useGestorDashboard = () => {
           cleaning_status, cleaner_user_id, platform,
           properties:property_id (name, nickname)
         `)
-        .gte('check_out_date', todayStr)
-        .lte('check_out_date', nextWeekStr)
-        .eq('reservation_status', 'Confirmada')
+        .gte('check_out_date', startDateString)
+        .lte('check_out_date', endDateString)
+        .in('reservation_status', ['Confirmada', 'Em Andamento', 'Finalizada'])
         .order('check_out_date', { ascending: true });
 
       if (propertyFilter && propertyFilter.length > 0) {
         checkOutsQuery = checkOutsQuery.in('property_id', propertyFilter);
       }
 
-      const [checkInsResult, checkOutsResult] = await Promise.all([
+      if (selectedPlatform !== 'all') {
+        checkOutsQuery = checkOutsQuery.eq('platform', selectedPlatform);
+      }
+
+      // Fetch faxinas (baseado em check_out_date - limpeza após checkout)
+      let cleaningsQuery = supabase
+        .from('reservations')
+        .select(`
+          id, check_out_date, guest_name, cleaning_status, cleaner_user_id, platform,
+          properties:property_id (name, nickname)
+        `)
+        .gte('check_out_date', startDateString)
+        .lte('check_out_date', endDateString)
+        .in('reservation_status', ['Confirmada', 'Em Andamento', 'Finalizada'])
+        .neq('cleaning_status', 'Realizada') // Apenas faxinas pendentes/em andamento
+        .order('check_out_date', { ascending: true });
+
+      if (propertyFilter && propertyFilter.length > 0) {
+        cleaningsQuery = cleaningsQuery.in('property_id', propertyFilter);
+      }
+
+      if (selectedPlatform !== 'all') {
+        cleaningsQuery = cleaningsQuery.eq('platform', selectedPlatform);
+      }
+
+      const [checkInsResult, checkOutsResult, cleaningsResult] = await Promise.all([
         checkInsQuery,
-        checkOutsQuery
+        checkOutsQuery,
+        cleaningsQuery
       ]);
 
       const events: UpcomingEvent[] = [];
 
+      // Processar check-ins
       checkInsResult.data?.forEach(r => {
         const property = r.properties as { name: string; nickname: string | null } | null;
         events.push({
@@ -364,6 +411,7 @@ export const useGestorDashboard = () => {
         });
       });
 
+      // Processar check-outs
       checkOutsResult.data?.forEach(r => {
         const property = r.properties as { name: string; nickname: string | null } | null;
         events.push({
@@ -382,14 +430,32 @@ export const useGestorDashboard = () => {
         });
       });
 
-      // Sort by date
+      // Processar faxinas
+      cleaningsResult.data?.forEach(r => {
+        const property = r.properties as { name: string; nickname: string | null } | null;
+        events.push({
+          id: `cleaning-${r.id}`,
+          type: 'cleaning',
+          date: r.check_out_date,
+          guestName: r.guest_name || 'Hóspede',
+          propertyName: property?.name || 'Propriedade',
+          propertyNickname: property?.nickname || undefined,
+          totalRevenue: 0,
+          commission: 0,
+          cleaningStatus: r.cleaning_status || 'Pendente',
+          hasCleanerAssigned: !!r.cleaner_user_id,
+          platform: r.platform || 'Direto'
+        });
+      });
+
+      // Ordenar por data
       events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
       setUpcomingEvents(events);
     } catch (error) {
       console.error('Error fetching upcoming events:', error);
     }
-  }, [propertyFilter]);
+  }, [startDateString, endDateString, propertyFilter, selectedPlatform]);
 
   const fetchCleaningRiskAlerts = useCallback(async () => {
     try {
@@ -414,6 +480,10 @@ export const useGestorDashboard = () => {
         query = query.in('property_id', propertyFilter);
       }
 
+      if (selectedPlatform !== 'all') {
+        query = query.eq('platform', selectedPlatform);
+      }
+
       const { data } = await query;
 
       const alerts: CleaningRiskAlert[] = (data || []).map(r => {
@@ -433,7 +503,7 @@ export const useGestorDashboard = () => {
     } catch (error) {
       console.error('Error fetching cleaning risk alerts:', error);
     }
-  }, [propertyFilter]);
+  }, [propertyFilter, selectedPlatform]);
 
   const fetchRecentActivities = useCallback(async () => {
     try {
@@ -455,6 +525,10 @@ export const useGestorDashboard = () => {
         query = query.in('property_id', propertyFilter);
       }
 
+      if (selectedPlatform !== 'all') {
+        query = query.eq('platform', selectedPlatform);
+      }
+
       const { data } = await query;
 
       const activities: RecentActivity[] = (data || []).map(r => {
@@ -473,7 +547,7 @@ export const useGestorDashboard = () => {
     } catch (error) {
       console.error('Error fetching recent activities:', error);
     }
-  }, [propertyFilter]);
+  }, [propertyFilter, selectedPlatform]);
 
   const fetchCommissionDetails = useCallback(async () => {
     try {
