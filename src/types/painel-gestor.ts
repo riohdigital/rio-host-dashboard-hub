@@ -77,6 +77,7 @@ export interface CommissionDetail {
   propertyNickname?: string;
   guestName: string;
   platform: string;
+  checkInDate: string;
   checkoutDate: string;
   paymentDate: string;
   commissionAmount: number;

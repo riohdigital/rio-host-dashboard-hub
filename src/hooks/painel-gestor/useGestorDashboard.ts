@@ -479,28 +479,78 @@ export const useGestorDashboard = () => {
     try {
       const today = new Date().toISOString().split('T')[0];
       
-      let query = supabase
+      // Calcular mês anterior para Booking "Recebidas"
+      const startDateObj = new Date(startDateString);
+      const previousMonthStart = new Date(startDateObj.getFullYear(), startDateObj.getMonth() - 1, 1);
+      const previousMonthEnd = new Date(startDateObj.getFullYear(), startDateObj.getMonth(), 0);
+      const prevMonthStartStr = previousMonthStart.toISOString().split('T')[0];
+      const prevMonthEndStr = previousMonthEnd.toISOString().split('T')[0];
+
+      // Query 1: Airbnb e Direto - filtrar por check_in_date no período
+      let airbnbDiretoQuery = supabase
         .from('reservations')
         .select(`
-          id, guest_name, platform, check_out_date, payment_date, 
+          id, guest_name, platform, check_in_date, check_out_date, payment_date, 
           commission_amount, net_revenue,
           properties:property_id (name, nickname)
         `)
         .gte('check_in_date', startDateString)
         .lte('check_in_date', endDateString)
+        .in('platform', ['Airbnb', 'Direto'])
         .in('reservation_status', ['Confirmada', 'Em Andamento', 'Finalizada'])
-        .not('commission_amount', 'is', null)
-        .order('payment_date', { ascending: true });
+        .not('commission_amount', 'is', null);
 
+      // Query 2: Booking "A Receber" - checkout no período (vai receber no mês seguinte)
+      let bookingPendingQuery = supabase
+        .from('reservations')
+        .select(`
+          id, guest_name, platform, check_in_date, check_out_date, payment_date, 
+          commission_amount, net_revenue,
+          properties:property_id (name, nickname)
+        `)
+        .gte('check_out_date', startDateString)
+        .lte('check_out_date', endDateString)
+        .eq('platform', 'Booking.com')
+        .in('reservation_status', ['Confirmada', 'Em Andamento', 'Finalizada'])
+        .not('commission_amount', 'is', null);
+
+      // Query 3: Booking "Recebidas" - checkout no mês anterior (recebeu neste mês)
+      let bookingReceivedQuery = supabase
+        .from('reservations')
+        .select(`
+          id, guest_name, platform, check_in_date, check_out_date, payment_date, 
+          commission_amount, net_revenue,
+          properties:property_id (name, nickname)
+        `)
+        .gte('check_out_date', prevMonthStartStr)
+        .lte('check_out_date', prevMonthEndStr)
+        .eq('platform', 'Booking.com')
+        .in('reservation_status', ['Confirmada', 'Em Andamento', 'Finalizada'])
+        .not('commission_amount', 'is', null);
+
+      // Aplicar filtro de propriedades às 3 queries
       if (propertyFilter && propertyFilter.length > 0) {
-        query = query.in('property_id', propertyFilter);
+        airbnbDiretoQuery = airbnbDiretoQuery.in('property_id', propertyFilter);
+        bookingPendingQuery = bookingPendingQuery.in('property_id', propertyFilter);
+        bookingReceivedQuery = bookingReceivedQuery.in('property_id', propertyFilter);
       }
 
-      const { data } = await query;
+      // Executar em paralelo
+      const [
+        { data: airbnbDiretoData }, 
+        { data: bookingPendingData }, 
+        { data: bookingReceivedData }
+      ] = await Promise.all([
+        airbnbDiretoQuery,
+        bookingPendingQuery,
+        bookingReceivedQuery
+      ]);
 
-      const details: CommissionDetail[] = (data || []).map(r => {
+      // Processar Airbnb/Direto - status baseado em check_in <= hoje
+      const airbnbDiretoDetails: CommissionDetail[] = (airbnbDiretoData || []).map(r => {
         const property = r.properties as { name: string; nickname: string | null } | null;
-        const status = r.payment_date && r.payment_date <= today ? 'received' : 'pending';
+        // Recebida se check-in já passou (D+1 também já passou)
+        const status: 'received' | 'pending' = r.check_in_date <= today ? 'received' : 'pending';
         
         return {
           id: r.id,
@@ -508,6 +558,7 @@ export const useGestorDashboard = () => {
           propertyNickname: property?.nickname || undefined,
           guestName: r.guest_name || 'Hóspede',
           platform: r.platform || 'Direto',
+          checkInDate: r.check_in_date,
           checkoutDate: r.check_out_date,
           paymentDate: r.payment_date || '',
           commissionAmount: r.commission_amount || 0,
@@ -516,15 +567,54 @@ export const useGestorDashboard = () => {
         };
       });
 
-      const received = details.filter(d => d.status === 'received');
-      const pending = details.filter(d => d.status === 'pending');
+      // Processar Booking "A Receber" - todas são pending (checkout no período, pagamento mês seguinte)
+      const bookingPendingDetails: CommissionDetail[] = (bookingPendingData || []).map(r => {
+        const property = r.properties as { name: string; nickname: string | null } | null;
+        return {
+          id: r.id,
+          propertyName: property?.name || 'Propriedade',
+          propertyNickname: property?.nickname || undefined,
+          guestName: r.guest_name || 'Hóspede',
+          platform: 'Booking.com',
+          checkInDate: r.check_in_date,
+          checkoutDate: r.check_out_date,
+          paymentDate: r.payment_date || '',
+          commissionAmount: r.commission_amount || 0,
+          netRevenue: r.net_revenue || 0,
+          status: 'pending' as const
+        };
+      });
+
+      // Processar Booking "Recebidas" - todas são received (checkout mês anterior, recebeu neste mês)
+      const bookingReceivedDetails: CommissionDetail[] = (bookingReceivedData || []).map(r => {
+        const property = r.properties as { name: string; nickname: string | null } | null;
+        return {
+          id: r.id,
+          propertyName: property?.name || 'Propriedade',
+          propertyNickname: property?.nickname || undefined,
+          guestName: r.guest_name || 'Hóspede',
+          platform: 'Booking.com',
+          checkInDate: r.check_in_date,
+          checkoutDate: r.check_out_date,
+          paymentDate: r.payment_date || '',
+          commissionAmount: r.commission_amount || 0,
+          netRevenue: r.net_revenue || 0,
+          status: 'received' as const
+        };
+      });
+
+      // Combinar todos os detalhes
+      const allDetails = [...airbnbDiretoDetails, ...bookingPendingDetails, ...bookingReceivedDetails];
+
+      const received = allDetails.filter(d => d.status === 'received');
+      const pending = allDetails.filter(d => d.status === 'pending');
 
       setCommissionDetails({
         totalReceived: received.reduce((sum, d) => sum + d.commissionAmount, 0),
         totalPending: pending.reduce((sum, d) => sum + d.commissionAmount, 0),
         receivedCount: received.length,
         pendingCount: pending.length,
-        details
+        details: allDetails
       });
     } catch (error) {
       console.error('Error fetching commission details:', error);
