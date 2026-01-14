@@ -18,7 +18,7 @@ import { format, subMonths, differenceInDays, parseISO, addDays } from 'date-fns
 import { ptBR } from 'date-fns/locale';
 
 export const useGestorDashboard = () => {
-  const { selectedProperties, selectedPeriod, customStartDate, customEndDate } = useGlobalFilters();
+  const { selectedProperties, selectedPeriod, customStartDate, customEndDate, selectedPlatform } = useGlobalFilters();
   const { startDate, endDate } = useDateRange(selectedPeriod, customStartDate, customEndDate);
   const { getAccessibleProperties, isMaster } = useUserPermissions();
   
@@ -479,72 +479,88 @@ export const useGestorDashboard = () => {
     try {
       const today = new Date().toISOString().split('T')[0];
       
-      // Calcular mês anterior para Booking "Recebidas"
-      const startDateObj = new Date(startDateString);
-      const previousMonthStart = new Date(startDateObj.getFullYear(), startDateObj.getMonth() - 1, 1);
-      const previousMonthEnd = new Date(startDateObj.getFullYear(), startDateObj.getMonth(), 0);
-      const prevMonthStartStr = previousMonthStart.toISOString().split('T')[0];
-      const prevMonthEndStr = previousMonthEnd.toISOString().split('T')[0];
+      // Determinar quais plataformas buscar baseado no filtro global
+      const shouldFetchAirbnb = selectedPlatform === 'all' || selectedPlatform === 'Airbnb';
+      const shouldFetchDireto = selectedPlatform === 'all' || selectedPlatform === 'Direto';
+      const shouldFetchBooking = selectedPlatform === 'all' || selectedPlatform === 'Booking.com';
 
-      // Query 1: Airbnb e Direto - filtrar por check_in_date no período
-      let airbnbDiretoQuery = supabase
-        .from('reservations')
-        .select(`
-          id, guest_name, platform, check_in_date, check_out_date, payment_date, 
-          commission_amount, net_revenue,
-          properties:property_id (name, nickname)
-        `)
-        .gte('check_in_date', startDateString)
-        .lte('check_in_date', endDateString)
-        .in('platform', ['Airbnb', 'Direto'])
-        .in('reservation_status', ['Confirmada', 'Em Andamento', 'Finalizada'])
-        .not('commission_amount', 'is', null);
+      // Determinar plataformas para Query 1 (Airbnb/Direto)
+      const airbnbDiretoPlatforms: string[] = [];
+      if (shouldFetchAirbnb) airbnbDiretoPlatforms.push('Airbnb');
+      if (shouldFetchDireto) airbnbDiretoPlatforms.push('Direto');
 
-      // Query 2: Booking "A Receber" - checkout no período (vai receber no mês seguinte)
-      let bookingPendingQuery = supabase
-        .from('reservations')
-        .select(`
-          id, guest_name, platform, check_in_date, check_out_date, payment_date, 
-          commission_amount, net_revenue,
-          properties:property_id (name, nickname)
-        `)
-        .gte('check_out_date', startDateString)
-        .lte('check_out_date', endDateString)
-        .eq('platform', 'Booking.com')
-        .in('reservation_status', ['Confirmada', 'Em Andamento', 'Finalizada'])
-        .not('commission_amount', 'is', null);
+      let airbnbDiretoData: any[] | null = null;
+      let bookingPendingData: any[] | null = null;
+      let bookingReceivedData: any[] | null = null;
 
-      // Query 3: Booking "Recebidas" - checkout no mês anterior (recebeu neste mês)
-      let bookingReceivedQuery = supabase
-        .from('reservations')
-        .select(`
-          id, guest_name, platform, check_in_date, check_out_date, payment_date, 
-          commission_amount, net_revenue,
-          properties:property_id (name, nickname)
-        `)
-        .gte('check_out_date', prevMonthStartStr)
-        .lte('check_out_date', prevMonthEndStr)
-        .eq('platform', 'Booking.com')
-        .in('reservation_status', ['Confirmada', 'Em Andamento', 'Finalizada'])
-        .not('commission_amount', 'is', null);
+      // Query 1: Airbnb e/ou Direto - filtrar por check_in_date no período
+      if (airbnbDiretoPlatforms.length > 0) {
+        let airbnbDiretoQuery = supabase
+          .from('reservations')
+          .select(`
+            id, guest_name, platform, check_in_date, check_out_date, payment_date, 
+            commission_amount, net_revenue,
+            properties:property_id (name, nickname)
+          `)
+          .gte('check_in_date', startDateString)
+          .lte('check_in_date', endDateString)
+          .in('platform', airbnbDiretoPlatforms)
+          .in('reservation_status', ['Confirmada', 'Em Andamento', 'Finalizada'])
+          .not('commission_amount', 'is', null);
 
-      // Aplicar filtro de propriedades às 3 queries
-      if (propertyFilter && propertyFilter.length > 0) {
-        airbnbDiretoQuery = airbnbDiretoQuery.in('property_id', propertyFilter);
-        bookingPendingQuery = bookingPendingQuery.in('property_id', propertyFilter);
-        bookingReceivedQuery = bookingReceivedQuery.in('property_id', propertyFilter);
+        if (propertyFilter && propertyFilter.length > 0) {
+          airbnbDiretoQuery = airbnbDiretoQuery.in('property_id', propertyFilter);
+        }
+
+        const result = await airbnbDiretoQuery;
+        airbnbDiretoData = result.data;
       }
 
-      // Executar em paralelo
-      const [
-        { data: airbnbDiretoData }, 
-        { data: bookingPendingData }, 
-        { data: bookingReceivedData }
-      ] = await Promise.all([
-        airbnbDiretoQuery,
-        bookingPendingQuery,
-        bookingReceivedQuery
-      ]);
+      // Query 2: Booking "A Receber" - checkout no período (vai receber no mês seguinte)
+      if (shouldFetchBooking) {
+        let bookingPendingQuery = supabase
+          .from('reservations')
+          .select(`
+            id, guest_name, platform, check_in_date, check_out_date, payment_date, 
+            commission_amount, net_revenue,
+            properties:property_id (name, nickname)
+          `)
+          .gte('check_out_date', startDateString)
+          .lte('check_out_date', endDateString)
+          .eq('platform', 'Booking.com')
+          .in('reservation_status', ['Confirmada', 'Em Andamento', 'Finalizada'])
+          .not('commission_amount', 'is', null);
+
+        if (propertyFilter && propertyFilter.length > 0) {
+          bookingPendingQuery = bookingPendingQuery.in('property_id', propertyFilter);
+        }
+
+        const result = await bookingPendingQuery;
+        bookingPendingData = result.data;
+      }
+
+      // Query 3: Booking "Recebidas" - payment_date dentro do período selecionado
+      if (shouldFetchBooking) {
+        let bookingReceivedQuery = supabase
+          .from('reservations')
+          .select(`
+            id, guest_name, platform, check_in_date, check_out_date, payment_date, 
+            commission_amount, net_revenue,
+            properties:property_id (name, nickname)
+          `)
+          .gte('payment_date', startDateString)
+          .lte('payment_date', endDateString)
+          .eq('platform', 'Booking.com')
+          .in('reservation_status', ['Confirmada', 'Em Andamento', 'Finalizada'])
+          .not('commission_amount', 'is', null);
+
+        if (propertyFilter && propertyFilter.length > 0) {
+          bookingReceivedQuery = bookingReceivedQuery.in('property_id', propertyFilter);
+        }
+
+        const result = await bookingReceivedQuery;
+        bookingReceivedData = result.data;
+      }
 
       // Processar Airbnb/Direto - status baseado em check_in <= hoje
       const airbnbDiretoDetails: CommissionDetail[] = (airbnbDiretoData || []).map(r => {
@@ -585,7 +601,7 @@ export const useGestorDashboard = () => {
         };
       });
 
-      // Processar Booking "Recebidas" - todas são received (checkout mês anterior, recebeu neste mês)
+      // Processar Booking "Recebidas" - todas são received (payment_date dentro do período)
       const bookingReceivedDetails: CommissionDetail[] = (bookingReceivedData || []).map(r => {
         const property = r.properties as { name: string; nickname: string | null } | null;
         return {
@@ -619,7 +635,7 @@ export const useGestorDashboard = () => {
     } catch (error) {
       console.error('Error fetching commission details:', error);
     }
-  }, [startDateString, endDateString, propertyFilter]);
+  }, [startDateString, endDateString, propertyFilter, selectedPlatform]);
 
   const fetchAllData = useCallback(async () => {
     setLoading(true);

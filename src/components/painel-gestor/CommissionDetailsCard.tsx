@@ -97,8 +97,14 @@ export const CommissionDetailsCard = ({ data, loading }: CommissionDetailsCardPr
     );
   }
 
-  const receivedItems = data.details.filter(d => d.status === 'received');
-  const pendingItems = data.details.filter(d => d.status === 'pending');
+  // Ordenar por data de pagamento (próximo pagamento primeiro)
+  const receivedItems = data.details
+    .filter(d => d.status === 'received')
+    .sort((a, b) => new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime());
+  
+  const pendingItems = data.details
+    .filter(d => d.status === 'pending')
+    .sort((a, b) => new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime());
 
   return (
     <Card>
