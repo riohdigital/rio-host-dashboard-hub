@@ -105,7 +105,13 @@ export const useNotificationDestinations = () => {
       return data;
     } catch (error: any) {
       console.error('Erro ao criar destinatário:', error);
-      const errorMessage = error.message || "Não foi possível criar o destinatário";
+      let errorMessage = "Não foi possível criar o destinatário";
+      
+      // Tratamento específico para constraint de duplicidade
+      if (error.code === '23505' || error.message?.includes('unique_destination_name_role')) {
+        errorMessage = "Já existe um destinatário com esse nome e papel.";
+      }
+      
       toast({
         title: "Erro",
         description: errorMessage,
