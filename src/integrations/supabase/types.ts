@@ -743,30 +743,36 @@ export type Database = {
       user_profiles: {
         Row: {
           created_at: string | null
+          created_by: string | null
           email: string
           full_name: string | null
           id: string
           is_active: boolean | null
+          is_destination_only: boolean | null
           role: string
           updated_at: string | null
           user_id: string | null
         }
         Insert: {
           created_at?: string | null
+          created_by?: string | null
           email: string
           full_name?: string | null
           id?: string
           is_active?: boolean | null
+          is_destination_only?: boolean | null
           role?: string
           updated_at?: string | null
           user_id?: string | null
         }
         Update: {
           created_at?: string | null
+          created_by?: string | null
           email?: string
           full_name?: string | null
           id?: string
           is_active?: boolean | null
+          is_destination_only?: boolean | null
           role?: string
           updated_at?: string | null
           user_id?: string | null
