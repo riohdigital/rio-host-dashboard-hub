@@ -21,6 +21,7 @@ import FaxineiraDashboard from "./pages/FaxineiraDashboard";
 import AnfitriaoAlertaPage from "./pages/AnfitriaoAlertaPage";
 import MasterCleaningDashboardPage from "./pages/MasterCleaningDashboardPage";
 import PainelGestorPage from "./pages/PainelGestorPage";
+import PagamentosPage from "./pages/PagamentosPage";
 import NotFound from "./pages/NotFound";
 import LandingPage from "./pages/LandingPage";
 import { AIChat } from "@/components/chat/AIChat";
@@ -84,6 +85,7 @@ const App = () => {
                           <Route path="/faxineira-dashboard" element={<FaxineiraDashboard />} />
                           <Route path="/gestao-faxinas" element={<MasterCleaningDashboardPage />} />
                           <Route path="/painel-gestor" element={<PainelGestorPage />} />
+                          <Route path="/painel-gestor/pagamentos" element={<PagamentosPage />} />
                           <Route path="/auth" element={<Navigate to="/dashboard" replace />} />
                           <Route path="*" element={<NotFound />} />
                         </Route>
