@@ -21,6 +21,7 @@ import FaxineiraDashboard from "./pages/FaxineiraDashboard";
 import AnfitriaoAlertaPage from "./pages/AnfitriaoAlertaPage";
 import MasterCleaningDashboardPage from "./pages/MasterCleaningDashboardPage";
 import PainelGestorPage from "./pages/PainelGestorPage";
+import PagamentosPage from "./pages/PagamentosPage";
 import NotFound from "./pages/NotFound";
 import LandingPage from "./pages/LandingPage";
 import { AIChat } from "@/components/chat/AIChat";
