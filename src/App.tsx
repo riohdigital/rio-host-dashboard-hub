@@ -85,6 +85,7 @@ const App = () => {
                           <Route path="/faxineira-dashboard" element={<FaxineiraDashboard />} />
                           <Route path="/gestao-faxinas" element={<MasterCleaningDashboardPage />} />
                           <Route path="/painel-gestor" element={<PainelGestorPage />} />
+                          <Route path="/painel-gestor/pagamentos" element={<PagamentosPage />} />
                           <Route path="/auth" element={<Navigate to="/dashboard" replace />} />
                           <Route path="*" element={<NotFound />} />
                         </Route>
