@@ -42,6 +42,7 @@ interface CleanerCardProps {
 
 const CleanerCard = ({ cleaner }: CleanerCardProps) => {
   const [expanded, setExpanded] = useState(false);
+  const noCleanings = !cleaner.hasCleaningsThisMonth;
 
   const initials = cleaner.cleanerName
     .split(' ')
@@ -51,7 +52,7 @@ const CleanerCard = ({ cleaner }: CleanerCardProps) => {
     .toUpperCase();
 
   return (
-    <Card className="border shadow-sm hover:shadow-md transition-shadow">
+    <Card className={`border shadow-sm hover:shadow-md transition-shadow ${noCleanings ? 'opacity-70' : ''}`}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
@@ -59,7 +60,14 @@ const CleanerCard = ({ cleaner }: CleanerCardProps) => {
               {initials}
             </div>
             <div>
-              <h3 className="font-semibold text-foreground">{cleaner.cleanerName}</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-foreground">{cleaner.cleanerName}</h3>
+                {noCleanings && (
+                  <Badge variant="outline" className="text-xs text-muted-foreground border-muted-foreground/30">
+                    Sem faxinas neste mês
+                  </Badge>
+                )}
+              </div>
               <div className="flex items-center gap-3 mt-1">
                 {cleaner.phone && (
                   <span className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -76,43 +84,53 @@ const CleanerCard = ({ cleaner }: CleanerCardProps) => {
               </div>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setExpanded(!expanded)}
-            className="text-muted-foreground"
-          >
-            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </Button>
+          {!noCleanings && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setExpanded(!expanded)}
+              className="text-muted-foreground"
+            >
+              {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
+          )}
         </div>
 
         {/* Summary row */}
-        <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t">
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground mb-1">
-              <CheckCircle className="h-3 w-3 text-emerald-500" />
-              Pago
-            </div>
-            <div className="font-semibold text-sm text-emerald-600">{fmt(cleaner.totalPaid)}</div>
+        {noCleanings ? (
+          <div className="mt-3 pt-3 border-t">
+            <p className="text-xs text-muted-foreground text-center">
+              Faxineira vinculada à propriedade — sem faxinas registradas neste mês
+            </p>
           </div>
-          <div className="text-center border-x">
-            <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground mb-1">
-              <Clock className="h-3 w-3 text-amber-500" />
-              Pendente
+        ) : (
+          <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t">
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground mb-1">
+                <CheckCircle className="h-3 w-3 text-emerald-500" />
+                Pago
+              </div>
+              <div className="font-semibold text-sm text-emerald-600">{fmt(cleaner.totalPaid)}</div>
             </div>
-            <div className="font-semibold text-sm text-amber-600">{fmt(cleaner.totalPending)}</div>
-          </div>
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground mb-1">
-              <RefreshCw className="h-3 w-3 text-blue-500" />
-              Próx. Ciclo
+            <div className="text-center border-x">
+              <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground mb-1">
+                <Clock className="h-3 w-3 text-amber-500" />
+                Pendente
+              </div>
+              <div className="font-semibold text-sm text-amber-600">{fmt(cleaner.totalPending)}</div>
             </div>
-            <div className="font-semibold text-sm text-blue-600">{fmt(cleaner.totalNextCycle)}</div>
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground mb-1">
+                <RefreshCw className="h-3 w-3 text-blue-500" />
+                Próx. Ciclo
+              </div>
+              <div className="font-semibold text-sm text-blue-600">{fmt(cleaner.totalNextCycle)}</div>
+            </div>
           </div>
-        </div>
+        )}
       </CardHeader>
 
-      {expanded && (
+      {expanded && !noCleanings && (
         <CardContent className="pt-0">
           <div className="border rounded-lg overflow-hidden">
             <table className="w-full text-sm">
@@ -180,6 +198,7 @@ interface CleanerPaymentsTabProps {
 const CleanerPaymentsTab = ({ cleanerPayments, loading, hasFilter }: CleanerPaymentsTabProps) => {
   const [search, setSearch] = useState('');
   const [selectedCleaner, setSelectedCleaner] = useState('todas');
+  const [showOnlyWithCleanings, setShowOnlyWithCleanings] = useState(false);
 
   const filtered = useMemo(() => {
     let list = cleanerPayments;
@@ -190,8 +209,11 @@ const CleanerPaymentsTab = ({ cleanerPayments, loading, hasFilter }: CleanerPaym
       const q = search.trim().toLowerCase();
       list = list.filter(c => c.cleanerName.toLowerCase().includes(q));
     }
+    if (showOnlyWithCleanings) {
+      list = list.filter(c => c.hasCleaningsThisMonth);
+    }
     return list;
-  }, [cleanerPayments, search, selectedCleaner]);
+  }, [cleanerPayments, search, selectedCleaner, showOnlyWithCleanings]);
 
   if (loading) {
     return (
@@ -221,15 +243,16 @@ const CleanerPaymentsTab = ({ cleanerPayments, loading, hasFilter }: CleanerPaym
     return (
       <div className="text-center py-12 text-muted-foreground">
         <User className="h-10 w-10 mx-auto mb-3 opacity-30" />
-        <p className="font-medium">Nenhuma faxina encontrada neste período</p>
-        <p className="text-sm mt-1">Verifique se há reservas com faxineiras atribuídas e taxa de limpeza definida.</p>
+        <p className="font-medium">Nenhuma faxineira vinculada a esta propriedade</p>
+        <p className="text-sm mt-1">Vincule faxineiras à propriedade para vê-las aqui.</p>
       </div>
     );
   }
 
-  const totalPaid = filtered.reduce((s, c) => s + c.totalPaid, 0);
-  const totalPending = filtered.reduce((s, c) => s + c.totalPending, 0);
-  const grandTotal = filtered.reduce((s, c) => s + c.total, 0);
+  const withCleanings = cleanerPayments.filter(c => c.hasCleaningsThisMonth);
+  const totalPaid = filtered.filter(c => c.hasCleaningsThisMonth).reduce((s, c) => s + c.totalPaid, 0);
+  const totalPending = filtered.filter(c => c.hasCleaningsThisMonth).reduce((s, c) => s + c.totalPending, 0);
+  const grandTotal = filtered.filter(c => c.hasCleaningsThisMonth).reduce((s, c) => s + c.total, 0);
 
   return (
     <div className="space-y-4">
@@ -255,12 +278,24 @@ const CleanerPaymentsTab = ({ cleanerPayments, loading, hasFilter }: CleanerPaym
             ))}
           </SelectContent>
         </Select>
+        {cleanerPayments.some(c => !c.hasCleaningsThisMonth) && (
+          <Button
+            variant={showOnlyWithCleanings ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setShowOnlyWithCleanings(v => !v)}
+            className="h-8 text-xs"
+          >
+            {showOnlyWithCleanings ? 'Mostrar todas' : `Só com faxinas (${withCleanings.length})`}
+          </Button>
+        )}
       </div>
 
       {/* Summary bar */}
       <div className="flex items-center justify-between bg-muted/30 rounded-lg px-4 py-3">
         <span className="text-sm font-medium text-muted-foreground">
-          {filtered.length} faxineira{filtered.length !== 1 ? 's' : ''} • {filtered.reduce((s, c) => s + c.cleanings.length, 0)} faxinas
+          {filtered.length} faxineira{filtered.length !== 1 ? 's' : ''} vinculada{filtered.length !== 1 ? 's' : ''} •{' '}
+          {withCleanings.length} com faxinas neste mês •{' '}
+          {filtered.reduce((s, c) => s + c.cleanings.length, 0)} faxinas
         </span>
         <div className="flex items-center gap-4 text-sm">
           <span className="text-emerald-600 font-medium">Pago: {fmt(totalPaid)}</span>
