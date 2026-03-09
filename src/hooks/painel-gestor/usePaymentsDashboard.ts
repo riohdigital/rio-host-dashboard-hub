@@ -81,14 +81,15 @@ export interface PaymentsDashboardData {
   error: string | null;
 }
 
-const PAID_STATUSES = ['Pago', 'Paga', 'pago', 'paga', 'PAGO'];
-
 const getCleaningPaymentStatus = (status: string | null): string => {
   if (!status) return 'Pendente';
-  if (PAID_STATUSES.some(s => status.includes(s))) return 'Pago';
-  if (status.toLowerCase().includes('próximo ciclo') || status.toLowerCase().includes('proximo ciclo')) return 'Próximo Ciclo';
-  if (status.toLowerCase().includes('pagamento na data')) return 'Pagamento na Data';
-  if (status.toLowerCase().includes('d+1')) return 'D+1';
+  const lower = status.toLowerCase().trim();
+  // Checar status compostos PRIMEIRO (contêm a palavra "Pago"/"Pagamento")
+  if (lower.includes('próximo ciclo') || lower.includes('proximo ciclo')) return 'Próximo Ciclo';
+  if (lower.includes('pagamento na data')) return 'Pagamento na Data';
+  if (lower.includes('d+1')) return 'D+1';
+  // Só depois checar se é exatamente "Pago"/"Paga"
+  if (['pago', 'paga'].includes(lower)) return 'Pago';
   return status;
 };
 
