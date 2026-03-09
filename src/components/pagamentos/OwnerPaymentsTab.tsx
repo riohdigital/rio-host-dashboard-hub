@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ChevronDown, ChevronUp, Building2, TrendingDown, ArrowRight, Search, Filter, CalendarX } from 'lucide-react';
+import { ChevronDown, ChevronUp, Building2, TrendingDown, ArrowRight, Search, Filter, CalendarX, CheckCircle2, Clock } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { OwnerPayment } from '@/hooks/painel-gestor/usePaymentsDashboard';
 
@@ -21,6 +21,34 @@ const getPlatformStyle = (platform: string) => {
   }
 };
 
+const getTransferLabel = (platform: string, status: string) => {
+  if (status !== 'received') {
+    return { label: 'Pendente', className: 'text-muted-foreground border-muted-foreground/30 bg-muted/50' };
+  }
+  if (platform === 'Booking.com') {
+    return { label: 'A Repassar', className: 'text-amber-700 border-amber-300 bg-amber-50' };
+  }
+  // Airbnb, Direto, etc.
+  return { label: 'Repassado', className: 'bg-emerald-100 text-emerald-700 border-emerald-200' };
+};
+
+const isBooking = (platform: string) => platform === 'Booking.com';
+
+const calcTransferTotals = (platformBreakdown: OwnerPayment['platformBreakdown']) => {
+  let totalRepassado = 0;
+  let totalARepassar = 0;
+  for (const p of platformBreakdown) {
+    if (p.status === 'received') {
+      if (isBooking(p.platform)) {
+        totalARepassar += p.netRevenue;
+      } else {
+        totalRepassado += p.netRevenue;
+      }
+    }
+  }
+  return { totalRepassado, totalARepassar };
+};
+
 interface OwnerCardProps {
   owner: OwnerPayment;
 }
@@ -35,6 +63,11 @@ const OwnerCard = ({ owner }: OwnerCardProps) => {
     .map(w => w[0])
     .join('')
     .toUpperCase();
+
+  const { totalRepassado, totalARepassar } = useMemo(
+    () => calcTransferTotals(owner.platformBreakdown),
+    [owner.platformBreakdown]
+  );
 
   return (
     <Card className={`border shadow-sm hover:shadow-md transition-shadow ${noPayments ? 'opacity-70' : ''}`}>
@@ -81,27 +114,45 @@ const OwnerCard = ({ owner }: OwnerCardProps) => {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-4 gap-3 mt-3 pt-3 border-t">
-            <div className="text-center">
-              <div className="text-xs text-muted-foreground mb-1">Receita Bruta</div>
-              <div className="font-semibold text-sm">
-                {fmt(owner.platformBreakdown.reduce((s, p) => s + p.totalRevenue, 0))}
+          <div className="mt-3 pt-3 border-t">
+            <div className="grid grid-cols-4 gap-3">
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground mb-1">Receita Bruta</div>
+                <div className="font-semibold text-sm">
+                  {fmt(owner.platformBreakdown.reduce((s, p) => s + p.totalRevenue, 0))}
+                </div>
               </div>
-            </div>
-            <div className="text-center border-x">
-              <div className="text-xs text-muted-foreground mb-1">Comissão</div>
-              <div className="font-semibold text-sm text-[#6A6DDF]">{fmt(owner.totalCommission)}</div>
-            </div>
-            <div className="text-center border-r">
-              <div className="text-xs text-muted-foreground mb-1">Investimentos</div>
-              <div className="font-semibold text-sm text-red-500">
-                {owner.investments > 0 ? `-${fmt(owner.investments)}` : fmt(0)}
+              <div className="text-center border-x">
+                <div className="text-xs text-muted-foreground mb-1">Comissão</div>
+                <div className="font-semibold text-sm text-[#6A6DDF]">{fmt(owner.totalCommission)}</div>
               </div>
-            </div>
-            <div className="text-center">
-              <div className="text-xs text-muted-foreground mb-1">Repasse</div>
-              <div className={`font-bold text-sm ${owner.totalToTransfer >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                {fmt(Math.max(0, owner.totalToTransfer))}
+              <div className="text-center border-r">
+                <div className="text-xs text-muted-foreground mb-1">Investimentos</div>
+                <div className="font-semibold text-sm text-red-500">
+                  {owner.investments > 0 ? `-${fmt(owner.investments)}` : fmt(0)}
+                </div>
+              </div>
+              <div className="text-center space-y-1">
+                {totalRepassado > 0 && (
+                  <div>
+                    <div className="text-xs text-muted-foreground mb-0.5">Repassado</div>
+                    <div className="font-bold text-sm text-emerald-600">{fmt(totalRepassado)}</div>
+                  </div>
+                )}
+                {totalARepassar > 0 && (
+                  <div>
+                    <div className="text-xs text-muted-foreground mb-0.5">A Repassar</div>
+                    <div className="font-bold text-sm text-amber-600">
+                      {fmt(Math.max(0, totalARepassar - owner.investments))}
+                    </div>
+                  </div>
+                )}
+                {totalRepassado === 0 && totalARepassar === 0 && (
+                  <div>
+                    <div className="text-xs text-muted-foreground mb-0.5">Repasse</div>
+                    <div className="font-bold text-sm text-emerald-600">{fmt(0)}</div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -116,6 +167,7 @@ const OwnerCard = ({ owner }: OwnerCardProps) => {
             </h4>
             {owner.platformBreakdown.map(plat => {
               const style = getPlatformStyle(plat.platform);
+              const transfer = getTransferLabel(plat.platform, plat.status);
               return (
                 <div key={plat.platform} className={`rounded-lg border p-3 ${style.bg}`}>
                   <div className="flex items-center justify-between mb-2">
@@ -126,14 +178,10 @@ const OwnerCard = ({ owner }: OwnerCardProps) => {
                         {plat.reservations} reserva{plat.reservations !== 1 ? 's' : ''}
                       </span>
                     </div>
-                    <Badge
-                      variant={plat.status === 'received' ? 'default' : 'outline'}
-                      className={plat.status === 'received'
-                        ? 'bg-emerald-100 text-emerald-700 border-emerald-200 text-xs'
-                        : 'text-amber-700 border-amber-300 text-xs'
-                      }
-                    >
-                      {plat.status === 'received' ? 'Recebido' : 'A Receber'}
+                    <Badge variant="outline" className={`text-xs ${transfer.className}`}>
+                      {transfer.label === 'Repassado' && <CheckCircle2 className="h-3 w-3 mr-1" />}
+                      {transfer.label === 'A Repassar' && <Clock className="h-3 w-3 mr-1" />}
+                      {transfer.label}
                     </Badge>
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-sm">
@@ -160,10 +208,24 @@ const OwnerCard = ({ owner }: OwnerCardProps) => {
                 Cálculo do Repasse
               </h4>
               <div className="space-y-1.5 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Valor Líquido Proprietário</span>
-                  <span className="font-medium">{fmt(owner.totalOwner)}</span>
-                </div>
+                {totalRepassado > 0 && (
+                  <div className="flex justify-between text-emerald-600">
+                    <span className="flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Repassado (Airbnb/Direto)
+                    </span>
+                    <span className="font-medium">{fmt(totalRepassado)}</span>
+                  </div>
+                )}
+                {totalARepassar > 0 && (
+                  <div className="flex justify-between text-amber-600">
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      A Repassar (Booking)
+                    </span>
+                    <span className="font-medium">{fmt(totalARepassar)}</span>
+                  </div>
+                )}
                 {owner.investments > 0 && (
                   <div className="flex justify-between text-red-600">
                     <span className="flex items-center gap-1">
@@ -173,15 +235,17 @@ const OwnerCard = ({ owner }: OwnerCardProps) => {
                     <span className="font-medium">- {fmt(owner.investments)}</span>
                   </div>
                 )}
-                <div className="flex justify-between font-bold border-t pt-1.5 mt-1.5">
-                  <span className="flex items-center gap-1">
-                    <ArrowRight className="h-3 w-3" />
-                    A Repassar
-                  </span>
-                  <span className={owner.totalToTransfer >= 0 ? 'text-emerald-600' : 'text-red-600'}>
-                    {fmt(Math.max(0, owner.totalToTransfer))}
-                  </span>
-                </div>
+                {totalARepassar > 0 && (
+                  <div className="flex justify-between font-bold border-t pt-1.5 mt-1.5">
+                    <span className="flex items-center gap-1">
+                      <ArrowRight className="h-3 w-3" />
+                      Líquido a Repassar
+                    </span>
+                    <span className={Math.max(0, totalARepassar - owner.investments) >= 0 ? 'text-amber-600' : 'text-red-600'}>
+                      {fmt(Math.max(0, totalARepassar - owner.investments))}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -244,8 +308,18 @@ const OwnerPaymentsTab = ({ ownerPayments, loading, hasFilter }: OwnerPaymentsTa
 
   const withPayments = ownerPayments.filter(o => o.hasPaymentsThisMonth);
   const totalCommission = filtered.filter(o => o.hasPaymentsThisMonth).reduce((s, o) => s + o.totalCommission, 0);
-  const totalTransfer = filtered.filter(o => o.hasPaymentsThisMonth).reduce((s, o) => s + Math.max(0, o.totalToTransfer), 0);
   const totalInvestments = filtered.filter(o => o.hasPaymentsThisMonth).reduce((s, o) => s + o.investments, 0);
+
+  // Global totals split by platform type
+  const globalTotals = filtered.filter(o => o.hasPaymentsThisMonth).reduce(
+    (acc, o) => {
+      const t = calcTransferTotals(o.platformBreakdown);
+      acc.repassado += t.totalRepassado;
+      acc.aRepassar += t.totalARepassar;
+      return acc;
+    },
+    { repassado: 0, aRepassar: 0 }
+  );
 
   return (
     <div className="space-y-4">
@@ -273,7 +347,17 @@ const OwnerPaymentsTab = ({ ownerPayments, loading, hasFilter }: OwnerPaymentsTa
           {totalInvestments > 0 && (
             <span className="text-red-500 font-medium">Investimentos: -{fmt(totalInvestments)}</span>
           )}
-          <span className="font-bold text-emerald-600">Repasse: {fmt(totalTransfer)}</span>
+          {globalTotals.repassado > 0 && (
+            <span className="font-bold text-emerald-600">Repassado: {fmt(globalTotals.repassado)}</span>
+          )}
+          {globalTotals.aRepassar > 0 && (
+            <span className="font-bold text-amber-600">
+              A Repassar: {fmt(Math.max(0, globalTotals.aRepassar - totalInvestments))}
+            </span>
+          )}
+          {globalTotals.repassado === 0 && globalTotals.aRepassar === 0 && (
+            <span className="font-bold text-emerald-600">Repasse: {fmt(0)}</span>
+          )}
         </div>
       </div>
 
