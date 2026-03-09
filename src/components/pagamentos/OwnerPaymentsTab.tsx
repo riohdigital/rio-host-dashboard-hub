@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ChevronDown, ChevronUp, Building2, TrendingDown, ArrowRight, Search, Filter } from 'lucide-react';
+import { ChevronDown, ChevronUp, Building2, TrendingDown, ArrowRight, Search, Filter, CalendarX } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { OwnerPayment } from '@/hooks/painel-gestor/usePaymentsDashboard';
 
@@ -27,6 +27,7 @@ interface OwnerCardProps {
 
 const OwnerCard = ({ owner }: OwnerCardProps) => {
   const [expanded, setExpanded] = useState(false);
+  const noPayments = !owner.hasPaymentsThisMonth;
 
   const initials = (owner.nickname || owner.propertyName)
     .split(' ')
@@ -36,7 +37,7 @@ const OwnerCard = ({ owner }: OwnerCardProps) => {
     .toUpperCase();
 
   return (
-    <Card className="border shadow-sm hover:shadow-md transition-shadow">
+    <Card className={`border shadow-sm hover:shadow-md transition-shadow ${noPayments ? 'opacity-70' : ''}`}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
@@ -44,52 +45,70 @@ const OwnerCard = ({ owner }: OwnerCardProps) => {
               {initials}
             </div>
             <div>
-              <h3 className="font-semibold text-foreground">
-                {owner.nickname || owner.propertyName}
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-foreground">
+                  {owner.nickname || owner.propertyName}
+                </h3>
+                {noPayments && (
+                  <Badge variant="outline" className="text-xs text-muted-foreground border-muted-foreground/30">
+                    Sem recebimentos neste mês
+                  </Badge>
+                )}
+              </div>
               {owner.nickname && (
                 <p className="text-xs text-muted-foreground">{owner.propertyName}</p>
               )}
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setExpanded(!expanded)}
-            className="text-muted-foreground"
-          >
-            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </Button>
+          {!noPayments && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setExpanded(!expanded)}
+              className="text-muted-foreground"
+            >
+              {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
+          )}
         </div>
 
         {/* Summary row */}
-        <div className="grid grid-cols-4 gap-3 mt-3 pt-3 border-t">
-          <div className="text-center">
-            <div className="text-xs text-muted-foreground mb-1">Receita Bruta</div>
-            <div className="font-semibold text-sm">
-              {fmt(owner.platformBreakdown.reduce((s, p) => s + p.totalRevenue, 0))}
+        {noPayments ? (
+          <div className="mt-3 pt-3 border-t">
+            <p className="text-xs text-muted-foreground text-center flex items-center justify-center gap-1.5">
+              <CalendarX className="h-3.5 w-3.5" />
+              Nenhuma reserva com recebimento neste mês para esta propriedade
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-4 gap-3 mt-3 pt-3 border-t">
+            <div className="text-center">
+              <div className="text-xs text-muted-foreground mb-1">Receita Bruta</div>
+              <div className="font-semibold text-sm">
+                {fmt(owner.platformBreakdown.reduce((s, p) => s + p.totalRevenue, 0))}
+              </div>
+            </div>
+            <div className="text-center border-x">
+              <div className="text-xs text-muted-foreground mb-1">Comissão</div>
+              <div className="font-semibold text-sm text-[#6A6DDF]">{fmt(owner.totalCommission)}</div>
+            </div>
+            <div className="text-center border-r">
+              <div className="text-xs text-muted-foreground mb-1">Investimentos</div>
+              <div className="font-semibold text-sm text-red-500">
+                {owner.investments > 0 ? `-${fmt(owner.investments)}` : fmt(0)}
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="text-xs text-muted-foreground mb-1">Repasse</div>
+              <div className={`font-bold text-sm ${owner.totalToTransfer >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                {fmt(Math.max(0, owner.totalToTransfer))}
+              </div>
             </div>
           </div>
-          <div className="text-center border-x">
-            <div className="text-xs text-muted-foreground mb-1">Comissão</div>
-            <div className="font-semibold text-sm text-[#6A6DDF]">{fmt(owner.totalCommission)}</div>
-          </div>
-          <div className="text-center border-r">
-            <div className="text-xs text-muted-foreground mb-1">Investimentos</div>
-            <div className="font-semibold text-sm text-red-500">
-              {owner.investments > 0 ? `-${fmt(owner.investments)}` : fmt(0)}
-            </div>
-          </div>
-          <div className="text-center">
-            <div className="text-xs text-muted-foreground mb-1">Repasse</div>
-            <div className={`font-bold text-sm ${owner.totalToTransfer >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-              {fmt(Math.max(0, owner.totalToTransfer))}
-            </div>
-          </div>
-        </div>
+        )}
       </CardHeader>
 
-      {expanded && (
+      {expanded && !noPayments && (
         <CardContent className="pt-0">
           <div className="space-y-3">
             <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
@@ -218,14 +237,15 @@ const OwnerPaymentsTab = ({ ownerPayments, loading, hasFilter }: OwnerPaymentsTa
     return (
       <div className="text-center py-12 text-muted-foreground">
         <Building2 className="h-10 w-10 mx-auto mb-3 opacity-30" />
-        <p className="font-medium">Nenhuma propriedade com reservas neste período</p>
+        <p className="font-medium">Nenhuma propriedade encontrada</p>
       </div>
     );
   }
 
-  const totalCommission = filtered.reduce((s, o) => s + o.totalCommission, 0);
-  const totalTransfer = filtered.reduce((s, o) => s + Math.max(0, o.totalToTransfer), 0);
-  const totalInvestments = filtered.reduce((s, o) => s + o.investments, 0);
+  const withPayments = ownerPayments.filter(o => o.hasPaymentsThisMonth);
+  const totalCommission = filtered.filter(o => o.hasPaymentsThisMonth).reduce((s, o) => s + o.totalCommission, 0);
+  const totalTransfer = filtered.filter(o => o.hasPaymentsThisMonth).reduce((s, o) => s + Math.max(0, o.totalToTransfer), 0);
+  const totalInvestments = filtered.filter(o => o.hasPaymentsThisMonth).reduce((s, o) => s + o.investments, 0);
 
   return (
     <div className="space-y-4">
@@ -245,7 +265,8 @@ const OwnerPaymentsTab = ({ ownerPayments, loading, hasFilter }: OwnerPaymentsTa
       {/* Summary bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-muted/30 rounded-lg px-4 py-3">
         <span className="text-sm font-medium text-muted-foreground">
-          {filtered.length} imóvel{filtered.length !== 1 ? 's' : ''}
+          {filtered.length} imóvel{filtered.length !== 1 ? 's' : ''} •{' '}
+          {withPayments.length} com recebimentos neste mês
         </span>
         <div className="flex flex-wrap items-center gap-4 text-sm">
           <span className="text-[#6A6DDF] font-medium">Comissão: {fmt(totalCommission)}</span>
