@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState, useMemo } from 'react';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, ChevronUp, Building2, TrendingDown, ArrowRight, Wrench } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { ChevronDown, ChevronUp, Building2, TrendingDown, ArrowRight, Search, Filter } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { OwnerPayment } from '@/hooks/painel-gestor/usePaymentsDashboard';
 
@@ -174,9 +175,21 @@ const OwnerCard = ({ owner }: OwnerCardProps) => {
 interface OwnerPaymentsTabProps {
   ownerPayments: OwnerPayment[];
   loading: boolean;
+  hasFilter?: boolean;
 }
 
-const OwnerPaymentsTab = ({ ownerPayments, loading }: OwnerPaymentsTabProps) => {
+const OwnerPaymentsTab = ({ ownerPayments, loading, hasFilter }: OwnerPaymentsTabProps) => {
+  const [search, setSearch] = useState('');
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return ownerPayments;
+    const q = search.trim().toLowerCase();
+    return ownerPayments.filter(o =>
+      o.propertyName.toLowerCase().includes(q) ||
+      (o.nickname || '').toLowerCase().includes(q)
+    );
+  }, [ownerPayments, search]);
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -191,6 +204,16 @@ const OwnerPaymentsTab = ({ ownerPayments, loading }: OwnerPaymentsTabProps) => 
     );
   }
 
+  if (!hasFilter && ownerPayments.length === 0) {
+    return (
+      <div className="text-center py-12 text-muted-foreground">
+        <Filter className="h-10 w-10 mx-auto mb-3 opacity-30" />
+        <p className="font-medium">Selecione uma ou mais propriedades</p>
+        <p className="text-sm mt-1">Use o filtro acima para ver os repasses aos proprietários deste mês.</p>
+      </div>
+    );
+  }
+
   if (ownerPayments.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
@@ -200,16 +223,29 @@ const OwnerPaymentsTab = ({ ownerPayments, loading }: OwnerPaymentsTabProps) => 
     );
   }
 
-  const totalCommission = ownerPayments.reduce((s, o) => s + o.totalCommission, 0);
-  const totalTransfer = ownerPayments.reduce((s, o) => s + Math.max(0, o.totalToTransfer), 0);
-  const totalInvestments = ownerPayments.reduce((s, o) => s + o.investments, 0);
+  const totalCommission = filtered.reduce((s, o) => s + o.totalCommission, 0);
+  const totalTransfer = filtered.reduce((s, o) => s + Math.max(0, o.totalToTransfer), 0);
+  const totalInvestments = filtered.reduce((s, o) => s + o.investments, 0);
 
   return (
     <div className="space-y-4">
+      {/* Search filter */}
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1 min-w-[180px] max-w-xs">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            placeholder="Buscar imóvel..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="pl-8 h-8 text-sm"
+          />
+        </div>
+      </div>
+
       {/* Summary bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-muted/30 rounded-lg px-4 py-3">
         <span className="text-sm font-medium text-muted-foreground">
-          {ownerPayments.length} imóvel{ownerPayments.length !== 1 ? 's' : ''}
+          {filtered.length} imóvel{filtered.length !== 1 ? 's' : ''}
         </span>
         <div className="flex flex-wrap items-center gap-4 text-sm">
           <span className="text-[#6A6DDF] font-medium">Comissão: {fmt(totalCommission)}</span>
@@ -220,9 +256,16 @@ const OwnerPaymentsTab = ({ ownerPayments, loading }: OwnerPaymentsTabProps) => 
         </div>
       </div>
 
-      {ownerPayments.map(owner => (
-        <OwnerCard key={owner.propertyId} owner={owner} />
-      ))}
+      {filtered.length === 0 ? (
+        <div className="text-center py-10 text-muted-foreground">
+          <Building2 className="h-8 w-8 mx-auto mb-2 opacity-30" />
+          <p className="font-medium">Nenhum imóvel corresponde ao filtro</p>
+        </div>
+      ) : (
+        filtered.map(owner => (
+          <OwnerCard key={owner.propertyId} owner={owner} />
+        ))
+      )}
     </div>
   );
 };

@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, ChevronUp, User, Phone, Banknote, Calendar, Home, CheckCircle, Clock, RefreshCw, AlertCircle } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ChevronDown, ChevronUp, User, Phone, Banknote, Calendar, Home, CheckCircle, Clock, RefreshCw, Search, Filter } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -172,9 +174,25 @@ const CleanerCard = ({ cleaner }: CleanerCardProps) => {
 interface CleanerPaymentsTabProps {
   cleanerPayments: CleanerPayment[];
   loading: boolean;
+  hasFilter?: boolean;
 }
 
-const CleanerPaymentsTab = ({ cleanerPayments, loading }: CleanerPaymentsTabProps) => {
+const CleanerPaymentsTab = ({ cleanerPayments, loading, hasFilter }: CleanerPaymentsTabProps) => {
+  const [search, setSearch] = useState('');
+  const [selectedCleaner, setSelectedCleaner] = useState('todas');
+
+  const filtered = useMemo(() => {
+    let list = cleanerPayments;
+    if (selectedCleaner && selectedCleaner !== 'todas') {
+      list = list.filter(c => c.cleanerId === selectedCleaner);
+    }
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      list = list.filter(c => c.cleanerName.toLowerCase().includes(q));
+    }
+    return list;
+  }, [cleanerPayments, search, selectedCleaner]);
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -189,6 +207,16 @@ const CleanerPaymentsTab = ({ cleanerPayments, loading }: CleanerPaymentsTabProp
     );
   }
 
+  if (!hasFilter && cleanerPayments.length === 0) {
+    return (
+      <div className="text-center py-12 text-muted-foreground">
+        <Filter className="h-10 w-10 mx-auto mb-3 opacity-30" />
+        <p className="font-medium">Selecione uma ou mais propriedades</p>
+        <p className="text-sm mt-1">Use o filtro acima para ver os dados de faxineiras deste mês.</p>
+      </div>
+    );
+  }
+
   if (cleanerPayments.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
@@ -199,16 +227,40 @@ const CleanerPaymentsTab = ({ cleanerPayments, loading }: CleanerPaymentsTabProp
     );
   }
 
-  const totalPaid = cleanerPayments.reduce((s, c) => s + c.totalPaid, 0);
-  const totalPending = cleanerPayments.reduce((s, c) => s + c.totalPending, 0);
-  const grandTotal = cleanerPayments.reduce((s, c) => s + c.total, 0);
+  const totalPaid = filtered.reduce((s, c) => s + c.totalPaid, 0);
+  const totalPending = filtered.reduce((s, c) => s + c.totalPending, 0);
+  const grandTotal = filtered.reduce((s, c) => s + c.total, 0);
 
   return (
     <div className="space-y-4">
+      {/* Filter bar */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[180px] max-w-xs">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            placeholder="Buscar faxineira..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="pl-8 h-8 text-sm"
+          />
+        </div>
+        <Select value={selectedCleaner} onValueChange={setSelectedCleaner}>
+          <SelectTrigger className="h-8 text-sm w-[200px]">
+            <SelectValue placeholder="Todas as faxineiras" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todas">Todas as faxineiras</SelectItem>
+            {cleanerPayments.map(c => (
+              <SelectItem key={c.cleanerId} value={c.cleanerId}>{c.cleanerName}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       {/* Summary bar */}
       <div className="flex items-center justify-between bg-muted/30 rounded-lg px-4 py-3">
         <span className="text-sm font-medium text-muted-foreground">
-          {cleanerPayments.length} faxineira{cleanerPayments.length !== 1 ? 's' : ''} • {cleanerPayments.reduce((s, c) => s + c.cleanings.length, 0)} faxinas
+          {filtered.length} faxineira{filtered.length !== 1 ? 's' : ''} • {filtered.reduce((s, c) => s + c.cleanings.length, 0)} faxinas
         </span>
         <div className="flex items-center gap-4 text-sm">
           <span className="text-emerald-600 font-medium">Pago: {fmt(totalPaid)}</span>
@@ -217,9 +269,16 @@ const CleanerPaymentsTab = ({ cleanerPayments, loading }: CleanerPaymentsTabProp
         </div>
       </div>
 
-      {cleanerPayments.map(cleaner => (
-        <CleanerCard key={cleaner.cleanerId} cleaner={cleaner} />
-      ))}
+      {filtered.length === 0 ? (
+        <div className="text-center py-10 text-muted-foreground">
+          <User className="h-8 w-8 mx-auto mb-2 opacity-30" />
+          <p className="font-medium">Nenhuma faxineira corresponde ao filtro</p>
+        </div>
+      ) : (
+        filtered.map(cleaner => (
+          <CleanerCard key={cleaner.cleanerId} cleaner={cleaner} />
+        ))
+      )}
     </div>
   );
 };
