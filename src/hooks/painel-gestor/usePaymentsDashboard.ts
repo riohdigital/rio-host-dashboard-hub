@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
-import { format, startOfMonth, endOfMonth, parseISO, isBefore, isAfter } from 'date-fns';
+import { format, startOfMonth, endOfMonth, parseISO, isAfter } from 'date-fns';
 
 export interface CleaningEntry {
   reservationId: string;
@@ -94,7 +93,7 @@ const getCleaningPaymentStatus = (status: string | null): string => {
 const isPlatformReceived = (platform: string, checkInDate: string, paymentDate: string | null): boolean => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  
+
   if (platform === 'Booking.com') {
     if (!paymentDate) return false;
     return !isAfter(parseISO(paymentDate), today);
@@ -104,8 +103,8 @@ const isPlatformReceived = (platform: string, checkInDate: string, paymentDate: 
   return !isAfter(checkin, today);
 };
 
-export const usePaymentsDashboard = (month: number, year: number) => {
-  const { selectedProperties } = useGlobalFilters();
+// propertyIds: ['todas'] or [] means no filter (all properties)
+export const usePaymentsDashboard = (month: number, year: number, propertyIds: string[]) => {
   const [data, setData] = useState<PaymentsDashboardData>({
     cleanerPayments: [],
     ownerPayments: [],
@@ -118,13 +117,15 @@ export const usePaymentsDashboard = (month: number, year: number) => {
       totalOwnerTransfer: 0,
       netBalance: 0,
     },
-    loading: true,
+    loading: false,
     error: null,
   });
 
+  const hasFilter = propertyIds.length > 0 && !propertyIds.includes('todas');
+
   useEffect(() => {
     fetchDashboardData();
-  }, [month, year, selectedProperties]);
+  }, [month, year, JSON.stringify(propertyIds)]);
 
   const fetchDashboardData = async () => {
     setData(prev => ({ ...prev, loading: true, error: null }));
@@ -133,55 +134,42 @@ export const usePaymentsDashboard = (month: number, year: number) => {
       const startDate = format(startOfMonth(new Date(year, month - 1)), 'yyyy-MM-dd');
       const endDate = format(endOfMonth(new Date(year, month - 1)), 'yyyy-MM-dd');
 
-      // Build reservations query - fetch by checkout in the month (for cleaners/owners)
-      // and also payment_date in month (for schedule)
-      let reservationsQuery = supabase
-        .from('reservations')
-        .select(`
-          id, property_id, platform, check_in_date, check_out_date, payment_date,
-          total_revenue, base_revenue, commission_amount, net_revenue,
-          payment_status, reservation_status, guest_name,
-          cleaner_user_id, cleaning_payment_status, cleaning_fee, cleaning_status,
-          cleaning_allocation
-        `)
-        .neq('reservation_status', 'Cancelada')
-        .or(`check_out_date.gte.${startDate},payment_date.gte.${startDate}`)
-        .or(`check_out_date.lte.${endDate},payment_date.lte.${endDate}`);
+      const resSELECT = `
+        id, property_id, platform, check_in_date, check_out_date, payment_date,
+        total_revenue, base_revenue, commission_amount, net_revenue,
+        payment_status, reservation_status, guest_name,
+        cleaner_user_id, cleaning_payment_status, cleaning_fee, cleaning_status,
+        cleaning_allocation
+      `;
 
-      if (selectedProperties && selectedProperties.length > 0) {
-        reservationsQuery = reservationsQuery.in('property_id', selectedProperties);
-      }
-
-      // Fetch reservations with checkout in month OR payment_date in month
-      const { data: allReservations, error: resError } = await supabase
+      // Fetch reservations with checkout in the month (cleaners + owners)
+      let allResQuery = supabase
         .from('reservations')
-        .select(`
-          id, property_id, platform, check_in_date, check_out_date, payment_date,
-          total_revenue, base_revenue, commission_amount, net_revenue,
-          payment_status, reservation_status, guest_name,
-          cleaner_user_id, cleaning_payment_status, cleaning_fee, cleaning_status,
-          cleaning_allocation
-        `)
+        .select(resSELECT)
         .neq('reservation_status', 'Cancelada')
         .gte('check_out_date', startDate)
         .lte('check_out_date', endDate);
 
+      if (hasFilter) {
+        allResQuery = allResQuery.in('property_id', propertyIds);
+      }
+
+      const { data: allReservations, error: resError } = await allResQuery;
       if (resError) throw resError;
 
-      // Also fetch reservations with payment_date in month (for schedule - Booking payments)
-      const { data: scheduleReservations, error: schedError } = await supabase
+      // Fetch reservations with payment_date in the month (schedule - Booking)
+      let schedQuery = supabase
         .from('reservations')
-        .select(`
-          id, property_id, platform, check_in_date, check_out_date, payment_date,
-          total_revenue, base_revenue, commission_amount, net_revenue,
-          payment_status, reservation_status, guest_name,
-          cleaner_user_id, cleaning_payment_status, cleaning_fee, cleaning_status,
-          cleaning_allocation
-        `)
+        .select(resSELECT)
         .neq('reservation_status', 'Cancelada')
         .gte('payment_date', startDate)
         .lte('payment_date', endDate);
 
+      if (hasFilter) {
+        schedQuery = schedQuery.in('property_id', propertyIds);
+      }
+
+      const { data: scheduleReservations, error: schedError } = await schedQuery;
       if (schedError) throw schedError;
 
       // Fetch properties
@@ -189,32 +177,32 @@ export const usePaymentsDashboard = (month: number, year: number) => {
         .from('properties')
         .select('id, name, nickname, commission_rate');
 
-      if (selectedProperties && selectedProperties.length > 0) {
-        propertiesQuery = propertiesQuery.in('id', selectedProperties);
+      if (hasFilter) {
+        propertiesQuery = propertiesQuery.in('id', propertyIds);
       }
 
       const { data: properties, error: propError } = await propertiesQuery;
       if (propError) throw propError;
 
-      // Fetch user profiles (for cleaners)
+      // Fetch user profiles (cleaners)
       const { data: userProfiles, error: upError } = await supabase
         .from('user_profiles')
         .select('user_id, full_name, email')
         .eq('role', 'faxineira');
       if (upError) throw upError;
 
-      // Fetch cleaner profiles (for phone/pix)
+      // Fetch cleaner profiles (phone/pix)
       const { data: cleanerProfiles, error: cpError } = await supabase
         .from('cleaner_profiles')
         .select('user_id, phone, pix');
       if (cpError) throw cpError;
 
       // Fetch property investments for the month
-      const propertyIds = (properties || []).map(p => p.id);
+      const propertyIdsList = (properties || []).map(p => p.id);
       const { data: investments, error: invError } = await supabase
         .from('property_investments')
         .select('property_id, amount')
-        .in('property_id', propertyIds.length > 0 ? propertyIds : ['00000000-0000-0000-0000-000000000000'])
+        .in('property_id', propertyIdsList.length > 0 ? propertyIdsList : ['00000000-0000-0000-0000-000000000000'])
         .gte('investment_date', startDate)
         .lte('investment_date', endDate);
 
@@ -234,7 +222,7 @@ export const usePaymentsDashboard = (month: number, year: number) => {
       (allReservations || []).forEach(res => {
         if (!res.cleaner_user_id || !res.cleaning_fee) return;
         const prop = propertyMap.get(res.property_id);
-        if (!prop) return;
+        if (!prop && hasFilter) return;
 
         const cleanerId = res.cleaner_user_id;
         const userProfile = userProfileMap.get(cleanerId);
@@ -259,11 +247,15 @@ export const usePaymentsDashboard = (month: number, year: number) => {
         const statusNorm = getCleaningPaymentStatus(res.cleaning_payment_status);
         const fee = res.cleaning_fee || 0;
 
+        // Get property name even when not filtered
+        const propName = prop?.name || 'Propriedade';
+        const propNickname = prop?.nickname || undefined;
+
         cleaner.cleanings.push({
           reservationId: res.id,
           date: res.check_out_date,
-          propertyName: prop.name,
-          propertyNickname: prop.nickname || undefined,
+          propertyName: propName,
+          propertyNickname: propNickname,
           fee,
           paymentStatus: statusNorm,
           platform: res.platform,
@@ -304,7 +296,6 @@ export const usePaymentsDashboard = (month: number, year: number) => {
         const netRev = res.net_revenue || 0;
         const totalRev = res.total_revenue || 0;
 
-        // Find or create platform entry
         let platformEntry = owner.platformBreakdown.find(p => p.platform === res.platform);
         if (!platformEntry) {
           platformEntry = {
@@ -336,7 +327,6 @@ export const usePaymentsDashboard = (month: number, year: number) => {
       // ---- SCHEDULE (Agenda de Recebimentos) ----
       const scheduleMap = new Map<string, ScheduleDay>();
 
-      // Merge both arrays, deduplicate by id
       const allScheduleIds = new Set<string>();
       const allScheduleRes = [...(allReservations || []), ...(scheduleReservations || [])].filter(r => {
         if (allScheduleIds.has(r.id)) return false;
@@ -349,7 +339,6 @@ export const usePaymentsDashboard = (month: number, year: number) => {
         if (!prop) return;
         if (!res.payment_date) return;
 
-        // Only show if payment_date is in the selected month
         const payDate = res.payment_date;
         if (payDate < startDate || payDate > endDate) return;
 
