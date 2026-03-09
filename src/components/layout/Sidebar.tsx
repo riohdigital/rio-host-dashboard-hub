@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { NavLink } from 'react-router-dom';
+import React, { useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { 
   BarChart3, 
   Calendar, 
@@ -11,7 +11,11 @@ import {
   TrendingUp,
   FileText,
   Bell,
-  Briefcase
+  Briefcase,
+  ChevronDown,
+  ChevronRight,
+  CreditCard,
+  LayoutDashboard
 } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -23,6 +27,10 @@ const Sidebar = () => {
   const { toast } = useToast();
   const { isCleaner, isMaster, isOwner, isGestor } = useUserRole();
   const { hasPermission } = useUserPermissions();
+  const location = useLocation();
+  
+  const isGestorSection = location.pathname.startsWith('/painel-gestor');
+  const [gestorOpen, setGestorOpen] = useState(isGestorSection);
 
   const handleLogout = async () => {
     try {
@@ -46,6 +54,8 @@ const Sidebar = () => {
     }
   };
 
+  const showGestorMenu = isMaster || isGestor || isOwner;
+
   const menuItems = isCleaner ? [
     { name: 'Minhas Faxinas', icon: Calendar, path: '/faxineira-dashboard' },
   ] : [
@@ -58,7 +68,6 @@ const Sidebar = () => {
     { name: 'Relatórios', icon: FileText, path: '/relatorios' },
     ...(hasPermission('anfitriao_alerta_view') ? [{ name: 'Anfitrião Alerta', icon: Bell, path: '/anfitriao-alerta' }] : []),
     ...(hasPermission('gestao_faxinas_view') ? [{ name: 'Gestão de Faxinas', icon: Calendar, path: '/gestao-faxinas' }] : []),
-    ...((isMaster || isGestor || isOwner) ? [{ name: 'Painel Gestor', icon: Briefcase, path: '/painel-gestor' }] : []),
     { name: 'Configurações', icon: Settings, path: '/configuracoes' },
   ];
 
@@ -77,7 +86,7 @@ const Sidebar = () => {
         </div>
       )}
       
-      <nav className="flex-1 px-4 py-6">
+      <nav className="flex-1 px-4 py-6 overflow-y-auto">
         <ul className="space-y-2">
           {menuItems.map((item) => (
             <li key={item.name}>
@@ -91,13 +100,69 @@ const Sidebar = () => {
                   }`
                 }
               >
-                <item.icon 
-                  className={`mr-3 h-5 w-5`}
-                />
+                <item.icon className={`mr-3 h-5 w-5`} />
                 {item.name}
               </NavLink>
             </li>
           ))}
+
+          {/* Painel Gestor - Collapsible Submenu */}
+          {!isCleaner && showGestorMenu && (
+            <li>
+              <button
+                onClick={() => setGestorOpen(!gestorOpen)}
+                className={`flex items-center w-full px-4 py-3 rounded-lg transition-colors ${
+                  isGestorSection
+                    ? 'bg-[#6A6DDF]/10 text-[#6A6DDF]'
+                    : 'text-[#374151] hover:bg-[#F8F9FA]'
+                }`}
+              >
+                <Briefcase className="mr-3 h-5 w-5" />
+                <span className="flex-1 text-left">Painel Gestor</span>
+                {gestorOpen ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </button>
+
+              {gestorOpen && (
+                <ul className="mt-1 ml-4 space-y-1 border-l-2 border-[#6A6DDF]/20 pl-3">
+                  <li>
+                    <NavLink
+                      to="/painel-gestor"
+                      end
+                      className={({ isActive }) =>
+                        `flex items-center px-3 py-2 rounded-lg transition-colors text-sm ${
+                          isActive
+                            ? 'bg-[#F472B6] text-white'
+                            : 'text-[#374151] hover:bg-[#F8F9FA]'
+                        }`
+                      }
+                    >
+                      <LayoutDashboard className="mr-2 h-4 w-4" />
+                      Dashboard
+                    </NavLink>
+                  </li>
+                  <li>
+                    <NavLink
+                      to="/painel-gestor/pagamentos"
+                      className={({ isActive }) =>
+                        `flex items-center px-3 py-2 rounded-lg transition-colors text-sm ${
+                          isActive
+                            ? 'bg-[#F472B6] text-white'
+                            : 'text-[#374151] hover:bg-[#F8F9FA]'
+                        }`
+                      }
+                    >
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      Pagamentos
+                    </NavLink>
+                  </li>
+                </ul>
+              )}
+            </li>
+          )}
         </ul>
       </nav>
       
