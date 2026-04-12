@@ -124,7 +124,6 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
     
     useEffect(() => {
         if (reservation && properties.length > 0) {
-            // Remover tentativa de desestruturar cleaning_destination que não existe no tipo
             const initialValues: any = {
                 ...reservation,
                 check_in_date: reservation.check_in_date ? format(new Date(`${reservation.check_in_date}T00:00:00`), 'yyyy-MM-dd') : '',
@@ -133,6 +132,23 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                 checkout_time: reservation.checkout_time?.slice(0, 5) || '',
             };
             reset(initialValues);
+
+            // Detectar valores financeiros manuais comparando com o cálculo automático
+            const property = properties.find(p => p.id === reservation.property_id);
+            if (property) {
+                const expectedCleaningFee = property.cleaning_fee || 0;
+                const expectedBase = reservation.total_revenue - expectedCleaningFee;
+                const expectedCommission = expectedBase * (property.commission_rate || 0);
+
+                // Se cleaning_fee difere do padrão da propriedade, foi alterado manualmente
+                if (reservation.cleaning_fee != null && Math.abs(reservation.cleaning_fee - expectedCleaningFee) > 0.01) {
+                    setManualCleaningFee(reservation.cleaning_fee);
+                }
+                // Se comissão difere do cálculo automático, foi alterada manualmente
+                if (reservation.commission_amount != null && Math.abs(reservation.commission_amount - expectedCommission) > 0.01) {
+                    setManualCommission(reservation.commission_amount);
+                }
+            }
         }
     }, [reservation, properties, reset]);
     
@@ -284,10 +300,6 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                 cleaning_rating: data.cleaning_rating ?? 0,
             };
             delete submissionData.cleaning_destination;
-            // Trigger no banco calcula automaticamente esses valores
-            delete submissionData.base_revenue;
-            delete submissionData.commission_amount;
-            delete submissionData.net_revenue;
 
             if (reservation) {
                 const { error } = await supabase.from('reservations').update(submissionData).eq('id', reservation.id);
