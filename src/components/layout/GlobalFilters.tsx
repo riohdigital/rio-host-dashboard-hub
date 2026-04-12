@@ -172,7 +172,71 @@ const GlobalFilters = () => {
         </Select>
 
         {selectedPeriod === 'custom' && (
-          <div className="space-y-2 p-3 bg-muted/50 rounded-lg border">
+          <div className="space-y-3 p-3 bg-muted/50 rounded-lg border">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">Selecionar Mês</label>
+              <div className="flex gap-2">
+                <Select
+                  value={
+                    customStartDate && customEndDate &&
+                    customStartDate.getDate() === 1 &&
+                    new Date(customStartDate.getFullYear(), customStartDate.getMonth() + 1, 0).getDate() === customEndDate.getDate() &&
+                    customStartDate.getMonth() === customEndDate.getMonth() &&
+                    customStartDate.getFullYear() === customEndDate.getFullYear()
+                      ? String(customStartDate.getMonth())
+                      : undefined
+                  }
+                  onValueChange={(val) => {
+                    const month = parseInt(val);
+                    const year = customStartDate ? customStartDate.getFullYear() : new Date().getFullYear();
+                    setCustomStartDate(new Date(year, month, 1));
+                    setCustomEndDate(new Date(year, month + 1, 0));
+                  }}
+                >
+                  <SelectTrigger className="h-8 text-xs flex-1">
+                    <SelectValue placeholder="Mês" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'].map((m, i) => (
+                      <SelectItem key={i} value={String(i)} className="text-xs">{m}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={
+                    customStartDate && customEndDate &&
+                    customStartDate.getDate() === 1 &&
+                    new Date(customStartDate.getFullYear(), customStartDate.getMonth() + 1, 0).getDate() === customEndDate.getDate() &&
+                    customStartDate.getMonth() === customEndDate.getMonth() &&
+                    customStartDate.getFullYear() === customEndDate.getFullYear()
+                      ? String(customStartDate.getFullYear())
+                      : undefined
+                  }
+                  onValueChange={(val) => {
+                    const year = parseInt(val);
+                    const month = customStartDate ? customStartDate.getMonth() : new Date().getMonth();
+                    setCustomStartDate(new Date(year, month, 1));
+                    setCustomEndDate(new Date(year, month + 1, 0));
+                  }}
+                >
+                  <SelectTrigger className="h-8 text-xs w-[80px]">
+                    <SelectValue placeholder="Ano" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: new Date().getFullYear() - 2020 + 2 }, (_, i) => 2020 + i).map(y => (
+                      <SelectItem key={y} value={String(y)} className="text-xs">{y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="flex-1 h-px bg-border" />
+              <span className="text-[10px] text-muted-foreground uppercase">ou período livre</span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+
             <div className="space-y-1">
               <label className="text-xs font-medium">Data Inicial</label>
               <DatePicker 
