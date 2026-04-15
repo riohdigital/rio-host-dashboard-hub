@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
+import { Search, Copy } from 'lucide-react';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -16,6 +17,8 @@ import { Property } from '@/types/property';
 import { useToast } from '@/hooks/use-toast';
 import { Pencil, Star, Check, X } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
+import { format as formatDate } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import CleanerCreateModal from './CleanerCreateModal';
 
 // CORREÇÃO 1: A validação do 'property_id' foi relaxada para 'optional()'.
@@ -76,6 +79,10 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
     const [manualCommission, setManualCommission] = useState<number | undefined>(undefined);
     const [showCleanerForm, setShowCleanerForm] = useState(false);
     const [showCleanerModal, setShowCleanerModal] = useState(false);
+    const [duplicateSearch, setDuplicateSearch] = useState('');
+    const [duplicateResults, setDuplicateResults] = useState<any[]>([]);
+    const [duplicateLoading, setDuplicateLoading] = useState(false);
+    const [duplicateApplied, setDuplicateApplied] = useState<string | null>(null);
     const { toast } = useToast();
 
     const {
@@ -332,11 +339,145 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
         });
     };
 
+    // Busca de reservas para duplicação
+    const searchReservations = useCallback(async (query: string) => {
+        if (query.length < 3) {
+            setDuplicateResults([]);
+            return;
+        }
+        setDuplicateLoading(true);
+        try {
+            const { data, error } = await supabase
+                .from('reservations')
+                .select('*, properties:property_id(name, nickname)')
+                .or(`reservation_code.ilike.%${query}%,guest_name.ilike.%${query}%`)
+                .order('check_in_date', { ascending: false })
+                .limit(8);
+            if (error) throw error;
+            setDuplicateResults(data || []);
+        } catch (err) {
+            console.error('Erro ao buscar reservas:', err);
+        } finally {
+            setDuplicateLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (duplicateSearch.length >= 3) {
+                searchReservations(duplicateSearch);
+            } else {
+                setDuplicateResults([]);
+            }
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [duplicateSearch, searchReservations]);
+
+    const applyDuplicate = (source: any) => {
+        setValue('property_id', source.property_id || '');
+        setValue('platform', source.platform || 'Direto');
+        setValue('reservation_code', source.reservation_code || '');
+        setValue('guest_name', source.guest_name || '');
+        setValue('guest_email', source.guest_email || '');
+        setValue('guest_phone', source.guest_phone || '');
+        setValue('number_of_guests', source.number_of_guests || undefined);
+        setValue('total_revenue', source.total_revenue || 0);
+        setValue('check_in_date', source.check_in_date || '');
+        setValue('check_out_date', source.check_out_date || '');
+        setValue('checkin_time', source.checkin_time?.slice(0, 5) || '');
+        setValue('checkout_time', source.checkout_time?.slice(0, 5) || '');
+        setValue('cleaning_fee', source.cleaning_fee ?? null);
+        setValue('payment_status', source.payment_status || 'Pendente');
+        setValue('reservation_status', source.reservation_status || 'Confirmada');
+        
+        if (source.cleaning_fee != null) {
+            setManualCleaningFee(source.cleaning_fee);
+        }
+        
+        // Set cleaning destination
+        if (source.cleaner_user_id) {
+            setValue('cleaning_destination', source.cleaner_user_id);
+            setValue('cleaner_user_id', source.cleaner_user_id);
+        } else if (source.cleaning_allocation === 'co_anfitriao') {
+            setValue('cleaning_destination', 'host');
+        } else if (source.cleaning_allocation === 'proprietario') {
+            setValue('cleaning_destination', 'owner');
+        }
+
+        setDuplicateApplied(source.reservation_code);
+        setDuplicateSearch('');
+        setDuplicateResults([]);
+        toast({ title: "Dados copiados", description: `Reserva ${source.reservation_code} duplicada. Ajuste as datas e outros campos conforme necessário.` });
+    };
+
     if (!properties.length && !reservation) return <p>Carregando...</p>;
 
     return (
-        // A função de log de erros foi adicionada ao 'handleSubmit'
         <form onSubmit={handleSubmit(onSubmit, onValidationErrors)} className="space-y-6">
+            {/* Seção de duplicação - apenas no modo criação */}
+            {!reservation && (
+                <Card className="border-dashed border-primary/30 bg-primary/5">
+                    <CardHeader className="pb-3 pt-4">
+                        <CardTitle className="text-sm font-medium flex items-center gap-2 text-primary">
+                            <Copy className="h-4 w-4" />
+                            Duplicar uma Reserva
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pb-4">
+                        {duplicateApplied ? (
+                            <div className="flex items-center justify-between rounded-md bg-primary/10 px-3 py-2 text-sm">
+                                <span>Dados copiados de <strong>{duplicateApplied}</strong></span>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setDuplicateApplied(null)}
+                                >
+                                    <X className="h-3 w-3" />
+                                </Button>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        placeholder="Buscar por código ou nome do hóspede..."
+                                        value={duplicateSearch}
+                                        onChange={(e) => setDuplicateSearch(e.target.value)}
+                                        className="pl-9"
+                                    />
+                                </div>
+                                {duplicateLoading && (
+                                    <p className="text-xs text-muted-foreground mt-2">Buscando...</p>
+                                )}
+                                {duplicateResults.length > 0 && (
+                                    <div className="mt-2 border rounded-md max-h-48 overflow-y-auto divide-y">
+                                        {duplicateResults.map((r) => (
+                                            <button
+                                                key={r.id}
+                                                type="button"
+                                                className="w-full text-left px-3 py-2 hover:bg-accent text-sm transition-colors"
+                                                onClick={() => applyDuplicate(r)}
+                                            >
+                                                <div className="font-medium">
+                                                    {r.reservation_code} — {r.guest_name || 'Sem nome'}
+                                                </div>
+                                                <div className="text-xs text-muted-foreground">
+                                                    {(r.properties as any)?.nickname || (r.properties as any)?.name || '—'} · {r.check_in_date} → {r.check_out_date}
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                                {duplicateSearch.length >= 3 && !duplicateLoading && duplicateResults.length === 0 && (
+                                    <p className="text-xs text-muted-foreground mt-2">Nenhuma reserva encontrada.</p>
+                                )}
+                            </>
+                        )}
+                    </CardContent>
+                </Card>
+            )}
+
             <h3 className="text-lg font-semibold text-blue-600 border-b pb-2">Informações da Reserva</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
