@@ -79,6 +79,10 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
     const [manualCommission, setManualCommission] = useState<number | undefined>(undefined);
     const [showCleanerForm, setShowCleanerForm] = useState(false);
     const [showCleanerModal, setShowCleanerModal] = useState(false);
+    const [duplicateSearch, setDuplicateSearch] = useState('');
+    const [duplicateResults, setDuplicateResults] = useState<any[]>([]);
+    const [duplicateLoading, setDuplicateLoading] = useState(false);
+    const [duplicateApplied, setDuplicateApplied] = useState<string | null>(null);
     const { toast } = useToast();
 
     const {
