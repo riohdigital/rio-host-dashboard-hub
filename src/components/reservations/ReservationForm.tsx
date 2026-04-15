@@ -17,6 +17,8 @@ import { Property } from '@/types/property';
 import { useToast } from '@/hooks/use-toast';
 import { Pencil, Star, Check, X } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
+import { format as formatDate } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import CleanerCreateModal from './CleanerCreateModal';
 
 // CORREÇÃO 1: A validação do 'property_id' foi relaxada para 'optional()'.
