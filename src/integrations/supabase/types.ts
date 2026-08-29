@@ -101,17 +101,17 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "channel_sync_runs_source_id_fkey"
-            columns: ["source_id"]
-            isOneToOne: false
-            referencedRelation: "channel_sync_sources"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "channel_sync_runs_property_id_fkey"
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_sync_runs_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "channel_sync_sources"
             referencedColumns: ["id"]
           },
         ]
@@ -1331,6 +1331,14 @@ export type Database = {
       reassign_cleaning_with_permissions: {
         Args: { new_cleaner_id: string; reservation_id: string }
         Returns: string
+      }
+      sync_user_can_manage_property: {
+        Args: { p_property_id: string }
+        Returns: boolean
+      }
+      sync_user_can_read_property: {
+        Args: { p_property_id: string }
+        Returns: boolean
       }
       unassign_cleaning_with_permissions: {
         Args: { reservation_id: string }
