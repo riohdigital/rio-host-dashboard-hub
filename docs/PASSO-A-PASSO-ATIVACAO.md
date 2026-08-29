@@ -227,10 +227,11 @@ estadia vinda dos dois feeds e registra só uma vez.
      aparece no Airbnb/Booking. **Não pule esse campo** se você tem mais de um
      imóvel — é ele que faz os e-mails caírem na propriedade certa.
 
-     Aceita **vários nomes, um por linha**. Se você renomeou o anúncio em
-     algum momento, escreva o nome atual e também os antigos: os e-mails já
-     recebidos continuam trazendo o nome que o anúncio tinha na época, e sem
-     eles o histórico não casa.
+     Aceita **vários nomes, um por linha**, mas na prática você não precisa
+     preencher: o sistema aprende o nome sozinho a partir dos e-mails, e
+     reconhece um anúncio renomeado por semelhança de título. Quando não
+     tiver certeza, ele pergunta na fila de conferência, e a sua escolha já
+     fica guardada para as próximas vezes.
 3. Salve e repita para cada anúncio. **Uma propriedade anunciada nas duas
    plataformas precisa de dois cadastros** — um com o link do Airbnb e outro com
    o do Booking.com, ambos apontando para a mesma propriedade.
@@ -273,7 +274,7 @@ Esta é a etapa que traz hóspede, valor, comissão e cancelamento.
 
 ✅ **Como conferir:** na próxima reserva, o dashboard passa a mostrar nome do
 hóspede e valor. No Gmail, os e-mails processados ganham o rótulo
-`RioHost/Processado`.
+`Rioh Host/Processado`.
 
 ### 8.1 Recuperar reservas antigas (opcional)
 

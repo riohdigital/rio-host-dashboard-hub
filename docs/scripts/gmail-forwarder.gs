@@ -27,8 +27,19 @@ const FUNCTION_URL =
 /** Mesmo valor do secret CHANNEL_SYNC_SECRET configurado no Supabase. */
 const SYNC_SECRET = 'COLE_AQUI_O_SEGREDO';
 
-/** Rótulo aplicado às mensagens já enviadas. */
-const LABEL_OK = 'RioHost/Processado';
+/** Rótulo aplicado às mensagens já aproveitadas. */
+const LABEL_OK = 'Rioh Host/Processado';
+
+/**
+ * Rótulo das mensagens que o dashboard recebeu mas não conseguiu aproveitar
+ * ainda (propriedade não identificada, datas ilegíveis).
+ *
+ * Elas continuam entrando nas próximas execuções: assim que a configuração
+ * melhorar — um apelido de anúncio aprendido, uma reserva do calendário que
+ * chegou depois — a mensagem é reaproveitada sozinha, sem ninguém mexer no
+ * Gmail.
+ */
+const LABEL_PENDENTE = 'Rioh Host/Pendente';
 
 /** Quantos dias para trás olhar em cada execução automática. */
 const JANELA_DIAS = 7;
@@ -48,9 +59,15 @@ const LIMITE_POR_REQUISICAO = 50;
 /** Quantas conversas examinar por execução. */
 const LOTE_CONVERSAS = 100;
 
+/** Converte "Rioh Host/Processado" na forma que a busca do Gmail entende. */
+function comoRotuloDeBusca_(nome) {
+  return nome.replace(/\//g, '-').replace(/\s+/g, '-');
+}
+
+// Exclui só o que já foi aproveitado. O que ficou pendente volta na próxima.
 const QUERY_BASE =
   '(from:airbnb.com OR from:booking.com) ' +
-  '-label:' + LABEL_OK.replace(/\//g, '-').replace(/\s/g, '-');
+  '-label:' + comoRotuloDeBusca_(LABEL_OK);
 // ----------------------------------------------------------------------------
 
 function configurar() {
@@ -82,7 +99,8 @@ function sincronizarHistorico() {
  * fora do lote seria marcada como processada sem nunca ter sido enviada.
  */
 function processarLote_(filtroData) {
-  const rotulo = obterOuCriarRotulo_(LABEL_OK);
+  const rotuloOk = obterOuCriarRotulo_(LABEL_OK);
+  const rotuloPendente = obterOuCriarRotulo_(LABEL_PENDENTE);
   const query = QUERY_BASE + ' ' + filtroData;
   const threads = GmailApp.search(query, 0, LOTE_CONVERSAS);
 
@@ -92,7 +110,9 @@ function processarLote_(filtroData) {
   }
 
   const emails = [];
-  const processadas = [];
+  const conversas = [];
+  // Para cada e-mail enviado, de qual conversa ele veio.
+  const origem = [];
 
   for (let i = 0; i < threads.length; i++) {
     const mensagens = threads[i].getMessages();
@@ -106,6 +126,9 @@ function processarLote_(filtroData) {
     // Não parte a conversa no meio: o que não couber fica para a próxima.
     if (emails.length > 0 && emails.length + mensagens.length > LOTE) break;
 
+    const indiceDaConversa = conversas.length;
+    conversas.push(threads[i]);
+
     for (let j = 0; j < mensagens.length; j++) {
       const message = mensagens[j];
       emails.push({
@@ -116,9 +139,8 @@ function processarLote_(filtroData) {
         messageId: message.getId(),
         receivedAt: message.getDate().toISOString(),
       });
+      origem.push(indiceDaConversa);
     }
-
-    processadas.push(threads[i]);
   }
 
   if (emails.length === 0) {
@@ -143,16 +165,67 @@ function processarLote_(filtroData) {
     throw new Error('Falha ao enviar para o dashboard: HTTP ' + codigo);
   }
 
-  processadas.forEach(function (thread) {
-    thread.addLabel(rotulo);
-  });
+  // Conversa que gerou pendência não é marcada como processada: ela volta nas
+  // próximas execuções até o dashboard conseguir aproveitá-la.
+  const pendentes = {};
+  let resultados = [];
+  try {
+    resultados = (JSON.parse(corpo) || {}).results || [];
+  } catch (erro) {
+    Logger.log('Resposta não pôde ser lida como JSON: %s', erro);
+  }
 
-  Logger.log('Enviados %s e-mail(s) de %s conversa(s). Resposta: %s',
-    emails.length, processadas.length, corpo);
+  for (let i = 0; i < resultados.length; i++) {
+    if (resultados[i] && resultados[i].action === 'pending' && origem[i] !== undefined) {
+      pendentes[origem[i]] = true;
+    }
+  }
 
-  if (processadas.length < threads.length) {
+  let comPendencia = 0;
+  for (let i = 0; i < conversas.length; i++) {
+    if (pendentes[i]) {
+      conversas[i].addLabel(rotuloPendente);
+      comPendencia++;
+    } else {
+      conversas[i].addLabel(rotuloOk);
+      conversas[i].removeLabel(rotuloPendente);
+    }
+  }
+
+  Logger.log('Enviados %s e-mail(s) de %s conversa(s); %s aguardando conferência. Resposta: %s',
+    emails.length, conversas.length, comPendencia, corpo);
+
+  if (conversas.length < threads.length) {
     Logger.log('Ainda restam conversas para processar — rode esta função de novo.');
   }
+}
+
+/**
+ * Devolve à fila todos os e-mails já processados, para que passem de novo pela
+ * lógica atual do dashboard.
+ *
+ * Útil depois de uma melhoria no reconhecimento: nada é apagado, só o rótulo
+ * de "processado" sai e a próxima execução reavalia tudo.
+ */
+function reprocessarTudo() {
+  const rotuloOk = obterOuCriarRotulo_(LABEL_OK);
+  const rotuloPendente = obterOuCriarRotulo_(LABEL_PENDENTE);
+  let removidas = 0;
+
+  // Em blocos: uma caixa grande não cabe numa única busca.
+  for (let volta = 0; volta < 20; volta++) {
+    const threads = rotuloOk.getThreads(0, 100);
+    if (threads.length === 0) break;
+
+    for (let i = 0; i < threads.length; i++) {
+      threads[i].removeLabel(rotuloOk);
+      threads[i].removeLabel(rotuloPendente);
+      removidas++;
+    }
+  }
+
+  Logger.log('%s conversa(s) devolvidas à fila. Rode sincronizarHistorico para reavaliar.',
+    removidas);
 }
 
 /** Simulação: mostra o que seria extraído sem gravar nada no banco. */

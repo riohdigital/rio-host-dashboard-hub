@@ -10,6 +10,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -46,11 +49,14 @@ const ChannelSyncSection: React.FC = () => {
   const {
     sources, runs, pending, loading, syncing, error,
     saveSource, deleteSource, toggleSource, runSync, resolvePending,
+    assignPendingProperty,
   } = useChannelSync();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<ChannelSyncSource | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ChannelSyncSource | null>(null);
+  // Propriedade escolhida em cada pendência de "propriedade não identificada".
+  const [escolhas, setEscolhas] = useState<Record<string, string>>({});
 
   const propertyName = useMemo(() => {
     const map = new Map(properties.map((p) => [p.id, p.nickname || p.name]));
@@ -98,6 +104,26 @@ const ChannelSyncSection: React.FC = () => {
     } catch (err) {
       toast({
         title: 'Erro ao atualizar',
+        description: err instanceof Error ? err.message : 'Tente novamente.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleAssign = async (id: string) => {
+    const propertyId = escolhas[id];
+    if (!propertyId) return;
+
+    try {
+      await assignPendingProperty(id, propertyId);
+      toast({
+        title: 'Propriedade vinculada',
+        description:
+          'O nome do anúncio foi guardado no calendário. A próxima sincronização de e-mail cria a reserva.',
+      });
+    } catch (err) {
+      toast({
+        title: 'Erro ao vincular',
         description: err instanceof Error ? err.message : 'Tente novamente.',
         variant: 'destructive',
       });
@@ -301,6 +327,48 @@ const ChannelSyncSection: React.FC = () => {
                     </span>
                   </div>
                   <p className="text-sm mt-2">{item.summary}</p>
+
+                  {item.kind === 'unmatched_property' && (
+                    <div className="mt-3 rounded-md bg-gray-50 p-3 space-y-2">
+                      {(item.payload as { listing_name?: string })?.listing_name && (
+                        <p className="text-xs text-gray-600">
+                          Anúncio no e-mail:{' '}
+                          <strong>{(item.payload as { listing_name?: string }).listing_name}</strong>
+                        </p>
+                      )}
+                      <p className="text-xs text-gray-500">
+                        Escolha o imóvel: o nome do anúncio fica guardado no calendário e os
+                        próximos e-mails se resolvem sozinhos.
+                      </p>
+                      <div className="flex flex-col gap-2 sm:flex-row">
+                        <Select
+                          value={escolhas[item.id] ?? ''}
+                          onValueChange={(value) =>
+                            setEscolhas((atual) => ({ ...atual, [item.id]: value }))}
+                        >
+                          <SelectTrigger className="sm:w-72">
+                            <SelectValue placeholder="Selecione a propriedade" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {properties.map((property) => (
+                              <SelectItem key={property.id} value={property.id}>
+                                {property.nickname || property.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          size="sm"
+                          disabled={!escolhas[item.id]}
+                          onClick={() => handleAssign(item.id)}
+                          className="bg-[#6A6DDF] hover:bg-[#5A5BCF]"
+                        >
+                          Vincular
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex gap-2 mt-3">
                     <Button size="sm" variant="outline" onClick={() => handlePending(item.id, 'resolved')}>
                       <CheckCircle2 className="h-4 w-4 mr-1" />

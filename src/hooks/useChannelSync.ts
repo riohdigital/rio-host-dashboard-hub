@@ -150,6 +150,63 @@ export const useChannelSync = () => {
     [fetchAll],
   );
 
+  /**
+   * Aponta a propriedade certa para uma pendência de "propriedade não
+   * identificada" e guarda o nome do anúncio no calendário correspondente.
+   *
+   * O e-mail continua marcado como pendente no Gmail, então a próxima
+   * sincronização o reaproveita — agora com a propriedade conhecida.
+   */
+  const assignPendingProperty = useCallback(
+    async (pendingId: string, propertyId: string) => {
+      const item = pending.find((entry) => entry.id === pendingId);
+      if (!item) return;
+
+      const payload = (item.payload ?? {}) as { listing_name?: string | null };
+      const listingName = payload.listing_name?.trim();
+
+      if (listingName && listingName.length >= 5 && item.platform) {
+        const source = sources.find(
+          (entry) => entry.property_id === propertyId && entry.platform === item.platform,
+        );
+
+        if (source) {
+          const atuais = (source.listing_alias ?? '')
+            .split(/[\n|;]+/)
+            .map((alias) => alias.trim())
+            .filter(Boolean);
+
+          const jaTem = atuais.some(
+            (alias) => alias.toLowerCase() === listingName.toLowerCase(),
+          );
+
+          if (!jaTem) {
+            const { error: aliasError } = await supabase
+              .from('channel_sync_sources')
+              .update({ listing_alias: [...atuais, listingName].join('\n') })
+              .eq('id', source.id);
+            if (aliasError) throw aliasError;
+          }
+        }
+      }
+
+      const { data: userData } = await supabase.auth.getUser();
+      const { error: updateError } = await supabase
+        .from('reservation_sync_pending')
+        .update({
+          property_id: propertyId,
+          status: 'resolved',
+          resolved_at: new Date().toISOString(),
+          resolved_by: userData?.user?.id ?? null,
+        })
+        .eq('id', pendingId);
+
+      if (updateError) throw updateError;
+      await fetchAll();
+    },
+    [pending, sources, fetchAll],
+  );
+
   return {
     sources,
     runs,
@@ -163,5 +220,6 @@ export const useChannelSync = () => {
     toggleSource,
     runSync,
     resolvePending,
+    assignPendingProperty,
   };
 };
