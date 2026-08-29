@@ -64,6 +64,12 @@ isso a solução aqui usa **dois canais complementares**.
 30 minutos, cria a reserva com as datas corretas e guarda o `UID` do evento
 para nunca duplicar.
 
+**Canal 3 — extrato (dinheiro).** Nem o iCal nem o e-mail informam quanto a
+reserva rendeu: o Airbnb e o Booking.com simplesmente não mandam valor por
+esses caminhos. O valor vem da exportação de reservas de cada plataforma,
+lida em **Configurações → Sincronização de Reservas → Importar valores do
+extrato**. Grava-se o **líquido**, já sem a comissão da plataforma.
+
 **Canal 2 — e-mail (carne).** `ingest-reservation-email` recebe os e-mails das
 plataformas, extrai hóspede/valor/comissão e **completa** a reserva que o iCal
 já criou, casando por código de reserva ou por propriedade + data de check-in.
@@ -247,6 +253,13 @@ Envie até 50 de uma vez usando `{ "emails": [ ... ] }`.
 | Nº de hóspedes | ❌ | ❌ | ✅ |
 | Telefone | 4 dígitos | ❌ | ✅ (quando o e-mail traz) |
 | Cancelamento | indireto | indireto | ✅ |
+
+O extrato é a única fonte de valor. No Booking.com sai em *Reservas →
+Exportar* (um arquivo por acomodação, daí a tela pedir o imóvel); no Airbnb, em
+*Ganhos → Histórico de transações* (um arquivo com todos os anúncios, cada
+linha dizendo a qual pertence). Uma estadia longa do Airbnb aparece em várias
+linhas, pagas por parcela: elas são somadas por código de reserva. Linhas de
+repasse bancário e de acerto entre anfitriões ficam de fora.
 
 Reservas criadas só pelo iCal nascem com `total_revenue = 0` e código
 provisório no formato `SYNC-XXXXXXX`. Quando o e-mail correspondente chega, o

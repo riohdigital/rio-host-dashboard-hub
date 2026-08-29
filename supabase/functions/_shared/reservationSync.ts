@@ -110,6 +110,81 @@ export function daysBetween(startIso: string, endIso: string): number {
   return Math.round((end - start) / 86_400_000);
 }
 
+const COLUNAS_RESERVA =
+  'id, property_id, platform, reservation_code, check_in_date, check_out_date, reservation_status';
+
+/** Só aceita o resultado quando todas as linhas são da mesma propriedade. */
+function umaPropriedadeSo(rows: any[] | null | undefined): any | null {
+  if (!rows?.length) return null;
+  const propriedades = new Set(rows.map((row: any) => row.property_id));
+  return propriedades.size === 1 ? rows[0] : null;
+}
+
+export interface ReservationLookup {
+  platform: string;
+  reservationCode?: string | null;
+  checkIn?: string | null;
+  checkOut?: string | null;
+  /** Quando a propriedade já é conhecida, restringe a busca a ela. */
+  propertyId?: string | null;
+}
+
+/**
+ * Procura a reserva que um e-mail ou uma linha de extrato descreve.
+ *
+ * É o outro lado da moeda dos dois canais: a plataforma traz hóspede e valor
+ * mas às vezes omite a propriedade e as datas; a reserva que o iCal já criou
+ * tem exatamente essas duas coisas. Da pista mais forte para a mais fraca.
+ */
+export async function findReservationByHints(
+  supabase: any,
+  lookup: ReservationLookup,
+): Promise<any | null> {
+  // 1. Código real da plataforma.
+  if (lookup.reservationCode) {
+    const { data } = await supabase
+      .from('reservations')
+      .select(COLUNAS_RESERVA)
+      .eq('platform', lookup.platform)
+      .eq('reservation_code', lookup.reservationCode)
+      .limit(2);
+    if (data?.length === 1) return data[0];
+  }
+
+  // 2. As duas datas.
+  if (lookup.checkIn && lookup.checkOut) {
+    let query = supabase
+      .from('reservations')
+      .select(COLUNAS_RESERVA)
+      .eq('platform', lookup.platform)
+      .eq('check_in_date', lookup.checkIn)
+      .eq('check_out_date', lookup.checkOut);
+    if (lookup.propertyId) query = query.eq('property_id', lookup.propertyId);
+
+    const { data } = await query;
+    const unica = umaPropriedadeSo(data);
+    if (unica) return unica;
+  }
+
+  // 3. Só a data de entrada — é o que o assunto do "Nova reserva!" do
+  //    Booking.com oferece: "(6124022858, sexta-feira, 11 de setembro de 2026)".
+  if (lookup.checkIn) {
+    let query = supabase
+      .from('reservations')
+      .select(COLUNAS_RESERVA)
+      .eq('platform', lookup.platform)
+      .gte('check_in_date', shiftDate(lookup.checkIn, -1))
+      .lte('check_in_date', shiftDate(lookup.checkIn, 1));
+    if (lookup.propertyId) query = query.eq('property_id', lookup.propertyId);
+
+    const { data } = await query;
+    const unica = umaPropriedadeSo(data);
+    if (unica) return unica;
+  }
+
+  return null;
+}
+
 export interface ApplyOptions {
   /**
    * Não cria a reserva quando o período já está ocupado por outra reserva da

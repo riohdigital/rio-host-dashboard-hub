@@ -27,15 +27,20 @@ import {
   type ParsedEmailReservation,
   type RawEmail,
 } from '../_shared/emailParsers.ts';
-import { normalizeForMatch, semelhancaDeTitulos } from '../_shared/textUtils.ts';
+import {
+  learnSourceHints,
+  resolveProperty,
+  type PropertyRow,
+  type SourceRow,
+} from '../_shared/propertyMatching.ts';
 import {
   applyReservation,
   buildPlaceholderCode,
   corsHeaders,
   jsonResponse,
+  findReservationByHints,
   logRun,
   recordPending,
-  shiftDate,
   type ReservationCandidate,
 } from '../_shared/reservationSync.ts';
 
@@ -63,279 +68,6 @@ function normalizeEmailPayload(raw: any): RawEmail & { propertyId?: string } {
     receivedAt: pick('receivedAt', 'date', 'Date', 'timestamp'),
     propertyId: pick('propertyId', 'property_id'),
   };
-}
-
-interface PropertyRow {
-  id: string;
-  name: string;
-  nickname: string | null;
-}
-
-interface SourceRow {
-  property_id: string;
-  platform: string;
-  listing_alias: string | null;
-}
-
-/**
- * Descobre a propriedade do e-mail. Ordem: id explícito -> apelido do anúncio
- * configurado na fonte -> nome/apelido da propriedade citado no texto ->
- * propriedade única da conta.
- */
-function resolveProperty(
-  parsed: ParsedEmailReservation,
-  email: RawEmail & { propertyId?: string },
-  properties: PropertyRow[],
-  sources: SourceRow[],
-): { propertyId: string | null; how: string } {
-  if (email.propertyId && properties.some((p) => p.id === email.propertyId)) {
-    return { propertyId: email.propertyId, how: 'payload' };
-  }
-
-  const haystack = normalizeForMatch(`${email.subject ?? ''}\n${parsed.normalizedText}`);
-  const listing = parsed.listingName ? normalizeForMatch(parsed.listingName) : null;
-
-  const platformSources = sources.filter(
-    (source) => !parsed.platform || source.platform === parsed.platform,
-  );
-
-  // 1) identificador da acomodação: não muda quando o anúncio é renomeado
-  if (parsed.bookingHotelId) {
-    const porId = platformSources.find((source) =>
-      aliasHotelIds(source.listing_alias).includes(parsed.bookingHotelId!));
-    if (porId) return { propertyId: porId.property_id, how: 'booking_hotel_id' };
-  }
-
-  // 2) apelido do anúncio configurado ou já aprendido
-  const byAlias = platformSources
-    .flatMap((source) => aliasNomes(source.listing_alias)
-      .map((alias) => ({ source, alias: normalizeForMatch(alias) })))
-    .filter(({ alias }) => alias.length >= 3
-      && (haystack.includes(alias) || (listing && listing.includes(alias))))
-    .sort((a, b) => b.alias.length - a.alias.length);
-
-  if (byAlias.length > 0) {
-    return { propertyId: byAlias[0].source.property_id, how: 'listing_alias' };
-  }
-
-  // 2) nome ou apelido da propriedade citado no e-mail
-  const byName = properties
-    .flatMap((property) => [property.name, property.nickname]
-      .filter((value): value is string => !!value && value.trim().length >= 4)
-      .map((value) => ({ property, term: normalizeForMatch(value) })))
-    .filter(({ term }) => haystack.includes(term) || (listing && listing.includes(term)))
-    .sort((a, b) => b.term.length - a.term.length);
-
-  if (byName.length > 0) {
-    return { propertyId: byName[0].property.id, how: 'property_name' };
-  }
-
-  // 4) o anúncio foi renomeado: reconhece pelo grau de semelhança
-  if (parsed.listingName) {
-    const titulo = parsed.listingName;
-
-    const pontuados = platformSources
-      .flatMap((source) => aliasNomes(source.listing_alias).map((alias) => ({
-        propertyId: source.property_id,
-        score: semelhancaDeTitulos(titulo, alias),
-      })))
-      .concat(properties.flatMap((property) => [property.name, property.nickname]
-        .filter((valor): valor is string => !!valor)
-        .map((valor) => ({
-          propertyId: property.id,
-          score: semelhancaDeTitulos(titulo, valor),
-        }))))
-      .sort((a, b) => b.score - a.score);
-
-    const melhor = pontuados[0];
-    const rival = pontuados.find((item) => item.propertyId !== melhor?.propertyId);
-
-    // Exige tanto uma semelhança alta quanto distância da segunda colocada:
-    // dois anúncios parecidos em propriedades diferentes viram conferência.
-    if (melhor
-      && melhor.score >= SEMELHANCA_MINIMA
-      && (!rival || melhor.score - rival.score >= MARGEM_MINIMA)) {
-      return {
-        propertyId: melhor.propertyId,
-        how: `similaridade_${melhor.score.toFixed(2)}`,
-      };
-    }
-  }
-
-  // 5) conta com um imóvel só: não há ambiguidade possível
-  if (properties.length === 1) {
-    return { propertyId: properties[0].id, how: 'single_property' };
-  }
-
-  return { propertyId: null, how: 'unmatched' };
-}
-
-/** Quantos nomes de anúncio guardar por fonte, para não crescer sem limite. */
-const MAX_APELIDOS = 6;
-
-/**
- * Semelhança mínima para aceitar um anúncio renomeado, e vantagem mínima
- * sobre a segunda propriedade mais parecida.
- *
- * Calibrado com títulos reais: renomeações ficam entre 0,80 e 0,91, anúncios
- * de bairros diferentes que compartilham palavras genéricas ("Studio
- * Copacabana Praia" x "Studio Ipanema Praia") ficam em 0,50. Errar aqui joga
- * a reserva no imóvel errado, o que é pior que deixá-la para conferência.
- */
-const SEMELHANCA_MINIMA = 0.6;
-const MARGEM_MINIMA = 0.15;
-
-/**
- * O campo aceita vários nomes, um por linha (ou separados por | ou ;).
- *
- * Anúncios são renomeados de tempos em tempos, e os e-mails antigos continuam
- * trazendo o nome antigo. Guardar todos é o que mantém o histórico casando.
- */
-function splitAliases(value: string | null | undefined): string[] {
-  if (!value) return [];
-  return value
-    .split(/[\n|;]+/)
-    .map((item) => item.trim())
-    .filter((item) => item.length >= 3);
-}
-
-/** Prefixo das linhas que guardam um identificador, e não um nome. */
-const MARCADOR_HOTEL_ID = 'booking_hotel_id:';
-
-/** Só as linhas que são nome de anúncio. */
-function aliasNomes(value: string | null | undefined): string[] {
-  return splitAliases(value).filter((item) => !item.startsWith(MARCADOR_HOTEL_ID));
-}
-
-/** Só os identificadores de acomodação do Booking.com. */
-function aliasHotelIds(value: string | null | undefined): string[] {
-  return splitAliases(value)
-    .filter((item) => item.startsWith(MARCADOR_HOTEL_ID))
-    .map((item) => item.slice(MARCADOR_HOTEL_ID.length).trim())
-    .filter(Boolean);
-}
-
-const COLUNAS_RESERVA =
-  'id, property_id, platform, reservation_code, check_in_date, check_out_date';
-
-/** Só aceita o resultado quando todas as linhas são da mesma propriedade. */
-function umaPropriedadeSo(rows: any[] | null | undefined): any | null {
-  if (!rows?.length) return null;
-  const propriedades = new Set(rows.map((row: any) => row.property_id));
-  return propriedades.size === 1 ? rows[0] : null;
-}
-
-/**
- * Procura a reserva que este e-mail descreve.
- *
- * É o outro lado da moeda dos dois canais: o e-mail traz hóspede e valor mas
- * às vezes omite a propriedade e as datas; a reserva que o iCal já criou tem
- * exatamente essas duas coisas. Da pista mais forte para a mais fraca.
- */
-async function findReservationForEmail(
-  admin: any,
-  parsed: ParsedEmailReservation,
-  knownPropertyId: string | null,
-): Promise<any | null> {
-  if (!parsed.platform) return null;
-
-  // 1. Código real da plataforma.
-  if (parsed.reservationCode) {
-    const { data } = await admin
-      .from('reservations')
-      .select(COLUNAS_RESERVA)
-      .eq('platform', parsed.platform)
-      .eq('reservation_code', parsed.reservationCode)
-      .limit(2);
-    if (data?.length === 1) return data[0];
-  }
-
-  // 2. As duas datas.
-  if (parsed.checkIn && parsed.checkOut) {
-    let query = admin
-      .from('reservations')
-      .select(COLUNAS_RESERVA)
-      .eq('platform', parsed.platform)
-      .eq('check_in_date', parsed.checkIn)
-      .eq('check_out_date', parsed.checkOut);
-    if (knownPropertyId) query = query.eq('property_id', knownPropertyId);
-
-    const { data } = await query;
-    const unica = umaPropriedadeSo(data);
-    if (unica) return unica;
-  }
-
-  // 3. Só a data de entrada — é o que o assunto do "Nova reserva!" do
-  //    Booking.com oferece: "(6124022858, sexta-feira, 11 de setembro de 2026)".
-  if (parsed.checkIn) {
-    let query = admin
-      .from('reservations')
-      .select(COLUNAS_RESERVA)
-      .eq('platform', parsed.platform)
-      .gte('check_in_date', shiftDate(parsed.checkIn, -1))
-      .lte('check_in_date', shiftDate(parsed.checkIn, 1));
-    if (knownPropertyId) query = query.eq('property_id', knownPropertyId);
-
-    const { data } = await query;
-    const unica = umaPropriedadeSo(data);
-    if (unica) return unica;
-  }
-
-  return null;
-}
-
-/**
- * Guarda o nome do anúncio na fonte correspondente quando ele ainda não foi
- * preenchido. Assim o próximo e-mail da mesma propriedade se resolve sozinho,
- * sem depender de a reserva já existir.
- */
-/**
- * Guarda na fonte o que este e-mail ensinou sobre a propriedade: o nome do
- * anúncio e, no Booking.com, o identificador da acomodação.
- *
- * É o que faz o sistema ficar mais preciso sozinho a cada e-mail, sem ninguém
- * preencher configuração.
- */
-async function learnSourceHints(
-  admin: any,
-  propertyId: string,
-  platform: string,
-  parsed: ParsedEmailReservation,
-): Promise<void> {
-  const { data, error: readError } = await admin
-    .from('channel_sync_sources')
-    .select('id, listing_alias')
-    .eq('property_id', propertyId)
-    .eq('platform', platform)
-    .limit(1);
-
-  if (readError || !data?.length) return;
-
-  const fonte = data[0];
-  const linhas = splitAliases(fonte.listing_alias);
-  const novas: string[] = [];
-
-  const nome = parsed.listingName?.trim();
-  if (nome && nome.length >= 5 && aliasNomes(fonte.listing_alias).length < MAX_APELIDOS) {
-    const normalizado = normalizeForMatch(nome);
-    const conhecido = aliasNomes(fonte.listing_alias)
-      .some((alias) => normalizeForMatch(alias) === normalizado);
-    if (!conhecido) novas.push(nome);
-  }
-
-  const hotelId = parsed.bookingHotelId;
-  if (hotelId && !aliasHotelIds(fonte.listing_alias).includes(hotelId)) {
-    novas.push(`${MARCADOR_HOTEL_ID}${hotelId}`);
-  }
-
-  if (novas.length === 0) return;
-
-  const { error } = await admin
-    .from('channel_sync_sources')
-    .update({ listing_alias: [...linhas, ...novas].join('\n') })
-    .eq('id', fonte.id);
-
-  if (error) console.error('Não foi possível guardar os dados do anúncio:', error.message);
 }
 
 /** Fecha pendências que este e-mail acabou de resolver. */
@@ -410,11 +142,24 @@ async function processEmail(
     };
   }
 
-  const resolvida = resolveProperty(parsed, email, properties, sources);
+  const resolvida = resolveProperty({
+    platform: parsed.platform,
+    listingName: parsed.listingName,
+    hotelId: parsed.bookingHotelId,
+    haystack: `${email.subject ?? ''}\n${parsed.normalizedText}`,
+    properties,
+    sources,
+  });
 
   // Quando o e-mail não identifica a propriedade ou omite as datas, a reserva
   // que o iCal já criou responde as duas coisas.
-  const jaCadastrada = await findReservationForEmail(admin, parsed, resolvida.propertyId);
+  const jaCadastrada = await findReservationByHints(admin, {
+    platform: parsed.platform,
+    reservationCode: parsed.reservationCode,
+    checkIn: parsed.checkIn,
+    checkOut: parsed.checkOut,
+    propertyId: resolvida.propertyId,
+  });
 
   const propertyId = resolvida.propertyId ?? jaCadastrada?.property_id ?? null;
   const how = resolvida.propertyId
@@ -427,7 +172,10 @@ async function processEmail(
   // entra na configuração do calendário — mesmo que a reserva ainda não possa
   // ser criada. É o que faz uma renomeação se resolver sozinha na sequência.
   if (!dryRun && propertyId) {
-    await learnSourceHints(admin, propertyId, parsed.platform, parsed);
+    await learnSourceHints(admin, propertyId, parsed.platform, {
+      listingName: parsed.listingName,
+      hotelId: parsed.bookingHotelId,
+    });
   }
 
   const dedupeSeed = parsed.reservationCode
