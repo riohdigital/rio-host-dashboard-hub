@@ -339,6 +339,13 @@ WHERE reservation_code LIKE 'SYNC-%'
   de minutos a algumas horas. Para reagir em segundos só com API oficial de
   parceiro.
 - O Airbnb exporta apenas datas futuras — reservas antigas não entram por aqui.
+- **Nada trava por causa do nome do anúncio.** Ele é aprendido a partir dos
+  próprios e-mails e guardado no calendário; um anúncio renomeado é reconhecido
+  por semelhança de título; e o que ficar ambíguo vira uma pergunta na fila de
+  conferência, com um seletor de propriedade que também guarda a resposta.
+- **E-mail que gerou pendência não é dado por perdido.** Ele fica com o rótulo
+  `Rioh Host/Pendente` no Gmail e volta nas execuções seguintes, até que a
+  configuração melhore o bastante para aproveitá-lo.
 - As plataformas mandam muito mais e-mail do que confirmações de reserva
   (avisos de conta, pedidos de avaliação, marketing). Mensagens sem código de
   reserva **e** sem datas são descartadas em silêncio, para não encher a fila de

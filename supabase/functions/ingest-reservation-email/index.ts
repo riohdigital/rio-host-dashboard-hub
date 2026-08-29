@@ -384,6 +384,13 @@ async function processEmail(
   const checkIn = parsed.checkIn ?? jaCadastrada?.check_in_date ?? null;
   const checkOut = parsed.checkOut ?? jaCadastrada?.check_out_date ?? null;
 
+  // Assim que a propriedade é conhecida, o nome do anúncio que veio no e-mail
+  // entra na configuração do calendário — mesmo que a reserva ainda não possa
+  // ser criada. É o que faz uma renomeação se resolver sozinha na sequência.
+  if (!dryRun && propertyId && how !== 'listing_alias') {
+    await learnListingAlias(admin, propertyId, parsed.platform, parsed.listingName);
+  }
+
   const dedupeSeed = parsed.reservationCode
     ?? email.messageId
     ?? buildPlaceholderCode(`${email.subject}${parsed.checkIn}${parsed.checkOut}`);
@@ -407,6 +414,7 @@ async function processEmail(
       payload: {
         subject: email.subject,
         from: email.from,
+        listing_name: parsed.listingName,
         parsed: summaryOfParsed,
         excerpt: parsed.normalizedText.slice(0, 2000),
       },
@@ -459,12 +467,6 @@ async function processEmail(
   };
 
   const applied = await applyReservation(admin, candidate);
-
-  // Guarda o nome novo do anúncio, inclusive quando ele foi reconhecido por
-  // similaridade — assim a próxima mensagem casa direto, sem depender do palpite.
-  if (applied.reservationId && how !== 'listing_alias') {
-    await learnListingAlias(admin, propertyId, parsed.platform, parsed.listingName);
-  }
 
   if (applied.reservationId) {
     const kinds = parsed.intent === 'cancelled'
