@@ -271,6 +271,20 @@ function extractListingName(text: string, platform: SyncPlatform): string | null
   return cleaned.length > 1 && cleaned.length <= 120 ? cleaned : null;
 }
 
+/**
+ * O e-mail é mesmo sobre uma reserva?
+ *
+ * As plataformas mandam muito mais que confirmações: avisos de conta, pedidos
+ * de avaliação, mensagens de hóspede, marketing. Sem código de reserva e sem
+ * datas não há o que aproveitar — e mandar isso para a fila de conferência só
+ * gera ruído que esconde os casos que importam.
+ */
+export function looksLikeReservation(parsed: ParsedEmailReservation): boolean {
+  if (!parsed.platform) return false;
+  if (parsed.reservationCode) return true;
+  return !!parsed.checkIn && !!parsed.checkOut;
+}
+
 export function parseReservationEmail(
   email: RawEmail,
   options: { reference?: Date } = {},

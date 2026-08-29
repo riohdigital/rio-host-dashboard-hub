@@ -22,6 +22,7 @@ import { serve } from 'https://deno.land/std@0.190.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.3';
 
 import {
+  looksLikeReservation,
   parseReservationEmail,
   type ParsedEmailReservation,
   type RawEmail,
@@ -188,6 +189,15 @@ async function processEmail(
 
   if (!parsed.platform) {
     return { ...base, reason: 'Remetente não reconhecido como Airbnb ou Booking.com' };
+  }
+
+  // Aviso de conta, pedido de avaliação, marketing: descarta em silêncio em vez
+  // de encher a fila de conferência.
+  if (!looksLikeReservation(parsed)) {
+    return {
+      ...base,
+      reason: 'E-mail da plataforma sem código de reserva nem datas — não parece uma reserva',
+    };
   }
 
   const { propertyId, how } = resolveProperty(parsed, email, properties, sources);
