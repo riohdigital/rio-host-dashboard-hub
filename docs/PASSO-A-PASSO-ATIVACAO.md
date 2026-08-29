@@ -223,9 +223,14 @@ estadia vinda dos dois feeds e registra só uma vez.
    - **Propriedade:** o imóvel correspondente
    - **Plataforma:** Airbnb ou Booking.com
    - **Link iCal:** o link copiado
-   - **Nome do anúncio na plataforma:** o título exato do anúncio, como
+   - **Nomes do anúncio na plataforma:** o título exato do anúncio, como
      aparece no Airbnb/Booking. **Não pule esse campo** se você tem mais de um
      imóvel — é ele que faz os e-mails caírem na propriedade certa.
+
+     Aceita **vários nomes, um por linha**. Se você renomeou o anúncio em
+     algum momento, escreva o nome atual e também os antigos: os e-mails já
+     recebidos continuam trazendo o nome que o anúncio tinha na época, e sem
+     eles o histórico não casa.
 3. Salve e repita para cada anúncio. **Uma propriedade anunciada nas duas
    plataformas precisa de dois cadastros** — um com o link do Airbnb e outro com
    o do Booking.com, ambos apontando para a mesma propriedade.

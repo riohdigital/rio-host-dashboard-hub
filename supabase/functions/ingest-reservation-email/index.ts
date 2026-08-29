@@ -27,7 +27,7 @@ import {
   type ParsedEmailReservation,
   type RawEmail,
 } from '../_shared/emailParsers.ts';
-import { normalizeForMatch } from '../_shared/textUtils.ts';
+import { normalizeForMatch, semelhancaDeTitulos } from '../_shared/textUtils.ts';
 import {
   applyReservation,
   buildPlaceholderCode,
@@ -101,9 +101,10 @@ function resolveProperty(
 
   // 1) apelido do anúncio configurado pelo usuário
   const byAlias = platformSources
-    .filter((source) => source.listing_alias && source.listing_alias.trim().length >= 3)
-    .map((source) => ({ source, alias: normalizeForMatch(source.listing_alias!) }))
-    .filter(({ alias }) => haystack.includes(alias) || (listing && listing.includes(alias)))
+    .flatMap((source) => splitAliases(source.listing_alias)
+      .map((alias) => ({ source, alias: normalizeForMatch(alias) })))
+    .filter(({ alias }) => alias.length >= 3
+      && (haystack.includes(alias) || (listing && listing.includes(alias))))
     .sort((a, b) => b.alias.length - a.alias.length);
 
   if (byAlias.length > 0) {
@@ -122,12 +123,73 @@ function resolveProperty(
     return { propertyId: byName[0].property.id, how: 'property_name' };
   }
 
-  // 3) conta com um imóvel só: não há ambiguidade possível
+  // 3) o anúncio foi renomeado: reconhece pelo grau de semelhança
+  if (parsed.listingName) {
+    const titulo = parsed.listingName;
+
+    const pontuados = platformSources
+      .flatMap((source) => splitAliases(source.listing_alias).map((alias) => ({
+        propertyId: source.property_id,
+        score: semelhancaDeTitulos(titulo, alias),
+      })))
+      .concat(properties.flatMap((property) => [property.name, property.nickname]
+        .filter((valor): valor is string => !!valor)
+        .map((valor) => ({
+          propertyId: property.id,
+          score: semelhancaDeTitulos(titulo, valor),
+        }))))
+      .sort((a, b) => b.score - a.score);
+
+    const melhor = pontuados[0];
+    const rival = pontuados.find((item) => item.propertyId !== melhor?.propertyId);
+
+    // Exige tanto uma semelhança alta quanto distância da segunda colocada:
+    // dois anúncios parecidos em propriedades diferentes viram conferência.
+    if (melhor
+      && melhor.score >= SEMELHANCA_MINIMA
+      && (!rival || melhor.score - rival.score >= MARGEM_MINIMA)) {
+      return {
+        propertyId: melhor.propertyId,
+        how: `similaridade_${melhor.score.toFixed(2)}`,
+      };
+    }
+  }
+
+  // 4) conta com um imóvel só: não há ambiguidade possível
   if (properties.length === 1) {
     return { propertyId: properties[0].id, how: 'single_property' };
   }
 
   return { propertyId: null, how: 'unmatched' };
+}
+
+/** Quantos nomes de anúncio guardar por fonte, para não crescer sem limite. */
+const MAX_APELIDOS = 6;
+
+/**
+ * Semelhança mínima para aceitar um anúncio renomeado, e vantagem mínima
+ * sobre a segunda propriedade mais parecida.
+ *
+ * Calibrado com títulos reais: renomeações ficam entre 0,80 e 0,91, anúncios
+ * de bairros diferentes que compartilham palavras genéricas ("Studio
+ * Copacabana Praia" x "Studio Ipanema Praia") ficam em 0,50. Errar aqui joga
+ * a reserva no imóvel errado, o que é pior que deixá-la para conferência.
+ */
+const SEMELHANCA_MINIMA = 0.6;
+const MARGEM_MINIMA = 0.15;
+
+/**
+ * O campo aceita vários nomes, um por linha (ou separados por | ou ;).
+ *
+ * Anúncios são renomeados de tempos em tempos, e os e-mails antigos continuam
+ * trazendo o nome antigo. Guardar todos é o que mantém o histórico casando.
+ */
+function splitAliases(value: string | null | undefined): string[] {
+  if (!value) return [];
+  return value
+    .split(/[\n|;]+/)
+    .map((item) => item.trim())
+    .filter((item) => item.length >= 3);
 }
 
 const COLUNAS_RESERVA =
@@ -210,14 +272,30 @@ async function learnListingAlias(
   platform: string,
   listingName: string | null,
 ): Promise<void> {
-  if (!listingName || listingName.trim().length < 5) return;
+  const nome = listingName?.trim();
+  if (!nome || nome.length < 5) return;
+
+  const { data, error: readError } = await admin
+    .from('channel_sync_sources')
+    .select('id, listing_alias')
+    .eq('property_id', propertyId)
+    .eq('platform', platform)
+    .limit(1);
+
+  if (readError || !data?.length) return;
+
+  const fonte = data[0];
+  const atuais = splitAliases(fonte.listing_alias);
+
+  // Nome que já conhecemos (ou renomeação já registrada): nada a fazer.
+  const normalizado = normalizeForMatch(nome);
+  if (atuais.some((alias) => normalizeForMatch(alias) === normalizado)) return;
+  if (atuais.length >= MAX_APELIDOS) return;
 
   const { error } = await admin
     .from('channel_sync_sources')
-    .update({ listing_alias: listingName.trim() })
-    .eq('property_id', propertyId)
-    .eq('platform', platform)
-    .is('listing_alias', null);
+    .update({ listing_alias: [...atuais, nome].join('\n') })
+    .eq('id', fonte.id);
 
   if (error) console.error('Não foi possível guardar o nome do anúncio:', error.message);
 }
@@ -382,6 +460,8 @@ async function processEmail(
 
   const applied = await applyReservation(admin, candidate);
 
+  // Guarda o nome novo do anúncio, inclusive quando ele foi reconhecido por
+  // similaridade — assim a próxima mensagem casa direto, sem depender do palpite.
   if (applied.reservationId && how !== 'listing_alias') {
     await learnListingAlias(admin, propertyId, parsed.platform, parsed.listingName);
   }

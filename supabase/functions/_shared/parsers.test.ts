@@ -16,7 +16,12 @@ import {
   parseReservationEmail,
 } from './emailParsers.ts';
 import { datesOverlap } from './reservationSync.ts';
-import { htmlToText, parseDateFlexible, parseMoney } from './textUtils.ts';
+import {
+  htmlToText,
+  parseDateFlexible,
+  parseMoney,
+  semelhancaDeTitulos,
+} from './textUtils.ts';
 
 const REFERENCE = new Date('2026-08-29T00:00:00Z');
 
@@ -308,4 +313,37 @@ Deno.test('isPlausibleGuestName barra os falsos positivos observados', () => {
 
   assertEquals(isPlausibleGuestName('Maria Souza'), true);
   assertEquals(isPlausibleGuestName('Bartłomiej Korpała'), true);
+});
+
+Deno.test('semelhancaDeTitulos reconhece anúncio renomeado', () => {
+  const acima = (a: string, b: string) => semelhancaDeTitulos(a, b) >= 0.6;
+
+  // Renomeações do mesmo anúncio: precisam passar do corte de 0,6.
+  assertEquals(acima('Studio próximo a Praia de Copacabana', 'Studio Copacabana Praia'), true);
+  assertEquals(
+    acima('Studio próximo a Praia de Copacabana', 'Studio proximo à Praia de Copacabana - Reformado'),
+    true,
+  );
+  assertEquals(
+    acima(
+      'Lapa, Museus, Teatros e Aeroporto a Pé em Studio no Centro do Rio!',
+      'Studio no Centro do Rio: Lapa, Museus e Teatros',
+    ),
+    true,
+  );
+  assertEquals(acima('Brisa do Mar Flat', 'Flat Brisa do Mar - Vista'), true);
+
+  // Anúncios de imóveis diferentes: precisam ficar abaixo do corte.
+  assertEquals(
+    acima('Studio próximo a Praia de Copacabana', 'Lapa, Museus, Teatros e Aeroporto a Pé em Studio no Centro do Rio!'),
+    false,
+  );
+  assertEquals(acima('Studio próximo a Praia de Copacabana', 'Brisa do Mar Flat'), false);
+
+  // O caso perigoso: bairros diferentes com palavras genéricas em comum.
+  // Fica em 0,5 — abaixo do corte, e por isso vai para conferência.
+  assertEquals(acima('Studio Copacabana Praia', 'Studio Ipanema Praia'), false);
+
+  // Palavras genéricas de hospedagem não criam semelhança sozinhas.
+  assertEquals(semelhancaDeTitulos('Studio no Rio', 'Apartamento em Salvador'), 0);
 });

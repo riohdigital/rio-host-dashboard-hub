@@ -264,3 +264,46 @@ export function findLabelledValue(
 export function toLines(text: string): string[] {
   return text.split('\n').map((line) => line.trim()).filter(Boolean);
 }
+
+/**
+ * Palavras que não distinguem um anúncio de outro: preposições e os termos
+ * genéricos de hospedagem que aparecem em quase todo título.
+ */
+const PALAVRAS_VAZIAS = new Set([
+  'de', 'da', 'do', 'das', 'dos', 'a', 'o', 'e', 'em', 'no', 'na', 'nos', 'nas',
+  'com', 'para', 'por', 'um', 'uma', 'ao', 'aos', 'the', 'of', 'in', 'at', 'and',
+  'to', 'for', 'with',
+  'apto', 'apartamento', 'apartment', 'studio', 'estudio', 'flat', 'casa',
+  'house', 'quarto', 'room', 'suite', 'loft', 'kitnet', 'kitnete',
+]);
+
+/** Quebra um título em palavras significativas, sem acento e em minúsculas. */
+export function palavrasSignificativas(texto: string): Set<string> {
+  return new Set(
+    normalizeForMatch(texto)
+      .split(/[^a-z0-9]+/)
+      .filter((palavra) => palavra.length >= 3 && !PALAVRAS_VAZIAS.has(palavra)),
+  );
+}
+
+/**
+ * Semelhança entre dois títulos, de 0 a 1 (coeficiente de Dice sobre as
+ * palavras significativas).
+ *
+ * Serve para reconhecer um anúncio que foi renomeado: "Studio próximo a Praia
+ * de Copacabana" e "Studio Copacabana Praia" compartilham as palavras que
+ * importam, mesmo sem serem iguais.
+ */
+export function semelhancaDeTitulos(a: string, b: string): number {
+  const palavrasA = palavrasSignificativas(a);
+  const palavrasB = palavrasSignificativas(b);
+
+  if (palavrasA.size === 0 || palavrasB.size === 0) return 0;
+
+  let comuns = 0;
+  for (const palavra of palavrasA) {
+    if (palavrasB.has(palavra)) comuns++;
+  }
+
+  return (2 * comuns) / (palavrasA.size + palavrasB.size);
+}
