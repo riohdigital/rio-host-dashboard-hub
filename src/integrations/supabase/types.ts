@@ -47,6 +47,137 @@ export type Database = {
           },
         ]
       }
+      channel_sync_runs: {
+        Row: {
+          channel: string
+          details: Json | null
+          events_found: number
+          finished_at: string | null
+          id: string
+          message: string | null
+          pending_created: number
+          platform: string | null
+          property_id: string | null
+          reservations_created: number
+          reservations_skipped: number
+          reservations_updated: number
+          source_id: string | null
+          started_at: string
+          status: string
+        }
+        Insert: {
+          channel: string
+          details?: Json | null
+          events_found?: number
+          finished_at?: string | null
+          id?: string
+          message?: string | null
+          pending_created?: number
+          platform?: string | null
+          property_id?: string | null
+          reservations_created?: number
+          reservations_skipped?: number
+          reservations_updated?: number
+          source_id?: string | null
+          started_at?: string
+          status: string
+        }
+        Update: {
+          channel?: string
+          details?: Json | null
+          events_found?: number
+          finished_at?: string | null
+          id?: string
+          message?: string | null
+          pending_created?: number
+          platform?: string | null
+          property_id?: string | null
+          reservations_created?: number
+          reservations_skipped?: number
+          reservations_updated?: number
+          source_id?: string | null
+          started_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_sync_runs_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_sync_runs_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "channel_sync_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channel_sync_sources: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          dtend_is_checkout: boolean
+          ical_url: string | null
+          id: string
+          is_active: boolean
+          last_content_hash: string | null
+          last_sync_at: string | null
+          last_sync_message: string | null
+          last_sync_status: string | null
+          listing_alias: string | null
+          platform: string
+          property_id: string
+          source_type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          dtend_is_checkout?: boolean
+          ical_url?: string | null
+          id?: string
+          is_active?: boolean
+          last_content_hash?: string | null
+          last_sync_at?: string | null
+          last_sync_message?: string | null
+          last_sync_status?: string | null
+          listing_alias?: string | null
+          platform: string
+          property_id: string
+          source_type?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          dtend_is_checkout?: boolean
+          ical_url?: string | null
+          id?: string
+          is_active?: boolean
+          last_content_hash?: string | null
+          last_sync_at?: string | null
+          last_sync_message?: string | null
+          last_sync_status?: string | null
+          listing_alias?: string | null
+          platform?: string
+          property_id?: string
+          source_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_sync_sources_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cleaner_profiles: {
         Row: {
           address: string | null
@@ -469,6 +600,72 @@ export type Database = {
           },
         ]
       }
+      reservation_sync_pending: {
+        Row: {
+          channel: string
+          created_at: string
+          dedupe_key: string
+          id: string
+          kind: string
+          payload: Json
+          platform: string | null
+          property_id: string | null
+          reservation_id: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          summary: string | null
+          updated_at: string
+        }
+        Insert: {
+          channel: string
+          created_at?: string
+          dedupe_key: string
+          id?: string
+          kind: string
+          payload?: Json
+          platform?: string | null
+          property_id?: string | null
+          reservation_id?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          summary?: string | null
+          updated_at?: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          dedupe_key?: string
+          id?: string
+          kind?: string
+          payload?: Json
+          platform?: string | null
+          property_id?: string | null
+          reservation_id?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          summary?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservation_sync_pending_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservation_sync_pending_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "reservations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reservations: {
         Row: {
           automation_metadata: Json | null
@@ -488,11 +685,14 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           created_by_source: string | null
+          external_source: string | null
+          external_uid: string | null
           guest_email: string | null
           guest_name: string | null
           guest_phone: string | null
           id: string
           is_communicated: boolean | null
+          last_synced_at: string | null
           net_revenue: number | null
           number_of_guests: number | null
           payment_date: string | null
@@ -522,11 +722,14 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           created_by_source?: string | null
+          external_source?: string | null
+          external_uid?: string | null
           guest_email?: string | null
           guest_name?: string | null
           guest_phone?: string | null
           id?: string
           is_communicated?: boolean | null
+          last_synced_at?: string | null
           net_revenue?: number | null
           number_of_guests?: number | null
           payment_date?: string | null
@@ -556,11 +759,14 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           created_by_source?: string | null
+          external_source?: string | null
+          external_uid?: string | null
           guest_email?: string | null
           guest_name?: string | null
           guest_phone?: string | null
           id?: string
           is_communicated?: boolean | null
+          last_synced_at?: string | null
           net_revenue?: number | null
           number_of_guests?: number | null
           payment_date?: string | null
@@ -1125,6 +1331,14 @@ export type Database = {
       reassign_cleaning_with_permissions: {
         Args: { new_cleaner_id: string; reservation_id: string }
         Returns: string
+      }
+      sync_user_can_manage_property: {
+        Args: { p_property_id: string }
+        Returns: boolean
+      }
+      sync_user_can_read_property: {
+        Args: { p_property_id: string }
+        Returns: boolean
       }
       unassign_cleaning_with_permissions: {
         Args: { reservation_id: string }
