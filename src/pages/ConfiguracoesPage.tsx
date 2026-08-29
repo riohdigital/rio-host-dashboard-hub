@@ -3,8 +3,9 @@ import ProfileSection from '@/components/settings/ProfileSection';
 import ExpenseCategoriesSection from '@/components/settings/ExpenseCategoriesSection';
 import SecuritySection from '@/components/settings/SecuritySection';
 import UserManagementSection from '@/components/settings/UserManagementSection';
+import ChannelSyncSection from '@/components/settings/ChannelSyncSection';
 import { Button } from '@/components/ui/button';
-import { User, Tag, Shield, Users } from 'lucide-react';
+import { User, Tag, Shield, Users, RefreshCw } from 'lucide-react';
 
 const ConfiguracoesPage = () => {
   const [activeSection, setActiveSection] = useState('profile');
@@ -12,6 +13,7 @@ const ConfiguracoesPage = () => {
   const sections = [
     { id: 'profile', label: 'Meu Perfil', icon: User, component: ProfileSection },
     { id: 'categories', label: 'Categorias de Despesas', icon: Tag, component: ExpenseCategoriesSection },
+    { id: 'sync', label: 'Sincronização de Reservas', icon: RefreshCw, component: ChannelSyncSection },
     { id: 'security', label: 'Segurança', icon: Shield, component: SecuritySection },
     { id: 'users', label: 'Gerenciamento de Usuários', icon: Users, component: UserManagementSection },
   ];
