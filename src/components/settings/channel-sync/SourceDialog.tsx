@@ -35,6 +35,9 @@ const SourceDialog: React.FC<SourceDialogProps> = ({
   const [platform, setPlatform] = useState<SyncPlatform>('Airbnb');
   const [icalUrl, setIcalUrl] = useState('');
   const [listingAlias, setListingAlias] = useState('');
+  // Linhas técnicas (identificador da acomodação) que o sistema aprende
+  // sozinho: não aparecem no campo, mas são preservadas ao salvar.
+  const [marcadores, setMarcadores] = useState<string[]>([]);
   const [isActive, setIsActive] = useState(true);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -44,7 +47,12 @@ const SourceDialog: React.FC<SourceDialogProps> = ({
     setPropertyId(source?.property_id ?? '');
     setPlatform((source?.platform as SyncPlatform) ?? 'Airbnb');
     setIcalUrl(source?.ical_url ?? '');
-    setListingAlias(source?.listing_alias ?? '');
+    const linhas = (source?.listing_alias ?? '')
+      .split(/[\n|;]+/)
+      .map((linha) => linha.trim())
+      .filter(Boolean);
+    setListingAlias(linhas.filter((linha) => !linha.startsWith('booking_hotel_id:')).join('\n'));
+    setMarcadores(linhas.filter((linha) => linha.startsWith('booking_hotel_id:')));
     setIsActive(source?.is_active ?? true);
     setFormError(null);
   }, [open, source]);
@@ -72,7 +80,10 @@ const SourceDialog: React.FC<SourceDialogProps> = ({
         property_id: propertyId,
         platform,
         ical_url: trimmedUrl,
-        listing_alias: listingAlias,
+        listing_alias: [
+          ...listingAlias.split(/[\n|;]+/).map((linha) => linha.trim()).filter(Boolean),
+          ...marcadores,
+        ].join('\n'),
         is_active: isActive,
       }, source?.id);
       onOpenChange(false);

@@ -347,3 +347,53 @@ Deno.test('semelhancaDeTitulos reconhece anúncio renomeado', () => {
   // Palavras genéricas de hospedagem não criam semelhança sozinhas.
   assertEquals(semelhancaDeTitulos('Studio no Rio', 'Apartamento em Salvador'), 0);
 });
+
+Deno.test('hotel_id do Booking identifica a propriedade mesmo sem nome', () => {
+  // Corpo real do "Nova reserva!": sem datas, sem hóspede, sem valor. O que
+  // identifica a acomodação é o hotel_id no link da extranet — e ele não muda
+  // quando o anúncio é renomeado.
+  const confirmacao = parseReservationEmail({
+    from: 'Booking.com <noreply@booking.com>',
+    subject: 'Booking.com - Nova reserva! (6859442149, terça-feira, 12 de janeiro de 2027)',
+    html: `<div>Studio próximo a Praia de Copacabana
+      <p>Booking confirmation — 6859442149</p>
+      <a href="https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/booking.html?res_id=6859442149&hotel_id=14107413&lang=pt-br">link</a>
+    </div>`,
+  }, { reference: REFERENCE });
+
+  assertEquals(confirmacao.reservationCode, '6859442149');
+  assertEquals(confirmacao.checkIn, '2027-01-12');
+  // O link só existe no href: a leitura precisa olhar o HTML cru.
+  assertEquals(confirmacao.bookingHotelId, '14107413');
+
+  const outroImovel = parseReservationEmail({
+    from: 'noreply@booking.com',
+    subject: 'Booking.com - Nova reserva de última hora (5000446589, quarta-feira, 22 de julho de 2026)',
+    html: `<div>Lapa, Museus, Teatros e Aeroporto a Pé em Studio no Centro do Rio!
+      <a href="https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/booking.html?res_id=5000446589&hotel_id=14463427">link</a></div>`,
+  }, { reference: REFERENCE });
+
+  assertEquals(outroImovel.bookingHotelId, '14463427');
+});
+
+Deno.test('mensagem de hóspede do Booking traz a reserva completa', () => {
+  const mensagem = parseReservationEmail({
+    from: 'Caroline F Santos through Booking.com <5746792143-abc@guest.booking.com>',
+    subject: 'Recebemos uma mensagem de Caroline F Santos',
+    html: `<div><p>Número de confirmação: 5746792143</p>
+      <p>Dados da reserva</p>
+      <p>Nome do hóspede:</p><p>Caroline F Santos</p>
+      <p>Check-in:</p><p>qua., 2 de set. de 2026</p>
+      <p>Check-out:</p><p>ter., 8 de set. de 2026</p>
+      <p>Nome da propriedade:</p><p>Studio próximo a Praia de Copacabana</p>
+      <p>Número da reserva:</p><p>5746792143</p>
+      <p>Total de hóspedes:</p><p>2</p></div>`,
+  }, { reference: REFERENCE });
+
+  assertEquals(mensagem.guestName, 'Caroline F Santos');
+  assertEquals(mensagem.reservationCode, '5746792143');
+  assertEquals(mensagem.checkIn, '2026-09-02');
+  assertEquals(mensagem.checkOut, '2026-09-08');
+  assertEquals(mensagem.numberOfGuests, 2);
+  assertEquals(mensagem.listingName, 'Studio próximo a Praia de Copacabana');
+});

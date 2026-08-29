@@ -33,6 +33,15 @@ jobs:
         with:
           version: latest
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Pega erro de compilação antes do deploy. Uma variável usada antes de
+      # existir já derrubou o processamento de e-mail inteiro em produção.
+      - name: Conferir o código das funções
+        run: npx --yes typescript@5.5.3 tsc -p supabase/functions/tsconfig.json --noEmit
+
       - name: Conferir se o token foi cadastrado
         run: |
           if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then

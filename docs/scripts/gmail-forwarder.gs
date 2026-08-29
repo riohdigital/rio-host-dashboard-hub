@@ -224,8 +224,12 @@ function reprocessarTudo() {
     }
   }
 
-  Logger.log('%s conversa(s) devolvidas à fila. Rode sincronizarHistorico para reavaliar.',
-    removidas);
+  Logger.log('%s conversa(s) devolvidas à fila. Reavaliando...', removidas);
+
+  // Já reavalia em seguida, em lotes, para não exigir uma segunda execução.
+  for (let lote = 0; lote < 6; lote++) {
+    processarLote_('after:' + BACKFILL_DESDE);
+  }
 }
 
 /** Simulação: mostra o que seria extraído sem gravar nada no banco. */
