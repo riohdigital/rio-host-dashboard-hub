@@ -339,6 +339,10 @@ WHERE reservation_code LIKE 'SYNC-%'
   de minutos a algumas horas. Para reagir em segundos só com API oficial de
   parceiro.
 - O Airbnb exporta apenas datas futuras — reservas antigas não entram por aqui.
+- As plataformas mandam muito mais e-mail do que confirmações de reserva
+  (avisos de conta, pedidos de avaliação, marketing). Mensagens sem código de
+  reserva **e** sem datas são descartadas em silêncio, para não encher a fila de
+  conferência. Elas aparecem como `ignored` no histórico de execuções.
 - Os parsers de e-mail são heurísticos. Quando o layout mudar, o e-mail cai na
   fila de conferência em vez de gravar dado errado. Os padrões ficam em
   `supabase/functions/_shared/emailParsers.ts` e os testes em

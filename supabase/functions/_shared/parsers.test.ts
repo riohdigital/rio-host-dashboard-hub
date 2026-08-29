@@ -10,7 +10,7 @@
 import { assertEquals } from 'https://deno.land/std@0.190.0/testing/asserts.ts';
 
 import { icsDateToISO, parseIcs } from './ics.ts';
-import { parseReservationEmail } from './emailParsers.ts';
+import { looksLikeReservation, parseReservationEmail } from './emailParsers.ts';
 import { datesOverlap } from './reservationSync.ts';
 import { htmlToText, parseDateFlexible, parseMoney } from './textUtils.ts';
 
@@ -202,4 +202,46 @@ Deno.test('datesOverlap: check-out é dia livre, então back-to-back não é con
 
   // Períodos distintos.
   assertEquals(datesOverlap('2026-09-12', '2026-09-15', '2026-10-01', '2026-10-05'), false);
+});
+
+Deno.test('e-mails da plataforma que não são reserva são descartados', () => {
+  // Caso real: as plataformas mandam muito mais que confirmações.
+  const aviso = parseReservationEmail({
+    from: 'Airbnb <express@airbnb.com>',
+    subject: 'Atividade da conta: endereço de email alterado',
+    text: 'O endereço de e-mail da sua conta do Airbnb foi alterado. Se não foi você, acesse airbnb.com.',
+  }, { reference: REFERENCE });
+
+  assertEquals(aviso.platform, 'Airbnb');
+  assertEquals(looksLikeReservation(aviso), false);
+
+  const marketing = parseReservationEmail({
+    from: 'Booking.com <news@booking.com>',
+    subject: 'Ofertas imperdíveis para sua próxima viagem',
+    text: 'Descontos de até 30% em milhares de acomodações.',
+  }, { reference: REFERENCE });
+  assertEquals(looksLikeReservation(marketing), false);
+
+  const avaliacao = parseReservationEmail({
+    from: 'Airbnb <automated@airbnb.com>',
+    subject: 'Avalie seu hóspede',
+    text: 'Você tem 14 dias para escrever a avaliação. Acesse airbnb.com/reviews.',
+  }, { reference: REFERENCE });
+  assertEquals(looksLikeReservation(avaliacao), false);
+
+  // Uma reserva de verdade continua passando.
+  const reserva = parseReservationEmail({
+    from: 'Booking.com <noreply@booking.com>',
+    subject: 'Nova reserva confirmada - 4821956733',
+    text: 'Número da reserva: 4821956733\nChegada: 01/11/2026\nPartida: 05/11/2026',
+  }, { reference: REFERENCE });
+  assertEquals(looksLikeReservation(reserva), true);
+
+  // Sem código legível, mas com as duas datas, ainda vale conferir.
+  const semCodigo = parseReservationEmail({
+    from: 'automated@airbnb.com',
+    subject: 'Reserva confirmada',
+    text: 'Check-in: 12 de setembro de 2026\nCheckout: 15 de setembro de 2026',
+  }, { reference: REFERENCE });
+  assertEquals(looksLikeReservation(semCodigo), true);
 });
