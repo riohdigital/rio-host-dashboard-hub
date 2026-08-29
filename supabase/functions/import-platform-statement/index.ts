@@ -51,6 +51,7 @@ interface StatementRow {
 
 interface RowOutcome {
   reservationCode: string;
+  listingName: string | null;
   guestName: string | null;
   checkIn: string | null;
   checkOut: string | null;
@@ -97,6 +98,13 @@ serve(async (req: Request): Promise<Response> => {
 
   const dryRun = body?.dryRun === true;
   const propertyIdInformado: string | null = body?.propertyId ?? null;
+
+  // Anúncios que o usuário apontou na tela para um imóvel específico. É o que
+  // desempata quando o nome do anúncio não se parece com o da propriedade.
+  const listingOverrides: Record<string, string> =
+    body?.listingOverrides && typeof body.listingOverrides === 'object'
+      ? body.listingOverrides
+      : {};
   const startedAt = new Date().toISOString();
 
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
@@ -127,6 +135,7 @@ serve(async (req: Request): Promise<Response> => {
 
     const base: RowOutcome = {
       reservationCode: codigo,
+      listingName: row.listingName ?? null,
       guestName: row.guestName ?? null,
       checkIn: row.checkIn ?? null,
       checkOut: row.checkOut ?? null,
@@ -141,14 +150,18 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     try {
+      const escolhaManual = row.listingName ? listingOverrides[row.listingName] : undefined;
+
       const resolvida = propertyIdInformado
         ? { propertyId: propertyIdInformado, how: 'escolhida_na_tela' }
-        : resolveProperty({
-            platform,
-            listingName: row.listingName,
-            properties,
-            sources,
-          });
+        : escolhaManual
+          ? { propertyId: escolhaManual, how: 'anuncio_apontado_na_tela' }
+          : resolveProperty({
+              platform,
+              listingName: row.listingName,
+              properties,
+              sources,
+            });
 
       // O que o extrato não diz, a reserva já cadastrada costuma dizer.
       const jaCadastrada = await findReservationByHints(admin, {
@@ -164,7 +177,13 @@ serve(async (req: Request): Promise<Response> => {
       const checkOut = row.checkOut ?? jaCadastrada?.check_out_date ?? null;
 
       if (!propertyId) {
-        outcomes.push({ ...base, reason: 'Não identifiquei o imóvel deste anúncio', action: 'pending' });
+        outcomes.push({
+          ...base,
+          action: 'pending',
+          reason: row.listingName
+            ? `Não sei a qual imóvel pertence o anúncio "${row.listingName}"`
+            : 'A linha não diz o anúncio e nenhum imóvel foi escolhido',
+        });
         continue;
       }
 
