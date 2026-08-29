@@ -43,6 +43,12 @@ export interface ParsedEmailReservation {
   totalRevenue: number | null;
   commissionAmount: number | null;
   listingName: string | null;
+  /**
+   * Identificador numérico da acomodação no Booking.com, presente nos links
+   * do e-mail (`hotel_id=14107413`). É o dado mais confiável para identificar
+   * a propriedade: não muda quando o anúncio é renomeado.
+   */
+  bookingHotelId: string | null;
   /** Campos essenciais que não puderam ser extraídos. */
   missing: string[];
   /** Texto normalizado, guardado para auditoria/depuração. */
@@ -357,6 +363,7 @@ export function parseReservationEmail(
     totalRevenue: null,
     commissionAmount: null,
     listingName: null,
+    bookingHotelId: null,
     missing: [],
     normalizedText: body.slice(0, 8000),
   };
@@ -388,6 +395,12 @@ export function parseReservationEmail(
   result.totalRevenue = extractTotal(fullText, platform);
   result.commissionAmount = extractCommission(fullText);
   result.listingName = extractListingName(body, platform);
+
+  // O identificador vive no link da extranet, e o link nem sempre aparece como
+  // texto visível — às vezes só existe no href. Por isso olha o HTML cru também.
+  const comLinks = `${fullText}\n${email.html ?? ''}`;
+  const hotelId = /hotel_id=(\d{4,})/i.exec(comLinks);
+  result.bookingHotelId = hotelId ? hotelId[1] : null;
 
   if (!result.reservationCode) result.missing.push('reservationCode');
   if (!result.checkIn) result.missing.push('checkIn');

@@ -99,9 +99,16 @@ function resolveProperty(
     (source) => !parsed.platform || source.platform === parsed.platform,
   );
 
-  // 1) apelido do anúncio configurado pelo usuário
+  // 1) identificador da acomodação: não muda quando o anúncio é renomeado
+  if (parsed.bookingHotelId) {
+    const porId = platformSources.find((source) =>
+      aliasHotelIds(source.listing_alias).includes(parsed.bookingHotelId!));
+    if (porId) return { propertyId: porId.property_id, how: 'booking_hotel_id' };
+  }
+
+  // 2) apelido do anúncio configurado ou já aprendido
   const byAlias = platformSources
-    .flatMap((source) => splitAliases(source.listing_alias)
+    .flatMap((source) => aliasNomes(source.listing_alias)
       .map((alias) => ({ source, alias: normalizeForMatch(alias) })))
     .filter(({ alias }) => alias.length >= 3
       && (haystack.includes(alias) || (listing && listing.includes(alias))))
@@ -123,12 +130,12 @@ function resolveProperty(
     return { propertyId: byName[0].property.id, how: 'property_name' };
   }
 
-  // 3) o anúncio foi renomeado: reconhece pelo grau de semelhança
+  // 4) o anúncio foi renomeado: reconhece pelo grau de semelhança
   if (parsed.listingName) {
     const titulo = parsed.listingName;
 
     const pontuados = platformSources
-      .flatMap((source) => splitAliases(source.listing_alias).map((alias) => ({
+      .flatMap((source) => aliasNomes(source.listing_alias).map((alias) => ({
         propertyId: source.property_id,
         score: semelhancaDeTitulos(titulo, alias),
       })))
@@ -155,7 +162,7 @@ function resolveProperty(
     }
   }
 
-  // 4) conta com um imóvel só: não há ambiguidade possível
+  // 5) conta com um imóvel só: não há ambiguidade possível
   if (properties.length === 1) {
     return { propertyId: properties[0].id, how: 'single_property' };
   }
@@ -190,6 +197,22 @@ function splitAliases(value: string | null | undefined): string[] {
     .split(/[\n|;]+/)
     .map((item) => item.trim())
     .filter((item) => item.length >= 3);
+}
+
+/** Prefixo das linhas que guardam um identificador, e não um nome. */
+const MARCADOR_HOTEL_ID = 'booking_hotel_id:';
+
+/** Só as linhas que são nome de anúncio. */
+function aliasNomes(value: string | null | undefined): string[] {
+  return splitAliases(value).filter((item) => !item.startsWith(MARCADOR_HOTEL_ID));
+}
+
+/** Só os identificadores de acomodação do Booking.com. */
+function aliasHotelIds(value: string | null | undefined): string[] {
+  return splitAliases(value)
+    .filter((item) => item.startsWith(MARCADOR_HOTEL_ID))
+    .map((item) => item.slice(MARCADOR_HOTEL_ID.length).trim())
+    .filter(Boolean);
 }
 
 const COLUNAS_RESERVA =
@@ -266,15 +289,19 @@ async function findReservationForEmail(
  * preenchido. Assim o próximo e-mail da mesma propriedade se resolve sozinho,
  * sem depender de a reserva já existir.
  */
-async function learnListingAlias(
+/**
+ * Guarda na fonte o que este e-mail ensinou sobre a propriedade: o nome do
+ * anúncio e, no Booking.com, o identificador da acomodação.
+ *
+ * É o que faz o sistema ficar mais preciso sozinho a cada e-mail, sem ninguém
+ * preencher configuração.
+ */
+async function learnSourceHints(
   admin: any,
   propertyId: string,
   platform: string,
-  listingName: string | null,
+  parsed: ParsedEmailReservation,
 ): Promise<void> {
-  const nome = listingName?.trim();
-  if (!nome || nome.length < 5) return;
-
   const { data, error: readError } = await admin
     .from('channel_sync_sources')
     .select('id, listing_alias')
@@ -285,19 +312,30 @@ async function learnListingAlias(
   if (readError || !data?.length) return;
 
   const fonte = data[0];
-  const atuais = splitAliases(fonte.listing_alias);
+  const linhas = splitAliases(fonte.listing_alias);
+  const novas: string[] = [];
 
-  // Nome que já conhecemos (ou renomeação já registrada): nada a fazer.
-  const normalizado = normalizeForMatch(nome);
-  if (atuais.some((alias) => normalizeForMatch(alias) === normalizado)) return;
-  if (atuais.length >= MAX_APELIDOS) return;
+  const nome = parsed.listingName?.trim();
+  if (nome && nome.length >= 5 && aliasNomes(fonte.listing_alias).length < MAX_APELIDOS) {
+    const normalizado = normalizeForMatch(nome);
+    const conhecido = aliasNomes(fonte.listing_alias)
+      .some((alias) => normalizeForMatch(alias) === normalizado);
+    if (!conhecido) novas.push(nome);
+  }
+
+  const hotelId = parsed.bookingHotelId;
+  if (hotelId && !aliasHotelIds(fonte.listing_alias).includes(hotelId)) {
+    novas.push(`${MARCADOR_HOTEL_ID}${hotelId}`);
+  }
+
+  if (novas.length === 0) return;
 
   const { error } = await admin
     .from('channel_sync_sources')
-    .update({ listing_alias: [...atuais, nome].join('\n') })
+    .update({ listing_alias: [...linhas, ...novas].join('\n') })
     .eq('id', fonte.id);
 
-  if (error) console.error('Não foi possível guardar o nome do anúncio:', error.message);
+  if (error) console.error('Não foi possível guardar os dados do anúncio:', error.message);
 }
 
 /** Fecha pendências que este e-mail acabou de resolver. */
@@ -341,12 +379,13 @@ async function processEmail(
     intent: parsed.intent,
     reservationCode: parsed.reservationCode,
     guestName: parsed.guestName,
-    checkIn,
-    checkOut,
+    checkIn: parsed.checkIn,
+    checkOut: parsed.checkOut,
     numberOfGuests: parsed.numberOfGuests,
     totalRevenue: parsed.totalRevenue,
     commissionAmount: parsed.commissionAmount,
     listingName: parsed.listingName,
+    bookingHotelId: parsed.bookingHotelId,
     missing: parsed.missing,
   };
 
@@ -387,8 +426,8 @@ async function processEmail(
   // Assim que a propriedade é conhecida, o nome do anúncio que veio no e-mail
   // entra na configuração do calendário — mesmo que a reserva ainda não possa
   // ser criada. É o que faz uma renomeação se resolver sozinha na sequência.
-  if (!dryRun && propertyId && how !== 'listing_alias') {
-    await learnListingAlias(admin, propertyId, parsed.platform, parsed.listingName);
+  if (!dryRun && propertyId) {
+    await learnSourceHints(admin, propertyId, parsed.platform, parsed);
   }
 
   const dedupeSeed = parsed.reservationCode
@@ -449,8 +488,8 @@ async function processEmail(
     reservationCode,
     externalUid: parsed.reservationCode ? `${parsed.platform}:${parsed.reservationCode}` : null,
     externalSource: parsed.platform === 'Airbnb' ? 'email_airbnb' : 'email_booking',
-    checkIn: parsed.checkIn,
-    checkOut: parsed.checkOut,
+    checkIn,
+    checkOut,
     guestName: parsed.guestName,
     guestEmail: parsed.guestEmail,
     guestPhone: parsed.guestPhone,
