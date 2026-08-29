@@ -10,14 +10,16 @@ O dashboard importa reservas do Airbnb e do Booking.com sem channel manager,
 combinando os feeds iCal oficiais (datas) com os e-mails transacionais das
 plataformas (hóspede, valor, comissão, cancelamento).
 
-Guia completo de configuração: [docs/SINCRONIZACAO-AUTOMATICA.md](docs/SINCRONIZACAO-AUTOMATICA.md)
+- **Ativar (sem terminal, passo a passo clicável):** [docs/PASSO-A-PASSO-ATIVACAO.md](docs/PASSO-A-PASSO-ATIVACAO.md)
+- **Como funciona e por que as APIs oficiais não servem:** [docs/SINCRONIZACAO-AUTOMATICA.md](docs/SINCRONIZACAO-AUTOMATICA.md)
+
+Para quem usa a CLI do Supabase:
 
 ```sh
-# aplicar o schema e publicar as funções
 supabase db push
 supabase secrets set CHANNEL_SYNC_SECRET=$(openssl rand -hex 32)
-supabase functions deploy sync-channel-reservations
-supabase functions deploy ingest-reservation-email
+supabase functions deploy sync-channel-reservations --no-verify-jwt
+supabase functions deploy ingest-reservation-email --no-verify-jwt
 
 # testes dos parsers
 deno test supabase/functions/_shared/parsers.test.ts

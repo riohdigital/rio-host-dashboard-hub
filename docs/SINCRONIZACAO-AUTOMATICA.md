@@ -81,13 +81,24 @@ A sincronização foi escrita para nunca atropelar trabalho manual:
 
 ---
 
-## 3. Configuração passo a passo
+## 3. Configuração
+
+> **Não usa terminal?** Siga o guia clicável
+> **[PASSO-A-PASSO-ATIVACAO.md](PASSO-A-PASSO-ATIVACAO.md)** — ele cobre tudo
+> pelo navegador (GitHub, painel do Supabase, Airbnb/Booking e Google Apps
+> Script), com os links diretos e o que conferir em cada etapa.
+>
+> As instruções abaixo são o equivalente para quem já usa a CLI do Supabase.
 
 ### 3.1 Aplicar a migração
 
 ```bash
 supabase db push
 ```
+
+Pelo navegador: cole o conteúdo de
+`supabase/migrations/20260829120000_channel_sync_reservations.sql` no SQL Editor
+do painel do Supabase e execute.
 
 Cria `channel_sync_sources`, `channel_sync_runs`, `reservation_sync_pending` e
 as colunas `external_uid`, `external_source` e `last_synced_at` em
@@ -102,15 +113,24 @@ openssl rand -hex 32
 supabase secrets set CHANNEL_SYNC_SECRET=<valor_gerado>
 ```
 
+Pelo navegador: rode `SELECT encode(gen_random_bytes(32), 'hex');` no SQL Editor
+e cadastre o resultado em **Project Settings → Edge Functions → Add new secret**,
+com a chave `CHANNEL_SYNC_SECRET`.
+
 Esse segredo autentica o cron e o encaminhador de e-mails. Sem ele, as funções
 só aceitam usuários logados no app.
 
 ### 3.3 Publicar as funções
 
 ```bash
-supabase functions deploy sync-channel-reservations
-supabase functions deploy ingest-reservation-email
+supabase functions deploy sync-channel-reservations --no-verify-jwt
+supabase functions deploy ingest-reservation-email --no-verify-jwt
 ```
+
+Pelo navegador: a aba **Actions** do GitHub tem o workflow
+*Deploy Supabase Edge Functions* (`.github/workflows/deploy-supabase-functions.yml`),
+que faz o mesmo com um clique em **Run workflow**. Ele exige o secret
+`SUPABASE_ACCESS_TOKEN` cadastrado no repositório.
 
 ### 3.4 Pegar os links iCal
 
@@ -135,8 +155,12 @@ Use **Sincronizar agora** para testar imediatamente.
 
 ### 3.6 Agendar a leitura automática
 
-Rode `docs/sql/agendar-sincronizacao.sql` no SQL Editor do Supabase (usa
-`pg_cron` + `pg_net`, ambos inclusos no plano gratuito).
+O caminho mais simples é o painel: **Integrations → Cron → Create job**,
+agendando um POST para a função `sync-channel-reservations` a cada 30 minutos,
+com o header `x-sync-secret`.
+
+Alternativa em SQL: rode `docs/sql/agendar-sincronizacao.sql` no SQL Editor
+(usa `pg_cron` + `pg_net`, ambos inclusos no plano gratuito).
 
 Sem `pg_cron`, qualquer agendador externo gratuito resolve — basta um POST:
 

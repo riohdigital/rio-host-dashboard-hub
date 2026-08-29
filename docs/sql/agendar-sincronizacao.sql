@@ -4,10 +4,18 @@
 -- ATENÇÃO: este arquivo NÃO deve ser commitado com o segredo preenchido.
 -- Rode-o manualmente no SQL Editor do Supabase, substituindo os valores.
 --
--- Alternativas sem pg_cron (também gratuitas):
+-- CAMINHO MAIS SIMPLES (recomendado): use a interface do painel em
+--   Integrations > Cron > Create job
+-- escolhendo Type = Supabase Edge Function, method POST, função
+-- sync-channel-reservations, schedule */30 * * * * e o header x-sync-secret.
+-- Use este SQL apenas se a sua tela de Cron não tiver o campo de headers.
+--
+-- Outras alternativas gratuitas:
 --   * cron-job.org / EasyCron: POST na URL da função com o header x-sync-secret
 --   * GitHub Actions com `on: schedule`
 -- =====================================================================
+
+-- Passo a passo clicável: docs/PASSO-A-PASSO-ATIVACAO.md
 
 -- 1. Extensões necessárias (executar uma vez)
 CREATE EXTENSION IF NOT EXISTS pg_cron;
