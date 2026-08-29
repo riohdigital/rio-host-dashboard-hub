@@ -133,32 +133,46 @@ Se não estiverem, publique pelo GitHub:
 
 ## Etapa 6 — Agendar a leitura automática dos calendários
 
+### 6.1 Ligar as duas extensões (faça isto ANTES de abrir a tela de cron)
+
+O agendador depende de duas extensões do Postgres que não vêm ligadas por
+padrão. Se você pular esta parte, a tela de criação do job dá erro
+(`relation "cron.job" does not exist`) ou deixa as opções de HTTP cinzas.
+
+1. Abra: <https://supabase.com/dashboard/project/cwcauobnbmzjpqjmmomc/database/extensions>
+
+   *(Pelo menu: **Database** → **Extensions**.)*
+
+2. Busque por **`pg_cron`** e ligue o botão. Se pedir o schema, aceite o
+   sugerido. *(É o motor do agendamento — cria a tabela `cron.job`.)*
+3. Busque por **`pg_net`** e ligue também. *(É o que permite ao banco fazer
+   chamadas HTTP, necessário para acionar a Edge Function.)*
+
+Alternativa pelo [SQL Editor](https://supabase.com/dashboard/project/cwcauobnbmzjpqjmmomc/sql/new):
+
+```sql
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+CREATE EXTENSION IF NOT EXISTS pg_net;
+```
+
+### 6.2 Criar o agendamento
+
 1. Abra: <https://supabase.com/dashboard/project/cwcauobnbmzjpqjmmomc/integrations/cron/jobs>
 
-   *(Pelo menu: **Integrations** → **Cron**. Se pedir para ativar a extensão,
-   clique em **Enable**.)*
+   *(Pelo menu: **Integrations** → **Cron**.)*
 
 2. Clique em **Create job** e preencha:
    - **Name:** `sincronizar-calendarios`
    - **Schedule:** `*/30 * * * *`  *(a cada 30 minutos)*
 
-3. **Instale a extensão `pg_net` antes de escolher o tipo.** Na lista **Type**,
-   as opções *HTTP Request* e *Supabase Edge Function* aparecem cinzas com o
-   aviso `pg_net needs to be installed to use this type`. Clique no botão
-   **Install pg_net extension**, logo abaixo da lista, e espere alguns segundos.
-
-   > `pg_net` é o que permite ao banco de dados fazer chamadas HTTP — sem ele o
-   > agendador só consegue rodar SQL. Se as opções continuarem cinzas depois da
-   > instalação, clique em **Cancel**, reabra **Create job** e preencha de novo.
-
-4. Agora escolha **Type: Supabase Edge Function** e preencha:
+3. Escolha **Type: Supabase Edge Function** e preencha:
    - **Method:** `POST`
    - **Edge Function:** `sync-channel-reservations`
    - **HTTP Headers:** adicione um header
      - Name: `x-sync-secret`
      - Value: o segredo da Etapa 2
    - **Body:** `{}`
-5. Clique em **Create cron job**.
+4. Clique em **Create cron job**.
 
 > O aviso *Schedule (GMT)* na tela não é problema: `*/30 * * * *` é um intervalo
 > ("a cada 30 minutos"), não um horário fixo, então o fuso não muda nada.
@@ -269,6 +283,8 @@ No seu site, em **Configurações → Sincronização de Reservas**, confira:
 | "Sincronizar agora" dá erro 401 | A função não foi publicada (Etapa 5) ou o secret não foi salvo (Etapa 4). |
 | Reservas aparecem sem nome e sem valor | O canal de e-mail (Etapa 8) não está rodando. Confira o Registro de execução no Apps Script. |
 | Tudo cai em "Propriedade não identificada" | Falta preencher **Nome do anúncio na plataforma** no cadastro de cada calendário (Etapa 7.3). |
+| `relation "cron.job" does not exist` ao criar o job | A extensão `pg_cron` não está ligada. Volte à Etapa 6.1. |
+| Tipos *HTTP Request* / *Edge Function* aparecem cinzas | A extensão `pg_net` não está ligada. Volte à Etapa 6.1. |
 | O agendamento não roda | Confira o job em <https://supabase.com/dashboard/project/cwcauobnbmzjpqjmmomc/integrations/cron/jobs> |
 
 Os logs completos das funções ficam em
