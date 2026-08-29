@@ -255,6 +255,36 @@ código provisório é substituído pelo real e o valor é preenchido.
 Como o feed do Booking.com não distingue reserva de bloqueio manual, todo
 período novo vindo dele entra também na fila *Precisam da sua conferência*.
 
+### Calendários cruzados entre plataformas
+
+É comum (e recomendado) conectar o calendário do Airbnb ao do Booking.com e
+vice-versa, para que uma reserva numa plataforma bloqueie as datas na outra e
+evite overbooking. Isso faz a **mesma estadia aparecer nos dois feeds**: real na
+plataforma de origem e como período bloqueado na outra.
+
+A sincronização lida com isso por duas regras, sem precisar de configuração:
+
+1. **Evento do Airbnb sem código de reserva não vira reserva.** Toda reserva real
+   do Airbnb traz a URL da reserva no `DESCRIPTION`; um evento sem ela é bloqueio
+   importado de outro site. Se não houver reserva correspondente no período, o
+   evento vai para a fila de conferência em vez de ser descartado em silêncio.
+2. **Evento do Booking.com que cai sobre uma reserva já existente é descartado**
+   — em qualquer plataforma, já que o feed dele não tem código próprio. Quando a
+   sobreposição é apenas parcial (datas diferentes), a reserva não é criada e o
+   caso vai para a fila como *Conflito de datas*, porque aí pode ser overbooking
+   de verdade.
+
+Os feeds do Airbnb são lidos antes dos do Booking.com dentro de cada execução,
+para que a plataforma que fornece o código crie o registro e o espelho seja
+descartado, independentemente da ordem de cadastro.
+
+Uma saída no mesmo dia de uma entrada (*back-to-back*) não conta como
+sobreposição: a data de check-out é dia livre.
+
+Se você já tinha reservas espelhadas criadas antes dessa correção, use
+[`docs/sql/limpar-reservas-espelhadas.sql`](sql/limpar-reservas-espelhadas.sql)
+para listá-las e removê-las.
+
 ---
 
 ## 5. Verificação e diagnóstico

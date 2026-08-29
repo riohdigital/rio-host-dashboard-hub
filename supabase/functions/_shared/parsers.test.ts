@@ -11,6 +11,7 @@ import { assertEquals } from 'https://deno.land/std@0.190.0/testing/asserts.ts';
 
 import { icsDateToISO, parseIcs } from './ics.ts';
 import { parseReservationEmail } from './emailParsers.ts';
+import { datesOverlap } from './reservationSync.ts';
 import { htmlToText, parseDateFlexible, parseMoney } from './textUtils.ts';
 
 const REFERENCE = new Date('2026-08-29T00:00:00Z');
@@ -185,4 +186,20 @@ Deno.test('remetente desconhecido não vira reserva', () => {
 Deno.test('htmlToText preserva quebras de tabela e decodifica entidades', () => {
   assertEquals(htmlToText('<p>Total:&nbsp;R$&nbsp;100,00</p>'), 'Total: R$ 100,00');
   assertEquals(htmlToText('<tr><td>Check-in</td><td>12/09/2026</td></tr>'), 'Check-in\n12/09/2026');
+});
+
+Deno.test('datesOverlap: check-out é dia livre, então back-to-back não é conflito', () => {
+  // Mesma estadia espelhada entre Airbnb e Booking pelo calendário cruzado.
+  assertEquals(datesOverlap('2026-09-12', '2026-09-15', '2026-09-12', '2026-09-15'), true);
+
+  // Um hóspede sai no dia 15 e outro entra no dia 15: normal, não é conflito.
+  assertEquals(datesOverlap('2026-09-12', '2026-09-15', '2026-09-15', '2026-09-18'), false);
+  assertEquals(datesOverlap('2026-09-15', '2026-09-18', '2026-09-12', '2026-09-15'), false);
+
+  // Sobreposições reais.
+  assertEquals(datesOverlap('2026-09-12', '2026-09-16', '2026-09-15', '2026-09-18'), true);
+  assertEquals(datesOverlap('2026-09-13', '2026-09-14', '2026-09-12', '2026-09-18'), true);
+
+  // Períodos distintos.
+  assertEquals(datesOverlap('2026-09-12', '2026-09-15', '2026-10-01', '2026-10-05'), false);
 });

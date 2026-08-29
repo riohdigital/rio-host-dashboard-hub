@@ -207,6 +207,15 @@ trocando o segredo antes de executar.
 > ⚠️ Esses links são secretos: quem tiver a URL enxerga sua ocupação. Trate
 > como senha.
 
+**Você só precisa da parte de *exportar*.** As telas das duas plataformas também
+oferecem *importar* um calendário de fora ("Adicione um link de outro site",
+"Nome do calendário"). Isso não tem relação com o dashboard — pode deixar em
+branco e fechar a janela depois de copiar o link.
+
+Se você já usa esse recurso para cruzar Airbnb e Booking entre si (o que ajuda a
+evitar overbooking), pode continuar usando: a sincronização reconhece a mesma
+estadia vinda dos dois feeds e registra só uma vez.
+
 ### 7.3 Cadastrar no seu dashboard
 
 1. Abra seu site → **Configurações** → **Sincronização de Reservas**.
@@ -217,7 +226,9 @@ trocando o segredo antes de executar.
    - **Nome do anúncio na plataforma:** o título exato do anúncio, como
      aparece no Airbnb/Booking. **Não pule esse campo** se você tem mais de um
      imóvel — é ele que faz os e-mails caírem na propriedade certa.
-3. Salve e repita para cada anúncio (um por plataforma, por imóvel).
+3. Salve e repita para cada anúncio. **Uma propriedade anunciada nas duas
+   plataformas precisa de dois cadastros** — um com o link do Airbnb e outro com
+   o do Booking.com, ambos apontando para a mesma propriedade.
 4. Clique em **Sincronizar agora**.
 
 ✅ **Como conferir:** cada calendário fica com a etiqueta verde *Sincronizado* e

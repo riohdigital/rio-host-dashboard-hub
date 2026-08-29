@@ -23,6 +23,7 @@ import {
   buildPlaceholderCode,
   corsHeaders,
   jsonResponse,
+  findOverlappingReservation,
   logRun,
   recordPending,
   type ReservationCandidate,
@@ -195,6 +196,8 @@ async function syncSource(admin: any, source: any, force: boolean): Promise<Sour
   const events = parseIcs(content).filter((event) => event.start && event.end);
   const seenUids = new Set<string>();
   const errors: string[] = [];
+  // Eventos ignorados por serem o espelho de uma reserva da outra plataforma.
+  let mirrored = 0;
 
   for (const event of events) {
     const checkIn = event.start!;
@@ -218,10 +221,48 @@ async function syncSource(admin: any, source: any, force: boolean): Promise<Sour
     seenUids.add(uid);
 
     const airbnbCode = isAirbnb ? extractAirbnbCode(event) : null;
+
+    // Toda reserva real do Airbnb traz a URL da reserva no DESCRIPTION. Um
+    // evento sem código é, quase sempre, o bloqueio espelhado de um calendário
+    // importado de outro site — criar reserva a partir dele duplicaria a
+    // estadia que já veio (ou vai vir) da plataforma de origem.
+    if (isAirbnb && !airbnbCode) {
+      result.skipped++;
+
+      const overlap = await findOverlappingReservation(
+        admin, source.property_id, checkIn, checkOut,
+      );
+
+      // Sem reserva correspondente, pode ser uma reserva real que o feed veio
+      // incompleto: registra para conferência em vez de descartar em silêncio.
+      if (!overlap) {
+        const recorded = await recordPending(admin, {
+          channel: 'ical',
+          platform: source.platform,
+          propertyId: source.property_id,
+          kind: 'incomplete_data',
+          dedupeKey: `ical:${source.id}:${uid}`,
+          summary: `Período ocupado no calendário do Airbnb sem código de reserva (${checkIn} a ${checkOut}). Pode ser bloqueio importado de outro site ou uma reserva que o feed não detalhou.`,
+          payload: {
+            check_in: checkIn,
+            check_out: checkOut,
+            summary: event.summary,
+            description: event.description.slice(0, 1000),
+            uid,
+          },
+        });
+        if (recorded) result.pending++;
+      } else {
+        mirrored++;
+      }
+
+      continue;
+    }
+
     const reservationCode = airbnbCode ?? buildPlaceholderCode(`${source.platform}:${uid}`);
     // No Booking o feed não distingue reserva de bloqueio manual, então o item
     // entra na fila de conferência mesmo depois de criado.
-    const needsReview = !isAirbnb || !airbnbCode;
+    const needsReview = !isAirbnb;
 
     const candidate: ReservationCandidate = {
       propertyId: source.property_id,
@@ -242,10 +283,39 @@ async function syncSource(admin: any, source: any, force: boolean): Promise<Sour
     };
 
     try {
-      const applied = await applyReservation(admin, candidate);
+      const applied = await applyReservation(admin, candidate, {
+        // Feed do Booking não tem código próprio: se o período já pertence a
+        // outra reserva, é o espelho dela.
+        skipCreateIfOverlapping: !isAirbnb,
+      });
+
       if (applied.action === 'created') result.created++;
       else if (applied.action === 'updated') result.updated++;
       else result.skipped++;
+
+      if (applied.reason === 'espelho_de_outra_plataforma') {
+        mirrored++;
+      }
+
+      // Sobreposição parcial não é espelho: alguém precisa olhar.
+      if (applied.reason === 'sobreposicao_parcial') {
+        const recorded = await recordPending(admin, {
+          channel: 'ical',
+          platform: source.platform,
+          propertyId: source.property_id,
+          reservationId: applied.reservationId,
+          kind: 'conflict',
+          dedupeKey: `overlap:${source.id}:${uid}`,
+          summary: `Período ocupado no ${source.platform} (${checkIn} a ${checkOut}) se sobrepõe parcialmente à reserva ${applied.changes?.reserva_existente} (${applied.changes?.periodo_existente}). Confira se são estadias diferentes.`,
+          payload: {
+            check_in: checkIn,
+            check_out: checkOut,
+            existente: applied.changes,
+            uid,
+          },
+        });
+        if (recorded) result.pending++;
+      }
 
       if (needsReview && applied.action === 'created') {
         const recorded = await recordPending(admin, {
@@ -331,7 +401,7 @@ async function syncSource(admin: any, source: any, force: boolean): Promise<Sour
     skipped: result.skipped,
     pending: result.pending,
     message: result.message ?? null,
-    details: { errors: errors.slice(0, 10) },
+    details: { errors: errors.slice(0, 10), espelhos_ignorados: mirrored },
     startedAt,
   });
 
@@ -426,8 +496,13 @@ serve(async (req: Request): Promise<Response> => {
     });
   }
 
+  // O Airbnb é lido primeiro: é a única plataforma cujo feed traz o código da
+  // reserva, então ela cria o registro e o espelho no Booking é descartado.
+  const ordered = [...allowed].sort((a: any, b: any) =>
+    (a.platform === 'Airbnb' ? 0 : 1) - (b.platform === 'Airbnb' ? 0 : 1));
+
   const results: SourceResult[] = [];
-  for (const source of allowed) {
+  for (const source of ordered) {
     try {
       results.push(await syncSource(admin, source, body.force === true));
     } catch (error) {

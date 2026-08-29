@@ -110,6 +110,58 @@ export function daysBetween(startIso: string, endIso: string): number {
   return Math.round((end - start) / 86_400_000);
 }
 
+export interface ApplyOptions {
+  /**
+   * Não cria a reserva quando o período já está ocupado por outra reserva da
+   * mesma propriedade, em qualquer plataforma. Usado para eventos de iCal que
+   * não trazem código próprio — é impossível distinguir uma reserva real do
+   * espelho de uma reserva feita na outra plataforma.
+   */
+  skipCreateIfOverlapping?: boolean;
+}
+
+/** Dois períodos se sobrepõem? A data de check-out é dia livre, logo exclusiva. */
+export function datesOverlap(
+  aCheckIn: string,
+  aCheckOut: string,
+  bCheckIn: string,
+  bCheckOut: string,
+): boolean {
+  return aCheckIn < bCheckOut && aCheckOut > bCheckIn;
+}
+
+/**
+ * Procura uma reserva ativa da propriedade que ocupe o mesmo período,
+ * independente da plataforma. Prefere a que casa exatamente as duas datas.
+ */
+export async function findOverlappingReservation(
+  supabase: any,
+  propertyId: string,
+  checkIn: string,
+  checkOut: string,
+): Promise<any | null> {
+  const { data, error } = await supabase
+    .from('reservations')
+    .select('id, platform, reservation_code, check_in_date, check_out_date, reservation_status')
+    .eq('property_id', propertyId)
+    .lt('check_in_date', checkOut)
+    .gt('check_out_date', checkIn);
+
+  if (error) {
+    console.error('Erro ao checar sobreposição:', error.message);
+    return null;
+  }
+
+  const active = (data ?? []).filter((row: any) =>
+    row.reservation_status !== 'Cancelada'
+    && datesOverlap(row.check_in_date, row.check_out_date, checkIn, checkOut));
+
+  if (active.length === 0) return null;
+
+  return active.find((row: any) =>
+    row.check_in_date === checkIn && row.check_out_date === checkOut) ?? active[0];
+}
+
 /**
  * Cria ou completa a reserva. Campos já preenchidos manualmente são mantidos;
  * datas e status de cancelamento são as únicas informações que a origem tem
@@ -118,6 +170,7 @@ export function daysBetween(startIso: string, endIso: string): number {
 export async function applyReservation(
   supabase: any,
   candidate: ReservationCandidate,
+  options: ApplyOptions = {},
 ): Promise<ApplyResult> {
   const existing = await findExistingReservation(supabase, candidate);
   const now = new Date().toISOString();
@@ -129,6 +182,33 @@ export async function applyReservation(
   };
 
   if (!existing) {
+    // Calendários cruzados entre plataformas espelham a mesma estadia: o que o
+    // Airbnb reserva vira "bloqueado" no feed do Booking e vice-versa. Sem esta
+    // checagem a mesma hospedagem entraria duas vezes.
+    if (options.skipCreateIfOverlapping) {
+      const overlap = await findOverlappingReservation(
+        supabase,
+        candidate.propertyId,
+        candidate.checkIn,
+        candidate.checkOut,
+      );
+
+      if (overlap) {
+        const sameDates = overlap.check_in_date === candidate.checkIn
+          && overlap.check_out_date === candidate.checkOut;
+        return {
+          action: 'skipped',
+          reservationId: overlap.id,
+          reason: sameDates ? 'espelho_de_outra_plataforma' : 'sobreposicao_parcial',
+          changes: {
+            reserva_existente: overlap.reservation_code,
+            plataforma_existente: overlap.platform,
+            periodo_existente: `${overlap.check_in_date} a ${overlap.check_out_date}`,
+          },
+        };
+      }
+    }
+
     const insertPayload: Record<string, unknown> = {
       property_id: candidate.propertyId,
       platform: candidate.platform,
