@@ -8,6 +8,8 @@
 --   Integrations > Cron > Create job
 -- escolhendo Type = Supabase Edge Function, method POST, função
 -- sync-channel-reservations, schedule */30 * * * * e o header x-sync-secret.
+-- Nessa tela é preciso clicar antes em "Install pg_net extension": sem pg_net
+-- as opções de HTTP Request e Edge Function ficam desabilitadas.
 -- Use este SQL apenas se a sua tela de Cron não tiver o campo de headers.
 --
 -- Outras alternativas gratuitas:

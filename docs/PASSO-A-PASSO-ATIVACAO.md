@@ -141,14 +141,27 @@ Se não estiverem, publique pelo GitHub:
 2. Clique em **Create job** e preencha:
    - **Name:** `sincronizar-calendarios`
    - **Schedule:** `*/30 * * * *`  *(a cada 30 minutos)*
-   - **Type:** escolha **Supabase Edge Function**
+
+3. **Instale a extensão `pg_net` antes de escolher o tipo.** Na lista **Type**,
+   as opções *HTTP Request* e *Supabase Edge Function* aparecem cinzas com o
+   aviso `pg_net needs to be installed to use this type`. Clique no botão
+   **Install pg_net extension**, logo abaixo da lista, e espere alguns segundos.
+
+   > `pg_net` é o que permite ao banco de dados fazer chamadas HTTP — sem ele o
+   > agendador só consegue rodar SQL. Se as opções continuarem cinzas depois da
+   > instalação, clique em **Cancel**, reabra **Create job** e preencha de novo.
+
+4. Agora escolha **Type: Supabase Edge Function** e preencha:
    - **Method:** `POST`
    - **Edge Function:** `sync-channel-reservations`
    - **HTTP Headers:** adicione um header
      - Name: `x-sync-secret`
      - Value: o segredo da Etapa 2
    - **Body:** `{}`
-3. Clique em **Create job**.
+5. Clique em **Create cron job**.
+
+> O aviso *Schedule (GMT)* na tela não é problema: `*/30 * * * *` é um intervalo
+> ("a cada 30 minutos"), não um horário fixo, então o fuso não muda nada.
 
 Se a sua tela de Cron não tiver o campo de headers, use o caminho alternativo:
 abra o **SQL Editor** e rode o conteúdo de
