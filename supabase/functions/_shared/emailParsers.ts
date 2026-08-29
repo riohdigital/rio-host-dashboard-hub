@@ -399,8 +399,13 @@ export function parseReservationEmail(
   // O identificador vive no link da extranet, e o link nem sempre aparece como
   // texto visível — às vezes só existe no href. Por isso olha o HTML cru também.
   const comLinks = `${fullText}\n${email.html ?? ''}`;
-  const hotelId = /hotel_id=(\d{4,})/i.exec(comLinks);
-  result.bookingHotelId = hotelId ? hotelId[1] : null;
+  // O mesmo link costuma aparecer várias vezes, e alguma dessas cópias pode vir
+  // quebrada pela codificação do e-mail ("14107413" virando "1410"). Entre as
+  // ocorrências, a mais longa é a íntegra.
+  const idsEncontrados = [...comLinks.matchAll(/hotel_id=(\d{4,})/gi)]
+    .map((achado) => achado[1])
+    .sort((a, b) => b.length - a.length);
+  result.bookingHotelId = idsEncontrados[0] ?? null;
 
   if (!result.reservationCode) result.missing.push('reservationCode');
   if (!result.checkIn) result.missing.push('checkIn');
