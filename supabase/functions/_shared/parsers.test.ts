@@ -374,6 +374,16 @@ Deno.test('hotel_id do Booking identifica a propriedade mesmo sem nome', () => {
   }, { reference: REFERENCE });
 
   assertEquals(outroImovel.bookingHotelId, '14463427');
+
+  // Uma das cópias do link pode vir quebrada pela codificação do e-mail:
+  // "14107413" aparecendo como "1410". Vale a ocorrência íntegra.
+  const linkQuebrado = parseReservationEmail({
+    from: 'noreply@booking.com',
+    subject: 'Booking.com - Nova reserva! (6859442149, terça-feira, 12 de janeiro de 2027)',
+    html: '<a href="...hotel_id=1410">a</a><a href="...hotel_id=14107413">b</a>',
+  }, { reference: REFERENCE });
+
+  assertEquals(linkQuebrado.bookingHotelId, '14107413');
 });
 
 Deno.test('mensagem de hóspede do Booking traz a reserva completa', () => {

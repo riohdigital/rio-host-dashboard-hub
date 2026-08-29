@@ -195,9 +195,17 @@ function processarLote_(filtroData) {
   Logger.log('Enviados %s e-mail(s) de %s conversa(s); %s aguardando conferência. Resposta: %s',
     emails.length, conversas.length, comPendencia, corpo);
 
-  if (conversas.length < threads.length) {
+  const faltam = conversas.length < threads.length;
+  if (faltam) {
     Logger.log('Ainda restam conversas para processar — rode esta função de novo.');
   }
+
+  return {
+    enviados: emails.length,
+    conversas: conversas.length,
+    pendentes: comPendencia,
+    faltam: faltam,
+  };
 }
 
 /**
@@ -227,8 +235,13 @@ function reprocessarTudo() {
   Logger.log('%s conversa(s) devolvidas à fila. Reavaliando...', removidas);
 
   // Já reavalia em seguida, em lotes, para não exigir uma segunda execução.
-  for (let lote = 0; lote < 6; lote++) {
-    processarLote_('after:' + BACKFILL_DESDE);
+  for (let lote = 0; lote < 8; lote++) {
+    const resumo = processarLote_('after:' + BACKFILL_DESDE);
+
+    // Sem envio, ou um lote em que tudo ficou pendente: insistir só repetiria
+    // as mesmas mensagens. O que ficou pendente volta nas execuções normais.
+    if (!resumo || resumo.enviados === 0) break;
+    if (resumo.pendentes === resumo.conversas && !resumo.faltam) break;
   }
 }
 
