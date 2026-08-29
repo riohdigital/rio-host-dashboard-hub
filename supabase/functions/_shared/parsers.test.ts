@@ -10,7 +10,11 @@
 import { assertEquals } from 'https://deno.land/std@0.190.0/testing/asserts.ts';
 
 import { icsDateToISO, parseIcs } from './ics.ts';
-import { looksLikeReservation, parseReservationEmail } from './emailParsers.ts';
+import {
+  isPlausibleGuestName,
+  looksLikeReservation,
+  parseReservationEmail,
+} from './emailParsers.ts';
 import { datesOverlap } from './reservationSync.ts';
 import { htmlToText, parseDateFlexible, parseMoney } from './textUtils.ts';
 
@@ -244,4 +248,64 @@ Deno.test('e-mails da plataforma que não são reserva são descartados', () => 
     text: 'Check-in: 12 de setembro de 2026\nCheckout: 15 de setembro de 2026',
   }, { reference: REFERENCE });
   assertEquals(looksLikeReservation(semCodigo), true);
+});
+
+Deno.test('assunto do "Nova reserva!" do Booking: data sim, nome não', () => {
+  // Formato real: "(CÓDIGO, dia da semana, data)". Não há nome de hóspede
+  // nesse assunto — tentar extrair um só produzia lixo ("feira", "(6859442149").
+  const nova = parseReservationEmail({
+    from: 'Booking.com <noreply@booking.com>',
+    subject: 'Booking.com - Nova reserva! (6124022858, sexta-feira, 11 de setembro de 2026)',
+    text: 'Acesse a extranet para ver os detalhes da reserva.',
+  }, { reference: REFERENCE });
+
+  assertEquals(nova.reservationCode, '6124022858');
+  // O corpo não traz datas: o check-in vem do próprio assunto.
+  assertEquals(nova.checkIn, '2026-09-11');
+  assertEquals(nova.guestName, null);
+
+  const ultimaHora = parseReservationEmail({
+    from: 'noreply@booking.com',
+    subject: 'Booking.com - Nova reserva de última hora (5000446589, quarta-feira, 22 de julho de 2026)',
+    text: 'Detalhes na extranet.',
+  }, { reference: REFERENCE });
+
+  assertEquals(ultimaHora.reservationCode, '5000446589');
+  assertEquals(ultimaHora.checkIn, '2026-07-22');
+  assertEquals(ultimaHora.guestName, null);
+});
+
+Deno.test('o nome do hóspede vem dos assuntos que realmente o contêm', () => {
+  const mensagem = parseReservationEmail({
+    from: 'Booking.com <noreply@booking.com>',
+    subject: 'Recebemos uma mensagem de Maico Mombach',
+    html: `<div><p>Nome da acomodação: Studio próximo a Praia de Copacabana</p>
+      <p>Número da reserva: 6124022858</p>
+      <p>Chegada: 11/09/2026</p><p>Partida: 14/09/2026</p>
+      <p>Número de hóspedes: 3</p></div>`,
+  }, { reference: REFERENCE });
+
+  assertEquals(mensagem.guestName, 'Maico Mombach');
+  assertEquals(mensagem.listingName, 'Studio próximo a Praia de Copacabana');
+  assertEquals(mensagem.checkIn, '2026-09-11');
+  assertEquals(mensagem.checkOut, '2026-09-14');
+
+  const solicitacao = parseReservationEmail({
+    from: 'noreply@booking.com',
+    subject: 'A solicitação de Bartłomiej Korpała foi confirmada',
+    text: 'Número da reserva: 5650506482\nPartida: 26/07/2026',
+  }, { reference: REFERENCE });
+
+  assertEquals(solicitacao.guestName, 'Bartłomiej Korpała');
+});
+
+Deno.test('isPlausibleGuestName barra os falsos positivos observados', () => {
+  assertEquals(isPlausibleGuestName('(6859442149'), false);  // pedaço do código
+  assertEquals(isPlausibleGuestName('da'), false);           // preposição solta
+  assertEquals(isPlausibleGuestName('feira'), false);        // de "quarta-feira"
+  assertEquals(isPlausibleGuestName('acomodação'), false);
+  assertEquals(isPlausibleGuestName(''), false);
+
+  assertEquals(isPlausibleGuestName('Maria Souza'), true);
+  assertEquals(isPlausibleGuestName('Bartłomiej Korpała'), true);
 });

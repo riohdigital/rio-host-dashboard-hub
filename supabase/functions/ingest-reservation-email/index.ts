@@ -35,6 +35,7 @@ import {
   jsonResponse,
   logRun,
   recordPending,
+  shiftDate,
   type ReservationCandidate,
 } from '../_shared/reservationSync.ts';
 
@@ -129,6 +130,98 @@ function resolveProperty(
   return { propertyId: null, how: 'unmatched' };
 }
 
+const COLUNAS_RESERVA =
+  'id, property_id, platform, reservation_code, check_in_date, check_out_date';
+
+/** Só aceita o resultado quando todas as linhas são da mesma propriedade. */
+function umaPropriedadeSo(rows: any[] | null | undefined): any | null {
+  if (!rows?.length) return null;
+  const propriedades = new Set(rows.map((row: any) => row.property_id));
+  return propriedades.size === 1 ? rows[0] : null;
+}
+
+/**
+ * Procura a reserva que este e-mail descreve.
+ *
+ * É o outro lado da moeda dos dois canais: o e-mail traz hóspede e valor mas
+ * às vezes omite a propriedade e as datas; a reserva que o iCal já criou tem
+ * exatamente essas duas coisas. Da pista mais forte para a mais fraca.
+ */
+async function findReservationForEmail(
+  admin: any,
+  parsed: ParsedEmailReservation,
+  knownPropertyId: string | null,
+): Promise<any | null> {
+  if (!parsed.platform) return null;
+
+  // 1. Código real da plataforma.
+  if (parsed.reservationCode) {
+    const { data } = await admin
+      .from('reservations')
+      .select(COLUNAS_RESERVA)
+      .eq('platform', parsed.platform)
+      .eq('reservation_code', parsed.reservationCode)
+      .limit(2);
+    if (data?.length === 1) return data[0];
+  }
+
+  // 2. As duas datas.
+  if (parsed.checkIn && parsed.checkOut) {
+    let query = admin
+      .from('reservations')
+      .select(COLUNAS_RESERVA)
+      .eq('platform', parsed.platform)
+      .eq('check_in_date', parsed.checkIn)
+      .eq('check_out_date', parsed.checkOut);
+    if (knownPropertyId) query = query.eq('property_id', knownPropertyId);
+
+    const { data } = await query;
+    const unica = umaPropriedadeSo(data);
+    if (unica) return unica;
+  }
+
+  // 3. Só a data de entrada — é o que o assunto do "Nova reserva!" do
+  //    Booking.com oferece: "(6124022858, sexta-feira, 11 de setembro de 2026)".
+  if (parsed.checkIn) {
+    let query = admin
+      .from('reservations')
+      .select(COLUNAS_RESERVA)
+      .eq('platform', parsed.platform)
+      .gte('check_in_date', shiftDate(parsed.checkIn, -1))
+      .lte('check_in_date', shiftDate(parsed.checkIn, 1));
+    if (knownPropertyId) query = query.eq('property_id', knownPropertyId);
+
+    const { data } = await query;
+    const unica = umaPropriedadeSo(data);
+    if (unica) return unica;
+  }
+
+  return null;
+}
+
+/**
+ * Guarda o nome do anúncio na fonte correspondente quando ele ainda não foi
+ * preenchido. Assim o próximo e-mail da mesma propriedade se resolve sozinho,
+ * sem depender de a reserva já existir.
+ */
+async function learnListingAlias(
+  admin: any,
+  propertyId: string,
+  platform: string,
+  listingName: string | null,
+): Promise<void> {
+  if (!listingName || listingName.trim().length < 5) return;
+
+  const { error } = await admin
+    .from('channel_sync_sources')
+    .update({ listing_alias: listingName.trim() })
+    .eq('property_id', propertyId)
+    .eq('platform', platform)
+    .is('listing_alias', null);
+
+  if (error) console.error('Não foi possível guardar o nome do anúncio:', error.message);
+}
+
 /** Fecha pendências que este e-mail acabou de resolver. */
 async function resolvePendings(
   admin: any,
@@ -170,8 +263,8 @@ async function processEmail(
     intent: parsed.intent,
     reservationCode: parsed.reservationCode,
     guestName: parsed.guestName,
-    checkIn: parsed.checkIn,
-    checkOut: parsed.checkOut,
+    checkIn,
+    checkOut,
     numberOfGuests: parsed.numberOfGuests,
     totalRevenue: parsed.totalRevenue,
     commissionAmount: parsed.commissionAmount,
@@ -200,7 +293,19 @@ async function processEmail(
     };
   }
 
-  const { propertyId, how } = resolveProperty(parsed, email, properties, sources);
+  const resolvida = resolveProperty(parsed, email, properties, sources);
+
+  // Quando o e-mail não identifica a propriedade ou omite as datas, a reserva
+  // que o iCal já criou responde as duas coisas.
+  const jaCadastrada = await findReservationForEmail(admin, parsed, resolvida.propertyId);
+
+  const propertyId = resolvida.propertyId ?? jaCadastrada?.property_id ?? null;
+  const how = resolvida.propertyId
+    ? resolvida.how
+    : (jaCadastrada ? 'reserva_existente' : 'unmatched');
+  const checkIn = parsed.checkIn ?? jaCadastrada?.check_in_date ?? null;
+  const checkOut = parsed.checkOut ?? jaCadastrada?.check_out_date ?? null;
+
   const dedupeSeed = parsed.reservationCode
     ?? email.messageId
     ?? buildPlaceholderCode(`${email.subject}${parsed.checkIn}${parsed.checkOut}`);
@@ -232,7 +337,7 @@ async function processEmail(
   }
 
   // Sem datas não dá para criar reserva: vai para conferência com o que temos.
-  if (!parsed.checkIn || !parsed.checkOut) {
+  if (!checkIn || !checkOut) {
     await recordPending(admin, {
       channel: 'email',
       platform: parsed.platform,
@@ -250,7 +355,7 @@ async function processEmail(
   }
 
   const reservationCode = parsed.reservationCode
-    ?? buildPlaceholderCode(`${parsed.platform}:${propertyId}:${parsed.checkIn}`);
+    ?? buildPlaceholderCode(`${parsed.platform}:${propertyId}:${checkIn}`);
 
   const candidate: ReservationCandidate = {
     propertyId,
@@ -276,6 +381,10 @@ async function processEmail(
   };
 
   const applied = await applyReservation(admin, candidate);
+
+  if (applied.reservationId && how !== 'listing_alias') {
+    await learnListingAlias(admin, propertyId, parsed.platform, parsed.listingName);
+  }
 
   if (applied.reservationId) {
     const kinds = parsed.intent === 'cancelled'

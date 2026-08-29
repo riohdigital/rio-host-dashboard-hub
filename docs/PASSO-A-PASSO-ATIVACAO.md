@@ -266,9 +266,27 @@ Esta é a etapa que traz hóspede, valor, comissão e cancelamento.
     - Tipo: **Timer de minutos** → **A cada 10 minutos**
     - Salvar.
 
-✅ **Como conferir:** em até 10 minutos, as reservas do seu dashboard passam a
-mostrar nome do hóspede e valor. No Gmail, os e-mails processados ganham o
-rótulo `RioHost/Processado`.
+✅ **Como conferir:** na próxima reserva, o dashboard passa a mostrar nome do
+hóspede e valor. No Gmail, os e-mails processados ganham o rótulo
+`RioHost/Processado`.
+
+### 8.1 Recuperar reservas antigas (opcional)
+
+O acionador só olha os últimos 7 dias. Para trazer o histórico que já está na
+caixa de entrada:
+
+1. No script, ajuste `BACKFILL_DESDE` para a data a partir da qual você quer
+   recuperar (formato `AAAA/MM/DD`).
+2. Escolha a função **`sincronizarHistorico`** e clique em **Executar**.
+3. Leia o *Registro de execução*. Se aparecer *"Ainda restam conversas para
+   processar"*, rode de novo — repita até a mensagem sumir.
+
+Nunca coloque `sincronizarHistorico` num acionador de tempo: ela é para uso
+manual, uma vez só.
+
+Vale lembrar que só dá para recuperar o que está **nessa** caixa de e-mail. Se
+alguma plataforma enviava para outro endereço, essas reservas precisam ser
+preenchidas à mão ou os e-mails encaminhados para cá antes.
 
 ---
 
