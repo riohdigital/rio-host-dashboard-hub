@@ -20,6 +20,7 @@ import {
 
 interface RowOutcome {
   reservationCode: string;
+  listingName: string | null;
   action: 'created' | 'updated' | 'skipped' | 'pending' | 'ignored';
   reason?: string;
 }
@@ -54,6 +55,10 @@ const StatementImport: React.FC<StatementImportProps> = ({ properties, onImporte
   const [previa, setPrevia] = useState<ImportResponse | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  // Anúncio → imóvel, para os casos em que o nome não se parece com nenhuma
+  // propriedade. Apontar uma vez basta: o nome fica guardado no calendário.
+  const [vinculos, setVinculos] = useState<Record<string, string>>({});
+  const [importou, setImportou] = useState(false);
 
   // O extrato do Booking.com sai de dentro de uma acomodação e não diz qual é;
   // o do Airbnb nomeia o anúncio em cada linha e se resolve sozinho.
@@ -71,8 +76,19 @@ const StatementImport: React.FC<StatementImportProps> = ({ properties, onImporte
     setPropertyId('');
     setPrevia(null);
     setErro(null);
+    setVinculos({});
+    setImportou(false);
     if (inputRef.current) inputRef.current.value = '';
   };
+
+  /** Anúncios que a prévia não conseguiu ligar a nenhum imóvel. */
+  const anunciosSemImovel = useMemo(() => {
+    const nomes = new Set<string>();
+    for (const item of previa?.results ?? []) {
+      if (item.action === 'pending' && item.listingName) nomes.add(item.listingName);
+    }
+    return [...nomes];
+  }, [previa]);
 
   const aoEscolherArquivo = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -103,6 +119,7 @@ const StatementImport: React.FC<StatementImportProps> = ({ properties, onImporte
       body: {
         platform: arquivo!.platform,
         propertyId: precisaEscolherImovel ? propertyId : null,
+        listingOverrides: vinculos,
         dryRun,
         rows: arquivo!.rows.map((linha: StatementRow) => ({
           reservationCode: linha.reservationCode,
@@ -125,6 +142,7 @@ const StatementImport: React.FC<StatementImportProps> = ({ properties, onImporte
   const conferir = async () => {
     setOcupado(true);
     setErro(null);
+    setImportou(false);
     try {
       setPrevia(await chamarFuncao(true));
     } catch (err) {
@@ -139,11 +157,21 @@ const StatementImport: React.FC<StatementImportProps> = ({ properties, onImporte
     setErro(null);
     try {
       const resultado = await chamarFuncao(false);
+      setPrevia(resultado);
+      setImportou(true);
+
+      const gravadas = resultado.totals.created + resultado.totals.updated;
+
+      // Importação que não gravou nada precisa dizer o porquê, e não sumir da
+      // tela deixando a impressão de que deu certo.
       toast({
-        title: 'Extrato importado',
-        description: `${resultado.totals.created} reserva(s) criada(s), ${resultado.totals.updated} completada(s).`,
+        title: gravadas > 0 ? 'Extrato importado' : 'Nada foi gravado',
+        description: gravadas > 0
+          ? `${resultado.totals.created} reserva(s) criada(s), ${resultado.totals.updated} completada(s).`
+          : 'Nenhuma linha pôde ser aplicada. O motivo de cada uma está na tabela abaixo.',
+        variant: gravadas > 0 ? undefined : 'destructive',
       });
-      limpar();
+
       onImported();
     } catch (err) {
       setErro(err instanceof Error ? err.message : 'Erro ao importar.');
@@ -242,6 +270,7 @@ const StatementImport: React.FC<StatementImportProps> = ({ properties, onImporte
                     <th className="px-3 py-2 font-medium">Período</th>
                     <th className="px-3 py-2 font-medium text-right">Líquido</th>
                     {previa && <th className="px-3 py-2 font-medium">O que acontece</th>}
+                    {previa && <th className="px-3 py-2 font-medium">Motivo</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -256,6 +285,11 @@ const StatementImport: React.FC<StatementImportProps> = ({ properties, onImporte
                         {moeda(linha.totalRevenue)}
                       </td>
                       {previa && <td className="px-3 py-2">{etiqueta(linha.reservationCode)}</td>}
+                      {previa && (
+                        <td className="px-3 py-2 text-xs text-gray-600">
+                          {resultadoPorCodigo.get(linha.reservationCode)?.reason ?? '—'}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -275,6 +309,46 @@ const StatementImport: React.FC<StatementImportProps> = ({ properties, onImporte
               </Alert>
             )}
 
+            {anunciosSemImovel.length > 0 && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 space-y-3">
+                <div>
+                  <p className="text-sm font-medium">
+                    Não sei a qual imóvel pertencem estes anúncios
+                  </p>
+                  <p className="text-xs text-gray-600 mt-1">
+                    Aponte uma vez: o nome fica guardado no calendário e nunca mais
+                    precisa ser informado.
+                  </p>
+                </div>
+
+                {anunciosSemImovel.map((anuncio) => (
+                  <div key={anuncio} className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <span className="text-sm flex-1 min-w-0 break-words">{anuncio}</span>
+                    <Select
+                      value={vinculos[anuncio] ?? ''}
+                      onValueChange={(value) =>
+                        setVinculos((atual) => ({ ...atual, [anuncio]: value }))}
+                    >
+                      <SelectTrigger className="sm:w-72">
+                        <SelectValue placeholder="Selecione a propriedade" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {properties.map((property) => (
+                          <SelectItem key={property.id} value={property.id}>
+                            {property.nickname || property.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ))}
+
+                <Button size="sm" variant="outline" onClick={conferir} disabled={ocupado}>
+                  Conferir de novo
+                </Button>
+              </div>
+            )}
+
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant="outline"
@@ -289,10 +363,11 @@ const StatementImport: React.FC<StatementImportProps> = ({ properties, onImporte
                 disabled={ocupado || !previa || (precisaEscolherImovel && !propertyId)}
                 className="bg-[#6A6DDF] hover:bg-[#5A5BCF]"
               >
-                Importar {previa ? `${previa.totals.created + previa.totals.updated} reserva(s)` : ''}
+                {importou ? 'Importar de novo' : 'Importar'}
+                {previa ? ` ${previa.totals.created + previa.totals.updated} reserva(s)` : ''}
               </Button>
               <Button variant="ghost" onClick={limpar} disabled={ocupado}>
-                Cancelar
+                {importou ? 'Fechar' : 'Cancelar'}
               </Button>
             </div>
 
