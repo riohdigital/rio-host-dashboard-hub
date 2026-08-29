@@ -225,35 +225,78 @@ function extractCommission(text: string): number | null {
   return money && money > 0 ? money : null;
 }
 
+/** Palavras que aparecem em falsos positivos de nome ("Nome da acomodação"). */
+const NAO_SAO_NOMES = new Set([
+  'da', 'de', 'do', 'das', 'dos', 'a', 'o', 'e', 'em', 'para', 'com',
+  'acomodacao', 'reserva', 'reservas', 'hospede', 'hospedes', 'guest',
+  'nova reserva', 'ultima hora', 'booking com', 'airbnb',
+  // "quarta-feira" já rendeu um "feira" como nome de hóspede.
+  'feira', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo',
+  'segunda-feira', 'terca-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira',
+  'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
+]);
+
+/**
+ * Filtra o lixo que os assuntos e rótulos genéricos produzem: pedaços de
+ * código de reserva ("(6859442149"), preposições soltas ("da"), datas.
+ */
+export function isPlausibleGuestName(value: string | null | undefined): boolean {
+  if (!value) return false;
+
+  const trimmed = value.trim();
+  if (trimmed.length < 3 || trimmed.length > 80) return false;
+
+  // Nome começa com letra — não com parêntese, número ou pontuação.
+  if (!/^[\p{L}]/u.test(trimmed)) return false;
+
+  // Nenhum dígito: código de reserva e data não são nome.
+  if (/\d/.test(trimmed)) return false;
+
+  if (NAO_SAO_NOMES.has(normalizeForMatch(trimmed))) return false;
+
+  // Precisa de pelo menos uma palavra de verdade.
+  return /[\p{L}]{3,}/u.test(trimmed);
+}
+
 function extractGuestName(
   text: string,
   subject: string,
   platform: SyncPlatform,
 ): string | null {
+  // 'Nome' sozinho é genérico demais: casa com "Nome da acomodação".
   const labelled = findLabelledValue(toLines(text), [
     'Nome do hóspede', 'Nome do hospede', 'Hóspede', 'Hospede',
-    'Guest name', 'Guest', 'Nome',
+    'Guest name', 'Guest',
   ]);
 
   if (labelled) {
     const cleaned = labelled.split(/[|•\-–—(]/)[0].trim();
-    if (cleaned && cleaned.length <= 80 && /[a-zà-ú]/i.test(cleaned) && !/\d{3}/.test(cleaned)) {
-      return cleaned;
-    }
+    if (isPlausibleGuestName(cleaned)) return cleaned;
   }
+
+  const candidates: string[] = [];
 
   if (platform === 'Airbnb') {
     // "Reserva confirmada: Maria chega em 12 de set"
     const pt = /reserva confirmada[:\-–]?\s*([^,\n]+?)\s+(?:chega|chegara|chegará)/i.exec(subject);
-    if (pt) return pt[1].trim();
+    if (pt) candidates.push(pt[1]);
     const en = /reservation confirmed[:\-–]?\s*([^,\n]+?)\s+arrives/i.exec(subject);
-    if (en) return en[1].trim();
+    if (en) candidates.push(en[1]);
   } else {
-    // "Nova reserva! Maria Silva, 12 set - 15 set"
-    const pt = /nova reserva[!:\-–]?\s*([^,\n]{2,60}?)(?:,|\s+\d)/i.exec(subject);
-    if (pt) return pt[1].trim();
-    const en = /new booking[!:\-–]?\s*([^,\n]{2,60}?)(?:,|\s+\d)/i.exec(subject);
-    if (en) return en[1].trim();
+    // "Recebemos uma mensagem de Maico Mombach"
+    const mensagem = /(?:mensagem|message) de\s+([^,\n(]{3,60})/i.exec(subject);
+    if (mensagem) candidates.push(mensagem[1]);
+    // "A solicitação de Bartłomiej Korpała foi confirmada"
+    const solicitacao = /solicita(?:ç|c)[ãa]o de\s+([^,\n(]{3,60}?)\s+foi/i.exec(subject);
+    if (solicitacao) candidates.push(solicitacao[1]);
+    // O assunto do "Nova reserva!" do Booking.com traz apenas código e data
+    // — "(5000446589, quarta-feira, 22 de julho de 2026)" — nunca o hóspede.
+    // Para esses, o nome vem do rótulo no corpo ou de um e-mail posterior.
+  }
+
+  for (const candidate of candidates) {
+    const cleaned = candidate.trim();
+    if (isPlausibleGuestName(cleaned)) return cleaned;
   }
 
   return null;
@@ -330,6 +373,13 @@ export function parseReservationEmail(
   const { checkIn, checkOut } = extractDates(fullText, locale, reference);
   result.checkIn = checkIn;
   result.checkOut = checkOut;
+
+  // O Booking anuncia a data de entrada no próprio assunto:
+  // "Nova reserva! (6124022858, sexta-feira, 11 de setembro de 2026)".
+  // Só o check-in já basta para achar a reserva que o iCal criou.
+  if (!result.checkIn) {
+    result.checkIn = parseDateFlexible(subject, { locale, reference });
+  }
 
   result.guestName = extractGuestName(body, subject, platform);
   result.guestEmail = extractEmail(body);
