@@ -24,6 +24,7 @@ import { useProperties } from '@/hooks/useProperties';
 import { useChannelSync } from '@/hooks/useChannelSync';
 import { PENDING_KIND_LABELS, type ChannelSyncSource } from '@/types/channelSync';
 import SourceDialog from './channel-sync/SourceDialog';
+import StatementImport from './channel-sync/StatementImport';
 
 const formatDateTime = (value: string | null) =>
   value ? format(new Date(value), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : 'Nunca';
@@ -49,7 +50,7 @@ const ChannelSyncSection: React.FC = () => {
   const {
     sources, runs, pending, loading, syncing, error,
     saveSource, deleteSource, toggleSource, runSync, resolvePending,
-    assignPendingProperty,
+    assignPendingProperty, refetch,
   } = useChannelSync();
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -291,6 +292,8 @@ const ChannelSyncSection: React.FC = () => {
           </a>
         </CardContent>
       </Card>
+
+      <StatementImport properties={properties} onImported={refetch} />
 
       {/* ---------------- Fila de conferência ---------------- */}
       <Card>

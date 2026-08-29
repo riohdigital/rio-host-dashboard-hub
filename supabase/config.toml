@@ -36,3 +36,6 @@ verify_jwt = false
 
 [functions.ingest-reservation-email]
 verify_jwt = false
+
+[functions.import-platform-statement]
+verify_jwt = false
