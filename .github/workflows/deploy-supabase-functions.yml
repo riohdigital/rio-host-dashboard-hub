@@ -40,7 +40,9 @@ jobs:
       # Pega erro de compilação antes do deploy. Uma variável usada antes de
       # existir já derrubou o processamento de e-mail inteiro em produção.
       - name: Conferir o código das funções
-        run: npx --yes typescript@5.5.3 tsc -p supabase/functions/tsconfig.json --noEmit
+        # O pacote se chama typescript, o executável é tsc: sem --package o npx
+        # procura um executável chamado "typescript" e falha.
+        run: npx --yes --package typescript@5.5.3 -- tsc -p supabase/functions/tsconfig.json --noEmit
 
       - name: Conferir se o token foi cadastrado
         run: |
