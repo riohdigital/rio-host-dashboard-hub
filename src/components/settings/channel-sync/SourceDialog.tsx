@@ -4,6 +4,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -144,16 +145,19 @@ const SourceDialog: React.FC<SourceDialogProps> = ({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="sync-alias">Nome do anúncio na plataforma (opcional)</Label>
-            <Input
+            <Label htmlFor="sync-alias">Nomes do anúncio na plataforma (um por linha)</Label>
+            <Textarea
               id="sync-alias"
               value={listingAlias}
               onChange={(event) => setListingAlias(event.target.value)}
-              placeholder="Ex.: Apto Vista Mar 302"
+              placeholder={'Studio próximo a Praia de Copacabana\nNome antigo do anúncio'}
+              rows={3}
             />
             <p className="text-xs text-gray-500">
-              Usado para identificar a propriedade certa nos e-mails da plataforma
-              quando você tem vários imóveis.
+              Identifica a propriedade certa nos e-mails da plataforma quando você tem
+              vários imóveis. Pode renomear o anúncio à vontade: o sistema reconhece
+              títulos parecidos e guarda sozinho o nome novo. Preencher os nomes
+              antigos ajuda a casar e-mails já recebidos.
             </p>
           </div>
 
