@@ -31,3 +31,8 @@ verify_jwt = false
 
 [functions.create-user]
 verify_jwt = false
+[functions.sync-channel-reservations]
+verify_jwt = false
+
+[functions.ingest-reservation-email]
+verify_jwt = false

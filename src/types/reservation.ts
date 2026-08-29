@@ -26,6 +26,10 @@ export interface Reservation {
   created_by?: string | null;
   created_by_source?: string;
   automation_metadata?: any;
+  // Rastreio de origem externa (sincronização iCal / e-mail)
+  external_uid?: string | null;
+  external_source?: string | null;
+  last_synced_at?: string | null;
   // Campos relacionados à faxina
   cleaner_user_id?: string | null;
   cleaning_payment_status?: string | null;
