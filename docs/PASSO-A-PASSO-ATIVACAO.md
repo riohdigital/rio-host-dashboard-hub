@@ -296,7 +296,34 @@ preenchidas à mão ou os e-mails encaminhados para cá antes.
 
 ---
 
-## Etapa 9 — Conferência final
+## Etapa 9 — Trazer os valores das reservas
+
+Nem o calendário nem os e-mails informam quanto uma reserva rendeu — as
+plataformas simplesmente não mandam valor por esses caminhos. Ele vem da
+exportação de reservas.
+
+1. **No Booking.com:** [admin.booking.com](https://admin.booking.com) →
+   *Reservas* → escolha o período → *Exportar*. O arquivo cobre **uma
+   acomodação por vez**, então repita para cada imóvel.
+2. **No Airbnb:** [Ganhos](https://www.airbnb.com.br/hosting/earnings) →
+   *Histórico de transações* → *Baixar CSV*. Esse arquivo cobre todos os
+   anúncios de uma vez.
+3. No seu site, em **Configurações → Sincronização de Reservas → Importar
+   valores do extrato**, escolha o arquivo.
+4. No Booking, selecione de qual imóvel é o arquivo. No Airbnb não precisa: ele
+   identifica pelo nome do anúncio em cada linha.
+5. Clique em **Conferir antes de importar**. A tabela mostra o que vai
+   acontecer com cada linha e o motivo, e destaca em amarelo o que merece um
+   olhar.
+6. Se algum anúncio não for reconhecido, ele aparece num bloco com um seletor
+   de imóvel. Aponte, clique em **Conferir de novo** — a resposta fica guardada
+   e não será perguntada outra vez.
+7. **Importar**.
+
+É gravado o **líquido**, já sem a comissão da plataforma. Valores que você já
+tinha preenchido à mão não são sobrescritos.
+
+## Etapa 10 — Conferência final
 
 No seu site, em **Configurações → Sincronização de Reservas**, confira:
 

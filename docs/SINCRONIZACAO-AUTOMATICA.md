@@ -300,6 +300,16 @@ para listá-las e removê-las.
 
 ---
 
+### Anúncio que a importação não reconhece
+
+Quando o nome do anúncio não casa com nenhum imóvel, a linha não é gravada às
+cegas: a tela agrupa os anúncios desconhecidos e oferece um seletor de imóvel
+para cada um. A escolha é guardada no calendário correspondente, e a partir daí
+tanto a importação quanto os e-mails o reconhecem sozinhos.
+
+O resultado da importação fica na tela, com o motivo de cada linha. Uma
+importação que não grava nada diz por quê.
+
 ## 5. Verificação e diagnóstico
 
 **Configurações → Sincronização de Reservas** mostra:
