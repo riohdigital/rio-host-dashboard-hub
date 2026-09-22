@@ -46,3 +46,50 @@ export interface PropertyPricingKPIs {
   upcomingEventsCount: number;
   activeReservationsCount: number;
 }
+
+export interface CompetitorListing {
+  id: string;
+  property_id: string;
+  name: string;
+  platform: 'airbnb' | 'booking' | 'vrbo';
+  external_listing_id?: string | null;
+  listing_url: string;
+  neighborhood?: string | null;
+  property_type?: string | null;
+  bedrooms?: number;
+  bathrooms?: number;
+  max_guests?: number;
+  has_sea_view?: boolean;
+  current_rating?: number;
+  reviews_count?: number;
+  status: 'Ativo' | 'Pausado' | 'Inativo';
+  created_at: string;
+  latest_price?: number | null;
+  average_price?: number | null;
+}
+
+export interface CompetitorPriceSnapshot {
+  id: string;
+  competitor_listing_id: string;
+  snapshot_date: string;
+  target_date: string;
+  daily_price?: number | null;
+  is_available: boolean;
+  min_nights?: number;
+  raw_payload?: Record<string, any> | null;
+  created_at: string;
+}
+
+export interface PropertyCalendarPrice {
+  id: string;
+  property_id: string;
+  date: string;
+  platform: string;
+  price_per_night: number;
+  min_nights: number;
+  is_available: boolean;
+  is_blocked: boolean;
+  last_scraped_at: string;
+  created_at: string;
+}
+

@@ -26,6 +26,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { PricingAlert, LocalEvent, PropertyPricingKPIs } from '@/types/pricing';
 import { Property } from '@/types/property';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import CompetitorsRadarTab from './CompetitorsRadarTab';
+import EventsCalendarTab from './EventsCalendarTab';
+import ReservationsAuditTab from './ReservationsAuditTab';
+
 
 interface PropertyPricingDashboardProps {
   propertyId: string;
@@ -400,17 +405,63 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
         </Card>
       </div>
 
-      {/* Seção Principal: Alertas Acionáveis de Pricing */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div>
-              <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                <Zap className="h-5 w-5 text-amber-500" />
-                Alertas de Oportunidades de Yield & Tarifa
-              </h3>
-              <p className="text-xs text-gray-500">Sugestões dinâmicas geradas pela IA e cruzamento de demanda</p>
-            </div>
+      {/* Navegação por Abas de Inteligência de Precificação */}
+      <Tabs defaultValue="alerts" className="w-full space-y-6">
+        <TabsList className="bg-white border p-1 rounded-xl shadow-xs inline-flex h-11 w-full sm:w-auto gap-1">
+          <TabsTrigger
+            value="alerts"
+            className="data-[state=active]:bg-[#6A6DDF] data-[state=active]:text-white gap-2 text-xs font-semibold px-4 py-2 rounded-lg transition-all"
+          >
+            <Zap className="h-4 w-4" />
+            Alertas & Yield
+            {kpis.pendingAlertsCount > 0 && (
+              <Badge className="ml-1 bg-amber-500 text-white text-[10px] px-1.5 py-0 rounded-full">
+                {kpis.pendingAlertsCount}
+              </Badge>
+            )}
+          </TabsTrigger>
+
+          <TabsTrigger
+            value="competitors"
+            className="data-[state=active]:bg-[#6A6DDF] data-[state=active]:text-white gap-2 text-xs font-semibold px-4 py-2 rounded-lg transition-all"
+          >
+            <Layers className="h-4 w-4" />
+            Radar de Concorrência (CompSet)
+          </TabsTrigger>
+
+          <TabsTrigger
+            value="events"
+            className="data-[state=active]:bg-[#6A6DDF] data-[state=active]:text-white gap-2 text-xs font-semibold px-4 py-2 rounded-lg transition-all"
+          >
+            <Calendar className="h-4 w-4" />
+            Eventos Locais & Demanda
+            <Badge variant="outline" className="ml-1 text-[10px] px-1.5 py-0 border-gray-300">
+              {events.length}
+            </Badge>
+          </TabsTrigger>
+
+          <TabsTrigger
+            value="audit"
+            className="data-[state=active]:bg-[#6A6DDF] data-[state=active]:text-white gap-2 text-xs font-semibold px-4 py-2 rounded-lg transition-all"
+          >
+            <ShieldCheck className="h-4 w-4" />
+            Auditoria de Reservas & IA
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Aba 1: Alertas Acionáveis de Pricing */}
+        <TabsContent value="alerts" className="space-y-6 mt-0">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-4">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    <Zap className="h-5 w-5 text-amber-500" />
+                    Alertas de Oportunidades de Yield & Tarifa
+                  </h3>
+                  <p className="text-xs text-gray-500">Sugestões dinâmicas geradas pela IA e cruzamento de demanda</p>
+                </div>
+
 
             {/* Filtros de Status */}
             <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
@@ -672,7 +723,36 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
           </Card>
         </div>
       </div>
-    </div>
+    </TabsContent>
+
+    {/* Aba 2: Radar de Concorrência (CompSet) */}
+    <TabsContent value="competitors" className="mt-0">
+      <CompetitorsRadarTab
+        propertyId={propertyId}
+        properties={properties}
+        selectedProperty={selectedProperty}
+      />
+    </TabsContent>
+
+    {/* Aba 3: Eventos Locais & Demanda Expandida */}
+    <TabsContent value="events" className="mt-0">
+      <EventsCalendarTab
+        events={events}
+        selectedProperty={selectedProperty}
+        reservations={reservations}
+      />
+    </TabsContent>
+
+    {/* Aba 4: Auditoria de Reservas & Calendário Real */}
+    <TabsContent value="audit" className="mt-0">
+      <ReservationsAuditTab
+        propertyId={propertyId}
+        selectedProperty={selectedProperty}
+      />
+    </TabsContent>
+  </Tabs>
+</div>
+
   );
 };
 
