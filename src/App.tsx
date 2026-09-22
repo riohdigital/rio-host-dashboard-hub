@@ -13,6 +13,7 @@ import ReservasPage from "./pages/ReservasPage";
 import CalendarioPage from "./pages/CalendarioPage";
 import DespesasPage from "./pages/DespesasPage";
 import PropriedadesPage from "./pages/PropriedadesPage";
+import PrecificacaoPage from "./pages/PrecificacaoPage";
 import InvestmentsPage from "./pages/InvestmentsPage";
 import PropertyInvestmentDetailPage from "./pages/PropertyInvestmentDetailPage";
 import RelatoriosPage from "./pages/RelatoriosPage";
@@ -77,6 +78,7 @@ const App = () => {
                           <Route path="/calendario" element={<CalendarioPage />} />
                           <Route path="/despesas" element={<DespesasPage />} />
                           <Route path="/propriedades" element={<PropriedadesPage />} />
+                          <Route path="/precificacao" element={<PrecificacaoPage />} />
                           <Route path="/investimentos" element={<InvestmentsPage />} />
                           <Route path="/investimentos/:propertyId" element={<PropertyInvestmentDetailPage />} />
                           <Route path="/relatorios" element={<RelatoriosPage />} />

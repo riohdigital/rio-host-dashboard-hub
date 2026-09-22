@@ -14,6 +14,155 @@ export type Database = {
   }
   public: {
     Tables: {
+      pricing_alerts: {
+        Row: {
+          id: string
+          property_id: string
+          alert_type: string
+          target_start_date: string
+          target_end_date: string
+          event_id: string | null
+          current_price: number | null
+          suggested_price: number | null
+          suggested_min_nights: number | null
+          estimated_revenue_gain: number | null
+          reason: string
+          urgency: string
+          status: string
+          action_taken: string | null
+          resolved_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          property_id: string
+          alert_type: string
+          target_start_date: string
+          target_end_date: string
+          event_id?: string | null
+          current_price?: number | null
+          suggested_price?: number | null
+          suggested_min_nights?: number | null
+          estimated_revenue_gain?: number | null
+          reason: string
+          urgency?: string
+          status?: string
+          action_taken?: string | null
+          resolved_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          property_id?: string
+          alert_type?: string
+          target_start_date?: string
+          target_end_date?: string
+          event_id?: string | null
+          current_price?: number | null
+          suggested_price?: number | null
+          suggested_min_nights?: number | null
+          estimated_revenue_gain?: number | null
+          reason?: string
+          urgency?: string
+          status?: string
+          action_taken?: string | null
+          resolved_at?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pricing_alerts_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      local_events: {
+        Row: {
+          id: string
+          name: string
+          city: string
+          neighborhood: string | null
+          start_date: string
+          end_date: string
+          category: string
+          demand_impact: string
+          recommended_min_nights: number | null
+          recommended_price_multiplier: number | null
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          city: string
+          neighborhood?: string | null
+          start_date: string
+          end_date: string
+          category: string
+          demand_impact?: string
+          recommended_min_nights?: number | null
+          recommended_price_multiplier?: number | null
+          notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          city?: string
+          neighborhood?: string | null
+          start_date?: string
+          end_date?: string
+          category?: string
+          demand_impact?: string
+          recommended_min_nights?: number | null
+          recommended_price_multiplier?: number | null
+          notes?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      daily_executive_briefings: {
+        Row: {
+          id: string
+          briefing_date: string
+          checkins_count: number
+          checkouts_count: number
+          pending_alerts_count: number
+          summary_data: Json | null
+          whatsapp_message: string
+          sent_to_number: string
+          sent_at: string
+          status: string
+        }
+        Insert: {
+          id?: string
+          briefing_date?: string
+          checkins_count?: number
+          checkouts_count?: number
+          pending_alerts_count?: number
+          summary_data?: Json | null
+          whatsapp_message: string
+          sent_to_number: string
+          sent_at?: string
+          status?: string
+        }
+        Update: {
+          id?: string
+          briefing_date?: string
+          checkins_count?: number
+          checkouts_count?: number
+          pending_alerts_count?: number
+          summary_data?: Json | null
+          whatsapp_message?: string
+          sent_to_number?: string
+          sent_at?: string
+          status?: string
+        }
+        Relationships: []
+      }
       alerts_destination_property_links: {
         Row: {
           destination_id: string

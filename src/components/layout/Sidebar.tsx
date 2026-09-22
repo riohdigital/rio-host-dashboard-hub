@@ -15,7 +15,8 @@ import {
   ChevronDown,
   ChevronRight,
   CreditCard,
-  LayoutDashboard
+  LayoutDashboard,
+  Sparkles
 } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -64,6 +65,7 @@ const Sidebar = () => {
     { name: 'Calendário', icon: Calendar, path: '/calendario' },
     { name: 'Despesas', icon: Tag, path: '/despesas' },
     { name: 'Propriedades', icon: Home, path: '/propriedades' },
+    { name: 'Precificação', icon: Sparkles, path: '/precificacao' },
     { name: 'Investimentos & ROI', icon: TrendingUp, path: '/investimentos' },
     { name: 'Relatórios', icon: FileText, path: '/relatorios' },
     ...(hasPermission('anfitriao_alerta_view') ? [{ name: 'Anfitrião Alerta', icon: Bell, path: '/anfitriao-alerta' }] : []),
