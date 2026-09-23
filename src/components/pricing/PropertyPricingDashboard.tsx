@@ -6,6 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import {
   TrendingUp,
+  TrendingDown,
   AlertTriangle,
   Calendar,
   DollarSign,
@@ -135,11 +136,15 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
   const kpis: PropertyPricingKPIs = useMemo(() => {
     const pending = alerts.filter(a => a.status === 'Pendente');
     const critical = pending.filter(a => a.urgency === 'Crítica');
-    const revenueGain = pending.reduce((acc, curr) => acc + (curr.estimated_revenue_gain || 0), 0);
+    const underpricing = pending.filter(a => a.alert_type !== 'overpricing_event');
+    const overpricing = pending.filter(a => a.alert_type === 'overpricing_event');
+    const revenueGain = underpricing.reduce((acc, curr) => acc + (curr.estimated_revenue_gain || 0), 0);
     const gaps = pending.filter(a => a.alert_type === 'orphan_night');
 
     return {
       pendingAlertsCount: pending.length,
+      pendingUnderpricingCount: underpricing.length,
+      pendingOverpricingCount: overpricing.length,
       criticalAlertsCount: critical.length,
       estimatedRevenueGain: revenueGain,
       orphanGapsCount: gaps.length,
@@ -148,21 +153,47 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
     };
   }, [alerts, events, reservations]);
 
-  // Alertas filtrados por status
-  const filteredAlerts = useMemo(() => {
-    if (statusFilter === 'all') return alerts;
-    return alerts.filter(a => a.status === statusFilter);
+  // Alertas filtrados por status e tipo (Abaixo do Mercado / Oportunidades vs Acima do Sugerido / Calibração)
+  const underpricingAlerts = useMemo(() => {
+    const list = alerts.filter(a => a.alert_type !== 'overpricing_event');
+    if (statusFilter === 'all') return list;
+    return list.filter(a => a.status === statusFilter);
   }, [alerts, statusFilter]);
 
-  // Ação de aprovar alerta
-  const handleApproveAlert = async (alert: PricingAlert) => {
+  const overpricingAlerts = useMemo(() => {
+    const list = alerts.filter(a => a.alert_type === 'overpricing_event');
+    if (statusFilter === 'all') return list;
+    return list.filter(a => a.status === statusFilter);
+  }, [alerts, statusFilter]);
+
+  // Ação de aprovar alerta (suporta aumento de yield, calibração para o mercado ou confirmação de tarifa premium)
+  const handleApproveAlert = async (
+    alert: PricingAlert,
+    actionType: 'standard_raise' | 'adjust_to_market' | 'keep_premium' = 'standard_raise'
+  ) => {
     setIsUpdatingStatus(alert.id);
     try {
+      let actionTaken = 'Aprovado pelo gestor no Dashboard';
+      let toastTitle = 'Tarifa Aprovada com Sucesso!';
+      let toastDesc = `Oportunidade para ${new Date(alert.target_start_date).toLocaleDateString('pt-BR')} aprovada.`;
+
+      if (actionType === 'adjust_to_market') {
+        actionTaken = `Tarifa calibrada para R$ ${alert.suggested_price}/noite (mediana do mercado)`;
+        toastTitle = 'Tarifa Calibrada com o Mercado!';
+        toastDesc = `Ajuste para R$ ${alert.suggested_price}/noite aprovado para mitigar risco de vacância.`;
+      } else if (actionType === 'keep_premium') {
+        actionTaken = `Mantida tarifa premium de R$ ${alert.current_price}/noite pelo gestor`;
+        toastTitle = 'Estratégia Confirmada!';
+        toastDesc = `Tarifa premium de R$ ${alert.current_price}/noite mantida no seu calendário.`;
+      } else {
+        toastDesc = `Oportunidade para ${new Date(alert.target_start_date).toLocaleDateString('pt-BR')} aprovada. Ganho estimado: +R$ ${alert.estimated_revenue_gain || 0}.`;
+      }
+
       const { error } = await supabase
         .from('pricing_alerts')
         .update({
           status: 'Aprovado',
-          action_taken: 'Aprovado pelo gestor no Dashboard',
+          action_taken: actionTaken,
           resolved_at: new Date().toISOString(),
         })
         .eq('id', alert.id);
@@ -170,12 +201,12 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
       if (error) throw error;
 
       toast({
-        title: 'Tarifa Aprovada com Sucesso!',
-        description: `Oportunidade para ${new Date(alert.target_start_date).toLocaleDateString('pt-BR')} aprovada. Ganho estimado: +R$ ${alert.estimated_revenue_gain || 0}.`,
+        title: toastTitle,
+        description: toastDesc,
       });
 
       // Atualiza localmente
-      setAlerts(prev => prev.map(a => a.id === alert.id ? { ...a, status: 'Aprovado', action_taken: 'Aprovado pelo gestor no Dashboard' } : a));
+      setAlerts(prev => prev.map(a => a.id === alert.id ? { ...a, status: 'Aprovado', action_taken: actionTaken } : a));
     } catch (err: any) {
       toast({
         title: 'Erro ao aprovar alerta',
@@ -306,6 +337,141 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
       return (rStart <= evEnd && rEnd >= evStart);
     });
   };
+
+  // Helper para renderizar a coluna lateral com Eventos e Altas Demandas
+  const renderEventsSidebar = () => (
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+          <Calendar className="h-5 w-5 text-[#6A6DDF]" />
+          Grandes Eventos & Feriados
+        </h3>
+        <p className="text-xs text-gray-500">Mapeamento de datas com impacto direto na ocupação</p>
+      </div>
+
+      <Card className="shadow-xs">
+        <CardContent className="p-4 space-y-3">
+          {events.length === 0 ? (
+            <p className="text-xs text-gray-400 py-4 text-center">Nenhum evento mapeado no período.</p>
+          ) : (
+            events.map(ev => {
+              const isBooked = isPropertyBookedDuringEvent(ev);
+              const isCriticalImpact = ev.demand_impact === 'Crítico';
+
+              return (
+                <div
+                  key={ev.id}
+                  className="p-3 rounded-lg border bg-gray-50/50 hover:bg-white transition-colors space-y-1.5 text-xs"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-gray-800">{ev.name}</span>
+                    <Badge
+                      variant="outline"
+                      className={
+                        isCriticalImpact
+                          ? 'bg-red-50 text-red-700 border-red-200 text-[10px]'
+                          : ev.demand_impact === 'Alto'
+                          ? 'bg-amber-50 text-amber-700 border-amber-200 text-[10px]'
+                          : 'bg-blue-50 text-blue-700 border-blue-200 text-[10px]'
+                      }
+                    >
+                      {ev.demand_impact}
+                    </Badge>
+                  </div>
+
+                  <div className="flex items-center justify-between text-gray-500 text-[11px]">
+                    <span>
+                      {new Date(ev.start_date).toLocaleDateString('pt-BR')} a{' '}
+                      {new Date(ev.end_date).toLocaleDateString('pt-BR')}
+                    </span>
+                    <span className="font-medium text-[#6A6DDF]">
+                      {ev.recommended_price_multiplier ? `${ev.recommended_price_multiplier}x diária` : 'Normal'}
+                    </span>
+                  </div>
+
+                  {/* Status de Ocupação no Imóvel */}
+                  <div className="pt-1 flex items-center justify-between border-t border-gray-100 text-[11px]">
+                    <span className="text-gray-400">Status no imóvel:</span>
+                    {isBooked ? (
+                      <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" /> Já Reservado
+                      </span>
+                    ) : (
+                      <span className="text-amber-600 font-semibold flex items-center gap-1">
+                        <Flame className="h-3 w-3" /> Disponível para Yield
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Card: Altas Demandas Mapeadas no Imóvel */}
+      <Card className="shadow-xs border-t-2 border-t-amber-500">
+        <CardHeader className="p-4 pb-2">
+          <CardTitle className="text-sm font-bold flex items-center justify-between">
+            <span className="flex items-center gap-1.5 text-gray-800">
+              <Flame className="h-4 w-4 text-amber-500" />
+              Altas Demandas do Imóvel
+            </span>
+            {selectedProperty && (
+              <Badge variant="outline" className="text-[10px] font-medium border-amber-200 text-amber-700 bg-amber-50">
+                {selectedProperty.nickname || selectedProperty.name}
+              </Badge>
+            )}
+          </CardTitle>
+          <CardDescription className="text-[11px]">
+            {selectedProperty
+              ? 'Picos sazonais configurados no banco de dados para este imóvel'
+              : 'Selecione um imóvel no topo para visualizar seu calendário específico de alta demanda'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-4 pt-1 space-y-2">
+          {selectedProperty?.high_demand_events && selectedProperty.high_demand_events.length > 0 ? (
+            selectedProperty.high_demand_events.map((hde, idx) => (
+              <div key={idx} className="p-2.5 rounded-lg border bg-amber-50/40 border-amber-200/60 space-y-1 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-gray-800">{hde.event_name}</span>
+                  <Badge className="bg-amber-500 text-white text-[10px] px-1.5 py-0">
+                    {hde.recommended_multiplier ? `${hde.recommended_multiplier}x` : 'Alta'}
+                  </Badge>
+                </div>
+                {hde.period_description && (
+                  <p className="text-[11px] text-gray-500">{hde.period_description}</p>
+                )}
+                {hde.notes && (
+                  <p className="text-[11px] text-gray-600 italic">{hde.notes}</p>
+                )}
+              </div>
+            ))
+          ) : selectedProperty ? (
+            <p className="text-xs text-gray-400 py-3 text-center">Nenhum evento customizado cadastrado diretamente neste imóvel.</p>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-[11px] text-gray-500">
+                Exemplos de altas demandas ativas por praça:
+              </p>
+              <div className="p-2 rounded-lg bg-gray-50 border text-[11px] space-y-1">
+                <div className="font-semibold text-gray-700">🎪 Natal / Ponta Negra:</div>
+                <div className="text-gray-600">Carnatal (2.2x), Réveillon (3.2x), Férias de Verão (1.7x)</div>
+              </div>
+              <div className="p-2 rounded-lg bg-gray-50 border text-[11px] space-y-1">
+                <div className="font-semibold text-gray-700">🏖️ Rio de Janeiro:</div>
+                <div className="text-gray-600">Réveillon Copacabana (3.5x), Carnaval (3.2x), Rock in Rio (2.4x)</div>
+              </div>
+              <div className="p-2 rounded-lg bg-gray-50 border text-[11px] space-y-1">
+                <div className="font-semibold text-gray-700">⛵ Mangaratiba & Região dos Lagos:</div>
+                <div className="text-gray-600">Temporada Náutica (1.9x), Jazz & Blues Rio das Ostras (2.1x)</div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
 
   return (
     <div className="space-y-6">

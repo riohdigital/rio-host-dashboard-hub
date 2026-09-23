@@ -1,6 +1,6 @@
-export type AlertType = 'underpricing_event' | 'orphan_night' | 'vacancy_risk' | 'competitor_drop';
-export type AlertUrgency = 'Crítica' | 'Alta' | 'Média';
-export type AlertStatus = 'Pendente' | 'Aprovado' | 'Rejeitado' | 'Expirado';
+export type AlertType = 'underpricing_event' | 'overpricing_event' | 'orphan_night' | 'vacancy_risk' | 'competitor_drop';
+export type AlertUrgency = 'Crítica' | 'Alta' | 'Média' | 'Baixa';
+export type AlertStatus = 'Pendente' | 'Aprovado' | 'Rejeitado' | 'Expirado' | 'Resolvido';
 export type DemandImpact = 'Crítico' | 'Alto' | 'Moderado';
 
 export interface PricingAlert {
@@ -42,6 +42,8 @@ export interface LocalEvent {
 
 export interface PropertyPricingKPIs {
   pendingAlertsCount: number;
+  pendingUnderpricingCount?: number;
+  pendingOverpricingCount?: number;
   criticalAlertsCount: number;
   estimatedRevenueGain: number;
   orphanGapsCount: number;

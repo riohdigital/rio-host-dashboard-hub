@@ -97,22 +97,23 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
     setConnectionStatus('disconnected');
   }, []);
 
-  // Foca automaticamente o primeiro campo de input visível na página
+  // Foca o campo de input correto (ignora o honeypot #hidden-password)
   const autoFocusInput = useCallback(async () => {
     const script = `(() => {
       const selectors = [
         'input#loginname',
         'input[name="loginname"]',
-        'input[name="password"]',
-        'input[type="password"]',
+        'input[type="password"]:not(#hidden-password)',
+        'input[name="password"]:not(#hidden-password)',
+        'input#password',
         'input[type="email"]',
         'input[name="user[email]"]',
         'input[name="phone-number"]',
-        'input:not([type="hidden"])'
+        'input:not([type="hidden"]):not(#hidden-password)'
       ];
       for (const sel of selectors) {
         const el = document.querySelector(sel);
-        if (el && el.offsetParent !== null) {
+        if (el && el.offsetParent !== null && el.id !== 'hidden-password') {
           el.focus();
           return { focused: true, id: el.id, name: el.name };
         }
@@ -238,7 +239,7 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
       // Auto focar input após carregamento inicial
       setTimeout(() => {
         autoFocusInput();
-      }, 2500);
+      }, 2000);
     };
 
     ws.onmessage = (event) => {
@@ -316,10 +317,13 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
     };
   }, [open, session, mode, getTargetUrl, sendCdp, stopConnection, autoFocusInput]);
 
-  // Interação de Clique no Canvas com Coordenadas Exatas
-  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  // Interação de Clique no Canvas com foco direto no elemento DOM sob o ponto
+  const handleCanvasClick = async (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas || connectionStatus !== 'connected') return;
+
+    canvas.focus();
+    setIsFocused(true);
 
     const rect = canvas.getBoundingClientRect();
     const scaleX = NATIVE_WIDTH / rect.width;
@@ -331,36 +335,42 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
     const x = Math.round(clickX * scaleX);
     const y = Math.round(clickY * scaleY);
 
-    // Indicador visual de clique
     setClickIndicator({ x: clickX, y: clickY });
     setTimeout(() => setClickIndicator(null), 400);
 
-    // 1. Move cursor para a posição
-    sendCdp('Input.dispatchMouseEvent', {
+    // 1. Envia clique nativo do CDP
+    await sendCdp('Input.dispatchMouseEvent', {
       type: 'mouseMoved',
       x,
       y,
       button: 'none',
     });
-
-    // 2. Dispara clique (press + release)
-    sendCdp('Input.dispatchMouseEvent', {
+    await sendCdp('Input.dispatchMouseEvent', {
       type: 'mousePressed',
       x,
       y,
       button: 'left',
       clickCount: 1,
     });
+    await sendCdp('Input.dispatchMouseEvent', {
+      type: 'mouseReleased',
+      x,
+      y,
+      button: 'left',
+      clickCount: 1,
+    });
 
-    setTimeout(() => {
-      sendCdp('Input.dispatchMouseEvent', {
-        type: 'mouseReleased',
-        x,
-        y,
-        button: 'left',
-        clickCount: 1,
-      });
-    }, 60);
+    // 2. Garante foco no elemento DOM sob o ponto (sem honeypots)
+    const focusAtPointScript = `(() => {
+      const el = document.elementFromPoint(${x}, ${y});
+      if (el) {
+        el.focus();
+        if (typeof el.click === 'function') el.click();
+        return { tag: el.tagName, id: el.id, name: el.name };
+      }
+      return null;
+    })()`;
+    sendCdp('Runtime.evaluate', { expression: focusAtPointScript });
   };
 
   const handleCanvasWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
@@ -404,7 +414,6 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
       sendCdp('Input.dispatchKeyEvent', { type: 'rawKeyDown', windowsVirtualKeyCode: 27, code: 'Escape', key: 'Escape' });
       sendCdp('Input.dispatchKeyEvent', { type: 'keyUp', windowsVirtualKeyCode: 27, code: 'Escape', key: 'Escape' });
     } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
-      // Inserção real de texto no campo ativo
       sendCdp('Input.insertText', { text: e.key });
     }
   };
@@ -416,14 +425,69 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
     }
   };
 
-  // Barra de Digitação Rápida (Facilita digitar email, senha e 2FA sem erro)
+  // Preenchimento Infalível via DOM Scripting + CDP Fallback
   const handleSendQuickInput = async (pressEnter = false) => {
     if (!quickInput && !pressEnter) return;
 
-    if (quickInput) {
-      await sendCdp('Input.insertText', { text: quickInput });
-    }
+    const valueToInsert = quickInput;
 
+    const fillScript = `(() => {
+      const text = ${JSON.stringify(valueToInsert)};
+      let target = document.activeElement;
+
+      // Se nada estiver focado ou se o elemento for o honeypot #hidden-password, buscar o campo real
+      if (!target || target.tagName !== 'INPUT' || target.id === 'hidden-password') {
+        const candidates = [
+          'input#loginname',
+          'input[name="loginname"]',
+          'input#password',
+          'input[name="password"]:not(#hidden-password)',
+          'input[type="password"]:not(#hidden-password)',
+          'input[type="email"]',
+          'input[name="user[email]"]',
+          'input[type="text"]:not(#hidden-password)',
+          'input[type="tel"]',
+          'input:not([type="hidden"]):not(#hidden-password)'
+        ];
+        for (const sel of candidates) {
+          const el = document.querySelector(sel);
+          if (el && el.offsetParent !== null && el.id !== 'hidden-password') {
+            target = el;
+            break;
+          }
+        }
+      }
+
+      if (target && target.tagName === 'INPUT') {
+        target.focus();
+        if (text) {
+          target.value = text;
+          target.dispatchEvent(new Event('input', { bubbles: true }));
+          target.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        if (${pressEnter}) {
+          setTimeout(() => {
+            const submitBtn = document.querySelector('button[type="submit"], button#login-submit, button.auth-btn');
+            if (submitBtn) {
+              submitBtn.click();
+            } else if (target.form) {
+              target.form.submit();
+            }
+          }, 150);
+        }
+        return { success: true, id: target.id, name: target.name, value: target.value };
+      }
+      return { success: false };
+    })()`;
+
+    const res = await sendCdp('Runtime.evaluate', { expression: fillScript, returnByValue: true });
+    const fillResult = res?.result?.value;
+
+    // Backup adicional via CDP
+    if (valueToInsert) {
+      await sendCdp('Input.insertText', { text: valueToInsert });
+    }
     if (pressEnter) {
       await sendCdp('Input.dispatchKeyEvent', { type: 'rawKeyDown', windowsVirtualKeyCode: 13, code: 'Enter', key: 'Enter' });
       await sendCdp('Input.dispatchKeyEvent', { type: 'keyUp', windowsVirtualKeyCode: 13, code: 'Enter', key: 'Enter' });
@@ -431,12 +495,21 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
 
     setQuickInput('');
     toast({
-      title: 'Texto Enviado para o Navegador',
-      description: pressEnter ? 'Texto digitado e Enter pressionado.' : 'Texto digitado no campo ativo.',
+      title: fillResult?.success ? `Digitado em #${fillResult.id || fillResult.name}` : 'Texto Enviado',
+      description: pressEnter ? 'Texto inserido e botão avançar/Enter acionado.' : 'Texto inserido no campo.',
     });
   };
 
   const handleSendKey = async (code: 'Enter' | 'Tab') => {
+    if (code === 'Enter') {
+      const clickSubmitScript = `(() => {
+        const btn = document.querySelector('button[type="submit"], button#login-submit, button.auth-btn');
+        if (btn) { btn.click(); return true; }
+        return false;
+      })()`;
+      sendCdp('Runtime.evaluate', { expression: clickSubmitScript });
+    }
+
     const keyCode = code === 'Enter' ? 13 : 9;
     await sendCdp('Input.dispatchKeyEvent', { type: 'rawKeyDown', windowsVirtualKeyCode: keyCode, code, key: code });
     await sendCdp('Input.dispatchKeyEvent', { type: 'keyUp', windowsVirtualKeyCode: keyCode, code, key: code });
@@ -596,7 +669,7 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
                 onClick={() => handleSendQuickInput(true)}
                 disabled={!quickInput}
                 className="h-8 px-2.5 bg-indigo-600/80 hover:bg-indigo-600 text-white text-xs shrink-0"
-                title="Digitar texto e enviar Enter"
+                title="Digitar texto e enviar Enter / Avançar"
               >
                 <CornerDownLeft className="h-3.5 w-3.5 mr-1" />
                 Enviar ↵
@@ -618,10 +691,10 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
                 size="sm"
                 variant="outline"
                 onClick={() => handleSendKey('Enter')}
-                className="h-8 px-2 text-xs border-neutral-700 text-neutral-300 hover:bg-neutral-800"
-                title="Pressionar tecla Enter no navegador"
+                className="h-8 px-2.5 text-xs border-neutral-700 text-neutral-300 hover:bg-neutral-800"
+                title="Pressionar botão de avanço / Enter"
               >
-                ↵ Enter
+                ↵ Avançar
               </Button>
               <Button
                 size="sm"
@@ -749,7 +822,7 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
           <div className="flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
             <span>
-              Você pode digitar diretamente na tela ou usar a barra rápida acima. Ao ver a página principal/painel da Booking ou Airbnb, clique em <strong>"Capturar & Salvar Sessão"</strong>.
+              Ao ver a página principal/painel da Booking ou Airbnb com login concluído, clique em <strong>"Capturar & Salvar Sessão"</strong>.
             </span>
           </div>
           <Button size="sm" variant="ghost" onClick={() => onOpenChange(false)}>
