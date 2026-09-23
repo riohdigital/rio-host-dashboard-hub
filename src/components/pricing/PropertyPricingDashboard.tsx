@@ -545,7 +545,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
           </CardContent>
         </Card>
 
-        {/* Ganho Estimado em Aberto */}
+        {/* Ganho Estimado em Aberto (Abaixo do Mercado) */}
         <Card className="border-l-4 border-l-emerald-500 shadow-xs hover:shadow-md transition-shadow">
           <CardContent className="p-5">
             <div className="flex justify-between items-start">
@@ -554,7 +554,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
                 <h3 className="text-2xl font-bold text-emerald-600 mt-1">
                   +R$ {kpis.estimatedRevenueGain.toLocaleString('pt-BR')}
                 </h3>
-                <p className="text-xs text-gray-500 mt-1">{kpis.pendingAlertsCount} oportunidade(s) pendente(s)</p>
+                <p className="text-xs text-gray-500 mt-1">{(kpis.pendingUnderpricingCount ?? 0)} oportunidade(s) abaixo do mercado</p>
               </div>
               <div className="p-2.5 rounded-full bg-emerald-50 text-emerald-600">
                 <TrendingUp className="h-5 w-5" />
@@ -563,17 +563,17 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
           </CardContent>
         </Card>
 
-        {/* Noites Órfãs (Gaps) */}
-        <Card className="border-l-4 border-l-amber-500 shadow-xs hover:shadow-md transition-shadow">
+        {/* Tarifas Acima do Mercado (Calibração) */}
+        <Card className="border-l-4 border-l-purple-500 shadow-xs hover:shadow-md transition-shadow">
           <CardContent className="p-5">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Noites Órfãs (Gaps)</p>
-                <h3 className="text-2xl font-bold text-amber-600 mt-1">{kpis.orphanGapsCount}</h3>
-                <p className="text-xs text-gray-500 mt-1">Buracos de 1 a 2 noites</p>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Acima do Mercado</p>
+                <h3 className="text-2xl font-bold text-purple-600 mt-1">{(kpis.pendingOverpricingCount ?? 0)}</h3>
+                <p className="text-xs text-gray-500 mt-1">Calibração & risco de vacância</p>
               </div>
-              <div className="p-2.5 rounded-full bg-amber-50 text-amber-600">
-                <Clock className="h-5 w-5" />
+              <div className="p-2.5 rounded-full bg-purple-50 text-purple-600">
+                <TrendingDown className="h-5 w-5" />
               </div>
             </div>
           </CardContent>
@@ -586,7 +586,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
               <div>
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Eventos na Região</p>
                 <h3 className="text-2xl font-bold text-[#6A6DDF] mt-1">{kpis.upcomingEventsCount}</h3>
-                <p className="text-xs text-gray-500 mt-1">Nos próximos 120 dias</p>
+                <p className="text-xs text-gray-500 mt-1">Mapeados nos próximos 365 dias</p>
               </div>
               <div className="p-2.5 rounded-full bg-[#6A6DDF]/10 text-[#6A6DDF]">
                 <Calendar className="h-5 w-5" />
@@ -597,17 +597,30 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
       </div>
 
       {/* Navegação por Abas de Inteligência de Precificação */}
-      <Tabs defaultValue="alerts" className="w-full space-y-6">
+      <Tabs defaultValue="underpricing" className="w-full space-y-6">
         <TabsList className="bg-white border p-1 rounded-xl shadow-xs inline-flex h-11 w-full sm:w-auto gap-1">
           <TabsTrigger
-            value="alerts"
+            value="underpricing"
+            className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white gap-2 text-xs font-semibold px-4 py-2 rounded-lg transition-all"
+          >
+            <TrendingUp className="h-4 w-4" />
+            Abaixo do Mercado (Oportunidades)
+            {(kpis.pendingUnderpricingCount ?? 0) > 0 && (
+              <Badge className="ml-1 bg-amber-500 text-white text-[10px] px-1.5 py-0 rounded-full">
+                {kpis.pendingUnderpricingCount}
+              </Badge>
+            )}
+          </TabsTrigger>
+
+          <TabsTrigger
+            value="overpricing"
             className="data-[state=active]:bg-[#6A6DDF] data-[state=active]:text-white gap-2 text-xs font-semibold px-4 py-2 rounded-lg transition-all"
           >
-            <Zap className="h-4 w-4" />
-            Alertas & Yield
-            {kpis.pendingAlertsCount > 0 && (
-              <Badge className="ml-1 bg-amber-500 text-white text-[10px] px-1.5 py-0 rounded-full">
-                {kpis.pendingAlertsCount}
+            <TrendingDown className="h-4 w-4" />
+            Acima do Sugerido (Calibração)
+            {(kpis.pendingOverpricingCount ?? 0) > 0 && (
+              <Badge className="ml-1 bg-purple-500 text-white text-[10px] px-1.5 py-0 rounded-full">
+                {kpis.pendingOverpricingCount}
               </Badge>
             )}
           </TabsTrigger>
@@ -640,414 +653,567 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
           </TabsTrigger>
         </TabsList>
 
-        {/* Aba 1: Alertas Acionáveis de Pricing */}
-        <TabsContent value="alerts" className="space-y-6 mt-0">
+        {/* Aba 1: Abaixo do Mercado (Oportunidades de Ganho & Yield) */}
+        <TabsContent value="underpricing" className="space-y-6 mt-0">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-4">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
                   <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                    <Zap className="h-5 w-5 text-amber-500" />
-                    Alertas de Oportunidades de Yield & Tarifa
+                    <TrendingUp className="h-5 w-5 text-emerald-600" />
+                    Oportunidades de Yield & Ganho (Abaixo do Mercado)
                   </h3>
-                  <p className="text-xs text-gray-500">Sugestões dinâmicas geradas pela IA e cruzamento de demanda</p>
+                  <p className="text-xs text-gray-500">Períodos onde seu calendário ou diária base estão abaixo da recomendação de mercado / alta demanda</p>
                 </div>
 
-
-            {/* Filtros de Status */}
-            <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
-              <Button
-                variant={statusFilter === 'Pendente' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setStatusFilter('Pendente')}
-                className={`h-7 text-xs ${statusFilter === 'Pendente' ? 'bg-[#6A6DDF] text-white' : 'text-gray-600'}`}
-              >
-                Pendentes ({alerts.filter(a => a.status === 'Pendente').length})
-              </Button>
-              <Button
-                variant={statusFilter === 'Aprovado' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setStatusFilter('Aprovado')}
-                className={`h-7 text-xs ${statusFilter === 'Aprovado' ? 'bg-emerald-600 text-white' : 'text-gray-600'}`}
-              >
-                Aprovados
-              </Button>
-              <Button
-                variant={statusFilter === 'Rejeitado' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setStatusFilter('Rejeitado')}
-                className={`h-7 text-xs ${statusFilter === 'Rejeitado' ? 'bg-gray-600 text-white' : 'text-gray-600'}`}
-              >
-                Rejeitados
-              </Button>
-              <Button
-                variant={statusFilter === 'all' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setStatusFilter('all')}
-                className={`h-7 text-xs ${statusFilter === 'all' ? 'bg-gray-800 text-white' : 'text-gray-600'}`}
-              >
-                Todos
-              </Button>
-            </div>
-          </div>
-
-          {/* Lista de Alertas */}
-          {loading ? (
-            <div className="py-12 text-center text-gray-500 bg-white rounded-lg border">
-              <RefreshCw className="h-6 w-6 animate-spin mx-auto text-[#6A6DDF] mb-2" />
-              Carregando inteligência de precificação...
-            </div>
-          ) : filteredAlerts.length === 0 ? (
-            <div className="py-12 text-center text-gray-500 bg-white rounded-lg border p-6">
-              <ShieldCheck className="h-10 w-10 text-emerald-500 mx-auto mb-2" />
-              <p className="font-medium text-gray-700">Nenhum alerta com status "{statusFilter}" no momento.</p>
-              <p className="text-xs text-gray-400 mt-1">
-                Todas as janelas de eventos e gaps deste imóvel estão calibradas com a melhor rentabilidade.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {filteredAlerts.map(alert => {
-                const isUnderpricing = alert.alert_type === 'underpricing_event';
-                const isCritical = alert.urgency === 'Crítica';
-                const isApproved = alert.status === 'Aprovado';
-                const isRejected = alert.status === 'Rejeitado';
-
-                // Resolução clara da propriedade vinculada
-                const propJoined = (alert as any).properties;
-                const propFromList = properties.find(p => p.id === alert.property_id);
-                const propObj = propJoined || propFromList;
-                const propertyDisplayName = propObj
-                  ? (propObj.nickname ? `${propObj.name} (${propObj.nickname})` : propObj.name)
-                  : (alert.property_name || 'Propriedade');
-
-                return (
-                  <Card
-                    key={alert.id}
-                    className={`transition-all border-l-4 ${
-                      isApproved
-                        ? 'border-l-emerald-500 bg-emerald-50/10'
-                        : isRejected
-                        ? 'border-l-gray-400 opacity-60'
-                        : isCritical
-                        ? 'border-l-red-500 shadow-xs'
-                        : 'border-l-amber-500 shadow-xs'
-                    }`}
+                {/* Filtros de Status */}
+                <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
+                  <Button
+                    variant={statusFilter === 'Pendente' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setStatusFilter('Pendente')}
+                    className={`h-7 text-xs ${statusFilter === 'Pendente' ? 'bg-emerald-600 text-white' : 'text-gray-600'}`}
                   >
-                    <CardContent className="p-5">
-                      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                        <div className="space-y-2 flex-1">
-                          {/* Badges de Imóvel, Tipo e Urgência */}
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <Badge
-                              variant="outline"
-                              className="bg-slate-100 text-slate-800 border-slate-300 font-bold text-xs flex items-center gap-1.5 shadow-2xs"
-                            >
-                              <Building2 className="h-3.5 w-3.5 text-[#6A6DDF]" />
-                              {propertyDisplayName}
-                            </Badge>
+                    Pendentes ({underpricingAlerts.filter(a => a.status === 'Pendente').length})
+                  </Button>
+                  <Button
+                    variant={statusFilter === 'Aprovado' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setStatusFilter('Aprovado')}
+                    className={`h-7 text-xs ${statusFilter === 'Aprovado' ? 'bg-emerald-700 text-white' : 'text-gray-600'}`}
+                  >
+                    Aprovados
+                  </Button>
+                  <Button
+                    variant={statusFilter === 'Rejeitado' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setStatusFilter('Rejeitado')}
+                    className={`h-7 text-xs ${statusFilter === 'Rejeitado' ? 'bg-gray-600 text-white' : 'text-gray-600'}`}
+                  >
+                    Rejeitados
+                  </Button>
+                  <Button
+                    variant={statusFilter === 'all' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setStatusFilter('all')}
+                    className={`h-7 text-xs ${statusFilter === 'all' ? 'bg-gray-800 text-white' : 'text-gray-600'}`}
+                  >
+                    Todos
+                  </Button>
+                </div>
+              </div>
 
-                            <Badge
-                              variant="outline"
-                              className={
-                                isCritical
-                                  ? 'bg-red-50 text-red-700 border-red-200 font-bold animate-pulse'
-                                  : alert.urgency === 'Alta'
-                                  ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                  : 'bg-blue-50 text-blue-700 border-blue-200'
-                              }
-                            >
-                              Urgência {alert.urgency}
-                            </Badge>
+              {/* Lista de Alertas de Underpricing */}
+              {loading ? (
+                <div className="py-12 text-center text-gray-500 bg-white rounded-lg border">
+                  <RefreshCw className="h-6 w-6 animate-spin mx-auto text-[#6A6DDF] mb-2" />
+                  Carregando oportunidades de precificação...
+                </div>
+              ) : underpricingAlerts.length === 0 ? (
+                <div className="py-12 text-center text-gray-500 bg-white rounded-lg border p-6">
+                  <ShieldCheck className="h-10 w-10 text-emerald-500 mx-auto mb-2" />
+                  <p className="font-medium text-gray-700">Nenhum alerta com status "{statusFilter}" no momento.</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Todas as janelas de oportunidades de aumento deste imóvel estão calibradas com a melhor rentabilidade.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {underpricingAlerts.map(alert => {
+                    const isUnderpricing = alert.alert_type === 'underpricing_event';
+                    const isCritical = alert.urgency === 'Crítica';
+                    const isApproved = alert.status === 'Aprovado';
+                    const isRejected = alert.status === 'Rejeitado';
 
-                            <Badge variant="secondary" className="text-xs">
-                              {isUnderpricing ? 'Evento de Alta Demanda' : 'Preenchimento de Noite Órfã'}
-                            </Badge>
+                    const propJoined = (alert as any).properties;
+                    const propFromList = properties.find(p => p.id === alert.property_id);
+                    const propObj = propJoined || propFromList;
+                    const propertyDisplayName = propObj
+                      ? (propObj.nickname ? `${propObj.name} (${propObj.nickname})` : propObj.name)
+                      : (alert.property_name || 'Propriedade');
 
-                            <span className="text-xs text-gray-400 ml-auto flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              {new Date(alert.target_start_date).toLocaleDateString('pt-BR')} a{' '}
-                              {new Date(alert.target_end_date).toLocaleDateString('pt-BR')}
-                            </span>
-                          </div>
+                    return (
+                      <Card
+                        key={alert.id}
+                        className={`transition-all border-l-4 ${
+                          isApproved
+                            ? 'border-l-emerald-500 bg-emerald-50/10'
+                            : isRejected
+                            ? 'border-l-gray-400 opacity-60'
+                            : isCritical
+                            ? 'border-l-red-500 shadow-xs'
+                            : 'border-l-amber-500 shadow-xs'
+                        }`}
+                      >
+                        <CardContent className="p-5">
+                          <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                            <div className="space-y-2 flex-1">
+                              {/* Badges de Imóvel, Tipo e Urgência */}
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Badge
+                                  variant="outline"
+                                  className="bg-slate-100 text-slate-800 border-slate-300 font-bold text-xs flex items-center gap-1.5 shadow-2xs"
+                                >
+                                  <Building2 className="h-3.5 w-3.5 text-[#6A6DDF]" />
+                                  {propertyDisplayName}
+                                </Badge>
 
-                          {/* Justificativa Básica */}
-                          <p className="text-sm text-gray-700 font-medium leading-relaxed">
-                            {alert.reason}
-                          </p>
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    isCritical
+                                      ? 'bg-red-50 text-red-700 border-red-200 font-bold animate-pulse'
+                                      : alert.urgency === 'Alta'
+                                      ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                      : 'bg-blue-50 text-blue-700 border-blue-200'
+                                  }
+                                >
+                                  Urgência {alert.urgency}
+                                </Badge>
 
-                          {/* Raciocínio Analítico & Dados de Comprovação da IA */}
-                          <div className="bg-[#6A6DDF]/5 border border-[#6A6DDF]/20 rounded-xl p-3.5 space-y-2.5">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <div className="flex items-center gap-1.5 text-xs font-bold text-[#6A6DDF]">
-                                <Sparkles className="h-3.5 w-3.5 text-[#6A6DDF]" />
-                                <span>Raciocínio da Sugestão & Dados Comprobatórios</span>
-                              </div>
-                              {alert.supporting_data?.calculation_formula && (
-                                <span className="text-[11px] font-mono bg-white px-2 py-0.5 rounded border border-gray-200 text-gray-700 font-medium shadow-xs">
-                                  {alert.supporting_data.calculation_formula}
+                                <Badge variant="secondary" className="text-xs">
+                                  {isUnderpricing ? 'Evento de Alta Demanda' : 'Preenchimento de Noite Órfã'}
+                                </Badge>
+
+                                <span className="text-xs text-gray-400 ml-auto flex items-center gap-1">
+                                  <Calendar className="h-3 w-3" />
+                                  {new Date(alert.target_start_date).toLocaleDateString('pt-BR')} a{' '}
+                                  {new Date(alert.target_end_date).toLocaleDateString('pt-BR')}
                                 </span>
+                              </div>
+
+                              {/* Justificativa Básica */}
+                              <p className="text-sm text-gray-700 font-medium leading-relaxed">
+                                {alert.reason}
+                              </p>
+
+                              {/* Raciocínio Analítico & Dados de Comprovação da IA */}
+                              <div className="bg-[#6A6DDF]/5 border border-[#6A6DDF]/20 rounded-xl p-3.5 space-y-2.5">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <div className="flex items-center gap-1.5 text-xs font-bold text-[#6A6DDF]">
+                                    <Sparkles className="h-3.5 w-3.5 text-[#6A6DDF]" />
+                                    <span>Raciocínio da Sugestão & Dados Comprobatórios</span>
+                                  </div>
+                                  {alert.supporting_data?.calculation_formula && (
+                                    <span className="text-[11px] font-mono bg-white px-2 py-0.5 rounded border border-gray-200 text-gray-700 font-medium shadow-xs">
+                                      {alert.supporting_data.calculation_formula}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {alert.rationale && (
+                                  <p className="text-xs text-gray-700 leading-relaxed font-normal">
+                                    {alert.rationale}
+                                  </p>
+                                )}
+
+                                {alert.supporting_data && (
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-[11px]">
+                                    {alert.supporting_data.market_evidence && (
+                                      <div className="bg-white p-2 rounded-lg border border-gray-100 flex items-start gap-2 shadow-xs">
+                                        <Layers className="h-3.5 w-3.5 text-[#6A6DDF] shrink-0 mt-0.5" />
+                                        <div>
+                                          <span className="font-semibold text-gray-800 block">Comprovação de Mercado:</span>
+                                          <span className="text-gray-600">{alert.supporting_data.market_evidence}</span>
+                                        </div>
+                                      </div>
+                                    )}
+                                    {alert.supporting_data.calendar_protection && (
+                                      <div className="bg-white p-2 rounded-lg border border-gray-100 flex items-start gap-2 shadow-xs">
+                                        <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                                        <div>
+                                          <span className="font-semibold text-gray-800 block">Proteção de Calendário:</span>
+                                          <span className="text-gray-600">{alert.supporting_data.calendar_protection}</span>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Caixa Comparativa de Valores */}
+                              <div className="flex items-center gap-4 bg-gray-50 p-3 rounded-lg border text-xs">
+                                <div>
+                                  <div className="flex items-center gap-1.5 mb-0.5">
+                                    <span className="text-gray-500 font-medium">Tarifa Atual</span>
+                                    {alert.supporting_data?.is_from_real_calendar ? (
+                                      <Badge
+                                        variant="outline"
+                                        className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-semibold py-0 px-1.5 shadow-2xs"
+                                      >
+                                        Seu Calendário
+                                      </Badge>
+                                    ) : (
+                                      <Badge
+                                        variant="outline"
+                                        className="bg-slate-100 text-slate-600 border-slate-200 text-[10px] font-normal py-0 px-1.5"
+                                      >
+                                        Diária Base
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <span className="font-semibold text-gray-800 text-sm">
+                                    R$ {alert.current_price || 380}/noite
+                                  </span>
+                                </div>
+
+                                <ArrowRight className="h-4 w-4 text-gray-400 mt-2" />
+
+                                <div>
+                                  <span className="text-gray-400 block">Tarifa Sugerida</span>
+                                  <span className="font-bold text-[#6A6DDF] text-sm">
+                                    R$ {alert.suggested_price}/noite
+                                  </span>
+                                </div>
+
+                                <div className="border-l pl-4">
+                                  <span className="text-gray-400 block">Estadia Mínima</span>
+                                  <span className="font-semibold text-gray-700 text-sm">
+                                    {alert.suggested_min_nights || 1} noites
+                                  </span>
+                                </div>
+
+                                <div className="border-l pl-4 ml-auto text-right">
+                                  <span className="text-gray-400 block">Ganho Estimado</span>
+                                  <span className="font-bold text-emerald-600 text-sm">
+                                    +R$ {alert.estimated_revenue_gain?.toLocaleString('pt-BR') || 0}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Botões de Ação */}
+                            <div className="flex md:flex-col gap-2 min-w-[130px] justify-end">
+                              {alert.status === 'Pendente' ? (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleApproveAlert(alert, 'standard_raise')}
+                                    disabled={isUpdatingStatus === alert.id}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 h-8 text-xs font-semibold"
+                                  >
+                                    <CheckCircle2 className="h-3.5 w-3.5" />
+                                    Aprovar Aumento
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleRejectAlert(alert)}
+                                    disabled={isUpdatingStatus === alert.id}
+                                    className="text-gray-600 hover:bg-gray-100 gap-1.5 h-8 text-xs"
+                                  >
+                                    <XCircle className="h-3.5 w-3.5" />
+                                    Rejeitar
+                                  </Button>
+                                </>
+                              ) : (
+                                <Badge
+                                  className={`justify-center py-1.5 ${
+                                    isApproved ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-800'
+                                  }`}
+                                >
+                                  {alert.action_taken || alert.status}
+                                </Badge>
                               )}
                             </div>
-
-                            {alert.rationale && (
-                              <p className="text-xs text-gray-700 leading-relaxed font-normal">
-                                {alert.rationale}
-                              </p>
-                            )}
-
-                            {alert.supporting_data && (
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-[11px]">
-                                {alert.supporting_data.market_evidence && (
-                                  <div className="bg-white p-2 rounded-lg border border-gray-100 flex items-start gap-2 shadow-xs">
-                                    <Layers className="h-3.5 w-3.5 text-[#6A6DDF] shrink-0 mt-0.5" />
-                                    <div>
-                                      <span className="font-semibold text-gray-800 block">Comprovação de Mercado:</span>
-                                      <span className="text-gray-600">{alert.supporting_data.market_evidence}</span>
-                                    </div>
-                                  </div>
-                                )}
-                                {alert.supporting_data.calendar_protection && (
-                                  <div className="bg-white p-2 rounded-lg border border-gray-100 flex items-start gap-2 shadow-xs">
-                                    <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                                    <div>
-                                      <span className="font-semibold text-gray-800 block">Proteção de Calendário:</span>
-                                      <span className="text-gray-600">{alert.supporting_data.calendar_protection}</span>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            )}
                           </div>
-
-                          {/* Caixa Comparativa de Valores */}
-                          <div className="flex items-center gap-4 bg-gray-50 p-3 rounded-lg border text-xs">
-                            <div>
-                              <div className="flex items-center gap-1.5 mb-0.5">
-                                <span className="text-gray-500 font-medium">Tarifa Atual</span>
-                                {alert.supporting_data?.is_from_real_calendar ? (
-                                  <Badge
-                                    variant="outline"
-                                    className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-semibold py-0 px-1.5 shadow-2xs"
-                                  >
-                                    Seu Calendário
-                                  </Badge>
-                                ) : (
-                                  <Badge
-                                    variant="outline"
-                                    className="bg-slate-100 text-slate-600 border-slate-200 text-[10px] font-normal py-0 px-1.5"
-                                  >
-                                    Diária Base
-                                  </Badge>
-                                )}
-                              </div>
-                              <span className="font-semibold text-gray-800 text-sm">
-                                R$ {alert.current_price || 380}/noite
-                              </span>
-                            </div>
-
-                            <ArrowRight className="h-4 w-4 text-gray-400 mt-2" />
-
-                            <div>
-                              <span className="text-gray-400 block">Tarifa Sugerida</span>
-                              <span className="font-bold text-[#6A6DDF] text-sm">
-                                R$ {alert.suggested_price}/noite
-                              </span>
-                            </div>
-
-                            <div className="border-l pl-4">
-                              <span className="text-gray-400 block">Estadia Mínima</span>
-                              <span className="font-semibold text-gray-700 text-sm">
-                                {alert.suggested_min_nights || 1} noites
-                              </span>
-                            </div>
-
-                            <div className="border-l pl-4 ml-auto text-right">
-                              <span className="text-gray-400 block">Ganho Estimado</span>
-                              <span className="font-bold text-emerald-600 text-sm">
-                                +R$ {alert.estimated_revenue_gain?.toLocaleString('pt-BR') || 0}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Botões de Ação */}
-                        <div className="flex md:flex-col gap-2 min-w-[130px] justify-end">
-                          {alert.status === 'Pendente' ? (
-                            <>
-                              <Button
-                                size="sm"
-                                onClick={() => handleApproveAlert(alert)}
-                                disabled={isUpdatingStatus === alert.id}
-                                className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 h-8 text-xs font-semibold"
-                              >
-                                <CheckCircle2 className="h-3.5 w-3.5" />
-                                Aprovar
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleRejectAlert(alert)}
-                                disabled={isUpdatingStatus === alert.id}
-                                className="text-gray-600 hover:bg-gray-100 gap-1.5 h-8 text-xs"
-                              >
-                                <XCircle className="h-3.5 w-3.5" />
-                                Rejeitar
-                              </Button>
-                            </>
-                          ) : (
-                            <Badge
-                              className={`justify-center py-1.5 ${
-                                isApproved ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-800'
-                              }`}
-                            >
-                              {alert.status}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Coluna Lateral: Calendário de Eventos & Demanda */}
-        <div className="space-y-4">
-          <div>
-            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-[#6A6DDF]" />
-              Grandes Eventos & Feriados
-            </h3>
-            <p className="text-xs text-gray-500">Mapeamento de datas com impacto direto na ocupação</p>
-          </div>
-
-          <Card className="shadow-xs">
-            <CardContent className="p-4 space-y-3">
-              {events.length === 0 ? (
-                <p className="text-xs text-gray-400 py-4 text-center">Nenhum evento mapeado no período.</p>
-              ) : (
-                events.map(ev => {
-                  const isBooked = isPropertyBookedDuringEvent(ev);
-                  const isCriticalImpact = ev.demand_impact === 'Crítico';
-
-                  return (
-                    <div
-                      key={ev.id}
-                      className="p-3 rounded-lg border bg-gray-50/50 hover:bg-white transition-colors space-y-1.5 text-xs"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-gray-800">{ev.name}</span>
-                        <Badge
-                          variant="outline"
-                          className={
-                            isCriticalImpact
-                              ? 'bg-red-50 text-red-700 border-red-200 text-[10px]'
-                              : ev.demand_impact === 'Alto'
-                              ? 'bg-amber-50 text-amber-700 border-amber-200 text-[10px]'
-                              : 'bg-blue-50 text-blue-700 border-blue-200 text-[10px]'
-                          }
-                        >
-                          {ev.demand_impact}
-                        </Badge>
-                      </div>
-
-                      <div className="flex items-center justify-between text-gray-500 text-[11px]">
-                        <span>
-                          {new Date(ev.start_date).toLocaleDateString('pt-BR')} a{' '}
-                          {new Date(ev.end_date).toLocaleDateString('pt-BR')}
-                        </span>
-                        <span className="font-medium text-[#6A6DDF]">
-                          {ev.recommended_price_multiplier ? `${ev.recommended_price_multiplier}x diária` : 'Normal'}
-                        </span>
-                      </div>
-
-                      {/* Status de Ocupação no Imóvel */}
-                      <div className="pt-1 flex items-center justify-between border-t border-gray-100 text-[11px]">
-                        <span className="text-gray-400">Status no imóvel:</span>
-                        {isBooked ? (
-                          <span className="text-emerald-700 font-semibold flex items-center gap-1">
-                            <CheckCircle2 className="h-3 w-3" /> Já Reservado
-                          </span>
-                        ) : (
-                          <span className="text-amber-600 font-semibold flex items-center gap-1">
-                            <Flame className="h-3 w-3" /> Disponível para Yield
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Card: Altas Demandas Mapeadas no Imóvel */}
-          <Card className="shadow-xs border-t-2 border-t-amber-500">
-            <CardHeader className="p-4 pb-2">
-              <CardTitle className="text-sm font-bold flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-gray-800">
-                  <Flame className="h-4 w-4 text-amber-500" />
-                  Altas Demandas do Imóvel
-                </span>
-                {selectedProperty && (
-                  <Badge variant="outline" className="text-[10px] font-medium border-amber-200 text-amber-700 bg-amber-50">
-                    {selectedProperty.nickname || selectedProperty.name}
-                  </Badge>
-                )}
-              </CardTitle>
-              <CardDescription className="text-[11px]">
-                {selectedProperty
-                  ? 'Picos sazonais configurados no banco de dados para este imóvel'
-                  : 'Selecione um imóvel no topo para visualizar seu calendário específico de alta demanda'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-4 pt-1 space-y-2">
-              {selectedProperty?.high_demand_events && selectedProperty.high_demand_events.length > 0 ? (
-                selectedProperty.high_demand_events.map((hde, idx) => (
-                  <div key={idx} className="p-2.5 rounded-lg border bg-amber-50/40 border-amber-200/60 space-y-1 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-gray-800">{hde.event_name}</span>
-                      <Badge className="bg-amber-500 text-white text-[10px] px-1.5 py-0">
-                        {hde.recommended_multiplier ? `${hde.recommended_multiplier}x` : 'Alta'}
-                      </Badge>
-                    </div>
-                    {hde.period_description && (
-                      <p className="text-[11px] text-gray-500">{hde.period_description}</p>
-                    )}
-                    {hde.notes && (
-                      <p className="text-[11px] text-gray-600 italic">{hde.notes}</p>
-                    )}
-                  </div>
-                ))
-              ) : selectedProperty ? (
-                <p className="text-xs text-gray-400 py-3 text-center">Nenhum evento customizado cadastrado diretamente neste imóvel.</p>
-              ) : (
-                <div className="space-y-2">
-                  <p className="text-[11px] text-gray-500">
-                    Exemplos de altas demandas ativas por praça:
-                  </p>
-                  <div className="p-2 rounded-lg bg-gray-50 border text-[11px] space-y-1">
-                    <div className="font-semibold text-gray-700">🎪 Natal / Ponta Negra:</div>
-                    <div className="text-gray-600">Carnatal (2.2x), Réveillon (3.2x), Férias de Verão (1.7x)</div>
-                  </div>
-                  <div className="p-2 rounded-lg bg-gray-50 border text-[11px] space-y-1">
-                    <div className="font-semibold text-gray-700">🏖️ Rio de Janeiro:</div>
-                    <div className="text-gray-600">Réveillon Copacabana (3.5x), Carnaval (3.2x), Rock in Rio (2.4x)</div>
-                  </div>
-                  <div className="p-2 rounded-lg bg-gray-50 border text-[11px] space-y-1">
-                    <div className="font-semibold text-gray-700">⛵ Mangaratiba & Região dos Lagos:</div>
-                    <div className="text-gray-600">Temporada Náutica (1.9x), Jazz & Blues Rio das Ostras (2.1x)</div>
-                  </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    </TabsContent>
+            </div>
+
+            {/* Coluna Lateral: Calendário de Eventos & Demanda */}
+            {renderEventsSidebar()}
+          </div>
+        </TabsContent>
+
+        {/* Aba 2: Acima do Sugerido (Calibração de Tarifa & Risco de Vacância) */}
+        <TabsContent value="overpricing" className="space-y-6 mt-0">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-4">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    <TrendingDown className="h-5 w-5 text-purple-600" />
+                    Calibração de Tarifas & Risco de Vacância (Acima do Mercado)
+                  </h3>
+                  <p className="text-xs text-gray-500">Períodos onde sua diária no calendário está acima da mediana do CompSet. Escolha se deseja calibrar para acelerar reservas ou manter sua tarifa premium.</p>
+                </div>
+
+                {/* Filtros de Status */}
+                <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
+                  <Button
+                    variant={statusFilter === 'Pendente' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setStatusFilter('Pendente')}
+                    className={`h-7 text-xs ${statusFilter === 'Pendente' ? 'bg-[#6A6DDF] text-white' : 'text-gray-600'}`}
+                  >
+                    Pendentes ({overpricingAlerts.filter(a => a.status === 'Pendente').length})
+                  </Button>
+                  <Button
+                    variant={statusFilter === 'Aprovado' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setStatusFilter('Aprovado')}
+                    className={`h-7 text-xs ${statusFilter === 'Aprovado' ? 'bg-emerald-600 text-white' : 'text-gray-600'}`}
+                  >
+                    Aprovados
+                  </Button>
+                  <Button
+                    variant={statusFilter === 'Rejeitado' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setStatusFilter('Rejeitado')}
+                    className={`h-7 text-xs ${statusFilter === 'Rejeitado' ? 'bg-gray-600 text-white' : 'text-gray-600'}`}
+                  >
+                    Rejeitados
+                  </Button>
+                  <Button
+                    variant={statusFilter === 'all' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setStatusFilter('all')}
+                    className={`h-7 text-xs ${statusFilter === 'all' ? 'bg-gray-800 text-white' : 'text-gray-600'}`}
+                  >
+                    Todos
+                  </Button>
+                </div>
+              </div>
+
+              {/* Lista de Alertas de Overpricing */}
+              {loading ? (
+                <div className="py-12 text-center text-gray-500 bg-white rounded-lg border">
+                  <RefreshCw className="h-6 w-6 animate-spin mx-auto text-[#6A6DDF] mb-2" />
+                  Carregando alertas de calibração...
+                </div>
+              ) : overpricingAlerts.length === 0 ? (
+                <div className="py-12 text-center text-gray-500 bg-white rounded-lg border p-6">
+                  <ShieldCheck className="h-10 w-10 text-emerald-500 mx-auto mb-2" />
+                  <p className="font-medium text-gray-700">Nenhum alerta de sobrepreço com status "{statusFilter}" no momento.</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Seu calendário não possui tarifas acima da concorrência com risco de vacância identificado.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {overpricingAlerts.map(alert => {
+                    const isCritical = alert.urgency === 'Crítica';
+                    const isApproved = alert.status === 'Aprovado';
+                    const isRejected = alert.status === 'Rejeitado';
+
+                    const propJoined = (alert as any).properties;
+                    const propFromList = properties.find(p => p.id === alert.property_id);
+                    const propObj = propJoined || propFromList;
+                    const propertyDisplayName = propObj
+                      ? (propObj.nickname ? `${propObj.name} (${propObj.nickname})` : propObj.name)
+                      : (alert.property_name || 'Propriedade');
+
+                    const diffPct = alert.supporting_data?.price_diff_pct ?? (
+                      alert.current_price && alert.suggested_price && alert.suggested_price > 0
+                        ? Math.round(((alert.current_price - alert.suggested_price) / alert.suggested_price) * 100)
+                        : 0
+                    );
+
+                    return (
+                      <Card
+                        key={alert.id}
+                        className={`transition-all border-l-4 ${
+                          isApproved
+                            ? 'border-l-emerald-500 bg-emerald-50/10'
+                            : isRejected
+                            ? 'border-l-gray-400 opacity-60'
+                            : isCritical
+                            ? 'border-l-purple-600 shadow-xs'
+                            : 'border-l-[#6A6DDF] shadow-xs'
+                        }`}
+                      >
+                        <CardContent className="p-5">
+                          <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                            <div className="space-y-2 flex-1">
+                              {/* Badges de Imóvel, Posição de Mercado e Urgência */}
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Badge
+                                  variant="outline"
+                                  className="bg-slate-100 text-slate-800 border-slate-300 font-bold text-xs flex items-center gap-1.5 shadow-2xs"
+                                >
+                                  <Building2 className="h-3.5 w-3.5 text-[#6A6DDF]" />
+                                  {propertyDisplayName}
+                                </Badge>
+
+                                <Badge
+                                  variant="outline"
+                                  className="bg-purple-50 text-purple-700 border-purple-200 font-bold text-xs flex items-center gap-1"
+                                >
+                                  <TrendingDown className="h-3 w-3" />
+                                  +{diffPct}% Acima do CompSet
+                                </Badge>
+
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    isCritical
+                                      ? 'bg-red-50 text-red-700 border-red-200 font-bold'
+                                      : 'bg-blue-50 text-blue-700 border-blue-200'
+                                  }
+                                >
+                                  Urgência {alert.urgency}
+                                </Badge>
+
+                                <span className="text-xs text-gray-400 ml-auto flex items-center gap-1">
+                                  <Calendar className="h-3 w-3" />
+                                  {new Date(alert.target_start_date).toLocaleDateString('pt-BR')} a{' '}
+                                  {new Date(alert.target_end_date).toLocaleDateString('pt-BR')}
+                                </span>
+                              </div>
+
+                              {/* Justificativa Básica */}
+                              <p className="text-sm text-gray-700 font-medium leading-relaxed">
+                                {alert.reason}
+                              </p>
+
+                              {/* Raciocínio de Mercado & Análise de Risco */}
+                              <div className="bg-purple-50/50 border border-purple-200/60 rounded-xl p-3.5 space-y-2.5">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <div className="flex items-center gap-1.5 text-xs font-bold text-purple-800">
+                                    <Sparkles className="h-3.5 w-3.5 text-purple-600" />
+                                    <span>Raciocínio de Mercado & Análise de Risco</span>
+                                  </div>
+                                  {alert.supporting_data?.calculation_formula && (
+                                    <span className="text-[11px] font-mono bg-white px-2 py-0.5 rounded border border-purple-200 text-purple-800 font-medium shadow-xs">
+                                      {alert.supporting_data.calculation_formula}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {alert.rationale && (
+                                  <p className="text-xs text-gray-700 leading-relaxed font-normal">
+                                    {alert.rationale}
+                                  </p>
+                                )}
+
+                                {alert.supporting_data && (
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-[11px]">
+                                    {alert.supporting_data.market_evidence && (
+                                      <div className="bg-white p-2 rounded-lg border border-purple-100 flex items-start gap-2 shadow-xs">
+                                        <Layers className="h-3.5 w-3.5 text-purple-600 shrink-0 mt-0.5" />
+                                        <div>
+                                          <span className="font-semibold text-gray-800 block">Comprovação de Mercado:</span>
+                                          <span className="text-gray-600">{alert.supporting_data.market_evidence}</span>
+                                        </div>
+                                      </div>
+                                    )}
+                                    {alert.supporting_data.risk_analysis && (
+                                      <div className="bg-white p-2 rounded-lg border border-amber-200 flex items-start gap-2 shadow-xs">
+                                        <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
+                                        <div>
+                                          <span className="font-semibold text-gray-800 block">Análise de Risco de Vacância:</span>
+                                          <span className="text-amber-700">{alert.supporting_data.risk_analysis}</span>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Caixa Comparativa de Valores */}
+                              <div className="flex items-center gap-4 bg-gray-50 p-3 rounded-lg border text-xs">
+                                <div>
+                                  <div className="flex items-center gap-1.5 mb-0.5">
+                                    <span className="text-gray-500 font-medium">Sua Diária Atual</span>
+                                    <Badge
+                                      variant="outline"
+                                      className="bg-purple-50 text-purple-700 border-purple-200 text-[10px] font-semibold py-0 px-1.5 shadow-2xs"
+                                    >
+                                      Seu Calendário
+                                    </Badge>
+                                  </div>
+                                  <span className="font-bold text-gray-900 text-sm">
+                                    R$ {alert.current_price}/noite
+                                  </span>
+                                </div>
+
+                                <ArrowRight className="h-4 w-4 text-gray-400 mt-2" />
+
+                                <div>
+                                  <span className="text-gray-400 block">Mediana CompSet (Sugerida)</span>
+                                  <span className="font-bold text-[#6A6DDF] text-sm">
+                                    R$ {alert.suggested_price}/noite
+                                  </span>
+                                </div>
+
+                                <div className="border-l pl-4">
+                                  <span className="text-gray-400 block">Estadia Mínima</span>
+                                  <span className="font-semibold text-gray-700 text-sm">
+                                    {alert.suggested_min_nights || 1} noites
+                                  </span>
+                                </div>
+
+                                <div className="border-l pl-4 ml-auto text-right">
+                                  <span className="text-gray-400 block">Posicionamento</span>
+                                  <span className="font-bold text-purple-700 text-sm">
+                                    Tarifa Premium (+{diffPct}%)
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Botões de Ação para Overpricing */}
+                            <div className="flex md:flex-col gap-2 min-w-[170px] justify-end">
+                              {alert.status === 'Pendente' ? (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleApproveAlert(alert, 'adjust_to_market')}
+                                    disabled={isUpdatingStatus === alert.id}
+                                    className="bg-[#6A6DDF] hover:bg-[#585ac7] text-white gap-1.5 h-8 text-xs font-semibold shadow-xs"
+                                  >
+                                    <CheckCircle2 className="h-3.5 w-3.5" />
+                                    Calibrar p/ R$ {alert.suggested_price}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleApproveAlert(alert, 'keep_premium')}
+                                    disabled={isUpdatingStatus === alert.id}
+                                    className="border-purple-300 text-purple-700 hover:bg-purple-50 gap-1.5 h-8 text-xs font-semibold"
+                                  >
+                                    <ShieldCheck className="h-3.5 w-3.5" />
+                                    Manter R$ {alert.current_price}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleRejectAlert(alert)}
+                                    disabled={isUpdatingStatus === alert.id}
+                                    className="text-gray-500 hover:bg-gray-100 gap-1.5 h-7 text-xs"
+                                  >
+                                    <XCircle className="h-3 w-3" />
+                                    Rejeitar
+                                  </Button>
+                                </>
+                              ) : (
+                                <Badge
+                                  className={`justify-center py-1.5 ${
+                                    isApproved ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-800'
+                                  }`}
+                                >
+                                  {alert.action_taken || alert.status}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Coluna Lateral: Calendário de Eventos & Demanda */}
+            {renderEventsSidebar()}
+          </div>
+        </TabsContent>
 
     {/* Aba 2: Radar de Concorrência (CompSet) */}
     <TabsContent value="competitors" className="mt-0">
