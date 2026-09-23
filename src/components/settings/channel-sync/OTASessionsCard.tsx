@@ -3,19 +3,15 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
   Globe, CheckCircle2, AlertTriangle, RefreshCw, KeyRound,
-  ShieldCheck, ExternalLink, Sparkles, Terminal, Copy, Check
+  ShieldCheck, ExternalLink, Sparkles, Monitor
 } from 'lucide-react';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-} from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import BrowserlessScreencastModal from './BrowserlessScreencastModal';
 
 export interface AgentBrowserSession {
   id: string;
@@ -38,11 +34,8 @@ export const OTASessionsCard: React.FC = () => {
   const [sessions, setSessions] = useState<AgentBrowserSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [testing, setTesting] = useState(false);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [screencastOpen, setScreencastOpen] = useState(false);
   const [selectedSession, setSelectedSession] = useState<AgentBrowserSession | null>(null);
-  const [cookieInput, setCookieInput] = useState('');
-  const [savingCookies, setSavingCookies] = useState(false);
-  const [copiedScript, setCopiedScript] = useState(false);
 
   const fetchSessions = async () => {
     try {
@@ -102,91 +95,9 @@ export const OTASessionsCard: React.FC = () => {
     }
   };
 
-  const handleOpenReconnect = (session: AgentBrowserSession) => {
+  const handleOpenScreencast = (session: AgentBrowserSession) => {
     setSelectedSession(session);
-    setCookieInput('');
-    setDialogOpen(true);
-  };
-
-  const handleSaveCookies = async () => {
-    if (!selectedSession || !cookieInput.trim()) return;
-
-    try {
-      setSavingCookies(true);
-      let parsedCookies: any[] = [];
-
-      const trimmed = cookieInput.trim();
-      if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
-        try {
-          const parsed = JSON.parse(trimmed);
-          parsedCookies = Array.isArray(parsed) ? parsed : [parsed];
-        } catch {
-          throw new Error('O formato JSON dos cookies é inválido.');
-        }
-      } else if (trimmed.includes('=')) {
-        // String no formato chave=valor; chave2=valor2
-        const domain = selectedSession.domain.includes('booking') ? '.booking.com' : '.airbnb.com.br';
-        parsedCookies = trimmed.split(';').map(part => {
-          const [name, ...valParts] = part.trim().split('=');
-          return {
-            name: name.trim(),
-            value: valParts.join('=').trim(),
-            domain: domain,
-            path: '/',
-            httpOnly: false,
-            secure: true
-          };
-        }).filter(c => c.name && c.value);
-      }
-
-      if (parsedCookies.length === 0) {
-        throw new Error('Nenhum cookie válido pôde ser extraído da entrada.');
-      }
-
-      const { error } = await supabase
-        .from('agent_browser_sessions' as any)
-        .update({
-          cookies_encrypted: JSON.stringify(parsedCookies),
-          is_valid: true,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', selectedSession.id);
-
-      if (error) throw error;
-
-      toast({
-        title: 'Cookies Atualizados!',
-        description: `${parsedCookies.length} cookies salvos. Validando conexão com o assistente...`,
-      });
-
-      setDialogOpen(false);
-      setCookieInput('');
-
-      // Aciona o keepalive imediatamente para validar os cookies recém-salvos
-      handleTestSessions();
-    } catch (err) {
-      toast({
-        title: 'Erro ao salvar cookies',
-        description: err instanceof Error ? err.message : 'Verifique os dados colados.',
-        variant: 'destructive',
-      });
-    } finally {
-      setSavingCookies(false);
-    }
-  };
-
-  const copyExtractionSnippet = (domain: string) => {
-    const isBooking = domain.includes('booking');
-    const snippet = isBooking
-      ? `copy(document.cookie)`
-      : `copy(document.cookie)`;
-    navigator.clipboard.writeText(snippet);
-    setCopiedScript(true);
-    setTimeout(() => setCopiedScript(false), 2500);
-    toast({
-      title: 'Comando copiado!',
-      description: 'Cole no console (F12 > Console) da aba aberta na plataforma para copiar os cookies.',
-    });
+    setScreencastOpen(true);
   };
 
   const getPlatformDetails = (domain: string) => {
@@ -322,11 +233,11 @@ export const OTASessionsCard: React.FC = () => {
                     <Button
                       size="sm"
                       variant={session.is_valid ? 'outline' : 'default'}
-                      onClick={() => handleOpenReconnect(session)}
+                      onClick={() => handleOpenScreencast(session)}
                       className={!session.is_valid ? 'bg-amber-600 hover:bg-amber-700 text-white' : ''}
                     >
-                      <KeyRound className="h-3.5 w-3.5 mr-1.5" />
-                      {session.is_valid ? 'Atualizar Sessão' : 'Reconectar Sessão'}
+                      <Monitor className="h-3.5 w-3.5 mr-1.5" />
+                      {session.is_valid ? 'Abrir Navegador VPS' : 'Conectar via Navegador VPS'}
                     </Button>
                   </div>
                 </div>
@@ -343,83 +254,13 @@ export const OTASessionsCard: React.FC = () => {
         </div>
       </CardContent>
 
-      {/* Dialog para Reconectar / Atualizar Cookies */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <KeyRound className="h-5 w-5 text-indigo-600" />
-              Sincronizar Sessão — {selectedSession && getPlatformDetails(selectedSession.domain).name}
-            </DialogTitle>
-            <DialogDescription>
-              Cole os cookies de sessão ativos para revalidar a conexão do agente de IA com a plataforma.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-2">
-            <div className="rounded-lg bg-muted/60 p-3 text-xs text-muted-foreground space-y-2 border border-border/50">
-              <p className="font-semibold text-foreground flex items-center gap-1.5">
-                <Terminal className="h-3.5 w-3.5 text-indigo-600" />
-                Como extrair em 10 segundos:
-              </p>
-              <ol className="list-decimal list-inside space-y-1 pl-1">
-                <li>Abra uma aba logada na plataforma ({selectedSession?.domain}).</li>
-                <li>Pressione <kbd className="px-1 py-0.5 bg-background rounded border text-[10px]">F12</kbd> &gt; abra a aba <strong>Console</strong>.</li>
-                <li>Digite ou copie o comando abaixo e tecle Enter:</li>
-              </ol>
-
-              <div className="flex items-center justify-between bg-background p-2 rounded border font-mono text-[11px] mt-1.5">
-                <code>copy(document.cookie)</code>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-6 px-2 text-xs"
-                  onClick={() => selectedSession && copyExtractionSnippet(selectedSession.domain)}
-                >
-                  {copiedScript ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
-                </Button>
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                *Você também pode colar o JSON completo exportado por extensões como <em>EditThisCookie</em>.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="cookie-input" className="text-sm font-medium">
-                Cookies da Sessão
-              </Label>
-              <Textarea
-                id="cookie-input"
-                rows={5}
-                placeholder="Cole aqui a string de cookies ou o array JSON exportado..."
-                value={cookieInput}
-                onChange={(e) => setCookieInput(e.target.value)}
-                className="font-mono text-xs"
-              />
-            </div>
-          </div>
-
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleSaveCookies}
-              disabled={savingCookies || !cookieInput.trim()}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white"
-            >
-              {savingCookies ? (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  Salvando...
-                </>
-              ) : (
-                'Salvar e Testar Conexão'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Modal Interativo de Screencast direto da VPS */}
+      <BrowserlessScreencastModal
+        open={screencastOpen}
+        onOpenChange={setScreencastOpen}
+        session={selectedSession}
+        onSessionUpdated={fetchSessions}
+      />
     </Card>
   );
 };
