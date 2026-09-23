@@ -277,19 +277,22 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
             img.src = `data:image/jpeg;base64,${data}`;
           }
 
-          // Acknowledge frame
+          // Acknowledge frame com id válido (evita congelamento do screencast pelo Chrome)
           if (ws.readyState === WebSocket.OPEN && sessionIdRef.current) {
+            const ackId = nextReqIdRef.current++;
             ws.send(JSON.stringify({
+              id: ackId,
               sessionId: sessionIdRef.current,
               method: 'Page.screencastFrameAck',
               params: { sessionId: frameSessionId },
             }));
           }
         } else if (method === 'Page.frameNavigated') {
-          const newUrl = msg.params?.frame?.url;
-          if (newUrl) {
-            setCurrentUrl(newUrl);
-            const lower = newUrl.toLowerCase();
+          const frame = msg.params?.frame;
+          // Ignorar frames filhos/iframes invisíveis (como asanalytics) e focar apenas no frame principal
+          if (frame && !frame.parentId && frame.url) {
+            setCurrentUrl(frame.url);
+            const lower = frame.url.toLowerCase();
             if (session.domain.includes('booking')) {
               if (lower.includes('extranet') || lower.includes('hoteladmin')) {
                 setIsLoggedInDetected(true);
@@ -300,7 +303,7 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
               }
             }
 
-            // Ao navegar (ex: de username para password), focar campo
+            // Ao navegar (ex: de username para password), focar campo e auto-fechar cookies
             setTimeout(() => {
               autoFocusInput();
             }, 1000);
@@ -600,8 +603,18 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
     await sendCdp('Input.dispatchKeyEvent', { type: 'keyUp', windowsVirtualKeyCode: keyCode, code, key: code });
   };
 
-  const handleReload = () => {
-    sendCdp('Page.reload');
+  const handleReload = async () => {
+    await sendCdp('Page.reload');
+    await sendCdp('Page.startScreencast', {
+      format: 'jpeg',
+      quality: 75,
+      maxWidth: NATIVE_WIDTH,
+      maxHeight: NATIVE_HEIGHT,
+      everyNthFrame: 1,
+    });
+    setTimeout(() => {
+      autoFocusInput();
+    }, 1500);
   };
 
   // Salvar manual fallback
