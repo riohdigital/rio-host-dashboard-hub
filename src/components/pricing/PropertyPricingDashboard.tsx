@@ -1259,6 +1259,8 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
         propertyId={propertyId}
         properties={properties}
         selectedProperty={selectedProperty}
+        selectedPropertyIds={selectedPropertyIds}
+        dateRange={dateRange}
       />
     </TabsContent>
 
@@ -1277,6 +1279,8 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
       <ReservationsAuditTab
         propertyId={propertyId}
         selectedProperty={selectedProperty}
+        selectedPropertyIds={selectedPropertyIds}
+        dateRange={dateRange}
       />
     </TabsContent>
   </Tabs>

@@ -32,11 +32,19 @@ import { formatLocalDate } from '@/utils/dateUtils';
 interface ReservationsAuditTabProps {
   propertyId: string;
   selectedProperty: Property | null;
+  selectedPropertyIds?: string[];
+  dateRange?: {
+    startDateString?: string;
+    endDateString?: string;
+    selectedPeriod?: string;
+  };
 }
 
 export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
   propertyId,
-  selectedProperty
+  selectedProperty,
+  selectedPropertyIds,
+  dateRange
 }) => {
   const { toast } = useToast();
   const [reservations, setReservations] = useState<any[]>([]);
@@ -75,10 +83,18 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
           )
         `)
         .order('created_at', { ascending: false })
-        .limit(40);
+        .limit(50);
 
       if (propertyId !== 'todas') {
         query = query.eq('property_id', propertyId);
+      } else if (selectedPropertyIds && selectedPropertyIds.length > 0 && !selectedPropertyIds.includes('todas')) {
+        query = query.in('property_id', selectedPropertyIds);
+      }
+
+      if (dateRange && dateRange.selectedPeriod !== 'general' && dateRange.startDateString && dateRange.endDateString) {
+        query = query
+          .gte('check_out_date', dateRange.startDateString)
+          .lte('check_in_date', dateRange.endDateString);
       }
 
       const { data, error } = await query;
@@ -93,7 +109,13 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
 
   useEffect(() => {
     fetchReservations();
-  }, [propertyId]);
+  }, [
+    propertyId,
+    selectedPropertyIds?.join(','),
+    dateRange?.startDateString,
+    dateRange?.endDateString,
+    dateRange?.selectedPeriod
+  ]);
 
   // Mantém a lista atualizada em tempo real caso ocorram auditorias automáticas (Google Script / Cron)
   useEffect(() => {

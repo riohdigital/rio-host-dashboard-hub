@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   Globe, ShieldCheck, RefreshCw, KeyRound, Monitor,
   AlertCircle, CheckCircle2, Lock, ArrowRight, ExternalLink,
-  Send, CornerDownLeft, Target, ArrowRightCircle
+  Send, CornerDownLeft, Target, ArrowRightCircle, Eye, EyeOff, Key
 } from 'lucide-react';
 
 import {
@@ -25,7 +25,8 @@ interface BrowserlessScreencastModalProps {
   onSessionUpdated: () => void;
 }
 
-const WS_BROWSERLESS_URL = 'wss://extra-apps-browserless.dgyrua.easypanel.host/?stealth=true';
+// Timeout de 10 minutos (600.000ms) para permitir resolução calma de captchas e login manual sem desconectar
+const WS_BROWSERLESS_URL = 'wss://extra-apps-browserless.dgyrua.easypanel.host/?stealth=true&timeout=600000&--timeout=600000';
 const NATIVE_WIDTH = 1200;
 const NATIVE_HEIGHT = 750;
 
@@ -52,8 +53,11 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
   const [manualSaving, setManualSaving] = useState<boolean>(false);
   const [isFocused, setIsFocused] = useState<boolean>(false);
   const [quickInput, setQuickInput] = useState<string>('');
+  const [isPasswordMode, setIsPasswordMode] = useState<boolean>(false);
+  const [reconnectCount, setReconnectCount] = useState<number>(0);
   const [clickIndicator, setClickIndicator] = useState<{ x: number; y: number } | null>(null);
   const [isHolding, setIsHolding] = useState<boolean>(false);
+  const heartbeatTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const getTargetUrl = useCallback(() => {
     if (!session) return 'https://admin.booking.com';
@@ -86,6 +90,10 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
   }, []);
 
   const stopConnection = useCallback(() => {
+    if (heartbeatTimerRef.current) {
+      clearInterval(heartbeatTimerRef.current);
+      heartbeatTimerRef.current = null;
+    }
     if (wsRef.current) {
       try {
         wsRef.current.close();
@@ -98,33 +106,54 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
     setConnectionStatus('disconnected');
   }, []);
 
-  // Foca o campo de input correto (ignora o honeypot #hidden-password) e dispensa cookies se presentes
-  const autoFocusInput = useCallback(async () => {
+  const handleReconnect = useCallback(() => {
+    stopConnection();
+    setReconnectCount((c) => c + 1);
+    toast({
+      title: 'Reconectando ao Chromium VPS...',
+      description: 'Iniciando nova conexão com tempo estendido de 10 minutos.',
+    });
+  }, [stopConnection, toast]);
+
+  // Foca o campo de input correto (prioriza senha se presente, depois SMS/código, depois login) e dispensa cookies se presentes
+  const autoFocusInput = useCallback(async (preferType?: 'password' | 'code' | 'any') => {
     const script = `(() => {
       // Auto-fechar cookies se existirem para não bloquear cliques
       const acceptCookie = document.querySelector('#onetrust-accept-btn-handler, #onetrust-reject-all-handler');
       if (acceptCookie) acceptCookie.click();
 
-      const selectors = [
-        'input#loginname',
-        'input[name="loginname"]',
-        'input[type="password"]:not(#hidden-password)',
-        'input[name="password"]:not(#hidden-password)',
-        'input#password',
-        'input[type="email"]',
-        'input[name="user[email]"]',
-        'input[autocomplete="one-time-code"]',
-        'input[name*="code"]',
-        'input[name="phone-number"]',
-        'input:not([type="hidden"]):not(#hidden-password)'
-      ];
-      for (const sel of selectors) {
-        const el = document.querySelector(sel);
-        if (el && el.offsetParent !== null && el.id !== 'hidden-password') {
-          el.focus();
-          return { focused: true, id: el.id, name: el.name };
-        }
+      // 1. Se preferência for senha ou se houver campo de senha visível
+      const passwordEl = document.querySelector('input[type="password"]:not(#hidden-password), input#password, input[name="password"]:not(#hidden-password)');
+      if (passwordEl && passwordEl.offsetParent !== null) {
+        passwordEl.focus();
+        return { focused: true, id: passwordEl.id, name: passwordEl.name, type: 'password' };
       }
+
+      // 2. Se houver campo de código 2FA/SMS
+      const codeEl = document.querySelector('input[autocomplete="one-time-code"], input[name*="code"], input[name="phone-number"]');
+      if (codeEl && codeEl.offsetParent !== null) {
+        codeEl.focus();
+        return { focused: true, id: codeEl.id, name: codeEl.name, type: 'code' };
+      }
+
+      // 3. Campo de login/e-mail
+      const loginEl = document.querySelector('input#loginname, input[name="loginname"], input[type="email"], input[name="user[email]"]');
+      if (loginEl && loginEl.offsetParent !== null) {
+        loginEl.focus();
+        return { focused: true, id: loginEl.id, name: loginEl.name, type: 'email' };
+      }
+
+      // 4. Qualquer input visível e editável
+      const anyEl = Array.from(document.querySelectorAll('input:not([type="hidden"]):not(#hidden-password)'))
+        .find(el => {
+          const s = window.getComputedStyle(el);
+          return s.display !== 'none' && s.visibility !== 'hidden' && el.offsetWidth > 0 && el.offsetHeight > 0 && !el.disabled && !el.readOnly;
+        });
+      if (anyEl) {
+        anyEl.focus();
+        return { focused: true, id: anyEl.id, name: anyEl.name, type: anyEl.type };
+      }
+
       return { focused: false };
     })()`;
     return sendCdp('Runtime.evaluate', { expression: script, returnByValue: true });
@@ -241,11 +270,23 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
         everyNthFrame: 1,
       });
 
+      // 5. Iniciar Heartbeat Ping de 10s para manter WebSocket e proxy Traefik vivos indefinidamente
+      if (heartbeatTimerRef.current) clearInterval(heartbeatTimerRef.current);
+      heartbeatTimerRef.current = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          const pingId = nextReqIdRef.current++;
+          ws.send(JSON.stringify({ id: pingId, method: 'Browser.getVersion' }));
+        }
+      }, 10000);
+
       setConnectionStatus('connected');
 
       // Auto focar input após carregamento inicial
-      setTimeout(() => {
-        autoFocusInput();
+      setTimeout(async () => {
+        const res = await autoFocusInput();
+        if (res?.result?.value?.type === 'password') {
+          setIsPasswordMode(true);
+        }
       }, 2000);
     };
 
@@ -313,8 +354,11 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
             });
 
             // Ao navegar (ex: de username para password), focar campo e auto-fechar cookies
-            setTimeout(() => {
-              autoFocusInput();
+            setTimeout(async () => {
+              const res = await autoFocusInput();
+              if (res?.result?.value?.type === 'password') {
+                setIsPasswordMode(true);
+              }
             }, 1000);
           }
         }
@@ -328,13 +372,17 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
     };
 
     ws.onclose = () => {
+      if (heartbeatTimerRef.current) {
+        clearInterval(heartbeatTimerRef.current);
+        heartbeatTimerRef.current = null;
+      }
       setConnectionStatus('disconnected');
     };
 
     return () => {
       stopConnection();
     };
-  }, [open, session, mode, getTargetUrl, sendCdp, stopConnection, autoFocusInput]);
+  }, [open, session, mode, reconnectCount, getTargetUrl, sendCdp, stopConnection, autoFocusInput]);
 
   // Interação de Clique no Canvas com suporte nativo CDP
   const handleCanvasClick = async (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -513,29 +561,26 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
       const text = ${JSON.stringify(valueToInsert)};
       let target = document.activeElement;
 
-      // Se nada estiver focado ou se o elemento for o honeypot #hidden-password, buscar o campo real
-      if (!target || target.tagName !== 'INPUT' || target.id === 'hidden-password') {
-        const candidates = [
-          'input#loginname',
-          'input[name="loginname"]',
-          'input#password',
-          'input[name="password"]:not(#hidden-password)',
-          'input[type="password"]:not(#hidden-password)',
-          'input[type="email"]',
-          'input[name="user[email]"]',
-          'input[autocomplete="one-time-code"]',
-          'input[name*="code"]',
-          'input[type="text"]:not(#hidden-password)',
-          'input[type="tel"]',
-          'input:not([type="hidden"]):not(#hidden-password)'
-        ];
-        for (const sel of candidates) {
-          const el = document.querySelector(sel);
-          if (el && el.offsetParent !== null && el.id !== 'hidden-password') {
-            target = el;
-            break;
-          }
-        }
+      // Prioridade 1: Campo de senha visível (ignora o honeypot #hidden-password)
+      const passwordField = document.querySelector('input[type="password"]:not(#hidden-password), input#password, input[name="password"]:not(#hidden-password)');
+      const isPasswordVisible = passwordField && passwordField.offsetParent !== null;
+
+      // Prioridade 2: Campo de código 2FA visível
+      const codeField = document.querySelector('input[autocomplete="one-time-code"], input[name*="code"], input[name="phone-number"]');
+      const isCodeVisible = codeField && codeField.offsetParent !== null;
+
+      if (isPasswordVisible) {
+        target = passwordField;
+      } else if (isCodeVisible) {
+        target = codeField;
+      } else if (!target || target.tagName !== 'INPUT' || target.id === 'hidden-password' || target.offsetParent === null) {
+        // Encontrar primeiro campo editável visível na tela
+        const visibleInputs = Array.from(document.querySelectorAll('input:not([type="hidden"]):not(#hidden-password)'))
+          .filter(el => {
+            const style = window.getComputedStyle(el);
+            return style.display !== 'none' && style.visibility !== 'hidden' && el.offsetWidth > 0 && el.offsetHeight > 0 && !el.disabled && !el.readOnly;
+          });
+        target = visibleInputs[0] || null;
       }
 
       if (target && target.tagName === 'INPUT') {
@@ -553,20 +598,25 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
         }
 
         if (${pressEnter}) {
-          const buttons = Array.from(document.querySelectorAll('button'));
+          // Disparar eventos de tecla Enter no input
+          target.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+          target.dispatchEvent(new KeyboardEvent('keypress', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+          target.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+
+          const buttons = Array.from(document.querySelectorAll('button, input[type="submit"], [role="button"]'));
           const nextBtn = buttons.find(b => {
             if (b.id && (b.id.includes('onetrust') || b.id.includes('cookie'))) return false;
-            const t = (b.innerText || '').trim().toLowerCase();
-            return t === 'next' || t === 'próximo' || t === 'seguinte' || t === 'continuar' || t === 'avançar' || t === 'sign in' || t === 'entrar' || t === 'continue' || t === 'verify';
+            const t = (b.innerText || (b as any).value || '').trim().toLowerCase();
+            return t === 'sign in' || t === 'entrar' || t === 'fazer login' || t === 'next' || t === 'próximo' || t === 'seguinte' || t === 'continuar' || t === 'avançar' || t === 'continue' || t === 'verify';
           }) || document.querySelector('form button[type="submit"]:not([id*="onetrust"])') || document.querySelector('button[type="submit"]:not([id*="onetrust"])');
 
           if (nextBtn) {
-            nextBtn.click();
+            (nextBtn as HTMLElement).click();
           } else if (target.form) {
             target.form.submit();
           }
         }
-        return { success: true, id: target.id, name: target.name, value: target.value };
+        return { success: true, id: target.id, name: target.name, type: target.type };
       }
       return { success: false };
     })()`;
@@ -596,21 +646,30 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
 
     setQuickInput('');
     toast({
-      title: fillResult?.success ? `Preenchido em #${fillResult.id || fillResult.name}` : 'Texto Enviado',
-      description: pressEnter ? 'Texto inserido e botão avançar acionado.' : 'Texto inserido no campo.',
+      title: fillResult?.success ? `Preenchido em #${fillResult.id || fillResult.name || fillResult.type}` : 'Texto Enviado',
+      description: pressEnter ? 'Texto inserido e envio acionado.' : 'Texto inserido no campo.',
+    });
+  };
+
+  const handleFocusPassword = async () => {
+    const res = await autoFocusInput('password');
+    setIsPasswordMode(true);
+    toast({
+      title: 'Campo de Senha',
+      description: res?.result?.value?.focused ? 'Campo de senha focado com sucesso!' : 'Campo selecionado no navegador.',
     });
   };
 
   const handleSendKey = async (code: 'Enter' | 'Tab') => {
     if (code === 'Enter') {
       const clickSubmitScript = `(() => {
-        const buttons = Array.from(document.querySelectorAll('button'));
+        const buttons = Array.from(document.querySelectorAll('button, input[type="submit"], [role="button"]'));
         const nextBtn = buttons.find(b => {
           if (b.id && (b.id.includes('onetrust') || b.id.includes('cookie'))) return false;
-          const t = (b.innerText || '').trim().toLowerCase();
-          return t === 'next' || t === 'próximo' || t === 'seguinte' || t === 'continuar' || t === 'avançar' || t === 'sign in' || t === 'entrar' || t === 'continue';
+          const t = (b.innerText || (b as any).value || '').trim().toLowerCase();
+          return t === 'sign in' || t === 'entrar' || t === 'fazer login' || t === 'next' || t === 'próximo' || t === 'seguinte' || t === 'continuar' || t === 'avançar' || t === 'continue';
         }) || document.querySelector('form button[type="submit"]:not([id*="onetrust"])') || document.querySelector('button[type="submit"]:not([id*="onetrust"])');
-        if (nextBtn) { nextBtn.click(); return true; }
+        if (nextBtn) { (nextBtn as HTMLElement).click(); return true; }
         return false;
       })()`;
       sendCdp('Runtime.evaluate', { expression: clickSubmitScript });
@@ -634,6 +693,10 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
   };
 
   const handleReload = async () => {
+    if (connectionStatus !== 'connected') {
+      handleReconnect();
+      return;
+    }
     await sendCdp('Page.reload');
     await sendCdp('Page.startScreencast', {
       format: 'jpeg',
@@ -727,9 +790,21 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
                     Iniciando Chromium na VPS...
                   </Badge>
                 ) : (
-                  <Badge variant="outline" className="text-xs font-normal text-muted-foreground">
-                    Desconectado
-                  </Badge>
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant="destructive" className="text-xs font-normal">
+                      Desconectado
+                    </Badge>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={handleReconnect}
+                      className="h-6 text-[11px] px-2 gap-1"
+                      title="Reconectar sessão interativa"
+                    >
+                      <RefreshCw className="h-3 w-3" />
+                      Reconectar
+                    </Button>
+                  </div>
                 )}
               </DialogTitle>
               <DialogDescription className="text-xs mt-0.5 line-clamp-1 font-mono text-muted-foreground">
@@ -743,8 +818,7 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
               size="sm"
               variant="outline"
               onClick={handleReload}
-              disabled={connectionStatus !== 'connected'}
-              title="Recarregar página no Chromium"
+              title={connectionStatus === 'connected' ? 'Recarregar página no Chromium' : 'Reconectar ao navegador'}
             >
               <RefreshCw className="h-3.5 w-3.5" />
             </Button>
@@ -765,27 +839,45 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
           </div>
         </DialogHeader>
 
-        {/* Barra de Digitação Rápida / Controle Direto */}
-        {connectionStatus === 'connected' && mode === 'screencast' && (
+        {/* Barra de Digitação Rápida / Controle Direto (Sempre visível em modo Screencast) */}
+        {mode === 'screencast' && (
           <div className="bg-neutral-900 border-b border-neutral-800 p-2.5 px-4 flex flex-wrap items-center gap-2 shrink-0">
             <div className="flex-1 min-w-[260px] flex items-center gap-1.5">
-              <Input
-                type="text"
-                value={quickInput}
-                onChange={(e) => setQuickInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleSendQuickInput(true);
+              <div className="relative flex-1">
+                <Input
+                  type={isPasswordMode ? 'password' : 'text'}
+                  value={quickInput}
+                  onChange={(e) => setQuickInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleSendQuickInput(true);
+                    }
+                  }}
+                  disabled={connectionStatus !== 'connected'}
+                  placeholder={
+                    connectionStatus !== 'connected'
+                      ? 'Navegador desconectado — clique em Reconectar acima...'
+                      : isPasswordMode
+                      ? 'Digite sua senha aqui (ou cole) e aperte Enviar ↵...'
+                      : 'Digite seu e-mail, senha ou código SMS aqui...'
                   }
-                }}
-                placeholder="Digite seu e-mail, senha ou código SMS aqui..."
-                className="h-8 text-xs bg-neutral-950 border-neutral-700 text-white placeholder:text-neutral-500 font-mono"
-              />
+                  className="h-8 text-xs bg-neutral-950 border-neutral-700 text-white placeholder:text-neutral-500 font-mono pr-8"
+                />
+                <button
+                  type="button"
+                  onClick={() => setIsPasswordMode(!isPasswordMode)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white"
+                  title={isPasswordMode ? 'Mostrar caracteres da senha' : 'Ocultar caracteres (modo senha)'}
+                >
+                  {isPasswordMode ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                </button>
+              </div>
+
               <Button
                 size="sm"
                 onClick={() => handleSendQuickInput(false)}
-                disabled={!quickInput}
+                disabled={!quickInput || connectionStatus !== 'connected'}
                 className="h-8 px-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs shrink-0"
                 title="Digitar texto no campo focado"
               >
@@ -795,9 +887,9 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
               <Button
                 size="sm"
                 onClick={() => handleSendQuickInput(true)}
-                disabled={!quickInput}
+                disabled={!quickInput || connectionStatus !== 'connected'}
                 className="h-8 px-2.5 bg-indigo-600/80 hover:bg-indigo-600 text-white text-xs shrink-0"
-                title="Digitar texto e enviar Enter / Avançar"
+                title="Digitar texto e enviar Enter / Sign in"
               >
                 <CornerDownLeft className="h-3.5 w-3.5 mr-1" />
                 Enviar ↵
@@ -808,17 +900,30 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => autoFocusInput()}
-                className="h-8 px-2.5 text-xs border-neutral-700 text-neutral-300 hover:bg-neutral-800"
-                title="Focar automaticamente o campo de texto na página"
+                onClick={handleFocusPassword}
+                disabled={connectionStatus !== 'connected'}
+                className="h-8 px-2.5 text-xs border-amber-600/50 text-amber-300 hover:bg-amber-950/40"
+                title="Focar diretamente o campo de senha na página"
               >
-                <Target className="h-3.5 w-3.5 mr-1 text-amber-400" />
-                Focar Campo
+                <Key className="h-3.5 w-3.5 mr-1 text-amber-400" />
+                Focar Senha
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => autoFocusInput()}
+                disabled={connectionStatus !== 'connected'}
+                className="h-8 px-2.5 text-xs border-neutral-700 text-neutral-300 hover:bg-neutral-800"
+                title="Focar automaticamente o campo inteligente na página"
+              >
+                <Target className="h-3.5 w-3.5 mr-1 text-indigo-400" />
+                Auto-Focar
               </Button>
               <Button
                 size="sm"
                 variant="outline"
                 onClick={handleDismissCookies}
+                disabled={connectionStatus !== 'connected'}
                 className="h-8 px-2.5 text-xs border-neutral-700 text-neutral-300 hover:bg-neutral-800"
                 title="Fechar banner de cookies da Booking/Airbnb se estiver cobrindo a tela"
               >
@@ -828,8 +933,8 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
                 size="sm"
                 variant="outline"
                 onClick={() => handlePressAndHold(3.5)}
-                disabled={isHolding}
-                className="h-8 px-2.5 text-xs border-amber-600/50 text-amber-300 hover:bg-amber-950/40"
+                disabled={isHolding || connectionStatus !== 'connected'}
+                className="h-8 px-2.5 text-xs border-neutral-700 text-neutral-300 hover:bg-neutral-800"
                 title="Pressionar e segurar botão por 3.5 segundos (para desafios tipo Press & Hold / PerimeterX)"
               >
                 <ShieldCheck className="h-3.5 w-3.5 mr-1 text-amber-400" />
@@ -839,15 +944,17 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
                 size="sm"
                 variant="outline"
                 onClick={() => handleSendKey('Enter')}
+                disabled={connectionStatus !== 'connected'}
                 className="h-8 px-2.5 text-xs border-neutral-700 text-neutral-300 hover:bg-neutral-800"
-                title="Pressionar botão de avanço / Enter"
+                title="Pressionar botão de avanço / Sign in / Enter"
               >
-                ↵ Avançar
+                ↵ Sign in
               </Button>
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => handleSendKey('Tab')}
+                disabled={connectionStatus !== 'connected'}
                 className="h-8 px-2 text-xs border-neutral-700 text-neutral-300 hover:bg-neutral-800"
                 title="Pressionar tecla Tab (pular campo)"
               >
@@ -882,7 +989,21 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/90 z-10 gap-3">
                   <RefreshCw className="h-8 w-8 text-indigo-600 animate-spin" />
                   <p className="text-sm font-medium">Lançando instância limpa do Chromium na VPS...</p>
-                  <p className="text-xs text-muted-foreground">Injetando proteções de stealth e preparando a tela de login.</p>
+                  <p className="text-xs text-muted-foreground">Injetando proteções de stealth e preparando a tela de login (sessão estendida de 10 min).</p>
+                </div>
+              )}
+
+              {connectionStatus === 'disconnected' && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-950/80 z-20 gap-3 text-center p-6 backdrop-blur-[2px]">
+                  <AlertCircle className="h-10 w-10 text-amber-400" />
+                  <p className="text-base font-semibold text-white">Sessão Interativa Desconectada</p>
+                  <p className="text-xs text-neutral-300 max-w-md">
+                    O tempo de conexão foi pausado. Clique abaixo para reconectar imediatamente com sessão de 10 minutos.
+                  </p>
+                  <Button onClick={handleReconnect} className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2 text-xs">
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    Reconectar Navegador Agora
+                  </Button>
                 </div>
               )}
 

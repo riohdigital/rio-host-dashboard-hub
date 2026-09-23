@@ -41,12 +41,20 @@ interface CompetitorsRadarTabProps {
   propertyId: string;
   properties: Property[];
   selectedProperty: Property | null;
+  selectedPropertyIds?: string[];
+  dateRange?: {
+    startDateString?: string;
+    endDateString?: string;
+    selectedPeriod?: string;
+  };
 }
 
 export const CompetitorsRadarTab: React.FC<CompetitorsRadarTabProps> = ({
   propertyId,
   properties,
-  selectedProperty
+  selectedProperty,
+  selectedPropertyIds,
+  dateRange
 }) => {
   const { toast } = useToast();
   const [competitors, setCompetitors] = useState<CompetitorListing[]>([]);
@@ -92,6 +100,8 @@ export const CompetitorsRadarTab: React.FC<CompetitorsRadarTabProps> = ({
 
       if (propertyId !== 'todas') {
         query = query.eq('property_id', propertyId);
+      } else if (selectedPropertyIds && selectedPropertyIds.length > 0 && !selectedPropertyIds.includes('todas')) {
+        query = query.in('property_id', selectedPropertyIds);
       }
 
       const { data, error } = await query;
@@ -103,12 +113,20 @@ export const CompetitorsRadarTab: React.FC<CompetitorsRadarTabProps> = ({
       // Busca snapshots de preços se houver concorrentes
       if (compList.length > 0) {
         const compIds = compList.map(c => c.id);
-        const { data: snapData, error: snapError } = await (supabase as any)
+        let snapQuery = (supabase as any)
           .from('competitor_price_snapshots')
           .select('*')
-          .in('competitor_listing_id', compIds)
-          .gte('target_date', new Date().toISOString().split('T')[0])
-          .order('target_date', { ascending: true });
+          .in('competitor_listing_id', compIds);
+
+        if (dateRange && dateRange.selectedPeriod !== 'general' && dateRange.startDateString && dateRange.endDateString) {
+          snapQuery = snapQuery
+            .gte('target_date', dateRange.startDateString)
+            .lte('target_date', dateRange.endDateString);
+        } else {
+          snapQuery = snapQuery.gte('target_date', new Date().toISOString().split('T')[0]);
+        }
+
+        const { data: snapData, error: snapError } = await snapQuery.order('target_date', { ascending: true });
 
         if (!snapError && snapData) {
           const grouped: Record<string, CompetitorPriceSnapshot[]> = {};
@@ -128,7 +146,13 @@ export const CompetitorsRadarTab: React.FC<CompetitorsRadarTabProps> = ({
 
   useEffect(() => {
     fetchCompetitors();
-  }, [propertyId]);
+  }, [
+    propertyId,
+    selectedPropertyIds?.join(','),
+    dateRange?.startDateString,
+    dateRange?.endDateString,
+    dateRange?.selectedPeriod
+  ]);
 
   // Disparo manual de atualização de concorrentes via n8n
   const handleTriggerScraping = async () => {

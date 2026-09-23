@@ -87,8 +87,15 @@ export const useDateRange = (selectedPeriod: string, customStartDate?: Date, cus
         break;
     }
     
-    const startDateString = startDate.toISOString().split('T')[0];
-    const endDateString = endDate.toISOString().split('T')[0];
+    const formatToYMD = (d: Date) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+    
+    const startDateString = formatToYMD(startDate);
+    const endDateString = formatToYMD(endDate);
     const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     
     return { startDate, endDate, startDateString, endDateString, periodType, totalDays };
