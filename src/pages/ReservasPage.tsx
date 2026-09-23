@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
@@ -42,7 +43,14 @@ const calculateNights = (checkIn: string, checkOut: string): number => {
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 };
 
-const fetchReservationsAndProperties = async (getAccessibleProperties: () => string[], hasPermission: (p: any) => boolean, selectedPeriod: string, startDateString: string, endDateString: string) => {
+const fetchReservationsAndProperties = async (
+    getAccessibleProperties: () => string[], 
+    hasPermission: (p: any) => boolean, 
+    selectedPeriod: string, 
+    startDateString: string, 
+    endDateString: string,
+    searchCode?: string
+) => {
     const accessibleProperties = getAccessibleProperties();
     const hasFullAccess = hasPermission('reservations_view_all');
     
@@ -51,7 +59,10 @@ const fetchReservationsAndProperties = async (getAccessibleProperties: () => str
         .select('*, properties!inner(*)')
         .order('check_in_date', { ascending: false });
 
-    if (selectedPeriod !== 'general') {
+    // Se houver busca direta por código via URL/parâmetro, busca a reserva sem limitar por período
+    if (searchCode && searchCode.trim().length > 0) {
+        query = query.ilike('reservation_code', `%${searchCode.trim()}%`);
+    } else if (selectedPeriod !== 'general') {
         query = query
             .lte('check_in_date', endDateString)
             .gte('check_out_date', startDateString);
@@ -102,29 +113,39 @@ const fetchReservationsAndProperties = async (getAccessibleProperties: () => str
 };
 
 const ReservasPage = () => {
+    const [searchParams] = useSearchParams();
+    const urlSearchCode = searchParams.get('search') || searchParams.get('code') || '';
+
     const [showForm, setShowForm] = useState(false);
     const [editingReservation, setEditingReservation] = useState<Reservation | null>(null);
-    const [searchTerm, setSearchTerm] = useState('');
+    const [searchTerm, setSearchTerm] = useState(urlSearchCode);
     const [selectedStatus, setSelectedStatus] = useState('all');
     const [selectedPaymentStatus, setSelectedPaymentStatus] = useState('all');
-    const [activeTab, setActiveTab] = useState('cashflow');
+    const [activeTab, setActiveTab] = useState(urlSearchCode ? 'active' : 'cashflow');
     const { toast } = useToast();
     const { hasPermission, getAccessibleProperties, loading: permissionsLoading } = useUserPermissions();
     const { selectedProperties, selectedPeriod, selectedPlatform, customStartDate, customEndDate } = useGlobalFilters();
     const { startDateString, endDateString } = useDateRange(selectedPeriod, customStartDate, customEndDate);
     const queryClient = useQueryClient();
 
+    useEffect(() => {
+        if (urlSearchCode) {
+            setSearchTerm(urlSearchCode);
+            setActiveTab('active');
+        }
+    }, [urlSearchCode]);
+
     // LOG: Verificando o estado a cada renderização
     console.log("--- COMPONENTE RENDERIZADO ---");
     console.log("Estado 'showForm':", showForm);
     console.log("Reserva em edição:", editingReservation ? editingReservation.id : null);
 
-    const queryKey = useMemo(() => ['reservations', selectedPeriod, startDateString, endDateString, selectedProperties, selectedPlatform, selectedPaymentStatus], 
-        [selectedPeriod, startDateString, endDateString, selectedProperties, selectedPlatform, selectedPaymentStatus]);
+    const queryKey = useMemo(() => ['reservations', selectedPeriod, startDateString, endDateString, selectedProperties, selectedPlatform, selectedPaymentStatus, urlSearchCode], 
+        [selectedPeriod, startDateString, endDateString, selectedProperties, selectedPlatform, selectedPaymentStatus, urlSearchCode]);
 
     const { data, isLoading: dataLoading } = useQuery({
         queryKey: queryKey,
-        queryFn: () => fetchReservationsAndProperties(getAccessibleProperties, hasPermission, selectedPeriod, startDateString, endDateString),
+        queryFn: () => fetchReservationsAndProperties(getAccessibleProperties, hasPermission, selectedPeriod, startDateString, endDateString, urlSearchCode),
         enabled: !permissionsLoading,
         staleTime: 5 * 60 * 1000, // 5 minutes
         refetchOnWindowFocus: false,
@@ -251,12 +272,23 @@ const ReservasPage = () => {
     }, [reservations, searchTerm, selectedProperties, selectedStatus, selectedPlatform, selectedPaymentStatus, startDateString, endDateString]);
 
     const filteredReservations = useMemo(() => {
-        if (activeTab === 'active') return reservationsByCompetence.active;
-        if (activeTab === 'cashflow') return reservationsByCompetence.cashflow;
-        if (activeTab === 'received') return reservationsByCompetence.received;
-        if (activeTab === 'future') return reservationsByCompetence.future;
-        return [];
-    }, [activeTab, reservationsByCompetence]);
+        let list: any[] = [];
+        if (activeTab === 'active') list = reservationsByCompetence.active;
+        else if (activeTab === 'cashflow') list = reservationsByCompetence.cashflow;
+        else if (activeTab === 'received') list = reservationsByCompetence.received;
+        else if (activeTab === 'future') list = reservationsByCompetence.future;
+        
+        // Se houver busca específica e a aba atual estiver vazia, exibe as reservas encontradas na lista
+        if (list.length === 0 && searchTerm) {
+            const lowerSearch = searchTerm.toLowerCase();
+            const found = reservations.filter((r: any) => 
+                r.reservation_code?.toLowerCase().includes(lowerSearch) ||
+                (r.guest_name && r.guest_name.toLowerCase().includes(lowerSearch))
+            );
+            if (found.length > 0) return found;
+        }
+        return list;
+    }, [activeTab, reservationsByCompetence, reservations, searchTerm]);
 
     const totals = useMemo(() => filteredReservations.reduce((acc, reservation) => {
         acc.count += 1;

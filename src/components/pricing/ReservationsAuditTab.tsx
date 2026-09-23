@@ -12,8 +12,18 @@ import {
   Info,
   CheckCircle2,
   AlertCircle,
-  ExternalLink
+  ExternalLink,
+  Building2,
+  LayoutDashboard,
+  Eye
 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Property } from '@/types/property';
@@ -31,6 +41,7 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
   const [reservations, setReservations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [auditingIds, setAuditingIds] = useState<Record<string, boolean>>({});
+  const [selectedModalRes, setSelectedModalRes] = useState<any | null>(null);
 
   const fetchReservations = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -43,18 +54,27 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
           platform,
           property_id,
           guest_name,
+          guest_phone,
           check_in_date,
           check_out_date,
           total_revenue,
+          net_revenue,
           cleaning_fee,
           created_by_source,
           is_verified_by_ai,
           verified_at,
           verification_notes,
-          platform_verified_data
+          platform_verified_data,
+          reservation_status,
+          payment_status,
+          properties (
+            id,
+            name,
+            nickname
+          )
         `)
         .order('created_at', { ascending: false })
-        .limit(30);
+        .limit(40);
 
       if (propertyId !== 'todas') {
         query = query.eq('property_id', propertyId);
@@ -165,6 +185,21 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
     return null;
   };
 
+  const getPlatformPayoutUrl = (platform: string, checkOutDate?: string) => {
+    const p = (platform || '').toLowerCase();
+    if (p.includes('airbnb')) {
+      const isFuture = !checkOutDate || new Date(checkOutDate) >= new Date();
+      // ID 122285728 da conta anfitriã no Airbnb - repasses específicos
+      return isFuture
+        ? 'https://www.airbnb.com.br/earnings/122285728/upcoming'
+        : 'https://www.airbnb.com.br/earnings/122285728/completed';
+    }
+    if (p.includes('booking')) {
+      return 'https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/finance_invoices.html';
+    }
+    return null;
+  };
+
   const verifiedCount = reservations.filter(r => r.is_verified_by_ai).length;
   const pendingCount = reservations.length - verifiedCount;
 
@@ -211,6 +246,9 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
             const isAuditing = !!auditingIds[res.id];
             const isAirbnb = res.platform?.toLowerCase() === 'airbnb';
             const directUrl = getPlatformDirectUrl(res.platform, res.reservation_code);
+            const payoutUrl = getPlatformPayoutUrl(res.platform, res.check_out_date);
+            const isAirbnbFuture = !res.check_out_date || new Date(res.check_out_date) >= new Date();
+            const propertyName = res.properties?.nickname || res.properties?.name || selectedProperty?.nickname || selectedProperty?.name || 'Imóvel';
 
             return (
               <Card
@@ -227,6 +265,16 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="space-y-1.5 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
+                        {/* Nome da Propriedade em Destaque */}
+                        <Badge
+                          variant="secondary"
+                          className="bg-slate-100 hover:bg-slate-200/80 text-slate-800 border border-slate-200 text-[11px] font-semibold flex items-center gap-1.5 py-0.5 px-2"
+                          title={`Propriedade: ${propertyName}`}
+                        >
+                          <Building2 className="h-3 w-3 text-slate-500" />
+                          {propertyName}
+                        </Badge>
+
                         <Badge
                           variant="outline"
                           className={
@@ -261,7 +309,7 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
                         )}
                       </div>
 
-                      <div className="flex items-center gap-4 text-xs text-gray-500">
+                      <div className="flex items-center gap-4 text-xs text-gray-500 flex-wrap">
                         <span>
                           {new Date(res.check_in_date).toLocaleDateString('pt-BR')} a{' '}
                           {new Date(res.check_out_date).toLocaleDateString('pt-BR')}
@@ -278,8 +326,21 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
                         )}
                       </div>
 
-                      {/* Links Diretos para Conferência Oficial dos Valores */}
-                      <div className="flex items-center gap-3 pt-1 flex-wrap">
+                      {/* Links Diretos: Dashboard, Portal Oficial e Repasses */}
+                      <div className="flex items-center gap-2 pt-1.5 flex-wrap">
+                        {/* 1. Link para conferir no próprio Dashboard */}
+                        <a
+                          href={`/reservas?search=${encodeURIComponent(res.reservation_code)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-700 hover:text-indigo-600 bg-gray-100 hover:bg-gray-200/80 px-2.5 py-1 rounded-md border border-gray-200 transition-all shadow-2xs"
+                          title="Abrir e gerenciar esta reserva no próprio Dashboard Rioh Host (/reservas)"
+                        >
+                          <LayoutDashboard className="h-3.5 w-3.5 text-gray-600" />
+                          Ver no Dashboard ↗
+                        </a>
+
+                        {/* 2. Link oficial da reserva no portal */}
                         {directUrl && (
                           <a
                             href={directUrl}
@@ -292,17 +353,31 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
                             Conferir Valores no {res.platform} ↗
                           </a>
                         )}
-                        {isAirbnb && (
+
+                        {/* 3. Link direto para a página de repasses da conta */}
+                        {payoutUrl && (
                           <a
-                            href="https://www.airbnb.com.br/earnings"
+                            href={payoutUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-[11px] text-gray-500 hover:text-gray-700 hover:underline"
-                            title="Abrir histórico e extrato de repasses do Airbnb"
+                            className="inline-flex items-center gap-1 text-[11px] font-medium text-gray-600 hover:text-gray-900 hover:underline px-2 py-1 rounded bg-slate-50 border border-slate-200/70"
+                            title={isAirbnb ? (isAirbnbFuture ? "Abrir repasses futuros no Airbnb (ID 122285728)" : "Abrir extrato de repasses concluídos no Airbnb (ID 122285728)") : "Abrir extrato financeiro no portal"}
                           >
-                            Extrato de Repasses ↗
+                            <DollarSign className="h-3 w-3 text-emerald-600" />
+                            {isAirbnb ? (isAirbnbFuture ? 'Repasses Futuros (Airbnb) ↗' : 'Repasses Concluídos (Airbnb) ↗') : 'Faturas / Extrato ↗'}
                           </a>
                         )}
+
+                        {/* 4. Ficha Técnica Completa em Modal */}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSelectedModalRes(res)}
+                          className="h-7 px-2 text-[11px] text-gray-500 hover:text-gray-900 gap-1"
+                        >
+                          <Eye className="h-3 w-3" /> Ficha da Reserva
+                        </Button>
                       </div>
 
                       {/* Notas de Auditoria da IA */}
@@ -349,6 +424,105 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
           })}
         </div>
       )}
+
+      {/* Modal de Ficha Rápida da Reserva */}
+      <Dialog open={!!selectedModalRes} onOpenChange={(open) => !open && setSelectedModalRes(null)}>
+        <DialogContent className="max-w-lg">
+          {selectedModalRes && (
+            <div className="space-y-4">
+              <DialogHeader>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs">
+                    {selectedModalRes.platform}
+                  </Badge>
+                  <DialogTitle className="text-lg font-bold font-mono">
+                    {selectedModalRes.reservation_code}
+                  </DialogTitle>
+                </div>
+                <DialogDescription className="text-xs text-gray-500">
+                  Ficha detalhada da reserva e conferência de valores pela IA
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-2.5 bg-slate-50 p-3.5 rounded-lg border text-xs">
+                <div className="flex justify-between items-center py-1 border-b">
+                  <span className="text-gray-500 font-medium">Propriedade:</span>
+                  <span className="font-semibold text-gray-800 flex items-center gap-1">
+                    <Building2 className="h-3.5 w-3.5 text-slate-500" />
+                    {selectedModalRes.properties?.nickname || selectedModalRes.properties?.name || selectedProperty?.nickname || selectedProperty?.name || 'Imóvel'}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center py-1 border-b">
+                  <span className="text-gray-500 font-medium">Hóspede:</span>
+                  <span className="font-semibold text-gray-800">{selectedModalRes.guest_name || 'Não informado'}</span>
+                </div>
+
+                <div className="flex justify-between items-center py-1 border-b">
+                  <span className="text-gray-500 font-medium">Período:</span>
+                  <span className="font-semibold text-gray-800">
+                    {new Date(selectedModalRes.check_in_date).toLocaleDateString('pt-BR')} até {new Date(selectedModalRes.check_out_date).toLocaleDateString('pt-BR')}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center py-1 border-b">
+                  <span className="text-gray-500 font-medium">Receita Bruta Total:</span>
+                  <span className="font-bold text-gray-900 text-sm">
+                    R$ {parseFloat(selectedModalRes.total_revenue || 0).toFixed(2)}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center py-1 border-b">
+                  <span className="text-gray-500 font-medium">Taxa de Limpeza:</span>
+                  <span className="font-semibold text-gray-700">
+                    R$ {parseFloat(selectedModalRes.cleaning_fee || 0).toFixed(2)}
+                  </span>
+                </div>
+
+                {selectedModalRes.net_revenue && (
+                  <div className="flex justify-between items-center py-1 border-b">
+                    <span className="text-gray-500 font-medium">Receita Líquida Estimada:</span>
+                    <span className="font-semibold text-emerald-700">
+                      R$ {parseFloat(selectedModalRes.net_revenue || 0).toFixed(2)}
+                    </span>
+                  </div>
+                )}
+
+                <div className="pt-1">
+                  <span className="text-gray-500 font-medium block mb-1">Notas da Auditoria com IA:</span>
+                  <div className="p-2 rounded bg-white border text-gray-700 text-[11px] leading-relaxed">
+                    {selectedModalRes.verification_notes || 'Nenhuma nota registrada até o momento.'}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-2 pt-2 flex-wrap">
+                <a
+                  href={`/reservas?search=${encodeURIComponent(selectedModalRes.reservation_code)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-800 hover:text-indigo-600 bg-gray-100 hover:bg-gray-200/80 px-3 py-1.5 rounded border transition-all"
+                >
+                  <LayoutDashboard className="h-3.5 w-3.5" />
+                  Abrir no Dashboard (/reservas) ↗
+                </a>
+
+                {getPlatformDirectUrl(selectedModalRes.platform, selectedModalRes.reservation_code) && (
+                  <a
+                    href={getPlatformDirectUrl(selectedModalRes.platform, selectedModalRes.reservation_code)!}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#6A6DDF] hover:underline bg-[#6A6DDF]/10 px-3 py-1.5 rounded border border-[#6A6DDF]/20 transition-all"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    Abrir no {selectedModalRes.platform} ↗
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
