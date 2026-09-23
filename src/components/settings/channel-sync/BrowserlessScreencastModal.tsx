@@ -303,6 +303,15 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
               }
             }
 
+            // Re-iniciar screencast na nova página para garantir stream contínuo imediato
+            sendCdp('Page.startScreencast', {
+              format: 'jpeg',
+              quality: 75,
+              maxWidth: NATIVE_WIDTH,
+              maxHeight: NATIVE_HEIGHT,
+              everyNthFrame: 1,
+            });
+
             // Ao navegar (ex: de username para password), focar campo e auto-fechar cookies
             setTimeout(() => {
               autoFocusInput();
@@ -544,20 +553,18 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
         }
 
         if (${pressEnter}) {
-          setTimeout(() => {
-            const buttons = Array.from(document.querySelectorAll('button'));
-            const nextBtn = buttons.find(b => {
-              if (b.id && b.id.includes('onetrust')) return false;
-              const t = (b.innerText || '').trim().toLowerCase();
-              return t === 'next' || t === 'próximo' || t === 'continuar' || t === 'avançar' || t === 'sign in' || t === 'entrar' || t === 'continue' || t === 'verify';
-            }) || document.querySelector('form button[type="submit"]:not([id*="onetrust"])') || document.querySelector('button[type="submit"]:not([id*="onetrust"])');
+          const buttons = Array.from(document.querySelectorAll('button'));
+          const nextBtn = buttons.find(b => {
+            if (b.id && (b.id.includes('onetrust') || b.id.includes('cookie'))) return false;
+            const t = (b.innerText || '').trim().toLowerCase();
+            return t === 'next' || t === 'próximo' || t === 'seguinte' || t === 'continuar' || t === 'avançar' || t === 'sign in' || t === 'entrar' || t === 'continue' || t === 'verify';
+          }) || document.querySelector('form button[type="submit"]:not([id*="onetrust"])') || document.querySelector('button[type="submit"]:not([id*="onetrust"])');
 
-            if (nextBtn) {
-              nextBtn.click();
-            } else if (target.form) {
-              target.form.submit();
-            }
-          }, 150);
+          if (nextBtn) {
+            nextBtn.click();
+          } else if (target.form) {
+            target.form.submit();
+          }
         }
         return { success: true, id: target.id, name: target.name, value: target.value };
       }
@@ -571,10 +578,21 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
     if (!fillResult?.success && valueToInsert) {
       await sendCdp('Input.insertText', { text: valueToInsert });
     }
-    if (pressEnter && !fillResult?.success) {
+    if (pressEnter) {
       await sendCdp('Input.dispatchKeyEvent', { type: 'rawKeyDown', windowsVirtualKeyCode: 13, code: 'Enter', key: 'Enter' });
       await sendCdp('Input.dispatchKeyEvent', { type: 'keyUp', windowsVirtualKeyCode: 13, code: 'Enter', key: 'Enter' });
     }
+
+    // Forçar atualização do screencast após submissão para pegar a nova tela na hora
+    setTimeout(() => {
+      sendCdp('Page.startScreencast', {
+        format: 'jpeg',
+        quality: 75,
+        maxWidth: NATIVE_WIDTH,
+        maxHeight: NATIVE_HEIGHT,
+        everyNthFrame: 1,
+      });
+    }, 700);
 
     setQuickInput('');
     toast({
@@ -588,9 +606,9 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
       const clickSubmitScript = `(() => {
         const buttons = Array.from(document.querySelectorAll('button'));
         const nextBtn = buttons.find(b => {
-          if (b.id && b.id.includes('onetrust')) return false;
+          if (b.id && (b.id.includes('onetrust') || b.id.includes('cookie'))) return false;
           const t = (b.innerText || '').trim().toLowerCase();
-          return t === 'next' || t === 'próximo' || t === 'continuar' || t === 'avançar' || t === 'sign in' || t === 'entrar' || t === 'continue';
+          return t === 'next' || t === 'próximo' || t === 'seguinte' || t === 'continuar' || t === 'avançar' || t === 'sign in' || t === 'entrar' || t === 'continue';
         }) || document.querySelector('form button[type="submit"]:not([id*="onetrust"])') || document.querySelector('button[type="submit"]:not([id*="onetrust"])');
         if (nextBtn) { nextBtn.click(); return true; }
         return false;
@@ -601,6 +619,18 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
     const keyCode = code === 'Enter' ? 13 : 9;
     await sendCdp('Input.dispatchKeyEvent', { type: 'rawKeyDown', windowsVirtualKeyCode: keyCode, code, key: code });
     await sendCdp('Input.dispatchKeyEvent', { type: 'keyUp', windowsVirtualKeyCode: keyCode, code, key: code });
+
+    if (code === 'Enter') {
+      setTimeout(() => {
+        sendCdp('Page.startScreencast', {
+          format: 'jpeg',
+          quality: 75,
+          maxWidth: NATIVE_WIDTH,
+          maxHeight: NATIVE_HEIGHT,
+          everyNthFrame: 1,
+        });
+      }, 700);
+    }
   };
 
   const handleReload = async () => {
