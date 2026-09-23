@@ -1,21 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Sparkles, Home, AlertTriangle, Layers } from 'lucide-react';
+import { Sparkles, Home, AlertTriangle, Layers, Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
+import { useDateRange } from '@/hooks/dashboard/useDateRange';
 import { Property } from '@/types/property';
 import PropertyPricingDashboard from '@/components/pricing/PropertyPricingDashboard';
+import { formatLocalDate } from '@/utils/dateUtils';
 
 const PrecificacaoPage: React.FC = () => {
-  const { hasPermission, canAccessProperty, getAccessibleProperties, isMaster, loading: permissionsLoading } = useUserPermissions();
-  const { selectedProperties } = useGlobalFilters();
+  const { hasPermission, getAccessibleProperties, isMaster, loading: permissionsLoading } = useUserPermissions();
+  const { selectedProperties, selectedPeriod, customStartDate, customEndDate } = useGlobalFilters();
+  const { startDate, endDate, startDateString, endDateString } = useDateRange(selectedPeriod, customStartDate, customEndDate);
+  
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedPropertyId, setSelectedPropertyId] = useState<string>('todas');
 
   // Busca lista de propriedades acessíveis
   const fetchProperties = async () => {
@@ -35,11 +36,6 @@ const PrecificacaoPage: React.FC = () => {
       }
 
       setProperties(filtered);
-
-      // Sincroniza com filtro global se houver apenas um selecionado
-      if (selectedProperties && selectedProperties.length === 1 && selectedProperties[0] !== 'todas') {
-        setSelectedPropertyId(selectedProperties[0]);
-      }
     } catch (e) {
       console.error('Erro ao buscar propriedades na PrecificacaoPage:', e);
     } finally {
@@ -78,9 +74,26 @@ const PrecificacaoPage: React.FC = () => {
     );
   }
 
+  // Resolução do imóvel selecionado via seletor global
+  const isAllSelected = !selectedProperties || selectedProperties.length === 0 || selectedProperties.includes('todas');
+  const isSingleProperty = !isAllSelected && selectedProperties.length === 1;
+  const selectedPropertyId = isSingleProperty ? selectedProperties[0] : 'todas';
+  const selectedProperty = isSingleProperty ? properties.find(p => p.id === selectedPropertyId) : null;
+
+  // Rótulo amigável do período ativo
+  const getPeriodBadgeLabel = () => {
+    if (selectedPeriod === 'current_year') return `Ano Atual (${new Date().getFullYear()})`;
+    if (selectedPeriod === 'current_month') return 'Mês Atual';
+    if (selectedPeriod === 'general') return 'Geral (Todo Histórico)';
+    if (selectedPeriod === 'custom' && customStartDate && customEndDate) {
+      return `${formatLocalDate(startDateString)} a ${formatLocalDate(endDateString)}`;
+    }
+    return `${formatLocalDate(startDateString)} a ${formatLocalDate(endDateString)}`;
+  };
+
   return (
     <div className="p-6 space-y-6 bg-[#F8F9FA] min-h-screen">
-      {/* Header com Título e Seletor de Imóvel */}
+      {/* Header com Título e Badges Informativos do Filtro Global */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-4">
         <div>
           <h1 className="text-3xl font-bold text-gradient-primary flex items-center gap-2.5">
@@ -88,77 +101,54 @@ const PrecificacaoPage: React.FC = () => {
             Precificação & Yield Estratégico
           </h1>
           <p className="text-gray-600 mt-1 text-sm">
-            Monitore a demanda de mercado por imóvel, aprove sugestões de tarifa e maximize a receita.
+            Inteligência de mercado, oportunidades de receita e mitigação de risco sincronizadas com os filtros globais.
           </p>
         </div>
 
-        {/* Seletor de Imóvel */}
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-semibold text-gray-500 whitespace-nowrap">Propriedade:</span>
-          <Select value={selectedPropertyId} onValueChange={setSelectedPropertyId}>
-            <SelectTrigger className="w-[260px] bg-white border shadow-xs h-9 text-xs">
-              <SelectValue placeholder="Selecione o imóvel" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todas">
-                <span className="flex items-center gap-2">
-                  <Layers className="h-3.5 w-3.5 text-[#6A6DDF]" />
-                  Visão Geral (Todos os Imóveis)
-                </span>
-              </SelectItem>
-              {properties.map(p => (
-                <SelectItem key={p.id} value={p.id}>
-                  <span className="flex items-center gap-2">
-                    <Home className="h-3.5 w-3.5 text-gray-500" />
-                    {p.name}
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {/* Badges de Contexto Ativo (Controlados pelo Menu Lateral) */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Badge do Imóvel Selecionado */}
+          {isAllSelected ? (
+            <Badge variant="outline" className="bg-white border-gray-200 text-gray-700 py-1.5 px-3 flex items-center gap-1.5 shadow-2xs text-xs font-medium">
+              <Layers className="h-3.5 w-3.5 text-[#6A6DDF]" />
+              <span>Visão Geral ({properties.length} Imóveis)</span>
+            </Badge>
+          ) : isSingleProperty && selectedProperty ? (
+            <Badge variant="outline" className="bg-white border-emerald-200 text-gray-800 py-1.5 px-3 flex items-center gap-2 shadow-2xs text-xs font-semibold">
+              <span className={`w-2 h-2 rounded-full ${selectedProperty.status === 'Ativo' ? 'bg-emerald-500' : 'bg-gray-400'}`} />
+              <Home className="h-3.5 w-3.5 text-[#6A6DDF]" />
+              <span>{selectedProperty.name}</span>
+              {selectedProperty.nickname && (
+                <span className="text-gray-500 font-normal">({selectedProperty.nickname})</span>
+              )}
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="bg-white border-indigo-200 text-gray-800 py-1.5 px-3 flex items-center gap-1.5 shadow-2xs text-xs font-medium">
+              <Home className="h-3.5 w-3.5 text-[#6A6DDF]" />
+              <span>{selectedProperties.length} Imóveis Selecionados</span>
+            </Badge>
+          )}
+
+          {/* Badge do Período Ativo */}
+          <Badge variant="outline" className="bg-[#6A6DDF]/5 border-[#6A6DDF]/20 text-[#6A6DDF] py-1.5 px-3 flex items-center gap-1.5 shadow-2xs text-xs font-medium">
+            <Calendar className="h-3.5 w-3.5 text-[#6A6DDF]" />
+            <span>{getPeriodBadgeLabel()}</span>
+          </Badge>
         </div>
       </div>
 
-      {/* Carrossel / Pills Rápidos dos Imóveis */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-        <button
-          onClick={() => setSelectedPropertyId('todas')}
-          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap border ${
-            selectedPropertyId === 'todas'
-              ? 'bg-[#6A6DDF] text-white border-[#6A6DDF] shadow-xs'
-              : 'bg-white text-gray-600 hover:bg-gray-50 border-gray-200'
-          }`}
-        >
-          Todos ({properties.length})
-        </button>
-
-        {properties.map(p => {
-          const isSelected = selectedPropertyId === p.id;
-          return (
-            <button
-              key={p.id}
-              onClick={() => setSelectedPropertyId(p.id)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap flex items-center gap-1.5 border ${
-                isSelected
-                  ? 'bg-[#6A6DDF] text-white border-[#6A6DDF] shadow-xs'
-                  : 'bg-white text-gray-600 hover:bg-gray-50 border-gray-200'
-              }`}
-            >
-              <span>{p.name}</span>
-              {p.status === 'Ativo' ? (
-                <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-emerald-300' : 'bg-emerald-500'}`} />
-              ) : (
-                <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-gray-300' : 'bg-gray-400'}`} />
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Componente Individual de Precificação */}
+      {/* Componente Individual de Precificação com Dados Filtrados */}
       <PropertyPricingDashboard
         propertyId={selectedPropertyId}
+        selectedPropertyIds={selectedProperties}
         properties={properties}
+        dateRange={{
+          startDate,
+          endDate,
+          startDateString,
+          endDateString,
+          selectedPeriod
+        }}
         onRefresh={fetchProperties}
       />
     </div>
@@ -166,3 +156,4 @@ const PrecificacaoPage: React.FC = () => {
 };
 
 export default PrecificacaoPage;
+

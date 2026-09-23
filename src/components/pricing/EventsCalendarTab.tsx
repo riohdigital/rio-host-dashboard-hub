@@ -18,6 +18,7 @@ import {
 import { LocalEvent } from '@/types/pricing';
 import { Property } from '@/types/property';
 import { useToast } from '@/hooks/use-toast';
+import { formatLocalDate } from '@/utils/dateUtils';
 
 interface EventsCalendarTabProps {
   events: LocalEvent[];
@@ -283,8 +284,8 @@ export const EventsCalendarTab: React.FC<EventsCalendarTabProps> = ({
                     <div>
                       <span className="text-gray-400 text-[10px] block">Período</span>
                       <span className="font-medium text-gray-800">
-                        {new Date(ev.start_date).toLocaleDateString('pt-BR')} a{' '}
-                        {new Date(ev.end_date).toLocaleDateString('pt-BR')}
+                        {formatLocalDate(ev.start_date)} a{' '}
+                        {formatLocalDate(ev.end_date)}
                       </span>
                     </div>
 

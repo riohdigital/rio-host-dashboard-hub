@@ -33,17 +33,27 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CompetitorsRadarTab from './CompetitorsRadarTab';
 import EventsCalendarTab from './EventsCalendarTab';
 import ReservationsAuditTab from './ReservationsAuditTab';
-
+import { formatLocalDate } from '@/utils/dateUtils';
 
 interface PropertyPricingDashboardProps {
   propertyId: string;
+  selectedPropertyIds?: string[];
   properties: Property[];
+  dateRange?: {
+    startDate?: Date;
+    endDate?: Date;
+    startDateString: string;
+    endDateString: string;
+    selectedPeriod: string;
+  };
   onRefresh?: () => void;
 }
 
 export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> = ({
   propertyId,
+  selectedPropertyIds,
   properties,
+  dateRange,
   onRefresh
 }) => {
   const { toast } = useToast();
@@ -75,6 +85,15 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
 
       if (propertyId !== 'todas') {
         alertsQuery = alertsQuery.eq('property_id', propertyId);
+      } else if (selectedPropertyIds && selectedPropertyIds.length > 0 && !selectedPropertyIds.includes('todas')) {
+        alertsQuery = alertsQuery.in('property_id', selectedPropertyIds);
+      }
+
+      // Aplica filtro de período se não for "Geral"
+      if (dateRange && dateRange.selectedPeriod !== 'general' && dateRange.startDateString && dateRange.endDateString) {
+        alertsQuery = alertsQuery
+          .lte('target_start_date', dateRange.endDateString)
+          .gte('target_end_date', dateRange.startDateString);
       }
 
       const { data: alertsData, error: alertsError } = await alertsQuery;
@@ -84,34 +103,47 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
         setAlerts((alertsData as any[]) || []);
       }
 
-      // 2. Eventos locais (próximos 365 dias / 1 ano)
-      const todayIso = new Date().toISOString().split('T')[0];
-      const maxDate = new Date();
-      maxDate.setDate(maxDate.getDate() + 365);
-      const maxDateIso = maxDate.toISOString().split('T')[0];
-
-      const { data: eventsData, error: eventsError } = await supabase
+      // 2. Eventos locais vinculados ao período
+      let eventsQuery = supabase
         .from('local_events')
         .select('*')
-        .gte('end_date', todayIso)
-        .lte('start_date', maxDateIso)
         .order('start_date', { ascending: true });
 
+      if (dateRange && dateRange.selectedPeriod !== 'general' && dateRange.startDateString && dateRange.endDateString) {
+        eventsQuery = eventsQuery
+          .gte('end_date', dateRange.startDateString)
+          .lte('start_date', dateRange.endDateString);
+      } else {
+        const todayIso = new Date().toISOString().split('T')[0];
+        eventsQuery = eventsQuery.gte('end_date', todayIso);
+      }
+
+      const { data: eventsData, error: eventsError } = await eventsQuery;
       if (eventsError) {
         console.error('Erro ao buscar local_events:', eventsError);
       } else {
         setEvents((eventsData as any[]) || []);
       }
 
-      // 3. Reservas ativas do imóvel
+      // 3. Reservas ativas do imóvel no período
       let resQuery = supabase
         .from('reservations')
         .select('id, property_id, guest_name, check_in_date, check_out_date, reservation_status')
-        .eq('reservation_status', 'Confirmada')
-        .gte('check_out_date', todayIso);
+        .eq('reservation_status', 'Confirmada');
 
       if (propertyId !== 'todas') {
         resQuery = resQuery.eq('property_id', propertyId);
+      } else if (selectedPropertyIds && selectedPropertyIds.length > 0 && !selectedPropertyIds.includes('todas')) {
+        resQuery = resQuery.in('property_id', selectedPropertyIds);
+      }
+
+      if (dateRange && dateRange.selectedPeriod !== 'general' && dateRange.startDateString && dateRange.endDateString) {
+        resQuery = resQuery
+          .gte('check_out_date', dateRange.startDateString)
+          .lte('check_in_date', dateRange.endDateString);
+      } else {
+        const todayIso = new Date().toISOString().split('T')[0];
+        resQuery = resQuery.gte('check_out_date', todayIso);
       }
 
       const { data: resData } = await resQuery;
@@ -130,7 +162,13 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
 
   useEffect(() => {
     fetchData();
-  }, [propertyId]);
+  }, [
+    propertyId,
+    selectedPropertyIds?.join(','),
+    dateRange?.startDateString,
+    dateRange?.endDateString,
+    dateRange?.selectedPeriod
+  ]);
 
   // KPIs calculados
   const kpis: PropertyPricingKPIs = useMemo(() => {
@@ -175,7 +213,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
     try {
       let actionTaken = 'Aprovado pelo gestor no Dashboard';
       let toastTitle = 'Tarifa Aprovada com Sucesso!';
-      let toastDesc = `Oportunidade para ${new Date(alert.target_start_date).toLocaleDateString('pt-BR')} aprovada.`;
+      let toastDesc = `Oportunidade para ${formatLocalDate(alert.target_start_date)} aprovada.`;
 
       if (actionType === 'adjust_to_market') {
         actionTaken = `Tarifa calibrada para R$ ${alert.suggested_price}/noite (mediana do mercado)`;
@@ -186,7 +224,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
         toastTitle = 'Estratégia Confirmada!';
         toastDesc = `Tarifa premium de R$ ${alert.current_price}/noite mantida no seu calendário.`;
       } else {
-        toastDesc = `Oportunidade para ${new Date(alert.target_start_date).toLocaleDateString('pt-BR')} aprovada. Ganho estimado: +R$ ${alert.estimated_revenue_gain || 0}.`;
+        toastDesc = `Oportunidade para ${formatLocalDate(alert.target_start_date)} aprovada. Ganho estimado: +R$ ${alert.estimated_revenue_gain || 0}.`;
       }
 
       const { error } = await supabase
@@ -381,8 +419,8 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
 
                   <div className="flex items-center justify-between text-gray-500 text-[11px]">
                     <span>
-                      {new Date(ev.start_date).toLocaleDateString('pt-BR')} a{' '}
-                      {new Date(ev.end_date).toLocaleDateString('pt-BR')}
+                      {formatLocalDate(ev.start_date)} a{' '}
+                      {formatLocalDate(ev.end_date)}
                     </span>
                     <span className="font-medium text-[#6A6DDF]">
                       {ev.recommended_price_multiplier ? `${ev.recommended_price_multiplier}x diária` : 'Normal'}
@@ -474,7 +512,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24">
       {/* Banner / Card do Imóvel Selecionado */}
       <Card className="border border-indigo-100 bg-gradient-to-r from-white via-indigo-50/20 to-purple-50/30 shadow-sm">
         <CardContent className="p-6">
@@ -491,7 +529,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
                   <p className="text-sm text-gray-500 flex items-center gap-1.5">
                     <MapPin className="h-3.5 w-3.5 text-gray-400" />
                     {selectedProperty
-                      ? `${selectedProperty.address || 'Endereço não informado'} • Diária Base: R$ ${selectedProperty.base_nightly_price || 380}`
+                      ? `${(selectedProperty.address || 'Endereço não informado').replace('Riode Janeiro', 'Rio de Janeiro')} • Diária Base: R$ ${selectedProperty.base_nightly_price || 380}`
                       : `${properties.length} propriedades ativas sob monitoramento contínuo`}
                   </p>
                 </div>
@@ -536,7 +574,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
               <div>
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Urgência Crítica</p>
                 <h3 className="text-2xl font-bold text-red-600 mt-1">{kpis.criticalAlertsCount}</h3>
-                <p className="text-xs text-gray-500 mt-1">Datas a menos de 30 dias</p>
+                <p className="text-xs text-gray-500 mt-1">Impacto crítico na diária e receita</p>
               </div>
               <div className="p-2.5 rounded-full bg-red-50 text-red-600 animate-pulse">
                 <Flame className="h-5 w-5" />
@@ -601,10 +639,10 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
         <TabsList className="bg-white border p-1 rounded-xl shadow-xs inline-flex h-11 w-full sm:w-auto gap-1">
           <TabsTrigger
             value="underpricing"
-            className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white gap-2 text-xs font-semibold px-4 py-2 rounded-lg transition-all"
+            className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white gap-2 text-xs font-semibold px-3 py-2 rounded-lg transition-all"
           >
             <TrendingUp className="h-4 w-4" />
-            Abaixo do Mercado (Oportunidades)
+            <span>Oportunidades (+Yield)</span>
             {(kpis.pendingUnderpricingCount ?? 0) > 0 && (
               <Badge className="ml-1 bg-amber-500 text-white text-[10px] px-1.5 py-0 rounded-full">
                 {kpis.pendingUnderpricingCount}
@@ -614,10 +652,10 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
 
           <TabsTrigger
             value="overpricing"
-            className="data-[state=active]:bg-[#6A6DDF] data-[state=active]:text-white gap-2 text-xs font-semibold px-4 py-2 rounded-lg transition-all"
+            className="data-[state=active]:bg-[#6A6DDF] data-[state=active]:text-white gap-2 text-xs font-semibold px-3 py-2 rounded-lg transition-all"
           >
             <TrendingDown className="h-4 w-4" />
-            Acima do Sugerido (Calibração)
+            <span>Calibração (-Risco)</span>
             {(kpis.pendingOverpricingCount ?? 0) > 0 && (
               <Badge className="ml-1 bg-purple-500 text-white text-[10px] px-1.5 py-0 rounded-full">
                 {kpis.pendingOverpricingCount}
@@ -627,18 +665,18 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
 
           <TabsTrigger
             value="competitors"
-            className="data-[state=active]:bg-[#6A6DDF] data-[state=active]:text-white gap-2 text-xs font-semibold px-4 py-2 rounded-lg transition-all"
+            className="data-[state=active]:bg-[#6A6DDF] data-[state=active]:text-white gap-2 text-xs font-semibold px-3 py-2 rounded-lg transition-all"
           >
             <Layers className="h-4 w-4" />
-            Radar de Concorrência (CompSet)
+            <span>CompSet Concorrência</span>
           </TabsTrigger>
 
           <TabsTrigger
             value="events"
-            className="data-[state=active]:bg-[#6A6DDF] data-[state=active]:text-white gap-2 text-xs font-semibold px-4 py-2 rounded-lg transition-all"
+            className="data-[state=active]:bg-[#6A6DDF] data-[state=active]:text-white gap-2 text-xs font-semibold px-3 py-2 rounded-lg transition-all"
           >
             <Calendar className="h-4 w-4" />
-            Eventos Locais & Demanda
+            <span>Eventos & Feriados</span>
             <Badge variant="outline" className="ml-1 text-[10px] px-1.5 py-0 border-gray-300">
               {events.length}
             </Badge>
@@ -646,10 +684,10 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
 
           <TabsTrigger
             value="audit"
-            className="data-[state=active]:bg-[#6A6DDF] data-[state=active]:text-white gap-2 text-xs font-semibold px-4 py-2 rounded-lg transition-all"
+            className="data-[state=active]:bg-[#6A6DDF] data-[state=active]:text-white gap-2 text-xs font-semibold px-3 py-2 rounded-lg transition-all"
           >
             <ShieldCheck className="h-4 w-4" />
-            Auditoria de Reservas & IA
+            <span>Auditoria IA</span>
           </TabsTrigger>
         </TabsList>
 
@@ -775,10 +813,10 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
                                   {isUnderpricing ? 'Evento de Alta Demanda' : 'Preenchimento de Noite Órfã'}
                                 </Badge>
 
-                                <span className="text-xs text-gray-400 ml-auto flex items-center gap-1">
-                                  <Calendar className="h-3 w-3" />
-                                  {new Date(alert.target_start_date).toLocaleDateString('pt-BR')} a{' '}
-                                  {new Date(alert.target_end_date).toLocaleDateString('pt-BR')}
+                                <span className="text-xs text-gray-500 ml-auto flex items-center gap-1 font-medium">
+                                  <Calendar className="h-3 w-3 text-[#6A6DDF]" />
+                                  {formatLocalDate(alert.target_start_date)} a{' '}
+                                  {formatLocalDate(alert.target_end_date)}
                                 </span>
                               </div>
 
@@ -835,7 +873,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
                               <div className="flex items-center gap-4 bg-gray-50 p-3 rounded-lg border text-xs">
                                 <div>
                                   <div className="flex items-center gap-1.5 mb-0.5">
-                                    <span className="text-gray-500 font-medium">Tarifa Atual</span>
+                                    <span className="text-gray-600 font-medium">Tarifa Atual</span>
                                     {alert.supporting_data?.is_from_real_calendar ? (
                                       <Badge
                                         variant="outline"
@@ -860,21 +898,21 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
                                 <ArrowRight className="h-4 w-4 text-gray-400 mt-2" />
 
                                 <div>
-                                  <span className="text-gray-400 block">Tarifa Sugerida</span>
+                                  <span className="text-gray-600 font-medium block">Tarifa Sugerida</span>
                                   <span className="font-bold text-[#6A6DDF] text-sm">
                                     R$ {alert.suggested_price}/noite
                                   </span>
                                 </div>
 
                                 <div className="border-l pl-4">
-                                  <span className="text-gray-400 block">Estadia Mínima</span>
+                                  <span className="text-gray-600 font-medium block">Estadia Mínima</span>
                                   <span className="font-semibold text-gray-700 text-sm">
                                     {alert.suggested_min_nights || 1} noites
                                   </span>
                                 </div>
 
                                 <div className="border-l pl-4 ml-auto text-right">
-                                  <span className="text-gray-400 block">Ganho Estimado</span>
+                                  <span className="text-emerald-700 font-semibold block">Ganho Estimado</span>
                                   <span className="font-bold text-emerald-600 text-sm">
                                     +R$ {alert.estimated_revenue_gain?.toLocaleString('pt-BR') || 0}
                                   </span>
@@ -1059,10 +1097,10 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
                                   Urgência {alert.urgency}
                                 </Badge>
 
-                                <span className="text-xs text-gray-400 ml-auto flex items-center gap-1">
-                                  <Calendar className="h-3 w-3" />
-                                  {new Date(alert.target_start_date).toLocaleDateString('pt-BR')} a{' '}
-                                  {new Date(alert.target_end_date).toLocaleDateString('pt-BR')}
+                                <span className="text-xs text-gray-500 ml-auto flex items-center gap-1 font-medium">
+                                  <Calendar className="h-3 w-3 text-[#6A6DDF]" />
+                                  {formatLocalDate(alert.target_start_date)} a{' '}
+                                  {formatLocalDate(alert.target_end_date)}
                                 </span>
                               </div>
 
@@ -1119,7 +1157,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
                               <div className="flex items-center gap-4 bg-gray-50 p-3 rounded-lg border text-xs">
                                 <div>
                                   <div className="flex items-center gap-1.5 mb-0.5">
-                                    <span className="text-gray-500 font-medium">Sua Diária Atual</span>
+                                    <span className="text-gray-600 font-medium">Sua Diária Atual</span>
                                     <Badge
                                       variant="outline"
                                       className="bg-purple-50 text-purple-700 border-purple-200 text-[10px] font-semibold py-0 px-1.5 shadow-2xs"
@@ -1135,21 +1173,21 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
                                 <ArrowRight className="h-4 w-4 text-gray-400 mt-2" />
 
                                 <div>
-                                  <span className="text-gray-400 block">Mediana CompSet (Sugerida)</span>
+                                  <span className="text-gray-600 font-medium block">Mediana CompSet (Sugerida)</span>
                                   <span className="font-bold text-[#6A6DDF] text-sm">
                                     R$ {alert.suggested_price}/noite
                                   </span>
                                 </div>
 
                                 <div className="border-l pl-4">
-                                  <span className="text-gray-400 block">Estadia Mínima</span>
+                                  <span className="text-gray-600 font-medium block">Estadia Mínima</span>
                                   <span className="font-semibold text-gray-700 text-sm">
                                     {alert.suggested_min_nights || 1} noites
                                   </span>
                                 </div>
 
                                 <div className="border-l pl-4 ml-auto text-right">
-                                  <span className="text-gray-400 block">Posicionamento</span>
+                                  <span className="text-purple-700 font-medium block">Posicionamento</span>
                                   <span className="font-bold text-purple-700 text-sm">
                                     Tarifa Premium (+{diffPct}%)
                                   </span>

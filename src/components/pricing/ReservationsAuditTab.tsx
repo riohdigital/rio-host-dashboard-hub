@@ -27,6 +27,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Property } from '@/types/property';
+import { formatLocalDate } from '@/utils/dateUtils';
 
 interface ReservationsAuditTabProps {
   propertyId: string;
@@ -311,8 +312,8 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
 
                       <div className="flex items-center gap-4 text-xs text-gray-500 flex-wrap">
                         <span>
-                          {new Date(res.check_in_date).toLocaleDateString('pt-BR')} a{' '}
-                          {new Date(res.check_out_date).toLocaleDateString('pt-BR')}
+                          {formatLocalDate(res.check_in_date)} a{' '}
+                          {formatLocalDate(res.check_out_date)}
                         </span>
                         <span>•</span>
                         <span className="font-semibold text-gray-700">
@@ -461,7 +462,7 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
                 <div className="flex justify-between items-center py-1 border-b">
                   <span className="text-gray-500 font-medium">Período:</span>
                   <span className="font-semibold text-gray-800">
-                    {new Date(selectedModalRes.check_in_date).toLocaleDateString('pt-BR')} até {new Date(selectedModalRes.check_out_date).toLocaleDateString('pt-BR')}
+                    {formatLocalDate(selectedModalRes.check_in_date)} até {formatLocalDate(selectedModalRes.check_out_date)}
                   </span>
                 </div>
 
