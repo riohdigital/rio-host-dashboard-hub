@@ -217,8 +217,18 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
 
                       {/* Notas de Auditoria da IA */}
                       {res.verification_notes && (
-                        <div className="bg-emerald-50/70 p-2 rounded text-[11px] text-emerald-900 border border-emerald-100 mt-2 flex items-start gap-1.5">
-                          <Sparkles className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                        <div
+                          className={`p-2 rounded text-[11px] border mt-2 flex items-start gap-1.5 ${
+                            isVerified
+                              ? 'bg-emerald-50/70 text-emerald-900 border-emerald-100'
+                              : 'bg-amber-50/70 text-amber-900 border-amber-200'
+                          }`}
+                        >
+                          {isVerified ? (
+                            <Sparkles className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                          ) : (
+                            <AlertCircle className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
+                          )}
                           <span>{res.verification_notes}</span>
                         </div>
                       )}
