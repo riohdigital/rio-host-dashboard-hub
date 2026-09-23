@@ -657,8 +657,25 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
                           {/* Caixa Comparativa de Valores */}
                           <div className="flex items-center gap-4 bg-gray-50 p-3 rounded-lg border text-xs">
                             <div>
-                              <span className="text-gray-400 block">Tarifa Atual</span>
-                              <span className="font-semibold text-gray-700 text-sm">
+                              <div className="flex items-center gap-1.5 mb-0.5">
+                                <span className="text-gray-500 font-medium">Tarifa Atual</span>
+                                {alert.supporting_data?.is_from_real_calendar ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-semibold py-0 px-1.5 shadow-2xs"
+                                  >
+                                    Seu Calendário
+                                  </Badge>
+                                ) : (
+                                  <Badge
+                                    variant="outline"
+                                    className="bg-slate-100 text-slate-600 border-slate-200 text-[10px] font-normal py-0 px-1.5"
+                                  >
+                                    Diária Base
+                                  </Badge>
+                                )}
+                              </div>
+                              <span className="font-semibold text-gray-800 text-sm">
                                 R$ {alert.current_price || 380}/noite
                               </span>
                             </div>
