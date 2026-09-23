@@ -25,6 +25,7 @@ import { useChannelSync } from '@/hooks/useChannelSync';
 import { PENDING_KIND_LABELS, type ChannelSyncSource } from '@/types/channelSync';
 import SourceDialog from './channel-sync/SourceDialog';
 import StatementImport from './channel-sync/StatementImport';
+import OTASessionsCard from './channel-sync/OTASessionsCard';
 
 const formatDateTime = (value: string | null) =>
   value ? format(new Date(value), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : 'Nunca';
@@ -161,6 +162,9 @@ const ChannelSyncSection: React.FC = () => {
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
+
+      {/* ---------------- Sessões de Plataformas OTA (Keepalive) ---------------- */}
+      <OTASessionsCard />
 
       {/* ---------------- Calendários iCal ---------------- */}
       <Card>
