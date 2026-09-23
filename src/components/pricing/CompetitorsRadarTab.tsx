@@ -14,12 +14,28 @@ import {
   Building,
   Sparkles,
   Layers,
-  ArrowUpRight
+  ArrowUpRight,
+  Wind,
+  Waves,
+  Wifi,
+  Utensils,
+  Car,
+  Eye,
+  Check
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { CompetitorListing, CompetitorPriceSnapshot } from '@/types/pricing';
 import { Property } from '@/types/property';
+
+const AMENITY_OPTIONS = [
+  { id: 'ar_condicionado', label: 'Ar-condicionado', icon: Wind },
+  { id: 'piscina', label: 'Piscina', icon: Waves },
+  { id: 'wifi', label: 'Wi-Fi', icon: Wifi },
+  { id: 'cozinha', label: 'Cozinha', icon: Utensils },
+  { id: 'estacionamento', label: 'Estacionamento', icon: Car },
+  { id: 'vista_mar', label: 'Vista Mar', icon: Eye },
+];
 
 interface CompetitorsRadarTabProps {
   propertyId: string;
@@ -37,6 +53,34 @@ export const CompetitorsRadarTab: React.FC<CompetitorsRadarTabProps> = ({
   const [snapshots, setSnapshots] = useState<Record<string, CompetitorPriceSnapshot[]>>({});
   const [loading, setLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [selectedAmenities, setSelectedAmenities] = useState<string[]>(['ar_condicionado', 'wifi']);
+
+  useEffect(() => {
+    if (selectedProperty?.amenities && Array.isArray(selectedProperty.amenities) && selectedProperty.amenities.length > 0) {
+      setSelectedAmenities(selectedProperty.amenities);
+    } else {
+      setSelectedAmenities(['ar_condicionado', 'wifi']);
+    }
+  }, [selectedProperty]);
+
+  const toggleAmenity = async (amenityId: string) => {
+    const updated = selectedAmenities.includes(amenityId)
+      ? selectedAmenities.filter(id => id !== amenityId)
+      : [...selectedAmenities, amenityId];
+    setSelectedAmenities(updated);
+
+    // Se houver propriedade selecionada, salva automaticamente na tabela properties
+    if (selectedProperty?.id) {
+      try {
+        await (supabase as any)
+          .from('properties')
+          .update({ amenities: updated })
+          .eq('id', selectedProperty.id);
+      } catch (err) {
+        console.error('Erro ao atualizar amenities da propriedade:', err);
+      }
+    }
+  };
 
   const fetchCompetitors = async () => {
     setLoading(true);
@@ -149,27 +193,67 @@ export const CompetitorsRadarTab: React.FC<CompetitorsRadarTabProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Top Banner com Ações e Estatísticas */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-xl border shadow-xs">
-        <div>
-          <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
-            <Layers className="h-4 w-4 text-[#6A6DDF]" />
-            Radar de Concorrência (CompSet Monitorado)
-          </h3>
-          <p className="text-xs text-gray-500 mt-0.5">
-            Imóveis concorrentes pareados por similaridade (+/- 1 quarto, +/- 2 hóspedes, mesma localização)
-          </p>
+      {/* Top Banner com Ações, Filtros de Comodidades e Estatísticas */}
+      <div className="bg-white p-5 rounded-xl border shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
+              <Layers className="h-4 w-4 text-[#6A6DDF]" />
+              Radar de Concorrência (CompSet Equiparado)
+            </h3>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Imóveis concorrentes pareados por localização, quartos (+/- 1), hóspedes (+/- 2) e comodidades equiparadas.
+            </p>
+          </div>
+
+          <Button
+            onClick={handleTriggerScraping}
+            disabled={isUpdating || competitors.length === 0}
+            size="sm"
+            className="bg-[#6A6DDF] hover:bg-[#585AC9] text-white gap-2 text-xs font-semibold h-8 self-start sm:self-auto"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isUpdating ? 'animate-spin' : ''}`} />
+            {isUpdating ? 'Varrendo Concorrência...' : 'Atualizar Tarifas Concorrentes'}
+          </Button>
         </div>
 
-        <Button
-          onClick={handleTriggerScraping}
-          disabled={isUpdating || competitors.length === 0}
-          size="sm"
-          className="bg-[#6A6DDF] hover:bg-[#585AC9] text-white gap-2 text-xs font-semibold h-8"
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${isUpdating ? 'animate-spin' : ''}`} />
-          {isUpdating ? 'Varrendo Concorrência...' : 'Atualizar Tarifas Concorrentes'}
-        </Button>
+        {/* Seletor de Comodidades Consideradas */}
+        <div className="pt-3 border-t border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-gray-700 flex items-center gap-1.5 mr-1">
+              <Sparkles className="h-3.5 w-3.5 text-[#6A6DDF]" />
+              Comodidades Pareadas:
+            </span>
+            {AMENITY_OPTIONS.map(opt => {
+              const Icon = opt.icon;
+              const isSelected = selectedAmenities.includes(opt.id);
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => toggleAmenity(opt.id)}
+                  className={`text-xs px-2.5 py-1 rounded-full border transition-all flex items-center gap-1.5 font-medium ${
+                    isSelected
+                      ? 'bg-indigo-50 border-[#6A6DDF] text-[#6A6DDF] shadow-xs'
+                      : 'bg-gray-50/70 border-gray-200 text-gray-500 hover:bg-gray-100'
+                  }`}
+                >
+                  <Icon className={`h-3 w-3 ${isSelected ? 'text-[#6A6DDF]' : 'text-gray-400'}`} />
+                  <span>{opt.label}</span>
+                  {isSelected && <Check className="h-2.5 w-2.5" />}
+                </button>
+              );
+            })}
+          </div>
+
+          <span className="text-[11px] text-muted-foreground">
+            {selectedProperty?.nickname || selectedProperty?.name ? (
+              <span>Salvo no perfil de: <strong>{selectedProperty.nickname || selectedProperty.name}</strong></span>
+            ) : (
+              <span>Filtro de simulação para a microrregião</span>
+            )}
+          </span>
+        </div>
       </div>
 
       {/* Cards Comparativos de Preço */}
@@ -246,12 +330,12 @@ export const CompetitorsRadarTab: React.FC<CompetitorsRadarTabProps> = ({
           <p className="text-xs text-gray-500 max-w-md mx-auto">
             Você pode pedir diretamente ao <strong>Chat AI</strong>: <br />
             <span className="text-[#6A6DDF] font-semibold">
-              "Encontre 5 concorrentes similares para o {selectedProperty?.name || 'meu imóvel'}"
+              "Encontre 5 concorrentes similares com {selectedAmenities.map(id => AMENITY_OPTIONS.find(o => o.id === id)?.label).filter(Boolean).join(', ')} para o {selectedProperty?.name || 'meu imóvel'}"
             </span>
           </p>
           <div className="pt-2">
             <Badge variant="outline" className="text-xs text-gray-600 bg-gray-50">
-              O Chat AI usará o algoritmo de funil (+/- 1 quarto, +/- 2 hóspedes, nota similar) e salvará aqui automaticamente!
+              O Chat AI aplicará os filtros exatos de comodidades e salvará os concorrentes aqui automaticamente!
             </Badge>
           </div>
         </div>
@@ -307,6 +391,36 @@ export const CompetitorsRadarTab: React.FC<CompetitorsRadarTabProps> = ({
                       <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
                       <span>{comp.current_rating ? comp.current_rating.toFixed(1) : '5.0'}</span>
                     </div>
+                  </div>
+
+                  {/* Comodidades Equiparadas */}
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    {(comp.amenities && comp.amenities.length > 0 ? comp.amenities : ['Ar-condicionado', 'Wi-Fi']).map((am, idx) => {
+                      const isPool = am.toLowerCase().includes('piscina');
+                      const isAc = am.toLowerCase().includes('ar');
+                      const isWifi = am.toLowerCase().includes('wifi') || am.toLowerCase().includes('wi-fi');
+                      const isSea = am.toLowerCase().includes('mar') || am.toLowerCase().includes('vista');
+
+                      return (
+                        <Badge
+                          key={idx}
+                          variant="secondary"
+                          className="text-[10px] py-0 px-1.5 font-normal bg-slate-100/90 text-slate-700 border-slate-200 flex items-center gap-1"
+                        >
+                          {isPool && <Waves className="h-2.5 w-2.5 text-cyan-600" />}
+                          {isAc && <Wind className="h-2.5 w-2.5 text-blue-600" />}
+                          {isWifi && <Wifi className="h-2.5 w-2.5 text-emerald-600" />}
+                          {isSea && <Eye className="h-2.5 w-2.5 text-teal-600" />}
+                          <span>{am}</span>
+                        </Badge>
+                      );
+                    })}
+                    {comp.has_sea_view && !comp.amenities?.some(a => a.toLowerCase().includes('mar')) && (
+                      <Badge variant="secondary" className="text-[10px] py-0 px-1.5 font-normal bg-teal-50 text-teal-700 border-teal-200 flex items-center gap-1">
+                        <Eye className="h-2.5 w-2.5 text-teal-600" />
+                        <span>Vista Mar</span>
+                      </Badge>
+                    )}
                   </div>
 
                   {/* Preço Coletado */}

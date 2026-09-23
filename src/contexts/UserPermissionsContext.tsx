@@ -27,7 +27,7 @@ export const UserPermissionsProvider: React.FC<{ children: React.ReactNode }> = 
   const [propertyAccess, setPropertyAccess] = useState<UserPropertyAccess[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // LÓGICA DE CACHE RESTAURADA
+  // LÓGICA DE CACHE: Evita requisições redundantes se os dados foram carregados recentemente
   const [lastFetchTime, setLastFetchTime] = useState<number>(0);
 
   const fetchUserData = useCallback(async (force = false) => {
@@ -39,17 +39,18 @@ export const UserPermissionsProvider: React.FC<{ children: React.ReactNode }> = 
       return;
     }
 
-    // LÓGICA DE CACHE RESTAURADA: Evita a busca se os dados já foram carregados recentemente
     const now = Date.now();
     if (!force && now - lastFetchTime < 10 * 60 * 1000 && userProfile) {
-      console.log('[PermissionsProvider] Usando dados em cache. Sem recarregamento.');
-      setLoading(false); // Garante que o loading termine se o cache for usado
+      setLoading(false);
       return;
     }
 
-    console.log('[PermissionsProvider] Cache expirado ou forçado. Buscando dados...');
     try {
-      setLoading(true);
+      // Importante: Apenas exibe o loading bloqueante se AINDA NÃO tivermos nenhum perfil carregado (primeiro acesso)
+      // Em revalidações periódicas de segundo plano, mantém o perfil ativo para não desmontar a interface
+      if (!userProfile) {
+        setLoading(true);
+      }
 
       const { data: profile, error: profileError } = await supabase
         .from('user_profiles')
@@ -74,26 +75,27 @@ export const UserPermissionsProvider: React.FC<{ children: React.ReactNode }> = 
           .eq('user_id', profile.user_id);
         setPropertyAccess((propertyAccessData || []) as UserPropertyAccess[]);
         
-        // LÓGICA DE CACHE RESTAURADA: Atualiza o tempo da última busca
         setLastFetchTime(now);
       } else {
         setUserProfile(null);
       }
     } catch (error) {
       console.error('[PermissionsProvider] Erro ao buscar dados do usuário:', error);
-      setUserProfile(null);
-      setPermissions([]);
-      setPropertyAccess([]);
+      // Não zera permissões já existentes se for apenas uma oscilação temporária de rede
+      if (!userProfile) {
+        setUserProfile(null);
+        setPermissions([]);
+        setPropertyAccess([]);
+      }
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user?.id, userProfile, lastFetchTime]);
 
   useEffect(() => {
-    // A dependência aqui foi ajustada para re-executar apenas quando o 'user' mudar,
-    // a lógica de tempo agora está dentro da própria função.
+    // Dispara a busca apenas quando o ID do usuário de fato mudar ou entrar
     fetchUserData();
-  }, [user]);
+  }, [user?.id]);
 
   const hasPermission = useCallback((permissionType: PermissionType, resourceId?: string): boolean => {
     if (userProfile?.role === 'master') return true;

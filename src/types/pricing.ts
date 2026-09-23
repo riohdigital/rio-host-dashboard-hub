@@ -16,6 +16,8 @@ export interface PricingAlert {
   suggested_min_nights?: number;
   estimated_revenue_gain?: number;
   reason: string;
+  rationale?: string | null;
+  supporting_data?: Record<string, any> | null;
   urgency: AlertUrgency;
   status: AlertStatus;
   action_taken?: string | null;
@@ -60,6 +62,7 @@ export interface CompetitorListing {
   bathrooms?: number;
   max_guests?: number;
   has_sea_view?: boolean;
+  amenities?: string[];
   current_rating?: number;
   reviews_count?: number;
   status: 'Ativo' | 'Pausado' | 'Inativo';

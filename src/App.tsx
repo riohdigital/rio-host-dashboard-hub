@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { useAuth } from "./hooks/useAuth";
+import { useAuth, AuthProvider } from "./hooks/useAuth";
 import { UserPermissionsProvider } from "@/contexts/UserPermissionsContext";
 import { GlobalFiltersProvider } from "@/contexts/GlobalFiltersContext";
 import PrivateRoutes from "./components/auth/PrivateRoutes";
@@ -36,69 +36,72 @@ const queryClient = new QueryClient({
   },
 });
 
-const App = () => {
+const AppRoutes = () => {
   const { user, loading } = useAuth();
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
-        <div className="text-[#6A6DDF] text-lg">Carregando...</div>
+        <div className="text-[#6A6DDF] text-lg font-medium animate-pulse">Carregando...</div>
       </div>
     );
   }
 
   return (
+    <Routes>
+      <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
+      <Route path="/auth" element={user ? <Navigate to="/dashboard" replace /> : <AuthPage />} />
+
+      {/* Rotas protegidas */}
+      <Route
+        path="/*"
+        element={
+          !user ? (
+            <Navigate to="/auth" replace />
+          ) : (
+            <UserPermissionsProvider>
+              <GlobalFiltersProvider>
+                <AIChat />
+                <Routes>
+                  <Route element={<PrivateRoutes />}>
+                    <Route path="/dashboard" element={<DashboardPage />} />
+                    <Route path="/reservas" element={<ReservasPage />} />
+                    <Route path="/calendario" element={<CalendarioPage />} />
+                    <Route path="/despesas" element={<DespesasPage />} />
+                    <Route path="/propriedades" element={<PropriedadesPage />} />
+                    <Route path="/precificacao" element={<PrecificacaoPage />} />
+                    <Route path="/investimentos" element={<InvestmentsPage />} />
+                    <Route path="/investimentos/:propertyId" element={<PropertyInvestmentDetailPage />} />
+                    <Route path="/relatorios" element={<RelatoriosPage />} />
+                    <Route path="/configuracoes" element={<ConfiguracoesPage />} />
+                    <Route path="/anfitriao-alerta" element={<AnfitriaoAlertaPage />} />
+                    <Route path="/faxineira-dashboard" element={<FaxineiraDashboard />} />
+                    <Route path="/gestao-faxinas" element={<MasterCleaningDashboardPage />} />
+                    <Route path="/painel-gestor" element={<PainelGestorPage />} />
+                    <Route path="/painel-gestor/pagamentos" element={<PagamentosPage />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Route>
+                </Routes>
+              </GlobalFiltersProvider>
+            </UserPermissionsProvider>
+          )
+        }
+      />
+    </Routes>
+  );
+};
+
+const App = () => {
+  return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
-          <Routes>
-            {!user ? (
-              // Rotas públicas para usuários não logados
-              <>
-                <Route path="/" element={<LandingPage />} />
-                <Route path="/auth" element={<AuthPage />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </>
-            ) : (
-              // Rotas privadas para usuários logados
-              <Route
-                path="/*"
-                element={
-                  <UserPermissionsProvider>
-                    <GlobalFiltersProvider>
-                      <AIChat />
-                      {/* O PrivateRoutes agora envolve todas as páginas internas */}
-                      <Routes>
-                        <Route element={<PrivateRoutes />}>
-                          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                          <Route path="/dashboard" element={<DashboardPage />} />
-                          <Route path="/reservas" element={<ReservasPage />} />
-                          <Route path="/calendario" element={<CalendarioPage />} />
-                          <Route path="/despesas" element={<DespesasPage />} />
-                          <Route path="/propriedades" element={<PropriedadesPage />} />
-                          <Route path="/precificacao" element={<PrecificacaoPage />} />
-                          <Route path="/investimentos" element={<InvestmentsPage />} />
-                          <Route path="/investimentos/:propertyId" element={<PropertyInvestmentDetailPage />} />
-                          <Route path="/relatorios" element={<RelatoriosPage />} />
-                          <Route path="/configuracoes" element={<ConfiguracoesPage />} />
-                          <Route path="/anfitriao-alerta" element={<AnfitriaoAlertaPage />} />
-                          <Route path="/faxineira-dashboard" element={<FaxineiraDashboard />} />
-                          <Route path="/gestao-faxinas" element={<MasterCleaningDashboardPage />} />
-                          <Route path="/painel-gestor" element={<PainelGestorPage />} />
-                          <Route path="/painel-gestor/pagamentos" element={<PagamentosPage />} />
-                          <Route path="/auth" element={<Navigate to="/dashboard" replace />} />
-                          <Route path="*" element={<NotFound />} />
-                        </Route>
-                      </Routes>
-                    </GlobalFiltersProvider>
-                  </UserPermissionsProvider>
-                }
-              />
-            )}
-          </Routes>
-        </BrowserRouter>
+        <AuthProvider>
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

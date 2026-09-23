@@ -10,19 +10,21 @@ export const useUserRole = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
+    if (user?.id) {
       fetchUserRole();
-    } else {
+    } else if (!user) {
       setRole(null);
       setLoading(false);
     }
-  }, [user]);
+  }, [user?.id]);
 
   const fetchUserRole = async () => {
     if (!user) return;
 
     try {
-      setLoading(true);
+      if (!role) {
+        setLoading(true);
+      }
       
       const { data: profile } = await supabase
         .from('user_profiles')
@@ -30,10 +32,14 @@ export const useUserRole = () => {
         .eq('user_id', user.id)
         .single();
 
-      setRole((profile?.role as UserRole) || null);
+      if (profile?.role) {
+        setRole((profile.role as UserRole) || null);
+      }
     } catch (error) {
       console.error('Erro ao buscar role do usuário:', error);
-      setRole(null);
+      if (!role) {
+        setRole(null);
+      }
     } finally {
       setLoading(false);
     }

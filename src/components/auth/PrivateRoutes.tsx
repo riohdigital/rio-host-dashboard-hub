@@ -9,8 +9,9 @@ const PrivateRoutes = () => {
   const { role, loading: permissionsLoading } = useUserPermissions();
   const location = useLocation();
 
-  // 1. Enquanto as permissões estiverem carregando, mostramos um loader.
-  if (permissionsLoading) {
+  // 1. Enquanto as permissões estiverem carregando PELA PRIMEIRA VEZ, mostramos um loader.
+  // Se o role já foi carregado, nunca desmonte a página em atualizações em segundo plano!
+  if (permissionsLoading && !role) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
         <Loader2 className="h-8 w-8 animate-spin text-[#6A6DDF]" />

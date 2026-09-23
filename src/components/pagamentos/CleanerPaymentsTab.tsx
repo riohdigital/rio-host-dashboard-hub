@@ -1,13 +1,15 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChevronDown, ChevronUp, User, Phone, Banknote, Calendar, Home, CheckCircle, Clock, RefreshCw, Search, Filter } from 'lucide-react';
+import { ChevronDown, ChevronUp, User, Phone, Banknote, Calendar, Home, CheckCircle, Clock, RefreshCw, Search, Filter, Receipt } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import type { CleanerPayment } from '@/hooks/painel-gestor/usePaymentsDashboard';
 
 const fmt = (v: number) =>
@@ -199,6 +201,54 @@ const CleanerPaymentsTab = ({ cleanerPayments, loading, hasFilter }: CleanerPaym
   const [search, setSearch] = useState('');
   const [selectedCleaner, setSelectedCleaner] = useState('todas');
   const [showOnlyWithCleanings, setShowOnlyWithCleanings] = useState(false);
+  const [cleanerExpenses, setCleanerExpenses] = useState<any[]>([]);
+  const [expensesLoading, setExpensesLoading] = useState(false);
+  const [showReimbursementsList, setShowReimbursementsList] = useState(false);
+  const { toast } = useToast();
+
+  const fetchCleanerExpenses = async () => {
+    setExpensesLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('expenses')
+        .select('id, property_id, expense_date, description, amount, payment_status, properties(name, nickname)')
+        .or('payment_status.eq.Reembolso Pendente,description.ilike.%[Reembolso Faxineira]%')
+        .order('expense_date', { ascending: false });
+      if (!error && data) {
+        setCleanerExpenses(data);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setExpensesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCleanerExpenses();
+  }, []);
+
+  const handleMarkAsReimbursed = async (expenseId: string) => {
+    try {
+      const { error } = await supabase
+        .from('expenses')
+        .update({ payment_status: 'Pago' })
+        .eq('id', expenseId);
+      if (error) throw error;
+      toast({ title: "Sucesso", description: "Reembolso marcado como pago." });
+      fetchCleanerExpenses();
+    } catch (error: any) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const pendingExpenses = useMemo(() => {
+    return cleanerExpenses.filter(e => e.payment_status === 'Reembolso Pendente' || (e.description?.includes('[Reembolso Faxineira]') && e.payment_status !== 'Pago'));
+  }, [cleanerExpenses]);
+
+  const totalPendingExpenses = useMemo(() => {
+    return pendingExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  }, [pendingExpenses]);
 
   const filtered = useMemo(() => {
     let list = cleanerPayments;
@@ -256,6 +306,75 @@ const CleanerPaymentsTab = ({ cleanerPayments, loading, hasFilter }: CleanerPaym
 
   return (
     <div className="space-y-4">
+      {/* Banner de Reembolsos de Materiais / Faxineiras */}
+      {pendingExpenses.length > 0 && (
+        <Card className="border-amber-200 bg-amber-50/60 shadow-sm">
+          <CardContent className="p-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-amber-100 text-amber-800 rounded-lg">
+                  <Receipt className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-semibold text-amber-900 text-sm">
+                      Reembolsos de Materiais de Limpeza Pendentes
+                    </h4>
+                    <Badge className="bg-amber-500 text-white text-xs">
+                      {pendingExpenses.length} comprovante{pendingExpenses.length > 1 ? 's' : ''}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-amber-700 mt-0.5">
+                    Compras realizadas pela equipe de limpeza aguardando reembolso do gestor
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 self-end sm:self-center">
+                <span className="font-bold text-base text-amber-800">
+                  {fmt(totalPendingExpenses)}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowReimbursementsList(!showReimbursementsList)}
+                  className="border-amber-300 text-amber-900 hover:bg-amber-100 text-xs h-8"
+                >
+                  {showReimbursementsList ? "Ocultar Notas" : "Ver Notas Fiscais"}
+                </Button>
+              </div>
+            </div>
+
+            {showReimbursementsList && (
+              <div className="mt-3 pt-3 border-t border-amber-200 space-y-2">
+                {pendingExpenses.map(item => (
+                  <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between bg-white/80 p-2.5 rounded-md border border-amber-100 gap-2 text-xs">
+                    <div>
+                      <span className="font-semibold text-gray-800">{item.description}</span>
+                      <div className="flex items-center gap-3 text-muted-foreground mt-0.5">
+                        <span>Data: {item.expense_date ? format(parseISO(item.expense_date), 'dd/MM/yyyy') : 'N/D'}</span>
+                        <span>Imóvel: {item.properties?.nickname || item.properties?.name || 'Geral'}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 self-end sm:self-center">
+                      <span className="font-bold text-amber-700">{fmt(Number(item.amount) || 0)}</span>
+                      <Button
+                        size="sm"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-7 px-2.5 flex items-center gap-1"
+                        onClick={() => handleMarkAsReimbursed(item.id)}
+                      >
+                        <CheckCircle className="h-3 w-3" />
+                        Quitar Reembolso
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Filter bar */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[180px] max-w-xs">
