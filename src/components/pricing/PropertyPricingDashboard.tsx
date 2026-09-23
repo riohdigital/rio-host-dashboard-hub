@@ -250,19 +250,42 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
     }
   };
 
-  // Disparo manual do radar
+  // Disparo manual do radar com webhook real e recálculo
   const handleRunRadarManually = async () => {
     setIsRadarRunning(true);
     try {
-      // Dispara webhook do N8N ou recarrega dados frescos
+      // 1. Atualiza propriedades pai para carregar qualquer alteração recente de base_nightly_price
+      if (onRefresh) {
+        await onRefresh();
+      }
+
+      // 2. Dispara webhook do n8n para reprocessar o radar com as tarifas e calendários atuais
+      await fetch('https://n8n-n8n.dgyrua.easypanel.host/webhook/rioh-host-yield-radar-manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          property_id: propertyId,
+          timestamp: new Date().toISOString()
+        })
+      });
+
+      // 3. Aguarda 2.5 segundos para o workflow do n8n concluir o processamento e upsert no banco
+      await new Promise(resolve => setTimeout(resolve, 2500));
+
+      // 4. Busca os alertas e dados atualizados do banco
       await fetchData();
+      if (onRefresh) {
+        await onRefresh();
+      }
+
       toast({
-        title: 'Radar Executado!',
-        description: 'Os dados e alertas de oportunidades foram atualizados.',
+        title: 'Radar Sincronizado com Sucesso!',
+        description: 'Os dados e alertas de precificação foram recalculados com as novas tarifas base e disponibilidade real.',
       });
     } catch (e) {
+      console.error('Erro ao sincronizar radar:', e);
       toast({
-        title: 'Erro ao executar radar',
+        title: 'Erro ao sincronizar radar',
         description: 'Não foi possível sincronizar no momento.',
         variant: 'destructive',
       });
