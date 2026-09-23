@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   Globe, ShieldCheck, RefreshCw, KeyRound, Monitor,
-  AlertCircle, CheckCircle2, Lock, ArrowRight, ExternalLink
+  AlertCircle, CheckCircle2, Lock, ArrowRight, ExternalLink,
+  Send, CornerDownLeft, Target, ArrowRightCircle
 } from 'lucide-react';
 
 import {
@@ -9,6 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -35,6 +37,7 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
 }) => {
   const { toast } = useToast();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const nextReqIdRef = useRef<number>(1);
@@ -48,6 +51,8 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
   const [manualCookies, setManualCookies] = useState<string>('');
   const [manualSaving, setManualSaving] = useState<boolean>(false);
   const [isFocused, setIsFocused] = useState<boolean>(false);
+  const [quickInput, setQuickInput] = useState<string>('');
+  const [clickIndicator, setClickIndicator] = useState<{ x: number; y: number } | null>(null);
 
   const getTargetUrl = useCallback(() => {
     if (!session) return 'https://admin.booking.com';
@@ -83,7 +88,7 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
     if (wsRef.current) {
       try {
         wsRef.current.close();
-      } catch (e) {
+      } catch {
         // ignore
       }
       wsRef.current = null;
@@ -91,6 +96,31 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
     sessionIdRef.current = null;
     setConnectionStatus('disconnected');
   }, []);
+
+  // Foca automaticamente o primeiro campo de input visível na página
+  const autoFocusInput = useCallback(async () => {
+    const script = `(() => {
+      const selectors = [
+        'input#loginname',
+        'input[name="loginname"]',
+        'input[name="password"]',
+        'input[type="password"]',
+        'input[type="email"]',
+        'input[name="user[email]"]',
+        'input[name="phone-number"]',
+        'input:not([type="hidden"])'
+      ];
+      for (const sel of selectors) {
+        const el = document.querySelector(sel);
+        if (el && el.offsetParent !== null) {
+          el.focus();
+          return { focused: true, id: el.id, name: el.name };
+        }
+      }
+      return { focused: false };
+    })()`;
+    return sendCdp('Runtime.evaluate', { expression: script, returnByValue: true });
+  }, [sendCdp]);
 
   const handleCaptureAndSave = useCallback(async () => {
     if (!session) return;
@@ -182,7 +212,7 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
       }
       sessionIdRef.current = sessId;
 
-      // 3. Configurar viewport e habilitar Page/Network
+      // 3. Configurar viewport e habilitar Page/Network/Runtime
       await sendCdp('Emulation.setDeviceMetricsOverride', {
         width: NATIVE_WIDTH,
         height: NATIVE_HEIGHT,
@@ -192,6 +222,7 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
 
       await sendCdp('Page.enable');
       await sendCdp('Network.enable');
+      await sendCdp('Runtime.enable');
 
       // 4. Iniciar Screencast contínuo
       await sendCdp('Page.startScreencast', {
@@ -203,6 +234,11 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
       });
 
       setConnectionStatus('connected');
+
+      // Auto focar input após carregamento inicial
+      setTimeout(() => {
+        autoFocusInput();
+      }, 2500);
     };
 
     ws.onmessage = (event) => {
@@ -220,7 +256,7 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
         // Eventos CDP
         const method = msg.method;
         if (method === 'Page.screencastFrame') {
-          const { data, metadata, sessionId: frameSessionId } = msg.params;
+          const { data, sessionId: frameSessionId } = msg.params;
           if (data && canvasRef.current) {
             const canvas = canvasRef.current;
             const ctx = canvas.getContext('2d');
@@ -255,6 +291,11 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
                 setIsLoggedInDetected(true);
               }
             }
+
+            // Ao navegar (ex: de username para password), focar campo
+            setTimeout(() => {
+              autoFocusInput();
+            }, 1000);
           }
         }
       } catch (e) {
@@ -273,10 +314,10 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
     return () => {
       stopConnection();
     };
-  }, [open, session, mode, getTargetUrl, sendCdp, stopConnection]);
+  }, [open, session, mode, getTargetUrl, sendCdp, stopConnection, autoFocusInput]);
 
-  // Interação do Mouse no Canvas
-  const handleCanvasMouseEvent = (e: React.MouseEvent<HTMLCanvasElement>, type: 'mousePressed' | 'mouseReleased' | 'mouseMoved') => {
+  // Interação de Clique no Canvas com Coordenadas Exatas
+  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas || connectionStatus !== 'connected') return;
 
@@ -284,16 +325,42 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
     const scaleX = NATIVE_WIDTH / rect.width;
     const scaleY = NATIVE_HEIGHT / rect.height;
 
-    const x = Math.round((e.clientX - rect.left) * scaleX);
-    const y = Math.round((e.clientY - rect.top) * scaleY);
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
 
+    const x = Math.round(clickX * scaleX);
+    const y = Math.round(clickY * scaleY);
+
+    // Indicador visual de clique
+    setClickIndicator({ x: clickX, y: clickY });
+    setTimeout(() => setClickIndicator(null), 400);
+
+    // 1. Move cursor para a posição
     sendCdp('Input.dispatchMouseEvent', {
-      type,
+      type: 'mouseMoved',
       x,
       y,
-      button: e.button === 2 ? 'right' : 'left',
+      button: 'none',
+    });
+
+    // 2. Dispara clique (press + release)
+    sendCdp('Input.dispatchMouseEvent', {
+      type: 'mousePressed',
+      x,
+      y,
+      button: 'left',
       clickCount: 1,
     });
+
+    setTimeout(() => {
+      sendCdp('Input.dispatchMouseEvent', {
+        type: 'mouseReleased',
+        x,
+        y,
+        button: 'left',
+        clickCount: 1,
+      });
+    }, 60);
   };
 
   const handleCanvasWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
@@ -316,11 +383,10 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
     });
   };
 
-  // Interação do Teclado no Canvas
+  // Interação do Teclado no Canvas (USANDO Input.insertText QUE É INFALÍVEL)
   const handleKeyDown = (e: React.KeyboardEvent<HTMLCanvasElement>) => {
     if (connectionStatus !== 'connected') return;
 
-    // Impedir comportamento padrão de scroll para espaço/setas quando focado
     if (['ArrowUp', 'ArrowDown', 'Space', 'Tab'].includes(e.code)) {
       e.preventDefault();
     }
@@ -330,16 +396,50 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
       sendCdp('Input.dispatchKeyEvent', { type: 'keyUp', windowsVirtualKeyCode: 8, code: 'Backspace', key: 'Backspace' });
     } else if (e.key === 'Enter') {
       sendCdp('Input.dispatchKeyEvent', { type: 'rawKeyDown', windowsVirtualKeyCode: 13, code: 'Enter', key: 'Enter' });
-      sendCdp('Input.dispatchKeyEvent', { type: 'char', text: '\r' });
       sendCdp('Input.dispatchKeyEvent', { type: 'keyUp', windowsVirtualKeyCode: 13, code: 'Enter', key: 'Enter' });
     } else if (e.key === 'Tab') {
       sendCdp('Input.dispatchKeyEvent', { type: 'rawKeyDown', windowsVirtualKeyCode: 9, code: 'Tab', key: 'Tab' });
       sendCdp('Input.dispatchKeyEvent', { type: 'keyUp', windowsVirtualKeyCode: 9, code: 'Tab', key: 'Tab' });
-    } else if (e.key.length === 1) {
-      sendCdp('Input.dispatchKeyEvent', { type: 'keyDown', text: e.key, unmodifiedText: e.key, key: e.key, code: e.code });
-      sendCdp('Input.dispatchKeyEvent', { type: 'char', text: e.key });
-      sendCdp('Input.dispatchKeyEvent', { type: 'keyUp', key: e.key, code: e.code });
+    } else if (e.key === 'Escape') {
+      sendCdp('Input.dispatchKeyEvent', { type: 'rawKeyDown', windowsVirtualKeyCode: 27, code: 'Escape', key: 'Escape' });
+      sendCdp('Input.dispatchKeyEvent', { type: 'keyUp', windowsVirtualKeyCode: 27, code: 'Escape', key: 'Escape' });
+    } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+      // Inserção real de texto no campo ativo
+      sendCdp('Input.insertText', { text: e.key });
     }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLCanvasElement>) => {
+    const text = e.clipboardData.getData('text');
+    if (text && connectionStatus === 'connected') {
+      sendCdp('Input.insertText', { text });
+    }
+  };
+
+  // Barra de Digitação Rápida (Facilita digitar email, senha e 2FA sem erro)
+  const handleSendQuickInput = async (pressEnter = false) => {
+    if (!quickInput && !pressEnter) return;
+
+    if (quickInput) {
+      await sendCdp('Input.insertText', { text: quickInput });
+    }
+
+    if (pressEnter) {
+      await sendCdp('Input.dispatchKeyEvent', { type: 'rawKeyDown', windowsVirtualKeyCode: 13, code: 'Enter', key: 'Enter' });
+      await sendCdp('Input.dispatchKeyEvent', { type: 'keyUp', windowsVirtualKeyCode: 13, code: 'Enter', key: 'Enter' });
+    }
+
+    setQuickInput('');
+    toast({
+      title: 'Texto Enviado para o Navegador',
+      description: pressEnter ? 'Texto digitado e Enter pressionado.' : 'Texto digitado no campo ativo.',
+    });
+  };
+
+  const handleSendKey = async (code: 'Enter' | 'Tab') => {
+    const keyCode = code === 'Enter' ? 13 : 9;
+    await sendCdp('Input.dispatchKeyEvent', { type: 'rawKeyDown', windowsVirtualKeyCode: keyCode, code, key: code });
+    await sendCdp('Input.dispatchKeyEvent', { type: 'keyUp', windowsVirtualKeyCode: keyCode, code, key: code });
   };
 
   const handleReload = () => {
@@ -406,8 +506,8 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0 gap-0 overflow-hidden border-border/80 bg-background">
-        <DialogHeader className="p-4 border-b border-border/60 bg-muted/20 flex flex-row items-center justify-between shrink-0 space-y-0">
+      <DialogContent className="max-w-5xl h-[92vh] flex flex-col p-0 gap-0 overflow-hidden border-border/80 bg-background">
+        <DialogHeader className="p-3.5 border-b border-border/60 bg-muted/20 flex flex-row items-center justify-between shrink-0 space-y-0">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50">
               <Monitor className="h-5 w-5" />
@@ -464,9 +564,81 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
           </div>
         </DialogHeader>
 
+        {/* Barra de Digitação Rápida / Controle Direto */}
+        {connectionStatus === 'connected' && mode === 'screencast' && (
+          <div className="bg-neutral-900 border-b border-neutral-800 p-2.5 px-4 flex flex-wrap items-center gap-2 shrink-0">
+            <div className="flex-1 min-w-[260px] flex items-center gap-1.5">
+              <Input
+                type="text"
+                value={quickInput}
+                onChange={(e) => setQuickInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSendQuickInput(true);
+                  }
+                }}
+                placeholder="Digite seu e-mail, senha ou código SMS aqui..."
+                className="h-8 text-xs bg-neutral-950 border-neutral-700 text-white placeholder:text-neutral-500 font-mono"
+              />
+              <Button
+                size="sm"
+                onClick={() => handleSendQuickInput(false)}
+                disabled={!quickInput}
+                className="h-8 px-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs shrink-0"
+                title="Digitar texto no campo focado"
+              >
+                <Send className="h-3.5 w-3.5 mr-1" />
+                Digitar
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => handleSendQuickInput(true)}
+                disabled={!quickInput}
+                className="h-8 px-2.5 bg-indigo-600/80 hover:bg-indigo-600 text-white text-xs shrink-0"
+                title="Digitar texto e enviar Enter"
+              >
+                <CornerDownLeft className="h-3.5 w-3.5 mr-1" />
+                Enviar ↵
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => autoFocusInput()}
+                className="h-8 px-2.5 text-xs border-neutral-700 text-neutral-300 hover:bg-neutral-800"
+                title="Focar automaticamente o campo de texto na página"
+              >
+                <Target className="h-3.5 w-3.5 mr-1 text-amber-400" />
+                Focar Campo
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleSendKey('Enter')}
+                className="h-8 px-2 text-xs border-neutral-700 text-neutral-300 hover:bg-neutral-800"
+                title="Pressionar tecla Enter no navegador"
+              >
+                ↵ Enter
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleSendKey('Tab')}
+                className="h-8 px-2 text-xs border-neutral-700 text-neutral-300 hover:bg-neutral-800"
+                title="Pressionar tecla Tab (pular campo)"
+              >
+                ⇥ Tab
+              </Button>
+            </div>
+          </div>
+        )}
+
         <div className="flex-1 flex flex-col min-h-0 bg-neutral-950">
           <Tabs value={mode} onValueChange={(v) => setMode(v as any)} className="flex-1 flex flex-col">
-            <div className="bg-muted/40 border-b border-border/40 px-4 py-1.5 flex items-center justify-between">
+            <div className="bg-muted/30 border-b border-border/40 px-4 py-1.5 flex items-center justify-between shrink-0">
               <TabsList className="h-7 text-xs bg-muted/60">
                 <TabsTrigger value="screencast" className="text-xs h-6 px-3">
                   <Monitor className="h-3 w-3 mr-1" />
@@ -484,7 +656,7 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
               </div>
             </div>
 
-            <TabsContent value="screencast" className="flex-1 m-0 p-0 relative flex items-center justify-center overflow-hidden">
+            <TabsContent value="screencast" className="flex-1 m-0 p-0 relative flex items-center justify-center overflow-auto bg-neutral-950">
               {connectionStatus === 'connecting' && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/90 z-10 gap-3">
                   <RefreshCw className="h-8 w-8 text-indigo-600 animate-spin" />
@@ -506,7 +678,7 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
                 </div>
               )}
 
-              <div className="w-full h-full flex flex-col items-center justify-center p-2 relative">
+              <div ref={containerRef} className="w-full h-full flex flex-col items-center justify-center p-2 relative overflow-hidden">
                 <canvas
                   ref={canvasRef}
                   width={NATIVE_WIDTH}
@@ -514,22 +686,22 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
                   tabIndex={0}
                   onFocus={() => setIsFocused(true)}
                   onBlur={() => setIsFocused(false)}
-                  onMouseDown={(e) => handleCanvasMouseEvent(e, 'mousePressed')}
-                  onMouseUp={(e) => handleCanvasMouseEvent(e, 'mouseReleased')}
-                  onMouseMove={(e) => handleCanvasMouseEvent(e, 'mouseMoved')}
+                  onClick={handleCanvasClick}
                   onWheel={handleCanvasWheel}
                   onKeyDown={handleKeyDown}
-                  className={`max-w-full max-h-full object-contain cursor-default outline-none rounded shadow-2xl transition-all duration-150 ${
-                    isFocused ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-neutral-950' : 'ring-1 ring-border/40'
+                  onPaste={handlePaste}
+                  className={`w-full max-w-[1000px] h-auto rounded border border-neutral-800 shadow-2xl transition-all cursor-crosshair outline-none ${
+                    isFocused ? 'ring-2 ring-indigo-500/80 ring-offset-2 ring-offset-neutral-950' : ''
                   }`}
                   style={{ aspectRatio: `${NATIVE_WIDTH}/${NATIVE_HEIGHT}` }}
                 />
 
-                {!isFocused && connectionStatus === 'connected' && (
-                  <div className="absolute bottom-4 bg-background/85 backdrop-blur-sm px-3 py-1.5 rounded-full border border-border/60 shadow-lg text-xs flex items-center gap-2 pointer-events-none">
-                    <span className="h-2 w-2 rounded-full bg-indigo-500 animate-ping" />
-                    <strong>Dica:</strong> Clique na tela do navegador acima para focar o teclado e digitar sua senha / 2FA.
-                  </div>
+                {/* Efeito visual de clique na tela */}
+                {clickIndicator && (
+                  <span
+                    className="absolute h-5 w-5 -ml-2.5 -mt-2.5 rounded-full bg-indigo-500/60 border border-white pointer-events-none animate-ping"
+                    style={{ left: clickIndicator.x, top: clickIndicator.y }}
+                  />
                 )}
               </div>
             </TabsContent>
@@ -577,7 +749,7 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
           <div className="flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
             <span>
-              Ao concluir o login ou autenticação de dois fatores (2FA), clique no botão verde <strong>"Capturar & Salvar Sessão"</strong>.
+              Você pode digitar diretamente na tela ou usar a barra rápida acima. Ao ver a página principal/painel da Booking ou Airbnb, clique em <strong>"Capturar & Salvar Sessão"</strong>.
             </span>
           </div>
           <Button size="sm" variant="ghost" onClick={() => onOpenChange(false)}>
