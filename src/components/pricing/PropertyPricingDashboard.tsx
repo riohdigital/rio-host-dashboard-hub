@@ -82,10 +82,10 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
         setAlerts((alertsData as any[]) || []);
       }
 
-      // 2. Eventos locais (próximos 120 dias)
+      // 2. Eventos locais (próximos 365 dias / 1 ano)
       const todayIso = new Date().toISOString().split('T')[0];
       const maxDate = new Date();
-      maxDate.setDate(maxDate.getDate() + 120);
+      maxDate.setDate(maxDate.getDate() + 365);
       const maxDateIso = maxDate.toISOString().split('T')[0];
 
       const { data: eventsData, error: eventsError } = await supabase
@@ -571,10 +571,54 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
                             </span>
                           </div>
 
-                          {/* Justificativa da IA */}
+                          {/* Justificativa Básica */}
                           <p className="text-sm text-gray-700 font-medium leading-relaxed">
                             {alert.reason}
                           </p>
+
+                          {/* Raciocínio Analítico & Dados de Comprovação da IA */}
+                          <div className="bg-[#6A6DDF]/5 border border-[#6A6DDF]/20 rounded-xl p-3.5 space-y-2.5">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5 text-xs font-bold text-[#6A6DDF]">
+                                <Sparkles className="h-3.5 w-3.5 text-[#6A6DDF]" />
+                                <span>Raciocínio da Sugestão & Dados Comprobatórios</span>
+                              </div>
+                              {alert.supporting_data?.calculation_formula && (
+                                <span className="text-[11px] font-mono bg-white px-2 py-0.5 rounded border border-gray-200 text-gray-700 font-medium shadow-xs">
+                                  {alert.supporting_data.calculation_formula}
+                                </span>
+                              )}
+                            </div>
+
+                            {alert.rationale && (
+                              <p className="text-xs text-gray-700 leading-relaxed font-normal">
+                                {alert.rationale}
+                              </p>
+                            )}
+
+                            {alert.supporting_data && (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-[11px]">
+                                {alert.supporting_data.market_evidence && (
+                                  <div className="bg-white p-2 rounded-lg border border-gray-100 flex items-start gap-2 shadow-xs">
+                                    <Layers className="h-3.5 w-3.5 text-[#6A6DDF] shrink-0 mt-0.5" />
+                                    <div>
+                                      <span className="font-semibold text-gray-800 block">Comprovação de Mercado:</span>
+                                      <span className="text-gray-600">{alert.supporting_data.market_evidence}</span>
+                                    </div>
+                                  </div>
+                                )}
+                                {alert.supporting_data.calendar_protection && (
+                                  <div className="bg-white p-2 rounded-lg border border-gray-100 flex items-start gap-2 shadow-xs">
+                                    <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                                    <div>
+                                      <span className="font-semibold text-gray-800 block">Proteção de Calendário:</span>
+                                      <span className="text-gray-600">{alert.supporting_data.calendar_protection}</span>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
 
                           {/* Caixa Comparativa de Valores */}
                           <div className="flex items-center gap-4 bg-gray-50 p-3 rounded-lg border text-xs">
@@ -722,6 +766,68 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
               )}
             </CardContent>
           </Card>
+
+          {/* Card: Altas Demandas Mapeadas no Imóvel */}
+          <Card className="shadow-xs border-t-2 border-t-amber-500">
+            <CardHeader className="p-4 pb-2">
+              <CardTitle className="text-sm font-bold flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-gray-800">
+                  <Flame className="h-4 w-4 text-amber-500" />
+                  Altas Demandas do Imóvel
+                </span>
+                {selectedProperty && (
+                  <Badge variant="outline" className="text-[10px] font-medium border-amber-200 text-amber-700 bg-amber-50">
+                    {selectedProperty.nickname || selectedProperty.name}
+                  </Badge>
+                )}
+              </CardTitle>
+              <CardDescription className="text-[11px]">
+                {selectedProperty
+                  ? 'Picos sazonais configurados no banco de dados para este imóvel'
+                  : 'Selecione um imóvel no topo para visualizar seu calendário específico de alta demanda'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 pt-1 space-y-2">
+              {selectedProperty?.high_demand_events && selectedProperty.high_demand_events.length > 0 ? (
+                selectedProperty.high_demand_events.map((hde, idx) => (
+                  <div key={idx} className="p-2.5 rounded-lg border bg-amber-50/40 border-amber-200/60 space-y-1 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-gray-800">{hde.event_name}</span>
+                      <Badge className="bg-amber-500 text-white text-[10px] px-1.5 py-0">
+                        {hde.recommended_multiplier ? `${hde.recommended_multiplier}x` : 'Alta'}
+                      </Badge>
+                    </div>
+                    {hde.period_description && (
+                      <p className="text-[11px] text-gray-500">{hde.period_description}</p>
+                    )}
+                    {hde.notes && (
+                      <p className="text-[11px] text-gray-600 italic">{hde.notes}</p>
+                    )}
+                  </div>
+                ))
+              ) : selectedProperty ? (
+                <p className="text-xs text-gray-400 py-3 text-center">Nenhum evento customizado cadastrado diretamente neste imóvel.</p>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-[11px] text-gray-500">
+                    Exemplos de altas demandas ativas por praça:
+                  </p>
+                  <div className="p-2 rounded-lg bg-gray-50 border text-[11px] space-y-1">
+                    <div className="font-semibold text-gray-700">🎪 Natal / Ponta Negra:</div>
+                    <div className="text-gray-600">Carnatal (2.2x), Réveillon (3.2x), Férias de Verão (1.7x)</div>
+                  </div>
+                  <div className="p-2 rounded-lg bg-gray-50 border text-[11px] space-y-1">
+                    <div className="font-semibold text-gray-700">🏖️ Rio de Janeiro:</div>
+                    <div className="text-gray-600">Réveillon Copacabana (3.5x), Carnaval (3.2x), Rock in Rio (2.4x)</div>
+                  </div>
+                  <div className="p-2 rounded-lg bg-gray-50 border text-[11px] space-y-1">
+                    <div className="font-semibold text-gray-700">⛵ Mangaratiba & Região dos Lagos:</div>
+                    <div className="text-gray-600">Temporada Náutica (1.9x), Jazz & Blues Rio das Ostras (2.1x)</div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </TabsContent>
@@ -741,6 +847,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
         events={events}
         selectedProperty={selectedProperty}
         reservations={reservations}
+        onRefreshEvents={fetchData}
       />
     </TabsContent>
 

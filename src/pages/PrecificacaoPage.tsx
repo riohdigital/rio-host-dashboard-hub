@@ -51,7 +51,7 @@ const PrecificacaoPage: React.FC = () => {
     fetchProperties();
   }, []);
 
-  if (permissionsLoading) {
+  if (permissionsLoading && properties.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center text-gray-500">Carregando permissões...</div>
