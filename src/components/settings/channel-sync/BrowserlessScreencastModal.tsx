@@ -53,6 +53,7 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
   const [isFocused, setIsFocused] = useState<boolean>(false);
   const [quickInput, setQuickInput] = useState<string>('');
   const [clickIndicator, setClickIndicator] = useState<{ x: number; y: number } | null>(null);
+  const [isHolding, setIsHolding] = useState<boolean>(false);
 
   const getTargetUrl = useCallback(() => {
     if (!session) return 'https://admin.booking.com';
@@ -97,9 +98,13 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
     setConnectionStatus('disconnected');
   }, []);
 
-  // Foca o campo de input correto (ignora o honeypot #hidden-password)
+  // Foca o campo de input correto (ignora o honeypot #hidden-password) e dispensa cookies se presentes
   const autoFocusInput = useCallback(async () => {
     const script = `(() => {
+      // Auto-fechar cookies se existirem para não bloquear cliques
+      const acceptCookie = document.querySelector('#onetrust-accept-btn-handler, #onetrust-reject-all-handler');
+      if (acceptCookie) acceptCookie.click();
+
       const selectors = [
         'input#loginname',
         'input[name="loginname"]',
@@ -108,6 +113,8 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
         'input#password',
         'input[type="email"]',
         'input[name="user[email]"]',
+        'input[autocomplete="one-time-code"]',
+        'input[name*="code"]',
         'input[name="phone-number"]',
         'input:not([type="hidden"]):not(#hidden-password)'
       ];
@@ -317,7 +324,7 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
     };
   }, [open, session, mode, getTargetUrl, sendCdp, stopConnection, autoFocusInput]);
 
-  // Interação de Clique no Canvas com foco direto no elemento DOM sob o ponto
+  // Interação de Clique no Canvas com suporte nativo CDP
   const handleCanvasClick = async (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas || connectionStatus !== 'connected') return;
@@ -338,7 +345,7 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
     setClickIndicator({ x: clickX, y: clickY });
     setTimeout(() => setClickIndicator(null), 400);
 
-    // 1. Envia clique nativo do CDP
+    // 1. Envia clique nativo do CDP (mouseMoved + mousePressed + mouseReleased)
     await sendCdp('Input.dispatchMouseEvent', {
       type: 'mouseMoved',
       x,
@@ -360,17 +367,72 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
       clickCount: 1,
     });
 
-    // 2. Garante foco no elemento DOM sob o ponto (sem honeypots)
+    // 2. Foca input se aplicável (sem disparar el.click() novamente para não gerar duplo clique)
     const focusAtPointScript = `(() => {
       const el = document.elementFromPoint(${x}, ${y});
-      if (el) {
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {
         el.focus();
-        if (typeof el.click === 'function') el.click();
         return { tag: el.tagName, id: el.id, name: el.name };
       }
       return null;
     })()`;
     sendCdp('Runtime.evaluate', { expression: focusAtPointScript });
+  };
+
+  // Pressionar e segurar por X segundos (ideal para desafios do tipo Press & Hold / PerimeterX)
+  const handlePressAndHold = async (durationSeconds = 3.5) => {
+    if (connectionStatus !== 'connected' || isHolding) return;
+    try {
+      setIsHolding(true);
+      toast({
+        title: 'Pressionando e Segurando...',
+        description: `Mantendo o botão pressionado por ${durationSeconds}s para validar o desafio.`,
+      });
+
+      const getCenterScript = `(() => {
+        const challengeEl = document.querySelector('#px-captcha, [aria-label*="Press and Hold"], [aria-label*="pressione e segure"], #challenge-stage, .sec-container');
+        if (challengeEl) {
+          const rect = challengeEl.getBoundingClientRect();
+          return { x: Math.round(rect.left + rect.width / 2), y: Math.round(rect.top + rect.height / 2) };
+        }
+        return { x: ${Math.round(NATIVE_WIDTH / 2)}, y: ${Math.round(NATIVE_HEIGHT / 2)} };
+      })()`;
+
+      const res = await sendCdp('Runtime.evaluate', { expression: getCenterScript, returnByValue: true });
+      const pos = res?.result?.value || { x: Math.round(NATIVE_WIDTH / 2), y: Math.round(NATIVE_HEIGHT / 2) };
+
+      await sendCdp('Input.dispatchMouseEvent', { type: 'mouseMoved', x: pos.x, y: pos.y, button: 'none' });
+      await sendCdp('Input.dispatchMouseEvent', { type: 'mousePressed', x: pos.x, y: pos.y, button: 'left', clickCount: 1 });
+
+      await new Promise((resolve) => setTimeout(resolve, durationSeconds * 1000));
+
+      await sendCdp('Input.dispatchMouseEvent', { type: 'mouseReleased', x: pos.x, y: pos.y, button: 'left', clickCount: 1 });
+
+      toast({
+        title: 'Clique Liberado',
+        description: 'Verificação enviada. O navegador deve avançar em instantes.',
+      });
+    } catch (e) {
+      console.error('Erro no Press & Hold:', e);
+    } finally {
+      setIsHolding(false);
+    }
+  };
+
+  // Dispensar banner de cookies da Booking / Airbnb
+  const handleDismissCookies = async () => {
+    const script = `(() => {
+      const selectors = ['#onetrust-accept-btn-handler', '#onetrust-reject-all-handler', 'button[id*="onetrust"]', 'button[aria-label="Accept"]'];
+      for (const s of selectors) {
+        const el = document.querySelector(s);
+        if (el) { el.click(); return true; }
+      }
+      return false;
+    })()`;
+    const res = await sendCdp('Runtime.evaluate', { expression: script, returnByValue: true });
+    if (res?.result?.value) {
+      toast({ title: 'Banner de cookies dispensado' });
+    }
   };
 
   const handleCanvasWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
@@ -393,7 +455,7 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
     });
   };
 
-  // Interação do Teclado no Canvas (USANDO Input.insertText QUE É INFALÍVEL)
+  // Interação do Teclado no Canvas (USANDO Input.insertText)
   const handleKeyDown = (e: React.KeyboardEvent<HTMLCanvasElement>) => {
     if (connectionStatus !== 'connected') return;
 
@@ -425,13 +487,17 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
     }
   };
 
-  // Preenchimento Infalível via DOM Scripting + CDP Fallback
+  // Preenchimento Infalível via DOM Scripting com React Native Value Setter + CDP Fallback
   const handleSendQuickInput = async (pressEnter = false) => {
     if (!quickInput && !pressEnter) return;
 
     const valueToInsert = quickInput;
 
     const fillScript = `(() => {
+      // 1. Auto-dispensar cookie banner se estiver visível
+      const acceptCookie = document.querySelector('#onetrust-accept-btn-handler, #onetrust-reject-all-handler');
+      if (acceptCookie) acceptCookie.click();
+
       const text = ${JSON.stringify(valueToInsert)};
       let target = document.activeElement;
 
@@ -445,6 +511,8 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
           'input[type="password"]:not(#hidden-password)',
           'input[type="email"]',
           'input[name="user[email]"]',
+          'input[autocomplete="one-time-code"]',
+          'input[name*="code"]',
           'input[type="text"]:not(#hidden-password)',
           'input[type="tel"]',
           'input:not([type="hidden"]):not(#hidden-password)'
@@ -461,16 +529,28 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
       if (target && target.tagName === 'INPUT') {
         target.focus();
         if (text) {
-          target.value = text;
+          // Usar React Native Setter para garantir que o estado interno do framework seja atualizado
+          const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+          if (nativeSetter) {
+            nativeSetter.call(target, text);
+          } else {
+            target.value = text;
+          }
           target.dispatchEvent(new Event('input', { bubbles: true }));
           target.dispatchEvent(new Event('change', { bubbles: true }));
         }
 
         if (${pressEnter}) {
           setTimeout(() => {
-            const submitBtn = document.querySelector('button[type="submit"], button#login-submit, button.auth-btn');
-            if (submitBtn) {
-              submitBtn.click();
+            const buttons = Array.from(document.querySelectorAll('button'));
+            const nextBtn = buttons.find(b => {
+              if (b.id && b.id.includes('onetrust')) return false;
+              const t = (b.innerText || '').trim().toLowerCase();
+              return t === 'next' || t === 'próximo' || t === 'continuar' || t === 'avançar' || t === 'sign in' || t === 'entrar' || t === 'continue' || t === 'verify';
+            }) || document.querySelector('form button[type="submit"]:not([id*="onetrust"])') || document.querySelector('button[type="submit"]:not([id*="onetrust"])');
+
+            if (nextBtn) {
+              nextBtn.click();
             } else if (target.form) {
               target.form.submit();
             }
@@ -484,27 +564,32 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
     const res = await sendCdp('Runtime.evaluate', { expression: fillScript, returnByValue: true });
     const fillResult = res?.result?.value;
 
-    // Backup adicional via CDP
-    if (valueToInsert) {
+    // Se o script não encontrou campo (ex: página puramente estática/canvas), tenta enviar via CDP puro
+    if (!fillResult?.success && valueToInsert) {
       await sendCdp('Input.insertText', { text: valueToInsert });
     }
-    if (pressEnter) {
+    if (pressEnter && !fillResult?.success) {
       await sendCdp('Input.dispatchKeyEvent', { type: 'rawKeyDown', windowsVirtualKeyCode: 13, code: 'Enter', key: 'Enter' });
       await sendCdp('Input.dispatchKeyEvent', { type: 'keyUp', windowsVirtualKeyCode: 13, code: 'Enter', key: 'Enter' });
     }
 
     setQuickInput('');
     toast({
-      title: fillResult?.success ? `Digitado em #${fillResult.id || fillResult.name}` : 'Texto Enviado',
-      description: pressEnter ? 'Texto inserido e botão avançar/Enter acionado.' : 'Texto inserido no campo.',
+      title: fillResult?.success ? `Preenchido em #${fillResult.id || fillResult.name}` : 'Texto Enviado',
+      description: pressEnter ? 'Texto inserido e botão avançar acionado.' : 'Texto inserido no campo.',
     });
   };
 
   const handleSendKey = async (code: 'Enter' | 'Tab') => {
     if (code === 'Enter') {
       const clickSubmitScript = `(() => {
-        const btn = document.querySelector('button[type="submit"], button#login-submit, button.auth-btn');
-        if (btn) { btn.click(); return true; }
+        const buttons = Array.from(document.querySelectorAll('button'));
+        const nextBtn = buttons.find(b => {
+          if (b.id && b.id.includes('onetrust')) return false;
+          const t = (b.innerText || '').trim().toLowerCase();
+          return t === 'next' || t === 'próximo' || t === 'continuar' || t === 'avançar' || t === 'sign in' || t === 'entrar' || t === 'continue';
+        }) || document.querySelector('form button[type="submit"]:not([id*="onetrust"])') || document.querySelector('button[type="submit"]:not([id*="onetrust"])');
+        if (nextBtn) { nextBtn.click(); return true; }
         return false;
       })()`;
       sendCdp('Runtime.evaluate', { expression: clickSubmitScript });
@@ -686,6 +771,26 @@ export const BrowserlessScreencastModal: React.FC<BrowserlessScreencastModalProp
               >
                 <Target className="h-3.5 w-3.5 mr-1 text-amber-400" />
                 Focar Campo
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleDismissCookies}
+                className="h-8 px-2.5 text-xs border-neutral-700 text-neutral-300 hover:bg-neutral-800"
+                title="Fechar banner de cookies da Booking/Airbnb se estiver cobrindo a tela"
+              >
+                🍪 Cookies
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handlePressAndHold(3.5)}
+                disabled={isHolding}
+                className="h-8 px-2.5 text-xs border-amber-600/50 text-amber-300 hover:bg-amber-950/40"
+                title="Pressionar e segurar botão por 3.5 segundos (para desafios tipo Press & Hold / PerimeterX)"
+              >
+                <ShieldCheck className="h-3.5 w-3.5 mr-1 text-amber-400" />
+                {isHolding ? 'Segurando...' : 'Segurar (3.5s)'}
               </Button>
               <Button
                 size="sm"
