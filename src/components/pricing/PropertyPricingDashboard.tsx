@@ -20,7 +20,8 @@ import {
   Info,
   ShieldCheck,
   Zap,
-  Filter
+  Filter,
+  Layers
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';

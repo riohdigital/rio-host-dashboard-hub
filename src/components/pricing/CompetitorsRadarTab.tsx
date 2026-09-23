@@ -41,7 +41,7 @@ export const CompetitorsRadarTab: React.FC<CompetitorsRadarTabProps> = ({
   const fetchCompetitors = async () => {
     setLoading(true);
     try {
-      let query = supabase
+      let query: any = (supabase as any)
         .from('competitor_listings')
         .select('*')
         .order('created_at', { ascending: false });
@@ -59,7 +59,7 @@ export const CompetitorsRadarTab: React.FC<CompetitorsRadarTabProps> = ({
       // Busca snapshots de preços se houver concorrentes
       if (compList.length > 0) {
         const compIds = compList.map(c => c.id);
-        const { data: snapData, error: snapError } = await supabase
+        const { data: snapData, error: snapError } = await (supabase as any)
           .from('competitor_price_snapshots')
           .select('*')
           .in('competitor_listing_id', compIds)
