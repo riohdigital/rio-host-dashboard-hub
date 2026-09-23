@@ -196,15 +196,18 @@ export const CompetitorsRadarTab: React.FC<CompetitorsRadarTabProps> = ({
       {/* Top Banner com Ações, Filtros de Comodidades e Estatísticas */}
       <div className="bg-white p-5 rounded-xl border shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
-              <Layers className="h-4 w-4 text-[#6A6DDF]" />
-              Radar de Concorrência (CompSet Equiparado)
-            </h3>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
+                <Layers className="h-4 w-4 text-[#6A6DDF]" />
+                Radar de Concorrência (CompSet Equiparado)
+              </h3>
+              <Badge variant="outline" className="bg-[#6A6DDF]/10 text-[#6A6DDF] border-[#6A6DDF]/20 text-[11px] font-bold">
+                {competitors.length} Concorrentes Pareados (10 por Imóvel)
+              </Badge>
+            </div>
             <p className="text-xs text-gray-500 mt-0.5">
-              Imóveis concorrentes pareados por localização, quartos (+/- 1), hóspedes (+/- 2) e comodidades equiparadas.
+              Imóveis concorrentes pareados com precisão por localização, número exato de quartos, capacidade e comodidades.
             </p>
-          </div>
 
           <Button
             onClick={handleTriggerScraping}
@@ -423,12 +426,25 @@ export const CompetitorsRadarTab: React.FC<CompetitorsRadarTabProps> = ({
                     )}
                   </div>
 
-                  {/* Preço Coletado */}
-                  <div className="flex items-center justify-between border-t pt-2 text-xs">
-                    <span className="text-gray-500">Média Tarifária:</span>
-                    <span className="font-bold text-[#6A6DDF] text-sm">
-                      {avg ? `R$ ${avg}/noite` : 'Coleta em andamento'}
-                    </span>
+                  {/* Preço Coletado & Botão de Ver Anúncio */}
+                  <div className="flex items-center justify-between border-t pt-2.5 text-xs">
+                    <div>
+                      <span className="text-gray-400 block text-[10px]">Média Tarifária:</span>
+                      <span className="font-bold text-[#6A6DDF] text-sm">
+                        {avg ? `R$ ${avg}/noite` : 'Coleta em andamento'}
+                      </span>
+                    </div>
+
+                    <a
+                      href={comp.listing_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-[#6A6DDF] hover:bg-[#585AC9] px-2.5 py-1 rounded-md transition-all shadow-2xs"
+                      title={`Abrir página oficial da acomodação no ${comp.platform}`}
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      Ver Anúncio ↗
+                    </a>
                   </div>
                 </CardContent>
               </Card>
