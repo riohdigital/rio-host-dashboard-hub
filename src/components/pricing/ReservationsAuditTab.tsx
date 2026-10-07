@@ -51,6 +51,23 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
   const [loading, setLoading] = useState(true);
   const [auditingIds, setAuditingIds] = useState<Record<string, boolean>>({});
   const [selectedModalRes, setSelectedModalRes] = useState<any | null>(null);
+  // hotel_id da Booking por imóvel: sem ele o link da extranet dá erro 400.
+  const [bookingHotelIds, setBookingHotelIds] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    supabase
+      .from('channel_sync_sources')
+      .select('property_id, listing_alias')
+      .eq('platform', 'Booking.com')
+      .then(({ data }) => {
+        const mapa: Record<string, string> = {};
+        for (const fonte of data ?? []) {
+          const id = /booking_hotel_id:(\d{6,})/.exec(fonte.listing_alias ?? '')?.[1];
+          if (id && fonte.property_id) mapa[fonte.property_id] = id;
+        }
+        setBookingHotelIds(mapa);
+      });
+  }, []);
 
   const fetchReservations = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -209,13 +226,18 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
     }
   };
 
-  const getPlatformDirectUrl = (platform: string, code: string) => {
+  // Links conferidos no portal em 07/10/2026.
+  const getPlatformDirectUrl = (platform: string, code: string, propertyId?: string) => {
     const p = (platform || '').toLowerCase();
     if (p.includes('airbnb')) {
       return `https://www.airbnb.com.br/hosting/reservations/details/${code}`;
     }
     if (p.includes('booking')) {
-      return `https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/booking.html?res_id=${code}`;
+      const hotelId = propertyId ? bookingHotelIds[propertyId] : undefined;
+      // A extranet exige o hotel_id; sem ele, abre o início para escolher o imóvel.
+      return hotelId
+        ? `https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/booking.html?res_id=${code}&hotel_id=${hotelId}&lang=pt-br`
+        : 'https://admin.booking.com/';
     }
     return null;
   };
@@ -224,14 +246,14 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
     const p = (platform || '').toLowerCase();
     if (p.includes('airbnb')) {
       const isFuture = !checkOutDate || new Date(checkOutDate) >= new Date();
-      // ID 122285728 da conta anfitriã no Airbnb - repasses específicos
+      // ID 122285728 da conta anfitriã no Airbnb. "/completed" cai no resumo;
+      // a lista de repasses enviados é "/paid".
       return isFuture
         ? 'https://www.airbnb.com.br/earnings/122285728/upcoming'
-        : 'https://www.airbnb.com.br/earnings/122285728/completed';
+        : 'https://www.airbnb.com.br/earnings/122285728/paid';
     }
-    if (p.includes('booking')) {
-      return 'https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/finance_invoices.html';
-    }
+    // Booking: o detalhe da reserva já mostra preço e comissão; o antigo link de
+    // faturas era um endereço inválido que derrubava a sessão.
     return null;
   };
 
@@ -280,7 +302,7 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
             const isVerified = !!res.is_verified_by_ai;
             const isAuditing = !!auditingIds[res.id];
             const isAirbnb = res.platform?.toLowerCase() === 'airbnb';
-            const directUrl = getPlatformDirectUrl(res.platform, res.reservation_code);
+            const directUrl = getPlatformDirectUrl(res.platform, res.reservation_code, res.property_id);
             const payoutUrl = getPlatformPayoutUrl(res.platform, res.check_out_date);
             const isAirbnbFuture = !res.check_out_date || new Date(res.check_out_date) >= new Date();
             const propertyName = res.properties?.nickname || res.properties?.name || selectedProperty?.nickname || selectedProperty?.name || 'Imóvel';
@@ -542,9 +564,9 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
                   Abrir no Dashboard (/reservas) ↗
                 </a>
 
-                {getPlatformDirectUrl(selectedModalRes.platform, selectedModalRes.reservation_code) && (
+                {getPlatformDirectUrl(selectedModalRes.platform, selectedModalRes.reservation_code, selectedModalRes.property_id) && (
                   <a
-                    href={getPlatformDirectUrl(selectedModalRes.platform, selectedModalRes.reservation_code)!}
+                    href={getPlatformDirectUrl(selectedModalRes.platform, selectedModalRes.reservation_code, selectedModalRes.property_id)!}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#6A6DDF] hover:underline bg-[#6A6DDF]/10 px-3 py-1.5 rounded border border-[#6A6DDF]/20 transition-all"

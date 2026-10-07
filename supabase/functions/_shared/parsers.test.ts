@@ -17,6 +17,7 @@ import {
   parseReservationEmail,
 } from './emailParsers.ts';
 import { pareceNomeDeAnuncio } from './propertyMatching.ts';
+import { computeStayCycles, cycleBoundaries, type PayoutEntry } from './stayCycles.ts';
 import { datesOverlap } from './reservationSync.ts';
 import {
   htmlToText,
@@ -616,4 +617,82 @@ Deno.test('nomes que já foram gravados por engano são barrados', () => {
   assertEquals(isPlausibleGuestName('se for possível fazer'), false); // HM5B4EB3ST
   assertEquals(isPlausibleGuestName('JULIO CESAR PEREIRA DA SILVA'), true);
   assertEquals(isPlausibleGuestName('Luuk Hurkx'), true);
+});
+
+// ---------------------------------------------------------------------------
+// Ciclos mensais pelos repasses reais (R3). Valores conferidos em 07/10/2026
+// contra a API de repasses do Airbnb e o total (R1) de cada reserva.
+// ---------------------------------------------------------------------------
+
+const rep = (tipo: string, valor: number, liberadoEm: string): PayoutEntry => ({ tipo, valor, liberadoEm });
+const valores = (ciclos: ReturnType<typeof computeStayCycles>) => ciclos.map((c) => [c.inicio, c.fim, c.valor]);
+
+Deno.test('ciclos: fronteiras no mesmo dia do mês, dia inexistente transborda', () => {
+  assertEquals(cycleBoundaries('2026-03-10', '2026-03-20'), [{ inicio: '2026-03-10', fim: '2026-03-20' }]);
+  assertEquals(cycleBoundaries('2026-03-31', '2026-05-02'), [
+    { inicio: '2026-03-31', fim: '2026-05-01' }, { inicio: '2026-05-01', fim: '2026-05-02' },
+  ]);
+});
+
+Deno.test('ciclos: conta titular com coanfitrião (HMWE2EHT4F, R$ 34.438,10)', () => {
+  const C = 'Recebimento do coanfitrião', A = 'Acomodação';
+  const ciclos = computeStayCycles({
+    checkIn: '2026-04-06', checkOut: '2026-11-01', commissionRate: 0.2, cleaningFee: 200,
+    repasses: [
+      rep(A, 4543.28, '2026-04-07'), rep(C, -3474.62, '2026-04-07'), rep(A, 61.5, '2026-04-15'), rep(C, -127.86, '2026-04-15'),
+      rep(A, 4603.64, '2026-05-07'), rep(C, -3604.26, '2026-05-07'), rep(A, 283.46, '2026-05-19'), rep(C, -277.11, '2026-05-19'),
+      rep(A, 4649.92, '2026-06-07'), rep(C, -3669.6, '2026-06-07'), rep(A, 284.85, '2026-06-25'), rep(C, -265.52, '2026-06-25'),
+      rep(A, 4628.92, '2026-07-07'), rep(C, -3665.49, '2026-07-07'), rep(A, 458.27, '2026-07-21'), rep(C, -395.61, '2026-07-21'),
+      rep(A, 4448.97, '2026-08-07'), rep(C, -3530.18, '2026-08-07'), rep(A, 717.23, '2026-08-22'), rep(C, -597, '2026-08-22'),
+      rep(A, 4412.47, '2026-09-07'), rep(C, -3506.74, '2026-09-07'), rep(A, 629.12, '2026-09-23'), rep(C, -523.2, '2026-09-23'),
+      rep(A, 4716.47, '2026-10-07'), rep(C, -3753.29, '2026-10-07'),
+    ],
+  });
+  assertEquals(valores(ciclos), [
+    ['2026-04-06', '2026-05-06', 4604.78], ['2026-05-06', '2026-06-06', 4887.1], ['2026-06-06', '2026-07-06', 4934.77],
+    ['2026-07-06', '2026-08-06', 5087.19], ['2026-08-06', '2026-09-06', 5166.2], ['2026-09-06', '2026-10-06', 5041.59],
+    ['2026-10-06', '2026-11-01', 4716.47],
+  ]);
+});
+
+Deno.test('ciclos: conta coanfitriã, 20% + limpeza só no 1º (HMZPZNQTHY, R$ 18.658,32)', () => {
+  const C = 'Recebimento do coanfitrião';
+  const ciclos = computeStayCycles({
+    checkIn: '2026-03-01', checkOut: '2026-06-22', commissionRate: 0.2, cleaningFee: 250,
+    repasses: [rep(C, 1155.6, '2026-03-02'), rep(C, 1023.19, '2026-04-02'), rep(C, 1034.54, '2026-05-02'), rep(C, 718.33, '2026-06-02')],
+  });
+  assertEquals(valores(ciclos), [
+    ['2026-03-01', '2026-04-01', 4778], ['2026-04-01', '2026-05-01', 5115.95],
+    ['2026-05-01', '2026-06-01', 5172.7], ['2026-06-01', '2026-06-22', 3591.65],
+  ]);
+});
+
+Deno.test('ciclos: ajuste e repasse em duas partes ficam no ciclo certo (HMJ28CAKQA, HMQFRSSJQ3)', () => {
+  const A = 'Acomodação';
+  assertEquals(valores(computeStayCycles({
+    checkIn: '2026-02-05', checkOut: '2026-03-23', commissionRate: 0.2, cleaningFee: 120,
+    repasses: [rep(A, 7194.7, '2026-02-06'), rep(A, 2693.91, '2026-03-06'), rep('Ajuste', -1122.67, '2026-03-10')],
+  })), [['2026-02-05', '2026-03-05', 7194.7], ['2026-03-05', '2026-03-23', 1571.24]]);
+
+  assertEquals(valores(computeStayCycles({
+    checkIn: '2026-03-31', checkOut: '2026-05-02', commissionRate: 0.2, cleaningFee: 120,
+    repasses: [rep(A, 1842.64, '2026-04-01'), rep(A, 1580.18, '2026-04-13'), rep(A, 110.37, '2026-05-02')],
+  })), [['2026-03-31', '2026-05-01', 3422.82], ['2026-05-01', '2026-05-02', 110.37]]);
+});
+
+Deno.test('ciclos: gabarito de 2025 lançado à mão (HMEQ8AH588)', () => {
+  const A = 'Acomodação';
+  assertEquals(valores(computeStayCycles({
+    checkIn: '2025-08-16', checkOut: '2025-10-16', commissionRate: 0.1, cleaningFee: 300,
+    repasses: [rep(A, 9103.93, '2025-08-17'), rep(A, 7664.93, '2025-09-17'), rep(A, 1145.34, '2025-09-17')],
+  })), [['2025-08-16', '2025-09-16', 9103.93], ['2025-09-16', '2025-10-16', 8810.27]]);
+});
+
+Deno.test('ciclos: ciclo sem repasse fica sem valor; repasse repetido conta uma vez', () => {
+  const A = 'Acomodação';
+  const ciclos = computeStayCycles({
+    checkIn: '2026-10-06', checkOut: '2026-12-01', commissionRate: 0.2, cleaningFee: 200,
+    repasses: [rep(A, 4716.47, '2026-10-07'), rep(A, 4716.47, '2026-10-07')],
+  });
+  assertEquals(valores(ciclos), [['2026-10-06', '2026-11-06', 4716.47], ['2026-11-06', '2026-12-01', null]]);
 });

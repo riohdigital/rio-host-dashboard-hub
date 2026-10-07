@@ -45,6 +45,7 @@ import {
   recordPending,
   type ReservationCandidate,
 } from '../_shared/reservationSync.ts';
+import { reconcileStayCycles } from '../_shared/stayCycles.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -144,8 +145,12 @@ async function registerPayout(
   base: EmailOutcome,
   dryRun: boolean,
 ): Promise<EmailOutcome> {
-  const repasse = parsePayoutEmail(text);
+  const referencia = receivedAt ? new Date(receivedAt) : new Date();
+  const repasse = parsePayoutEmail(text, { reference: referencia });
   const linhas = repasse.linhas.filter((linha) => linha.codigo);
+  // Data de liberação: a escrita no e-mail; sem ela, o dia em que o e-mail chegou (horário de Brasília).
+  const liberadoEm = repasse.enviadoEm ??
+    new Date(referencia.getTime() - 3 * 3_600_000).toISOString().slice(0, 10);
 
   if (linhas.length === 0) {
     return { ...base, reason: 'Aviso de repasse sem lançamento por reserva legível' };
@@ -156,6 +161,7 @@ async function registerPayout(
 
   const registradas: string[] = [];
   const naoEncontradas: string[] = [];
+  const ciclos: string[] = [];
 
   for (const codigo of [...new Set(linhas.map((linha) => linha.codigo!))]) {
     const { data } = await admin
@@ -182,6 +188,7 @@ async function registerPayout(
         valor: linha.valor,
         periodo_inicio: linha.periodoInicio,
         periodo_fim: linha.periodoFim,
+        liberado_em: liberadoEm,
         recebido_em: receivedAt ?? null,
       }))
       .filter((novo) => !existentes.some((e) =>
@@ -195,9 +202,22 @@ async function registerPayout(
       if (error) throw new Error(`Falha ao registrar repasse: ${error.message}`);
     }
     registradas.push(codigo);
+
+    // Estadia longa: o repasse fecha o valor do ciclo (R3). Falha aqui não pode
+    // perder o registro do repasse, que já foi gravado.
+    try {
+      const resultado = await reconcileStayCycles(admin, codigo);
+      if (resultado.atualizadas || resultado.criadas) {
+        ciclos.push(`${codigo}: ${resultado.atualizadas} parcela(s) ajustada(s), ${resultado.criadas} criada(s)`);
+      }
+    } catch (erro) {
+      console.error(`Erro ao fechar ciclos de ${codigo}:`, erro instanceof Error ? erro.message : erro);
+      ciclos.push(`${codigo}: ciclos não recalculados (${erro instanceof Error ? erro.message : erro})`);
+    }
   }
 
   const partes: string[] = [];
+  if (ciclos.length) partes.push(`ciclos: ${ciclos.join('; ')}`);
   if (registradas.length) partes.push(`registrado em ${registradas.join(', ')}`);
   if (naoEncontradas.length) partes.push(`sem reserva no dashboard: ${naoEncontradas.join(', ')}`);
   return { ...base, action: 'skipped', reason: `Aviso de repasse ${partes.join('; ')}` };

@@ -558,6 +558,8 @@ export interface PayoutLine {
 export interface ParsedPayout {
   identificador: string | null;
   totalPago: number | null;
+  /** Data em que o Airbnb enviou o repasse (AAAA-MM-DD): define o ciclo (R3). */
+  enviadoEm: string | null;
   linhas: PayoutLine[];
 }
 
@@ -574,9 +576,15 @@ export interface ParsedPayout {
  * É o mesmo dado da tela de Ganhos: o valor de cada mês de uma estadia longa
  * (REGRAS_DE_NEGOCIO_RESERVAS.md, R3) chega sozinho por aqui.
  */
-export function parsePayoutEmail(text: string): ParsedPayout {
+export function parsePayoutEmail(text: string, options: { reference?: Date } = {}): ParsedPayout {
   const linhas = toLines(text);
-  const resultado: ParsedPayout = { identificador: null, totalPago: null, linhas: [] };
+  const resultado: ParsedPayout = { identificador: null, totalPago: null, enviadoEm: null, linhas: [] };
+
+  // "Seu dinheiro foi enviado em 7 de setembro e deve chegar até 14 de setembro de 2026."
+  const envio = /enviado em\s+(\d{1,2}\s+de\s+[a-zç]+\.?(?:\s+de\s+\d{4})?)/i.exec(text);
+  if (envio) {
+    resultado.enviadoEm = parseDateFlexible(envio[1], { locale: 'pt', reference: options.reference ?? new Date() });
+  }
 
   const indiceId = linhas.findIndex((l) => /^identifica[cç][aã]o do pagamento$/i.test(l));
   if (indiceId >= 0 && linhas[indiceId + 1]) resultado.identificador = linhas[indiceId + 1].trim();
