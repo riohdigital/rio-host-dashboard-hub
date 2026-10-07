@@ -17,8 +17,10 @@ import {
   parseReservationEmail,
 } from './emailParsers.ts';
 import { pareceNomeDeAnuncio } from './propertyMatching.ts';
-import { computeStayCycles, cycleBoundaries, type PayoutEntry } from './stayCycles.ts';
+import { computeStayCycles, cycleBoundaries, dedupePayouts, type PayoutEntry } from './stayCycles.ts';
 import { datesOverlap } from './reservationSync.ts';
+import { findBookingInvoiceLink, isPrefeituraInvoiceEmail, parseBookingInvoice } from './bookingInvoice.ts';
+import { agoraEmBrasilia, statusPorData } from './stayStatus.ts';
 import {
   htmlToText,
   parseDateFlexible,
@@ -695,4 +697,133 @@ Deno.test('ciclos: ciclo sem repasse fica sem valor; repasse repetido conta uma 
     repasses: [rep(A, 4716.47, '2026-10-07'), rep(A, 4716.47, '2026-10-07')],
   });
   assertEquals(valores(ciclos), [['2026-10-06', '2026-11-06', 4716.47], ['2026-11-06', '2026-12-01', null]]);
+});
+
+Deno.test('ciclos: o mesmo repasse vindo do e-mail e do histórico do portal conta uma vez', () => {
+  // HMWE2EHT4F, setembro: o e-mail diz "Acomodação", o portal "RESERVATION_ALLOCATION".
+  const ciclos = computeStayCycles({
+    checkIn: '2026-09-06', checkOut: '2026-11-01', commissionRate: 0.2, cleaningFee: 200,
+    repasses: [
+      rep('Acomodação', 4412.47, '2026-09-07'), rep('RESERVATION_ALLOCATION', 4412.47, '2026-09-07'),
+      rep('Recebimento do coanfitrião', -3506.74, '2026-09-07'), rep('SPLIT_ADJUSTMENT', -3506.74, '2026-09-07'),
+      rep('Acomodação', 629.12, '2026-09-23'), rep('RESERVATION_ALLOCATION', 629.12, '2026-09-23'),
+    ],
+  });
+  assertEquals(valores(ciclos), [['2026-09-06', '2026-10-06', 5041.59], ['2026-10-06', '2026-11-01', null]]);
+  // Mesmo valor um mês depois é outro repasse.
+  assertEquals(dedupePayouts([rep('Acomodação', 100, '2026-09-07'), rep('Acomodação', 100, '2026-10-07')]).length, 2);
+});
+
+// ---------------------------------------------------------------------------
+// Pagamento e status automáticos (07/10/2026).
+// ---------------------------------------------------------------------------
+
+Deno.test('aviso de repasse: o dia do envio vem da frase "Seu dinheiro foi enviado em"', () => {
+  // Corpo em texto do e-mail real de 22/09/2026, 23:02 em Brasília (HMWE2EHT4F).
+  const texto = [
+    'R$105,92 BRL foram enviados hoje',
+    'Seu dinheiro foi enviado em 23 de setembro e deve chegar até 30 de setembro de 2026.',
+    'Ver ganhos',
+    'Identificação do pagamento',
+    '0MS2eTESTE1111111111111111',
+    'Informações',
+    'Fernando Exemplo   -R$523,20 BRL',
+    'Recebimento do coanfitrião • 06/04/2026 - 01/11/2026',
+    'Resort com Píer e Vista Lateral Mar (1366714016506588224)',
+    'HMWE2EHT4F',
+    'Fernando Exemplo   R$629,12 BRL',
+    'Acomodação • 06/04/2026 - 01/11/2026',
+    'Resort com Píer e Vista Lateral Mar (1366714016506588224)',
+    'HMWE2EHT4F',
+    'Total pago:   R$105,92 BRL',
+  ].join('\r\n\r\n');
+
+  const repasse = parsePayoutEmail(texto, { reference: new Date('2026-09-23T02:02:00Z') });
+  assertEquals(repasse.enviadoEm, '2026-09-23');
+  assertEquals(repasse.totalPago, 105.92);
+  assertEquals(repasse.linhas.map((l) => [l.codigo, l.tipo, l.valor]), [
+    ['HMWE2EHT4F', 'Recebimento do coanfitrião', -523.2],
+    ['HMWE2EHT4F', 'Acomodação', 629.12],
+  ]);
+});
+
+// E-mail real da Prefeitura de 05/10/2026, com número e código de verificação trocados.
+const EMAIL_NFSE = [
+  'Esta mensagem refere-se à Nota Fiscal de Serviços Eletrônica - NFS-e No. 1234567 do  prestador de serviços:',
+  '',
+  'Razão Social: BOOKING.COM BRASIL SERVICOS DE RESERVA DE HOTEIS LTDA.',
+  'E-mail: ar.brazil@booking.com',
+  'CCM : 3.882.162-1',
+  'CNPJ: 10.625.931/0001-39',
+  '',
+  'Caso creia que esta mensagem tenha sido enviada pela Prefeitura de São Paulo, visualize a nota fiscal no endereço abaixo. Caso contrário, apague-a.',
+  'https://nfe.sf.prefeitura.sp.gov.br/nfe.aspx?ccm=38821621&nf=1234567&cod=ABCD1234',
+].join('\n');
+
+// Texto extraído (unpdf) da 1ª página do PDF real da nota de Copacabana de
+// setembro/2026, com tomador, número e código de verificação trocados.
+const PDF_NFSE = 'PREFEITURA DO MUNICÍPIO DE SÃO PAULO SECRETARIA MUNICIPAL DA FAZENDA NOTA FISCAL ELETRÔNICA DE SERVIÇOS - NFS-e ' +
+  'Número da Nota Data e Hora de Emissão Código de Verificação RPS Nº 6247919 Série BKG, emitido em 30/09/2026 ' +
+  '01234567 05/10/2026 19:35:38 ABCD-1234 PRESTADOR DE SERVIÇOS CPF/CNPJ: Inscrição Municipal: Nome/Razão Social: Endereço: ' +
+  '10.625.931/0001-39 3.882.162-1 BOOKING.COM BRASIL SERVICOS DE RESERVA DE HOTEIS LTDA. AL SANTOS 960, ANDAR 8 E 9 - ' +
+  'CERQUEIRA CESAR - CEP: 01418-100 Município: São Paulo UF: SP TOMADOR DE SERVIÇOS Nome/Razão Social: CPF/CNPJ: ' +
+  'Inscrição Municipal: Endereço: Município: UF: E-mail: ANFITRIAO EXEMPLO 000.000.000-00 ---- RUA EXEMPLO 1 - CENTRO ' +
+  'Rio de Janeiro RJ anfitriao@example.com INTERMEDIÁRIO DE SERVIÇOS CPF/CNPJ: Nome/Razão Social:---- ---- ' +
+  'DISCRIMINAÇÃO DE SERVIÇOS Agências/Intermediação de Turismo COMISSÃO REFERENTE A RESERVAS Inv. 21279011 ' +
+  'Código do Cliente: 14107413 Valor Líquido a pagar R$ 776.70 VALOR DAS VENDAS: R$ 5178.00 VALOR TOTAL DO SERVIÇO = R$ 776,70 ' +
+  'OUTRAS INFORMAÇÕES (1) Esta NFS-e foi emitida com respaldo na Lei nº 14.097/2005; (2) Esta NFS-e substitui o RPS Nº 6247919 ' +
+  'Série BKG, emitido em 30/09/2026; (3) Data de vencimento do ISS desta NFS-e: 10/10/2026; Página 1 de 2';
+
+Deno.test('NFS-e da Booking: link do e-mail da Prefeitura e campos do PDF', () => {
+  assertEquals(isPrefeituraInvoiceEmail(
+    'Prefeitura do Município de São Paulo <nfe-auto@prefeitura.sp.gov.br>',
+    'Nota Fiscal de Serviços Eletrônica - NFS-e No. 1234567',
+  ), true);
+  assertEquals(isPrefeituraInvoiceEmail('Booking.com <noreply@booking.com>', 'Nova reserva'), false);
+
+  assertEquals(findBookingInvoiceLink(EMAIL_NFSE), {
+    numero: '1234567',
+    pdfUrl: 'https://nfe.sf.prefeitura.sp.gov.br/contribuinte/notaprintpdf.aspx?ccm=38821621&nf=1234567&cod=ABCD1234',
+  });
+  // No HTML, "&" vem como "&amp;".
+  assertEquals(
+    findBookingInvoiceLink('<a href="https://nfe.sf.prefeitura.sp.gov.br/nfe.aspx?ccm=38821621&amp;nf=1234567&amp;cod=ABCD1234">')?.numero,
+    '1234567',
+  );
+  // Nota de outro prestador não é tocada.
+  assertEquals(findBookingInvoiceLink('https://nfe.sf.prefeitura.sp.gov.br/nfe.aspx?ccm=12345678&nf=1&cod=ABCD1234'), null);
+
+  // Saídas de setembro: vendas − comissão = R$ 4.401,30, a soma das 3 reservas no dashboard (R1).
+  assertEquals(parseBookingInvoice(PDF_NFSE), {
+    hotelId: '14107413', vendas: 5178, comissao: 776.7, mesInicio: '2026-09-01', mesFim: '2026-09-30',
+  });
+  // O PDF de "nota não encontrada" (código errado) não vira nota.
+  assertEquals(parseBookingInvoice('NFS-e não encontrada. Verifique os dados informados.'), null);
+});
+
+Deno.test('status pela data: Em Andamento no check-in, Finalizada no check-out (horário de Brasília)', () => {
+  const r = {
+    reservation_status: 'Confirmada', check_in_date: '2026-10-10', check_out_date: '2026-10-12',
+    checkin_time: '16:00:00', checkout_time: '10:00:00',
+  };
+  assertEquals(statusPorData(r, '2026-10-10T15:59'), 'Confirmada');
+  assertEquals(statusPorData(r, '2026-10-10T16:00'), 'Em Andamento');
+  assertEquals(statusPorData({ ...r, reservation_status: 'Em Andamento' }, '2026-10-12T09:59'), 'Em Andamento');
+  assertEquals(statusPorData({ ...r, reservation_status: 'Em Andamento' }, '2026-10-12T10:00'), 'Finalizada');
+  // Confirmada que ninguém atualizou passa direto para Finalizada.
+  assertEquals(statusPorData(r, '2026-10-20T09:00'), 'Finalizada');
+
+  // Sem horário na reserva: o padrão do imóvel; sem ele, 15:00 e 11:00.
+  const semHora = { ...r, checkin_time: null, checkout_time: null };
+  assertEquals(statusPorData(semHora, '2026-10-10T14:59'), 'Confirmada');
+  assertEquals(statusPorData(semHora, '2026-10-10T15:00'), 'Em Andamento');
+  assertEquals(statusPorData(semHora, '2026-10-10T14:00', { checkin: '14:00:00', checkout: '12:00:00' }), 'Em Andamento');
+  assertEquals(statusPorData({ ...semHora, reservation_status: 'Em Andamento' }, '2026-10-12T11:30', { checkout: '12:00:00' }), 'Em Andamento');
+
+  // Cancelada e qualquer outro status não são tocados.
+  assertEquals(statusPorData({ ...r, reservation_status: 'Cancelada' }, '2026-10-11T12:00'), null);
+  assertEquals(statusPorData({ ...r, reservation_status: 'Pendente' }, '2026-10-11T12:00'), null);
+
+  // 17:00 UTC = 14:00 em Brasília.
+  assertEquals(agoraEmBrasilia(new Date('2026-10-07T17:00:00Z')), '2026-10-07T14:00');
 });

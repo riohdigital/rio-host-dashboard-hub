@@ -19,6 +19,14 @@ declare module 'https://esm.sh/@supabase/supabase-js@2.50.3' {
   export function createClient(url: string, key: string, options?: any): any;
 }
 
+declare module 'https://esm.sh/unpdf@0.12.1' {
+  export function getDocumentProxy(data: Uint8Array): Promise<unknown>;
+  export function extractText(
+    pdf: unknown,
+    options?: { mergePages?: boolean },
+  ): Promise<{ totalPages: number; text: string | string[] }>;
+}
+
 declare const Deno: {
   env: { get(key: string): string | undefined };
   test(name: string, fn: () => void | Promise<void>): void;
