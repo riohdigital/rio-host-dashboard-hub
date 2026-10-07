@@ -245,22 +245,56 @@ export async function findOverlappingReservation(
 }
 
 /**
- * Quantas linhas compartilham o código — mais de uma são as parcelas mensais
- * de uma estadia longa. Em caso de erro, assume parcelada: deixar de corrigir
- * uma data agora é melhor que esticar uma parcela por cima das outras.
+ * Linhas que compartilham o código — mais de uma são as parcelas mensais de
+ * uma estadia longa (R3). Em caso de erro devolve null: deixar de corrigir uma
+ * data agora é melhor que esticar uma parcela por cima das outras.
  */
-async function contarLinhasDoCodigo(supabase: any, platform: string, code: string): Promise<number> {
-  const { count, error } = await supabase
+async function linhasDoCodigo(
+  supabase: any,
+  platform: string,
+  code: string,
+): Promise<Array<{ id: string; check_in_date: string; check_out_date: string }> | null> {
+  const { data, error } = await supabase
     .from('reservations')
-    .select('id', { count: 'exact', head: true })
+    .select('id, check_in_date, check_out_date')
     .eq('platform', platform)
-    .eq('reservation_code', code);
+    .eq('reservation_code', code)
+    .order('check_in_date', { ascending: true });
 
   if (error) {
-    console.error('Erro ao contar parcelas:', error.message);
-    return 2;
+    console.error('Erro ao ler parcelas:', error.message);
+    return null;
   }
-  return count ?? 1;
+  return data ?? [];
+}
+
+/**
+ * Estadia parcelada mudou de tamanho (o hóspede estendeu ou encurtou): só as
+ * pontas acompanham — a entrada da 1ª parcela e a saída da última. As parcelas
+ * do meio são de ciclos já fechados e não mudam. O ciclo novo de uma extensão
+ * nasce quando o repasse dele chegar (stayCycles.ts).
+ */
+async function ajustarPontasDaEstadia(
+  supabase: any,
+  parcelas: Array<{ id: string; check_in_date: string; check_out_date: string }>,
+  checkIn: string,
+  checkOut: string,
+): Promise<string[]> {
+  const primeira = parcelas[0];
+  const ultima = parcelas[parcelas.length - 1];
+  const mudou: string[] = [];
+
+  if (primeira.check_in_date !== checkIn && checkIn < primeira.check_out_date) {
+    const { error } = await supabase.from('reservations').update({ check_in_date: checkIn }).eq('id', primeira.id);
+    if (error) throw new Error(`Falha ao ajustar a entrada da estadia: ${error.message}`);
+    mudou.push('check_in_date');
+  }
+  if (ultima.check_out_date !== checkOut && checkOut > ultima.check_in_date) {
+    const { error } = await supabase.from('reservations').update({ check_out_date: checkOut }).eq('id', ultima.id);
+    if (error) throw new Error(`Falha ao ajustar a saída da estadia: ${error.message}`);
+    mudou.push('check_out_date');
+  }
+  return mudou;
 }
 
 /**
@@ -344,14 +378,17 @@ export async function applyReservation(
 
   // Datas: a plataforma é a fonte da verdade — da estadia. Duas exceções:
   // - período que não fecha (saída antes da entrada) nunca é gravado;
-  // - reserva parcelada (R3) tem as datas de cada ciclo nas linhas; a fonte
-  //   só traz a estadia inteira e esticaria a 1ª parcela por cima das outras.
+  // - reserva parcelada (R3) tem as datas de cada ciclo nas linhas; a fonte só
+  //   traz a estadia inteira, então só as pontas acompanham (extensão).
   const periodoValido = candidate.checkIn < candidate.checkOut;
-  const parcelada = periodoValido && !isPlaceholderCode(existing.reservation_code)
-    ? await contarLinhasDoCodigo(supabase, existing.platform, existing.reservation_code) > 1
-    : false;
+  const parcelas = periodoValido && !isPlaceholderCode(existing.reservation_code)
+    ? await linhasDoCodigo(supabase, existing.platform, existing.reservation_code)
+    : [];
+  let pontasAjustadas: string[] = [];
 
-  if (periodoValido && !parcelada) {
+  if (periodoValido && parcelas !== null && parcelas.length > 1) {
+    pontasAjustadas = await ajustarPontasDaEstadia(supabase, parcelas, candidate.checkIn, candidate.checkOut);
+  } else if (periodoValido && parcelas !== null) {
     if (existing.check_in_date !== candidate.checkIn) updates.check_in_date = candidate.checkIn;
     if (existing.check_out_date !== candidate.checkOut) updates.check_out_date = candidate.checkOut;
   }
@@ -390,6 +427,9 @@ export async function applyReservation(
       .from('reservations')
       .update({ last_synced_at: now })
       .eq('id', existing.id);
+    if (pontasAjustadas.length) {
+      return { action: 'updated', reservationId: existing.id, changes: { estadia_parcelada: pontasAjustadas } };
+    }
     return { action: 'skipped', reservationId: existing.id, reason: 'sem_mudancas' };
   }
 
