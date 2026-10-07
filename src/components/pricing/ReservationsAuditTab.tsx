@@ -169,22 +169,34 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
         })
       });
 
-      if (resp.ok) {
-        toast({
-          title: 'Auditoria Concluída com Sucesso!',
-          description: `A reserva ${res.reservation_code} foi auditada no portal oficial e os valores foram atualizados.`,
-        });
+      // O aviso reflete o resultado real da conferência. "Respondeu" não é
+      // "conferiu": em 06/10/2026 nove auditorias sem login apareceram aqui
+      // como "Concluída com Sucesso".
+      const resultado = resp.ok ? await resp.json().catch(() => null) : null;
+      const status: string | undefined = resultado?.status;
+      const detalhe: string = resultado?.message || `Confira a nota da reserva ${res.reservation_code}.`;
+
+      if (status === 'verified') {
+        toast({ title: 'Reserva conferida no portal', description: detalhe });
+      } else if (status === 'divergent') {
+        toast({ title: 'Divergência encontrada', description: detalhe, variant: 'destructive' });
+      } else if (status === 'failed' || status === 'skipped') {
+        toast({ title: 'Auditoria não concluída', description: detalhe, variant: 'destructive' });
       } else {
         toast({
-          title: 'Auditoria Processada',
-          description: `A conferência da reserva ${res.reservation_code} foi concluída na VPS.`,
+          title: resp.ok ? 'Auditoria enviada' : 'Falha ao chamar a auditoria',
+          description: resp.ok
+            ? `Confira o resultado na nota da reserva ${res.reservation_code}.`
+            : `O servidor respondeu ${resp.status}. Nada foi conferido.`,
+          variant: resp.ok ? undefined : 'destructive',
         });
       }
     } catch (err) {
       console.error('Erro na chamada da auditoria:', err);
       toast({
-        title: 'Auditoria em Andamento',
-        description: `O comando foi enviado para a VPS. Os dados serão atualizados em instantes.`,
+        title: 'Falha ao chamar a auditoria',
+        description: `Não foi possível falar com o servidor. Nada foi conferido na reserva ${res.reservation_code}.`,
+        variant: 'destructive',
       });
     } finally {
       // 3. Atualiza os dados imediatamente na tela aberta, sem fechar nem recarregar a página!

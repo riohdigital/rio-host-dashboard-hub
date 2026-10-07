@@ -71,12 +71,22 @@ cadastrado, extensões `pg_cron` e `pg_net` ativas.
 
 ## Decisões que valem preservar
 
-**Receita Total = líquido recebido**, não o preço cheio. O dashboard não
-desconta taxa de plataforma: ele reparte o líquido entre a comissão do gestor,
-a do proprietário e a faxineira. Para o Booking isso é `Price − Commission
-Amount`; para o Airbnb, a coluna `Valor`. A comissão da plataforma é guardada
-apenas como referência em `automation_metadata`, **nunca** em
-`commission_amount` (que é calculado pelo trigger a partir da taxa do imóvel).
+> **Atualizado em 06/10/2026.** As regras de valor, parcelas mensais e limpeza
+> estão no documento canônico
+> `n8n-manager/projects/rioh-host/REGRAS_DE_NEGOCIO_RESERVAS.md`, conferido com
+> os dados reais do Airbnb e da Booking. Este trecho resume; em caso de dúvida,
+> vale o documento.
+
+**Receita Total = valor da reserva antes da divisão com o coanfitrião**, não o
+preço cheio. O dashboard não desconta taxa de plataforma: ele reparte esse valor
+entre a comissão do gestor, a do proprietário e a faxineira. Para o Booking é
+`Price − Commission Amount`. Para o Airbnb é o "Total (BRL)" do anfitrião **mais a
+"Cota do coanfitrião"**, quando houver — no e-mail de confirmação, o "Você recebe"
+do bloco "Pagamento do anfitrião" (o "Total (BRL)" do bloco "O hóspede pagou" é
+outra coisa). A regra antiga, "coluna `Valor` do extrato", subestima a reserva
+quando há cota. A comissão da plataforma é guardada apenas como referência em
+`automation_metadata`, **nunca** em `commission_amount` (que é calculado pelo
+trigger a partir da taxa do imóvel).
 
 **A sincronização nunca sobrescreve trabalho manual.** Cria o que falta,
 preenche apenas campos vazios, atualiza datas (a plataforma é a fonte da

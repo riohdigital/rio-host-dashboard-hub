@@ -168,6 +168,20 @@ export function resolveProperty(lookup: PropertyLookup): PropertyMatch {
  * É o que faz o sistema ficar mais preciso sozinho, sem ninguém preencher
  * configuração.
  */
+/**
+ * Só vira apelido o que parece nome de anúncio. Já foram aprendidos pedaços
+ * de frase ("nos resultados de busca.", "é adequada para crianças…"), uma
+ * mensagem de hóspede e linhas de preço ("para 20 noites R$ 5.604,00") — e a
+ * mesma frase em vários imóveis faz o e-mail cair no imóvel errado.
+ */
+export function pareceNomeDeAnuncio(nome: string | null | undefined): boolean {
+  const texto = nome?.trim() ?? '';
+  if (texto.length < 5 || texto.length > 120) return false;
+  if (!/^[\p{Lu}\d]/u.test(texto)) return false;
+  if (/R\$|\b\d+\s+noites?\b|\bnights?\b/i.test(texto)) return false;
+  return true;
+}
+
 export async function learnSourceHints(
   admin: any,
   propertyId: string,
@@ -188,15 +202,16 @@ export async function learnSourceHints(
   const novas: string[] = [];
 
   const nome = hints.listingName?.trim();
-  if (nome && nome.length >= 5 && aliasNomes(fonte.listing_alias).length < MAX_APELIDOS) {
+  if (nome && pareceNomeDeAnuncio(nome) && aliasNomes(fonte.listing_alias).length < MAX_APELIDOS) {
     const normalizado = normalizeForMatch(nome);
     const conhecido = aliasNomes(fonte.listing_alias)
       .some((alias) => normalizeForMatch(alias) === normalizado);
     if (!conhecido) novas.push(nome);
   }
 
+  // hotel_id da Booking tem 8 dígitos; cópia cortada do link ("1410") não serve.
   const hotelId = hints.hotelId;
-  if (hotelId && !aliasHotelIds(fonte.listing_alias).includes(hotelId)) {
+  if (hotelId && hotelId.length >= 6 && !aliasHotelIds(fonte.listing_alias).includes(hotelId)) {
     novas.push(`${MARCADOR_HOTEL_ID}${hotelId}`);
   }
 

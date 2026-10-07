@@ -13,12 +13,15 @@ import { icsDateToISO, parseIcs } from './ics.ts';
 import {
   isPlausibleGuestName,
   looksLikeReservation,
+  parsePayoutEmail,
   parseReservationEmail,
 } from './emailParsers.ts';
+import { pareceNomeDeAnuncio } from './propertyMatching.ts';
 import { datesOverlap } from './reservationSync.ts';
 import {
   htmlToText,
   parseDateFlexible,
+  parseDateRange,
   parseMoney,
   semelhancaDeTitulos,
 } from './textUtils.ts';
@@ -130,11 +133,14 @@ Deno.test('e-mail de confirmação do Airbnb em pt-BR', () => {
   assertEquals(parsed.checkIn, '2026-09-12');
   assertEquals(parsed.checkOut, '2026-09-15');
   assertEquals(parsed.numberOfGuests, 3);
-  assertEquals(parsed.totalRevenue, 1850);
+  // Valor do Airbnb não vem de e-mail (R1 em REGRAS_DE_NEGOCIO_RESERVAS.md): os
+  // e-mails reais trouxeram o preço antes da taxa de serviço e o total pago
+  // pelo hóspede, nunca "Total + Cotas do coanfitrião".
+  assertEquals(parsed.totalRevenue, null);
   assertEquals(parsed.listingName, 'Apto Vista Mar 302');
   // O nome do hóspede só existe no assunto — o corpo traz o rótulo "Hóspedes".
   assertEquals(parsed.guestName, 'Maria Souza');
-  assertEquals(parsed.missing, []);
+  assertEquals(parsed.missing, ['totalRevenue']);
 });
 
 Deno.test('e-mail de nova reserva do Booking.com em pt-BR', () => {
@@ -159,7 +165,8 @@ Deno.test('e-mail de nova reserva do Booking.com em pt-BR', () => {
   assertEquals(parsed.checkIn, '2026-11-01');
   assertEquals(parsed.checkOut, '2026-11-05');
   assertEquals(parsed.numberOfGuests, 2);
-  assertEquals(parsed.totalRevenue, 2400);
+  // R1 da Booking: valor comissionável − comissão.
+  assertEquals(parsed.totalRevenue, 2040);
   assertEquals(parsed.commissionAmount, 360);
   assertEquals(parsed.listingName, 'Casa Azul Centro');
 });
@@ -406,4 +413,207 @@ Deno.test('mensagem de hóspede do Booking traz a reserva completa', () => {
   assertEquals(mensagem.checkOut, '2026-09-08');
   assertEquals(mensagem.numberOfGuests, 2);
   assertEquals(mensagem.listingName, 'Studio próximo a Praia de Copacabana');
+});
+
+// ---------------------------------------------------------------------------
+// Casos reais de 06/10/2026 (nomes trocados). Cada um já tinha gravado dado
+// errado em produção; ver REGRAS_DE_NEGOCIO_RESERVAS.md no n8n-manager.
+// ---------------------------------------------------------------------------
+
+Deno.test('resposta automática da Booking: o "check-in" da mensagem não é o campo', () => {
+  // A frase do hóspede vem antes dos dados da reserva. Antes da correção, o
+  // valor lido para "Check-in" era "seja às 17:00 - 18:00. Pode ser?".
+  const parsed = parseReservationEmail({
+    from: 'Booking.com <noreply@booking.com>',
+    subject: 'A solicitação de Mariana Rocha foi confirmada',
+    text: [
+      'Número de confirmação: 5500000001',
+      'Mariana Rocha disse:',
+      'Gostaria de solicitar que meu check-in seja às 17:00 - 18:00. Pode ser?',
+      'Confirmado gratuitamente',
+      'Dados da reserva',
+      'Nome do hóspede:',
+      'Mariana Rocha',
+      'Check-in:',
+      'qui., 7 de jan. de 2027',
+      'Check-out:',
+      'ter., 12 de jan. de 2027',
+      'Nome da propriedade:',
+      'Maravilhoso Studio Próximo a Praia em Copacabana!',
+      'Número da reserva:',
+      '5500000001',
+    ].join('\n'),
+  }, { reference: REFERENCE });
+
+  assertEquals(parsed.checkIn, '2027-01-07');
+  assertEquals(parsed.checkOut, '2027-01-12');
+  assertEquals(parsed.guestName, 'Mariana Rocha');
+  // "Solicitação" aqui é de horário de check-in, não pedido de reserva: o
+  // e-mail continua sendo fonte de dados da reserva.
+  assertEquals(['request', 'inquiry'].includes(parsed.intent), false);
+});
+
+Deno.test('pedido de reserva não aceito é reconhecido e o período é lido inteiro', () => {
+  // Caso HM5B4EB3ST: "2 – 19 de out." virou entrada em 19/10 e saída em 02/10.
+  const pedido = parseReservationEmail({
+    from: 'Airbnb <automated@airbnb.com>',
+    subject: 'Pendente: Pedido de Reserva em Charmoso Apê na Lapa - Aeroporto, Museus e Teatro! para 2 – 19 de out. de 2026',
+    text: 'Responda em até 24 horas. https://www.airbnb.com.br/hosting/reservations/details/HMAAAA1111',
+  }, { reference: REFERENCE });
+
+  assertEquals(pedido.intent, 'request');
+  assertEquals(pedido.checkIn, '2026-10-02');
+  assertEquals(pedido.checkOut, '2026-10-19');
+});
+
+Deno.test('consulta de hóspede e newsletter não são reserva', () => {
+  const consulta = parseReservationEmail({
+    from: 'Airbnb <automated@airbnb.com>',
+    subject: 'Consulta sobre Resort com Píer e Vista Lateral Mar para 10 – 13 de out. de 2026',
+    text: 'Um hóspede enviou uma pergunta. airbnb.com',
+  }, { reference: REFERENCE });
+  assertEquals(consulta.intent, 'inquiry');
+
+  const newsletter = parseReservationEmail({
+    from: 'Airbnb <discover@airbnb.com>',
+    subject: 'Perspectiva de reservas para outubro em Rio de Janeiro',
+    text: 'O período de 9 de outubro a 11 de outubro é de alta procura. airbnb.com',
+  }, { reference: REFERENCE });
+  assertEquals(newsletter.intent, 'marketing');
+});
+
+Deno.test('confirmação com "Política de cancelamento" no corpo não vira cancelada', () => {
+  const confirmacao = parseReservationEmail({
+    from: 'Airbnb <automated@airbnb.com>',
+    subject: 'Reserva confirmada - Luuk Hurkx chega em 10 de dez.',
+    text: 'NOVA RESERVA CONFIRMADA!\nhttps://www.airbnb.com.br/hosting/reservations/details/HMBBBB2222\nPolítica de cancelamento\nRestrita',
+  }, { reference: REFERENCE });
+  assertEquals(confirmacao.intent, 'new');
+
+  const atualizada = parseReservationEmail({
+    from: 'Airbnb <automated@airbnb.com>',
+    subject: 'Reserva atualizada',
+    text: 'SUA RESERVA COM FERNANDO FOI ATUALIZADA\nhttps://www.airbnb.com.br/hosting/reservations/details/HMCCCC3333',
+  }, { reference: REFERENCE });
+  assertEquals(atualizada.intent, 'modified');
+});
+
+Deno.test('aviso de repasse do Airbnb: lançamentos por reserva', () => {
+  // Formato real do "Enviamos um pagamento de R$905,73 BRL".
+  const texto = [
+    'R$905,73 BRL foram enviados hoje',
+    'Identificação do pagamento',
+    '0MS2eTESTE0000000000000000',
+    'Informações',
+    'Fernando Exemplo   -R$3.506,74 BRL',
+    'Recebimento do coanfitrião • 06/04/2026 - 02/10/2026',
+    'Resort com Píer e Vista Lateral Mar (1366714016506588224)',
+    'HMDDDD4444',
+    'Fernando Exemplo   R$4.412,47 BRL',
+    'Acomodação • 06/04/2026 - 02/10/2026',
+    'Resort com Píer e Vista Lateral Mar (1366714016506588224)',
+    'HMDDDD4444',
+    'Total pago:   R$905,73 BRL',
+  ].join('\n');
+
+  const parsed = parseReservationEmail({ from: 'Airbnb <automated@airbnb.com>', subject: 'Enviamos um pagamento de R$905,73 BRL', text: texto });
+  assertEquals(parsed.intent, 'payout');
+
+  const repasse = parsePayoutEmail(texto);
+  assertEquals(repasse.identificador, '0MS2eTESTE0000000000000000');
+  assertEquals(repasse.totalPago, 905.73);
+  assertEquals(repasse.linhas.length, 2);
+  assertEquals(repasse.linhas[0].valor, -3506.74);
+  assertEquals(repasse.linhas[0].tipo, 'Recebimento do coanfitrião');
+  assertEquals(repasse.linhas[1].valor, 4412.47);
+  assertEquals(repasse.linhas[1].tipo, 'Acomodação');
+  assertEquals(repasse.linhas[1].codigo, 'HMDDDD4444');
+  assertEquals(repasse.linhas[1].periodoInicio, '2026-04-06');
+  assertEquals(repasse.linhas[1].anuncio, 'Resort com Píer e Vista Lateral Mar');
+});
+
+Deno.test('parseDateRange cobre os períodos dos assuntos do Airbnb', () => {
+  const ref = { reference: REFERENCE };
+  assertEquals(parseDateRange('para 2 – 19 de out. de 2026', ref), { checkIn: '2026-10-02', checkOut: '2026-10-19' });
+  assertEquals(parseDateRange('22 de set. – 20 de nov.', ref), { checkIn: '2026-09-22', checkOut: '2026-11-20' });
+  assertEquals(
+    parseDateRange('29 de dez. de 2025 – 3 de jan. de 2026', ref),
+    { checkIn: '2025-12-29', checkOut: '2026-01-03' },
+  );
+  assertEquals(parseDateRange('para 1 – 3 de jan. de 2027', ref), { checkIn: '2027-01-01', checkOut: '2027-01-03' });
+  // Horário não é período.
+  assertEquals(parseDateRange('check-in seja às 17:00 - 18:00', ref), null);
+});
+
+// Corpo em texto do e-mail real de confirmação do Airbnb (06/10/2026), com o
+// bloco do hóspede antes do bloco do anfitrião. Nomes e código trocados.
+function confirmacaoAirbnb(opcoes: { noites: number; checkout: string; recebe: string; cota?: string }): string {
+  return [
+    'NOVA RESERVA CONFIRMADA! LUCAS CHEGA EM 10 DE DEZ..',
+    'https://www.airbnb.com.br/hosting/reservations/details/HMEEEE5555?isPending=true   Lucas Exemplo',
+    'Check-in',
+    'qui., 10 de dez.',
+    'Checkout',
+    opcoes.checkout,
+    'CÓDIGO DE CONFIRMAÇÃO',
+    'HMEEEE5555',
+    'O HÓSPEDE PAGOU',
+    `R$\u00a0240,97 x ${opcoes.noites} noites   R$\u00a04.819,44`,
+    'Taxa de limpeza   R$\u00a0175,00',
+    'TOTAL (BRL)   R$\u00a04.994,44',
+    'PAGAMENTO DO ANFITRIÃO',
+    `Preço da acomodação para ${opcoes.noites} noites   R$\u00a05.604,00`,
+    'Taxa de limpeza   R$\u00a0175,00',
+    'Taxa de serviço do anfitrião (16.0% + IVA)   -R$\u00a0909,63',
+    ...(opcoes.cota ? [`Cotas do coanfitrião   -R$\u00a0${opcoes.cota}`] : []),
+    `VOCÊ RECEBE   R$\u00a0${opcoes.recebe}`,
+    'Consultar ganhos',
+  ].join('\n');
+}
+
+Deno.test('Airbnb: valor da reserva vem do bloco do anfitrião, não do que o hóspede pagou', () => {
+  const curta = parseReservationEmail({
+    from: 'Airbnb <automated@airbnb.com>',
+    subject: 'Reserva confirmada - Lucas Exemplo chega em 10 de dez.',
+    text: confirmacaoAirbnb({ noites: 20, checkout: 'qua., 30 de dez.', recebe: '4.084,81' }),
+  }, { reference: REFERENCE });
+
+  assertEquals(curta.totalRevenue, 4084.81);
+  assertEquals(curta.guestName, 'Lucas Exemplo');
+  assertEquals(curta.checkOut, '2026-12-30');
+
+  // Com cota do coanfitrião listada, a R1 soma as duas.
+  const comCota = parseReservationEmail({
+    from: 'Airbnb <automated@airbnb.com>',
+    subject: 'Reserva confirmada - Lucas Exemplo chega em 10 de dez.',
+    text: confirmacaoAirbnb({ noites: 20, checkout: 'qua., 30 de dez.', recebe: '1.000,00', cota: '3.084,81' }),
+  }, { reference: REFERENCE });
+  assertEquals(comCota.totalRevenue, 4084.81);
+
+  // Estadia mensal: o total fica registrado, mas não vai para a reserva (R3).
+  const mensal = parseReservationEmail({
+    from: 'Airbnb <automated@airbnb.com>',
+    subject: 'Reserva confirmada - Lucas Exemplo chega em 10 de dez.',
+    text: confirmacaoAirbnb({ noites: 58, checkout: 'sex., 5 de fev. de 2027', recebe: '10.954,57' }),
+  }, { reference: REFERENCE });
+  assertEquals(mensal.totalRevenue, null);
+  assertEquals(mensal.stayTotal, 10954.57);
+});
+
+Deno.test('apelido de anúncio: só aprende o que parece nome de anúncio', () => {
+  // Apelidos de lixo que estavam gravados na configuração em 06/10/2026.
+  assertEquals(pareceNomeDeAnuncio('nos resultados de busca.'), false);
+  assertEquals(pareceNomeDeAnuncio('é adequada para crianças atualizando suas Regras'), false);
+  assertEquals(pareceNomeDeAnuncio('parece perfeita para mim. Eu adoraria ficar. Obrigado.'), false);
+  assertEquals(pareceNomeDeAnuncio('para 20 noites   R$\u00a05.604,00'), false);
+
+  assertEquals(pareceNomeDeAnuncio('Charmoso Apê na Lapa - Aeroporto, Museus e Teatro!'), true);
+  assertEquals(pareceNomeDeAnuncio('Espetacular com Vista Mar - 5 Estrelas Flat'), true);
+});
+
+Deno.test('nomes que já foram gravados por engano são barrados', () => {
+  assertEquals(isPlausibleGuestName('PAGOU'), false);                 // HM552TTR5Z
+  assertEquals(isPlausibleGuestName('se for possível fazer'), false); // HM5B4EB3ST
+  assertEquals(isPlausibleGuestName('JULIO CESAR PEREIRA DA SILVA'), true);
+  assertEquals(isPlausibleGuestName('Luuk Hurkx'), true);
 });
