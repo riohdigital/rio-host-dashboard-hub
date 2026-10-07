@@ -99,6 +99,27 @@ nome da propriedade citado → semelhança de título (corte 0,6 com margem de
 0,15) → imóvel único. O que não resolve vira pergunta na tela, e a resposta é
 aprendida.
 
+**Pagamento e status são automáticos** (07/10/2026):
+
+- *Airbnb* — o aviso "Enviamos um pagamento" grava os lançamentos em
+  `automation_metadata.repasses` da reserva e marca como **Pago** (estadia curta:
+  só o status, e o valor apenas se estiver vazio; estadia longa: o ciclo do
+  repasse, com valor — R3). O mesmo lançamento vindo do e-mail e do histórico do
+  portal conta uma vez (`dedupePayouts`: grupo cota/não cota + valor + envio
+  com até 3 dias de diferença). `liberado_em` é a data de **envio** ("Seu
+  dinheiro foi enviado em…"), a mesma do portal.
+- *Booking* — a Prefeitura de São Paulo envia, por imóvel e por mês, a NFS-e da
+  comissão (`nfe-auto@prefeitura.sp.gov.br`). O PDF público da nota traz o
+  Código do Cliente (= `hotel_id`), o valor das vendas e a comissão; as reservas
+  do imóvel com **saída no mês do RPS** viram **Pago**, e a soma delas tem de
+  dar vendas − comissão (R1) — diferença acima de R$ 1 vira pendência
+  "conflito". Código desconhecido: o imóvel Booking sem código cujo mês fecha a
+  conta é o da nota, e o código fica gravado nele (`_shared/bookingInvoice.ts`).
+- *Status* — a cada rodada do cron do iCal, `Confirmada → Em Andamento` no
+  horário de check-in e `→ Finalizada` no de check-out, horário de Brasília
+  (reserva → padrão do imóvel → 15:00/11:00). Cancelada e outros status não
+  são tocados (`_shared/stayStatus.ts`).
+
 ---
 
 ## Armadilhas descobertas nos dados reais

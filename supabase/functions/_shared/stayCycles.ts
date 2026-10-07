@@ -80,15 +80,28 @@ export function payoutRole(repasses: PayoutEntry[]): PayoutRole | null {
   return null;
 }
 
-/** Remove o mesmo lançamento repetido (o e-mail pode ser reenviado). */
+/**
+ * Remove o mesmo lançamento visto duas vezes: e-mail reenviado, ou o mesmo
+ * repasse gravado pelo e-mail ("Acomodação") e pelo histórico do portal
+ * ("RESERVATION_ALLOCATION"). Mesmo grupo (cota ou não), mesmo valor e envio
+ * com até 3 dias de diferença.
+ */
 export function dedupePayouts(repasses: PayoutEntry[]): PayoutEntry[] {
-  const vistos = new Set<string>();
-  return repasses.filter((r) => {
-    const chave = `${r.tipo}|${r.valor.toFixed(2)}|${r.liberadoEm}`;
-    if (vistos.has(chave)) return false;
-    vistos.add(chave);
-    return true;
-  });
+  const mantidos: PayoutEntry[] = [];
+  for (const r of repasses) {
+    const repetido = mantidos.some((m) =>
+      ehCota(m.tipo) === ehCota(r.tipo) &&
+      m.valor.toFixed(2) === r.valor.toFixed(2) &&
+      Math.abs(nightsBetween(m.liberadoEm, r.liberadoEm)) <= 3);
+    if (!repetido) mantidos.push(r);
+  }
+  return mantidos;
+}
+
+/** Acrescenta a marca do ciclo à observação, trocando a de uma rodada anterior. */
+function notaDoCiclo(anterior: string | null | undefined, marca: string): string {
+  const resto = String(anterior ?? '').replace(/\s*\[Ciclo \d+\/\d+ pelo repasse do Airbnb\][^[]*/g, '').trim();
+  return resto ? `${resto} ${marca}` : marca;
 }
 
 /**
@@ -162,9 +175,6 @@ export async function reconcileStayCycles(
 
   const checkIn = ativas[0].check_in_date;
   const checkOut = ativas.map((r: any) => r.check_out_date).sort().slice(-1)[0];
-  if (nightsBetween(checkIn, checkOut) <= MAX_NOITES_SEM_CICLO) {
-    return { atualizadas: 0, criadas: 0, motivo: 'estadia de até 28 noites' };
-  }
 
   const repasses: PayoutEntry[] = ativas.flatMap((r: any) =>
     (Array.isArray(r.automation_metadata?.repasses) ? r.automation_metadata.repasses : [])
@@ -184,6 +194,22 @@ export async function reconcileStayCycles(
     commissionRate: Number(imovel?.commission_rate ?? 0),
     cleaningFee: Number(ativas[0].cleaning_fee || imovel?.cleaning_fee || 0),
   });
+
+  // Estadia curta: o repasse só confirma o pagamento. O valor lançado vale (R5);
+  // o do repasse entra apenas se a reserva estiver sem valor. Lançamento só
+  // negativo (estorno, cota paga) não é pagamento recebido.
+  if (nightsBetween(checkIn, checkOut) <= MAX_NOITES_SEM_CICLO) {
+    const ciclo = ciclos[0];
+    if (!ciclo || !ciclo.repasses.some((r) => r.valor > 0)) return { atualizadas: 0, criadas: 0, motivo: 'sem repasse' };
+    const linha = ativas[0];
+    const mudancas: Record<string, unknown> = {};
+    if (linha.payment_status !== 'Pago') mudancas.payment_status = 'Pago';
+    if (!Number(linha.total_revenue) && ciclo.valor !== null) mudancas.total_revenue = ciclo.valor;
+    if (Object.keys(mudancas).length === 0) return { atualizadas: 0, criadas: 0 };
+    const { error: e } = await admin.from('reservations').update(mudancas).eq('id', linha.id);
+    if (e) throw new Error(`Falha ao marcar ${code} como paga: ${e.message}`);
+    return { atualizadas: 1, criadas: 0 };
+  }
 
   let atualizadas = 0;
   let criadas = 0;
@@ -208,12 +234,16 @@ export async function reconcileStayCycles(
       const mudancas: Record<string, unknown> = {};
       if (Math.abs(Number(linha.total_revenue || 0) - c.valor) > 0.009) mudancas.total_revenue = c.valor;
       if (linha.check_out_date !== fimDesejado) mudancas.check_out_date = fimDesejado;
+      if (linha.payment_status !== 'Pago') mudancas.payment_status = 'Pago';
       if (linha.payment_date !== addDays(c.inicio, 1)) mudancas.payment_date = addDays(c.inicio, 1);
       if (Object.keys(mudancas).length === 0) continue;
 
       const antes = mudancas.total_revenue !== undefined ? ` Antes: R$ ${Number(linha.total_revenue || 0).toFixed(2)}.` : '';
       mudancas.automation_metadata = { ...(linha.automation_metadata ?? {}), ciclo: meta };
-      mudancas.verification_notes = `[Ciclo ${c.indice}/${ciclos.length} pelo repasse do Airbnb] ${c.inicio} → ${c.fim}: R$ ${c.valor.toFixed(2)} (${resumo}).${antes}`;
+      mudancas.verification_notes = notaDoCiclo(
+        linha.verification_notes,
+        `[Ciclo ${c.indice}/${ciclos.length} pelo repasse do Airbnb] ${c.inicio} → ${c.fim}: R$ ${c.valor.toFixed(2)} (${resumo}).${antes}`,
+      );
       const { error: e } = await admin.from('reservations').update(mudancas).eq('id', linha.id);
       if (e) throw new Error(`Falha ao atualizar o ciclo ${c.indice} de ${code}: ${e.message}`);
       Object.assign(linha, mudancas);

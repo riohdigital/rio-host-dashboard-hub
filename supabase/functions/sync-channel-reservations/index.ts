@@ -28,6 +28,7 @@ import {
   recordPending,
   type ReservationCandidate,
 } from '../_shared/reservationSync.ts';
+import { atualizarStatusPorData } from '../_shared/stayStatus.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -470,6 +471,17 @@ serve(async (req: Request): Promise<Response> => {
     body = {};
   }
 
+  // Rodada do cron (a cada 30 min): Confirmada → Em Andamento → Finalizada pela
+  // data e hora. Falha aqui não pode impedir a leitura dos calendários.
+  let statusAtualizados = 0;
+  if (viaSecret) {
+    try {
+      statusAtualizados = await atualizarStatusPorData(admin);
+    } catch (erro) {
+      console.error('Falha ao atualizar status por data:', erro instanceof Error ? erro.message : erro);
+    }
+  }
+
   let query = admin
     .from('channel_sync_sources')
     .select('*')
@@ -492,6 +504,7 @@ serve(async (req: Request): Promise<Response> => {
     return jsonResponse({
       ok: true,
       message: 'Nenhuma fonte de sincronização ativa encontrada',
+      statusAtualizados,
       results: [],
     });
   }
@@ -533,5 +546,5 @@ serve(async (req: Request): Promise<Response> => {
     { created: 0, updated: 0, skipped: 0, pending: 0 },
   );
 
-  return jsonResponse({ ok: true, triggeredBy: userId ?? 'cron', totals, results });
+  return jsonResponse({ ok: true, triggeredBy: userId ?? 'cron', totals, statusAtualizados, results });
 });

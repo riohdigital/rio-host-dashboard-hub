@@ -5,6 +5,10 @@
  * Booking.com e transforma em reservas. É o canal que traz o que o iCal não
  * entrega: nome do hóspede, valor, número de hóspedes e cancelamentos.
  *
+ * Também marca reservas como pagas: pelo aviso de repasse do Airbnb
+ * ("Enviamos um pagamento") e pela NFS-e da comissão da Booking, que a
+ * Prefeitura de São Paulo envia todo mês por imóvel.
+ *
  * Quem envia o e-mail para cá pode ser qualquer coisa que faça um POST:
  * Google Apps Script lendo o Gmail (grátis), Cloudflare Email Worker (grátis),
  * n8n, Make, Zapier etc. Ver docs/SINCRONIZACAO-AUTOMATICA.md.
@@ -22,6 +26,13 @@
 import { serve } from 'https://deno.land/std@0.190.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.3';
 
+import {
+  applyBookingInvoice,
+  findBookingInvoiceLink,
+  isPrefeituraInvoiceEmail,
+  parseBookingInvoice,
+  type BookingInvoice,
+} from '../_shared/bookingInvoice.ts';
 import {
   looksLikeReservation,
   parsePayoutEmail,
@@ -223,6 +234,92 @@ async function registerPayout(
   return { ...base, action: 'skipped', reason: `Aviso de repasse ${partes.join('; ')}` };
 }
 
+/**
+ * Texto do PDF público da NFS-e. O leitor de PDF só é carregado aqui: se ele
+ * falhar, só a nota fica pendente — os e-mails de reserva seguem normais.
+ */
+async function lerPdfDaNota(url: string): Promise<string> {
+  const resposta = await fetch(url, { signal: AbortSignal.timeout(20_000) });
+  if (!resposta.ok) throw new Error(`HTTP ${resposta.status} ao baixar a nota`);
+  const tipo = resposta.headers.get('content-type') ?? '';
+  if (!tipo.includes('pdf')) throw new Error(`a Prefeitura devolveu ${tipo || 'conteúdo sem tipo'} em vez do PDF`);
+  const { extractText, getDocumentProxy } = await import('https://esm.sh/unpdf@0.12.1');
+  const pdf = await getDocumentProxy(new Uint8Array(await resposta.arrayBuffer()));
+  const { text } = await extractText(pdf, { mergePages: true });
+  return Array.isArray(text) ? text.join('\n') : text;
+}
+
+/**
+ * NFS-e da comissão da Booking: marca como pagas as reservas do imóvel com
+ * saída no mês da nota e confere o total com o dashboard (R1: vendas − comissão).
+ */
+async function registerBookingInvoice(admin: any, email: RawEmail, dryRun: boolean): Promise<EmailOutcome> {
+  const base: EmailOutcome = { subject: email.subject ?? null, platform: 'Booking.com', intent: 'invoice', action: 'ignored' };
+  const link = findBookingInvoiceLink(`${email.text ?? ''}\n${email.html ?? ''}`);
+  if (!link) return { ...base, platform: null, reason: 'NFS-e de outro prestador — não é da Booking' };
+
+  const chaveLeitura = `email:nfse:${link.numero}`;
+  let nota: BookingInvoice | null = null;
+  let falha: string | null = null;
+  try {
+    nota = parseBookingInvoice(await lerPdfDaNota(link.pdfUrl));
+    if (!nota) falha = 'o PDF não tem os campos esperados (Código do Cliente, vendas, comissão, data do RPS)';
+  } catch (erro) {
+    falha = `o PDF não pôde ser lido (${erro instanceof Error ? erro.message : erro})`;
+  }
+
+  if (!nota) {
+    // Volta na próxima execução do encaminhador; a pendência mostra o link para conferência manual.
+    if (!dryRun) {
+      await recordPending(admin, {
+        channel: 'email',
+        platform: 'Booking.com',
+        kind: 'incomplete_data',
+        dedupeKey: chaveLeitura,
+        summary: `NFS-e ${link.numero} da Booking: ${falha}. Pagamento não marcado.`,
+        payload: { nfse: link.numero, pdf: link.pdfUrl, subject: email.subject },
+      });
+    }
+    return { ...base, action: 'pending', reason: `NFS-e ${link.numero}: ${falha}` };
+  }
+
+  const resumo = `hotel ${nota.hotelId}, saídas de ${nota.mesInicio} a ${nota.mesFim}, ` +
+    `vendas R$ ${nota.vendas.toFixed(2)}, comissão R$ ${nota.comissao.toFixed(2)}`;
+  if (dryRun) return { ...base, action: 'skipped', reason: `Simulação. NFS-e ${link.numero}: ${resumo}` };
+
+  const resultado = await applyBookingInvoice(admin, link.numero, nota);
+  await resolvePendingByKey(admin, chaveLeitura);
+  if (resultado.divergencia) {
+    await recordPending(admin, {
+      channel: 'email',
+      platform: 'Booking.com',
+      propertyId: resultado.propertyId,
+      kind: resultado.propertyId ? 'conflict' : 'unmatched_property',
+      dedupeKey: `email:nfse-conferencia:${link.numero}`,
+      summary: resultado.divergencia,
+      payload: { nfse: link.numero, pdf: link.pdfUrl, ...nota },
+    });
+  }
+
+  return {
+    ...base,
+    action: resultado.pagas ? 'updated' : 'skipped',
+    reason: `NFS-e ${link.numero} (${resumo}): ${resultado.pagas} reserva(s) marcada(s) como paga(s)` +
+      (resultado.aprendido ? `. Código do Cliente ${nota.hotelId} gravado no imóvel` : '') +
+      (resultado.divergencia ? `. Conferir: ${resultado.divergencia}` : ''),
+  };
+}
+
+/** Fecha a pendência aberta por uma leitura anterior que falhou. */
+async function resolvePendingByKey(admin: any, dedupeKey: string): Promise<void> {
+  const { error } = await admin
+    .from('reservation_sync_pending')
+    .update({ status: 'resolved', resolved_at: new Date().toISOString() })
+    .eq('dedupe_key', dedupeKey)
+    .eq('status', 'pending');
+  if (error) console.error('Erro ao resolver a pendência da NFS-e:', error.message);
+}
+
 async function processEmail(
   admin: any,
   raw: any,
@@ -231,6 +328,13 @@ async function processEmail(
   dryRun: boolean,
 ): Promise<EmailOutcome> {
   const email = normalizeEmailPayload(raw);
+
+  // Antes de tudo: o corpo da NFS-e cita "ar.brazil@booking.com" e seria lido
+  // como e-mail do Booking.
+  if (isPrefeituraInvoiceEmail(email.from, email.subject)) {
+    return registerBookingInvoice(admin, email, dryRun);
+  }
+
   const parsed = parseReservationEmail(email);
 
   const summaryOfParsed: Partial<ParsedEmailReservation> = {

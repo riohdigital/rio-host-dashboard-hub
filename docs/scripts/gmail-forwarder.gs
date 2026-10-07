@@ -2,7 +2,8 @@
  * Encaminhador de reservas Gmail -> RioHost Dashboard
  * ---------------------------------------------------
  * Google Apps Script (gratuito) que lê os e-mails do Airbnb e do Booking.com
- * na sua caixa do Gmail e envia para a Edge Function `ingest-reservation-email`.
+ * (e as NFS-e da Booking enviadas pela Prefeitura de São Paulo) na sua caixa
+ * do Gmail e envia para a Edge Function `ingest-reservation-email`.
  *
  * COMO USAR
  * 1. Acesse https://script.google.com e crie um novo projeto.
@@ -70,8 +71,10 @@ function comoRotuloDeBusca_(nome) {
 }
 
 // Exclui só o que já foi aproveitado. O que ficou pendente volta na próxima.
+// A Prefeitura de São Paulo envia a NFS-e da comissão da Booking: é ela que
+// marca como pagas as reservas do mês no dashboard.
 const QUERY_BASE =
-  '(from:airbnb.com OR from:booking.com) ' +
+  '(from:airbnb.com OR from:booking.com OR from:nfe-auto@prefeitura.sp.gov.br) ' +
   '-label:' + comoRotuloDeBusca_(LABEL_OK);
 // ----------------------------------------------------------------------------
 
