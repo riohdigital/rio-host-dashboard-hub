@@ -26,7 +26,8 @@ export interface BookingInvoiceLink {
 
 export interface BookingInvoice {
   hotelId: string;
-  vendas: number;
+  /** Soma do valor comissionável. As notas anteriores a fev/2026 não trazem. */
+  vendas: number | null;
   comissao: number;
   /** Primeiro e último dia do mês das saídas (AAAA-MM-DD). */
   mesInicio: string;
@@ -64,21 +65,44 @@ function valor(texto: string | undefined): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-/** Lê o texto do PDF da NFS-e. Devolve null se não for uma nota de comissão da Booking. */
+const ultimoDiaDoMes = (ano: number, mes: number) => new Date(Date.UTC(ano, mes, 0)).getUTCDate();
+
+/**
+ * Mês das saídas que a nota cobre. Visto nas 20 notas de jun/2025 a out/2026:
+ * o RPS sai no último dia do mês das saídas (30/09, 31/12, 31/05) e a nota, dias
+ * depois; quando o RPS não é do último dia (04/02/2026), vale o mês anterior à
+ * emissão da nota (05/02/2026 → janeiro).
+ */
+function mesDasSaidas(texto: string): { ano: number; mes: number } | null {
+  const rps = /emitido em\s*(\d{2})\/(\d{2})\/(\d{4})/i.exec(texto);
+  if (rps) {
+    const [dia, mes, ano] = [Number(rps[1]), Number(rps[2]), Number(rps[3])];
+    if (dia === ultimoDiaDoMes(ano, mes)) return { ano, mes };
+  }
+  // "Data e Hora de Emissão": a primeira data seguida de hora no cabeçalho.
+  const nota = /(\d{2})\/(\d{2})\/(\d{4})\s+\d{2}:\d{2}:\d{2}/.exec(texto);
+  if (!nota) return null;
+  const [mes, ano] = [Number(nota[2]), Number(nota[3])];
+  return mes === 1 ? { ano: ano - 1, mes: 12 } : { ano, mes: mes - 1 };
+}
+
+/**
+ * Lê o texto do PDF da NFS-e. Devolve null se não for uma nota de comissão da Booking.
+ * Layout desde fev/2026: "Valor Líquido a pagar" (comissão) e "VALOR DAS VENDAS".
+ * Antes: só "Valor Liquido" (comissão), sem as vendas.
+ */
 export function parseBookingInvoice(texto: string): BookingInvoice | null {
   if (!/BOOKING\.COM/i.test(texto) || !/COMISS[ÃA]O REFERENTE A RESERVAS/i.test(texto)) return null;
 
   const hotelId = /C[oó]digo do Cliente:\s*(\d{6,})/i.exec(texto)?.[1];
   const vendas = valor(/VALOR DAS VENDAS:\s*R\$\s*([\d.,]+)/i.exec(texto)?.[1]);
-  const comissao = valor(/Valor L[ií]quido a pagar\s*R\$\s*([\d.,]+)/i.exec(texto)?.[1]);
-  const emissao = /emitido em\s*(\d{2})\/(\d{2})\/(\d{4})/i.exec(texto);
-  if (!hotelId || vendas === null || comissao === null || !emissao) return null;
+  const comissao = valor(/Valor L[ií]quido(?: a pagar)?\s*R\$\s*([\d.,]+)/i.exec(texto)?.[1]);
+  const mes = mesDasSaidas(texto);
+  if (!hotelId || comissao === null || !mes) return null;
 
-  const ano = Number(emissao[3]);
-  const mes = Number(emissao[2]);
-  const ultimoDia = new Date(Date.UTC(ano, mes, 0)).getUTCDate();
-  const mm = String(mes).padStart(2, '0');
-  return { hotelId, vendas, comissao, mesInicio: `${ano}-${mm}-01`, mesFim: `${ano}-${mm}-${String(ultimoDia).padStart(2, '0')}` };
+  const mm = String(mes.mes).padStart(2, '0');
+  const dd = String(ultimoDiaDoMes(mes.ano, mes.mes)).padStart(2, '0');
+  return { hotelId, vendas, comissao, mesInicio: `${mes.ano}-${mm}-01`, mesFim: `${mes.ano}-${mm}-${dd}` };
 }
 
 const arredonda = (n: number) => Math.round(n * 100) / 100;
@@ -103,16 +127,21 @@ const somaDoMes = (reservas: any[]) => arredonda(reservas.reduce((s, r) => s + N
  * confere os totais. Divergência não impede a marcação (a Booking fechou o mês),
  * mas vira pendência com os números para conferência.
  *
- * Código do Cliente ainda desconhecido: entre os imóveis da Booking sem código
- * cadastrado, o único cujo mês soma vendas − comissão é o da nota, e o código
- * passa a ficar gravado nele.
+ * Código do Cliente ainda desconhecido: entre os imóveis com saída da Booking no
+ * mês e sem outro código cadastrado, o único cujo mês soma vendas − comissão é o
+ * da nota, e o código passa a ficar gravado no calendário dele (Rio Marina =
+ * 13783833 e Triplex = 15209784 foram achados assim, ao centavo).
  */
 export async function applyBookingInvoice(
   admin: any,
   numero: string,
   nota: BookingInvoice,
 ): Promise<{ pagas: number; divergencia: string | null; propertyId: string | null; aprendido?: boolean }> {
-  const esperado = arredonda(nota.vendas - nota.comissao);
+  // Sem as vendas (notas antigas) não há total para conferir nem para achar o imóvel.
+  const esperado = nota.vendas === null ? null : arredonda(nota.vendas - nota.comissao);
+  const conta = esperado === null
+    ? `comissão R$ ${nota.comissao.toFixed(2)}`
+    : `vendas R$ ${nota.vendas!.toFixed(2)} − comissão R$ ${nota.comissao.toFixed(2)} = R$ ${esperado.toFixed(2)}`;
   const { data: fontes } = await admin
     .from('channel_sync_sources')
     .select('property_id, listing_alias')
@@ -126,30 +155,42 @@ export async function applyBookingInvoice(
   if (propertyId) {
     ativas = await reservasDoMes(admin, propertyId, nota);
   } else {
-    const candidatos: Array<{ f: any; reservas: any[] }> = [];
-    for (const f of (fontes ?? []).filter((f: any) => codigos(f).length === 0)) {
-      const reservas = await reservasDoMes(admin, f.property_id, nota);
-      if (reservas.length && Math.abs(somaDoMes(reservas) - esperado) <= 1) candidatos.push({ f, reservas });
+    // Candidatos: imóveis com saída da Booking no mês que não têm outro código
+    // cadastrado (com ou sem calendário da Booking configurado).
+    const comOutroCodigo = new Set((fontes ?? []).filter((f: any) => codigos(f).length > 0).map((f: any) => f.property_id));
+    const { data: doMes } = esperado === null ? { data: [] } : await admin
+      .from('reservations')
+      .select('property_id')
+      .eq('platform', 'Booking.com')
+      .gte('check_out_date', nota.mesInicio)
+      .lte('check_out_date', nota.mesFim);
+    const candidatos: Array<{ id: string; reservas: any[] }> = [];
+    for (const id of new Set<string>((doMes ?? []).map((r: any) => r.property_id))) {
+      if (comOutroCodigo.has(id)) continue;
+      const reservas = await reservasDoMes(admin, id, nota);
+      if (reservas.length && Math.abs(somaDoMes(reservas) - esperado!) <= 1) candidatos.push({ id, reservas });
     }
     if (candidatos.length !== 1) {
       return {
         pagas: 0,
         propertyId: null,
         divergencia: `NFS-e ${numero}: Código do Cliente ${nota.hotelId} não está cadastrado em nenhum imóvel da Booking ` +
-          `(vendas R$ ${nota.vendas.toFixed(2)} − comissão R$ ${nota.comissao.toFixed(2)} = R$ ${esperado.toFixed(2)}, ` +
-          `saídas de ${nota.mesInicio} a ${nota.mesFim}).`,
+          `(${conta}, saídas de ${nota.mesInicio} a ${nota.mesFim}).`,
       };
     }
-    propertyId = candidatos[0].f.property_id as string;
+    propertyId = candidatos[0].id;
     ativas = candidatos[0].reservas;
-    await learnSourceHints(admin, propertyId, 'Booking.com', { hotelId: nota.hotelId });
-    aprendido = true;
+    // Sem calendário da Booking cadastrado, não há onde gravar o código: a próxima nota acha o imóvel pela soma de novo.
+    if ((fontes ?? []).some((f: any) => f.property_id === propertyId)) {
+      await learnSourceHints(admin, propertyId, 'Booking.com', { hotelId: nota.hotelId });
+      aprendido = true;
+    }
   }
 
   const soma = somaDoMes(ativas);
-  const divergencia = Math.abs(soma - esperado) > 1
-    ? `NFS-e ${numero}: vendas R$ ${nota.vendas.toFixed(2)} − comissão R$ ${nota.comissao.toFixed(2)} = R$ ${esperado.toFixed(2)}; ` +
-      `dashboard soma R$ ${soma.toFixed(2)} em ${ativas.length} reserva(s) com saída de ${nota.mesInicio} a ${nota.mesFim}.`
+  const divergencia = esperado !== null && Math.abs(soma - esperado) > 1
+    ? `NFS-e ${numero}: ${conta}; dashboard soma R$ ${soma.toFixed(2)} em ${ativas.length} reserva(s) ` +
+      `com saída de ${nota.mesInicio} a ${nota.mesFim}.`
     : null;
 
   let pagas = 0;
