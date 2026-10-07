@@ -181,6 +181,43 @@ export function parseDateFlexible(
 }
 
 /**
+ * Período escrito numa linha só, como nos assuntos do Airbnb:
+ * "para 2 – 19 de out. de 2026", "22 de set. – 20 de nov.",
+ * "29 de dez. de 2025 – 3 de jan. de 2026". O mês e o ano que faltam na
+ * primeira ponta vêm da segunda.
+ *
+ * Sem isso, "2 – 19 de out." virava entrada em 19/10 e a saída ficava antes
+ * da entrada (caso real da HM5B4EB3ST).
+ */
+export function parseDateRange(
+  raw: string | null | undefined,
+  options: ParseDateOptions = {},
+): { checkIn: string; checkOut: string } | null {
+  if (!raw) return null;
+
+  const reference = options.reference ?? new Date();
+  const text = normalizeForMatch(raw);
+  const intervalo =
+    /(\d{1,2})(?:\s*(?:de\s+)?([a-z]{3,9})\.?)?(?:\s*(?:de\s+)?(\d{4}))?\s*[–—-]\s*(\d{1,2})\s*(?:de\s+)?([a-z]{3,9})\.?(?:\s*(?:de\s+)?(\d{4}))?/g;
+
+  for (const m of text.matchAll(intervalo)) {
+    const mesSaida = MONTHS[m[5]];
+    if (!mesSaida) continue;
+    const mesEntrada = m[2] ? MONTHS[m[2]] : mesSaida;
+    if (!mesEntrada) continue;
+
+    const anoSaida = m[6] ? +m[6] : inferYear(mesSaida, reference);
+    const anoEntrada = m[3] ? +m[3] : (mesEntrada > mesSaida ? anoSaida - 1 : anoSaida);
+    const checkIn = buildDate(anoEntrada, mesEntrada, +m[1]);
+    const checkOut = buildDate(anoSaida, mesSaida, +m[4]);
+
+    if (checkIn && checkOut && checkIn < checkOut) return { checkIn, checkOut };
+  }
+
+  return null;
+}
+
+/**
  * Normaliza mantendo um mapa de índices para o texto original, para que o
  * valor devolvido preserve acentuação e maiúsculas do e-mail.
  */
@@ -222,6 +259,12 @@ function isWordChar(char: string | undefined): boolean {
  * Os rótulos são testados na ordem recebida (do mais específico para o mais
  * genérico) e só casam em fronteira de palavra — assim "Hóspede" não captura
  * o "s" de "Hóspedes" nem "Nome" rouba "Nome da acomodação".
+ *
+ * A busca vai do formato mais confiável ao mais solto: primeiro a linha que é
+ * só o rótulo ("Check-in:"), depois a linha que começa por ele e só então o
+ * rótulo no meio de uma frase. Sem essa ordem, a mensagem do hóspede que abre
+ * o e-mail da Booking ("Gostaria que meu check-in seja às 17:00") era lida no
+ * lugar do campo "Check-in: qui., 7 de jan. de 2027".
  */
 export function findLabelledValue(
   lines: string[],
@@ -230,30 +273,53 @@ export function findLabelledValue(
 ): string | null {
   const normalizedLines = lines.map(normalizeWithMap);
 
+  const proximaLinha = (i: number): string | null => {
+    for (let j = i + 1; j <= i + lookahead && j < lines.length; j++) {
+      const next = lines[j].trim();
+      if (next) return next;
+    }
+    return null;
+  };
+
   for (const label of labels) {
     const normalizedLabel = normalizeForMatch(label);
     if (!normalizedLabel) continue;
 
     for (let i = 0; i < normalizedLines.length; i++) {
-      const { text, map } = normalizedLines[i];
+      const linha = normalizedLines[i].text.replace(/[\s:：\-–—]+$/, '');
+      if (linha === normalizedLabel) {
+        const next = proximaLinha(i);
+        if (next) return next;
+      }
+    }
+  }
 
-      let at = text.indexOf(normalizedLabel);
-      while (at !== -1) {
-        const before = at > 0 ? text[at - 1] : undefined;
-        const after = text[at + normalizedLabel.length];
+  for (const soNoInicio of [true, false]) {
+    for (const label of labels) {
+      const normalizedLabel = normalizeForMatch(label);
+      if (!normalizedLabel) continue;
 
-        if (!isWordChar(before) && !isWordChar(after)) {
-          const cutAt = map[at + normalizedLabel.length] ?? lines[i].length;
-          const rest = lines[i].slice(cutAt).replace(/^[\s:：\-–—]+/, '').trim();
-          if (rest) return rest;
+      for (let i = 0; i < normalizedLines.length; i++) {
+        const { text, map } = normalizedLines[i];
 
-          for (let j = i + 1; j <= i + lookahead && j < lines.length; j++) {
-            const next = lines[j].trim();
+        let at = text.indexOf(normalizedLabel);
+        while (at !== -1) {
+          if (soNoInicio && at !== 0) break;
+
+          const before = at > 0 ? text[at - 1] : undefined;
+          const after = text[at + normalizedLabel.length];
+
+          if (!isWordChar(before) && !isWordChar(after)) {
+            const cutAt = map[at + normalizedLabel.length] ?? lines[i].length;
+            const rest = lines[i].slice(cutAt).replace(/^[\s:：\-–—]+/, '').trim();
+            if (rest) return rest;
+
+            const next = proximaLinha(i);
             if (next) return next;
           }
-        }
 
-        at = text.indexOf(normalizedLabel, at + 1);
+          at = text.indexOf(normalizedLabel, at + 1);
+        }
       }
     }
   }

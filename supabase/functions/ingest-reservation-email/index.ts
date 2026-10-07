@@ -9,8 +9,9 @@
  * Google Apps Script lendo o Gmail (grátis), Cloudflare Email Worker (grátis),
  * n8n, Make, Zapier etc. Ver docs/SINCRONIZACAO-AUTOMATICA.md.
  *
- * Autenticação: header `x-sync-secret: <CHANNEL_SYNC_SECRET>` ou um JWT válido
- * do app (usado pela tela de teste em Configurações).
+ * Autenticação: header `x-sync-secret: <EMAIL_INGEST_SECRET>` (ou, enquanto ele
+ * não existir, `<CHANNEL_SYNC_SECRET>`) ou um JWT válido do app (usado pela tela
+ * de teste em Configurações).
  *
  * Corpo aceito:
  *   { from, subject, html?, text?, messageId?, receivedAt?, propertyId?, dryRun? }
@@ -23,6 +24,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.3';
 
 import {
   looksLikeReservation,
+  parsePayoutEmail,
   parseReservationEmail,
   type ParsedEmailReservation,
   type RawEmail,
@@ -47,7 +49,10 @@ import {
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
-const SYNC_SECRET = Deno.env.get('CHANNEL_SYNC_SECRET') ?? '';
+// Segredo próprio do encaminhador de e-mail. Enquanto não for configurado,
+// vale o CHANNEL_SYNC_SECRET (o mesmo do cron do iCal); depois de configurado,
+// só ele abre esta função — trocar o segredo do e-mail não derruba o iCal.
+const SYNC_SECRET = Deno.env.get('EMAIL_INGEST_SECRET') || Deno.env.get('CHANNEL_SYNC_SECRET') || '';
 
 /** Aceita os nomes de campo mais comuns dos serviços de inbound e-mail. */
 function normalizeEmailPayload(raw: any): RawEmail & { propertyId?: string } {
@@ -86,6 +91,35 @@ async function resolvePendings(
   if (error) console.error('Erro ao resolver pendências:', error.message);
 }
 
+/**
+ * Fecha a pendência que este mesmo e-mail abriu numa execução anterior.
+ *
+ * O Apps Script reenvia a conversa pendente a cada execução; quando a
+ * informação que faltava aparece (ex.: a reserva que o iCal criou depois), o
+ * e-mail é aproveitado e a pendência dele não pode continuar aberta.
+ */
+async function resolveOwnPendings(
+  admin: any,
+  platform: string,
+  dedupeSeed: string,
+  reservationId: string,
+): Promise<void> {
+  const { error } = await admin
+    .from('reservation_sync_pending')
+    .update({
+      status: 'resolved',
+      resolved_at: new Date().toISOString(),
+      reservation_id: reservationId,
+    })
+    .eq('status', 'pending')
+    .in('dedupe_key', [
+      `email:incomplete:${platform}:${dedupeSeed}`,
+      `email:unmatched:${platform}:${dedupeSeed}`,
+    ]);
+
+  if (error) console.error('Erro ao resolver pendências do e-mail:', error.message);
+}
+
 interface EmailOutcome {
   subject: string | null;
   platform: string | null;
@@ -93,7 +127,80 @@ interface EmailOutcome {
   action: 'created' | 'updated' | 'skipped' | 'pending' | 'ignored';
   reservationId?: string | null;
   reason?: string;
+  /** Falha de processamento. E-mail ignorado de propósito não é erro. */
+  erro?: boolean;
   parsed?: Partial<ParsedEmailReservation>;
+}
+
+/**
+ * Guarda os lançamentos de um aviso de repasse na reserva correspondente,
+ * sem mexer em valor nenhum (R5): é o registro que a conferência usa para
+ * fechar o valor de cada mês das estadias longas (R3).
+ */
+async function registerPayout(
+  admin: any,
+  text: string,
+  receivedAt: string | undefined,
+  base: EmailOutcome,
+  dryRun: boolean,
+): Promise<EmailOutcome> {
+  const repasse = parsePayoutEmail(text);
+  const linhas = repasse.linhas.filter((linha) => linha.codigo);
+
+  if (linhas.length === 0) {
+    return { ...base, reason: 'Aviso de repasse sem lançamento por reserva legível' };
+  }
+  if (dryRun) {
+    return { ...base, action: 'skipped', reason: `Simulação. Repasse com ${linhas.length} lançamento(s)` };
+  }
+
+  const registradas: string[] = [];
+  const naoEncontradas: string[] = [];
+
+  for (const codigo of [...new Set(linhas.map((linha) => linha.codigo!))]) {
+    const { data } = await admin
+      .from('reservations')
+      .select('id, automation_metadata')
+      .eq('platform', 'Airbnb')
+      .eq('reservation_code', codigo)
+      .order('check_in_date', { ascending: true })
+      .limit(1);
+
+    const reserva = data?.[0];
+    if (!reserva) {
+      naoEncontradas.push(codigo);
+      continue;
+    }
+
+    const metadata = reserva.automation_metadata ?? {};
+    const existentes: any[] = Array.isArray(metadata.repasses) ? metadata.repasses : [];
+    const novos = linhas
+      .filter((linha) => linha.codigo === codigo)
+      .map((linha) => ({
+        identificador: repasse.identificador,
+        tipo: linha.tipo,
+        valor: linha.valor,
+        periodo_inicio: linha.periodoInicio,
+        periodo_fim: linha.periodoFim,
+        recebido_em: receivedAt ?? null,
+      }))
+      .filter((novo) => !existentes.some((e) =>
+        e.identificador === novo.identificador && e.tipo === novo.tipo && e.valor === novo.valor));
+
+    if (novos.length) {
+      const { error } = await admin
+        .from('reservations')
+        .update({ automation_metadata: { ...metadata, repasses: [...existentes, ...novos] } })
+        .eq('id', reserva.id);
+      if (error) throw new Error(`Falha ao registrar repasse: ${error.message}`);
+    }
+    registradas.push(codigo);
+  }
+
+  const partes: string[] = [];
+  if (registradas.length) partes.push(`registrado em ${registradas.join(', ')}`);
+  if (naoEncontradas.length) partes.push(`sem reserva no dashboard: ${naoEncontradas.join(', ')}`);
+  return { ...base, action: 'skipped', reason: `Aviso de repasse ${partes.join('; ')}` };
 }
 
 async function processEmail(
@@ -115,6 +222,7 @@ async function processEmail(
     checkOut: parsed.checkOut,
     numberOfGuests: parsed.numberOfGuests,
     totalRevenue: parsed.totalRevenue,
+    stayTotal: parsed.stayTotal,
     commissionAmount: parsed.commissionAmount,
     listingName: parsed.listingName,
     bookingHotelId: parsed.bookingHotelId,
@@ -133,8 +241,24 @@ async function processEmail(
     return { ...base, reason: 'Remetente não reconhecido como Airbnb ou Booking.com' };
   }
 
-  // Aviso de conta, pedido de avaliação, marketing: descarta em silêncio em vez
-  // de encher a fila de conferência.
+  // O que não é reserva não cria nem altera reserva (REGRAS_DE_NEGOCIO_RESERVAS.md,
+  // R6). Já aconteceu: consulta de hóspede virou reserva com código SYNC-, pedido
+  // não aceito reescreveu as datas de uma reserva e newsletter mexeu em datas.
+  if (parsed.intent === 'marketing') {
+    return { ...base, reason: 'Divulgação da plataforma — não é reserva' };
+  }
+  if (parsed.intent === 'inquiry') {
+    return { ...base, reason: 'Consulta de hóspede — ainda não é reserva' };
+  }
+  if (parsed.intent === 'request') {
+    return { ...base, reason: 'Pedido de reserva ainda não aceito — nada foi criado nem alterado' };
+  }
+  if (parsed.intent === 'payout') {
+    return registerPayout(admin, parsed.normalizedText, email.receivedAt, base, dryRun);
+  }
+
+  // Aviso de conta, pedido de avaliação: descarta em silêncio em vez de encher
+  // a fila de conferência.
   if (!looksLikeReservation(parsed)) {
     return {
       ...base,
@@ -249,6 +373,9 @@ async function processEmail(
       email_message_id: email.messageId,
       email_intent: parsed.intent,
       commission_amount_informado: parsed.commissionAmount,
+      // Valor (R1) da estadia inteira. Em estadia mensal ele não vai para a
+      // reserva: cada ciclo tem o seu valor (R3), que chega pelos repasses.
+      valor_total_estadia: parsed.stayTotal,
       property_match: how,
     },
   };
@@ -256,6 +383,8 @@ async function processEmail(
   const applied = await applyReservation(admin, candidate);
 
   if (applied.reservationId) {
+    await resolveOwnPendings(admin, parsed.platform, dedupeSeed, applied.reservationId);
+
     const kinds = parsed.intent === 'cancelled'
       ? ['possible_cancellation', 'incomplete_data']
       : ['incomplete_data'];
@@ -342,6 +471,7 @@ serve(async (req: Request): Promise<Response> => {
         intent: 'unknown',
         action: 'ignored',
         reason: message,
+        erro: true,
       });
     }
   }
@@ -355,7 +485,10 @@ serve(async (req: Request): Promise<Response> => {
   };
 
   if (!dryRun) {
-    const hasError = outcomes.some((o) => o.action === 'ignored' && o.reason);
+    // Só falha de processamento é erro. E-mail ignorado de propósito (marketing,
+    // consulta, aviso de conta) deixava toda execução como "parcial" e o status
+    // perdia o sentido.
+    const hasError = outcomes.some((o) => o.erro);
     await logRun(admin, {
       channel: 'email',
       status: hasError && totals.created + totals.updated === 0 ? 'partial' : 'success',

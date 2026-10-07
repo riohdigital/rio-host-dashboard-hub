@@ -24,8 +24,13 @@
 const FUNCTION_URL =
   'https://cwcauobnbmzjpqjmmomc.supabase.co/functions/v1/ingest-reservation-email';
 
-/** Mesmo valor do secret CHANNEL_SYNC_SECRET configurado no Supabase. */
-const SYNC_SECRET = 'COLE_AQUI_O_SEGREDO';
+/**
+ * Segredo do dashboard (EMAIL_INGEST_SECRET no Supabase). Fica nas
+ * Propriedades do script — Configurações do projeto → Propriedades do script →
+ * chave SYNC_SECRET —, nunca no código: assim o arquivo pode ser copiado,
+ * versionado e colado sem expor o segredo.
+ */
+const SYNC_SECRET = PropertiesService.getScriptProperties().getProperty('SYNC_SECRET') || '';
 
 /** Rótulo aplicado às mensagens já aproveitadas. */
 const LABEL_OK = 'Rioh Host/Processado';
@@ -99,6 +104,9 @@ function sincronizarHistorico() {
  * fora do lote seria marcada como processada sem nunca ter sido enviada.
  */
 function processarLote_(filtroData) {
+  if (!SYNC_SECRET) {
+    throw new Error('Configure a propriedade do script SYNC_SECRET (Configurações do projeto → Propriedades do script).');
+  }
   const rotuloOk = obterOuCriarRotulo_(LABEL_OK);
   const rotuloPendente = obterOuCriarRotulo_(LABEL_PENDENTE);
   const query = QUERY_BASE + ' ' + filtroData;

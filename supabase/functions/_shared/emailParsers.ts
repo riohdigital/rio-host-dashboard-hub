@@ -13,12 +13,32 @@ import {
   htmlToText,
   normalizeForMatch,
   parseDateFlexible,
+  parseDateRange,
   parseMoney,
   toLines,
 } from './textUtils.ts';
 
 export type SyncPlatform = 'Airbnb' | 'Booking.com';
-export type EmailIntent = 'new' | 'modified' | 'cancelled' | 'unknown';
+
+/**
+ * O que o e-mail é. Só 'new', 'modified' e 'cancelled' mexem em reserva.
+ *
+ * - 'request': pedido de reserva ainda não aceito ("Pendente: Pedido de
+ *   Reserva em …"). Não é reserva (REGRAS_DE_NEGOCIO_RESERVAS.md, R6).
+ * - 'inquiry': consulta de hóspede ("Consulta sobre …").
+ * - 'payout': aviso de repasse ("Enviamos um pagamento de …"). Traz o valor
+ *   de cada ciclo por reserva, mas não é fonte de dados da reserva em si.
+ * - 'marketing': newsletters e dicas da plataforma.
+ */
+export type EmailIntent =
+  | 'new'
+  | 'modified'
+  | 'cancelled'
+  | 'request'
+  | 'inquiry'
+  | 'payout'
+  | 'marketing'
+  | 'unknown';
 
 export interface RawEmail {
   from?: string;
@@ -40,7 +60,13 @@ export interface ParsedEmailReservation {
   checkIn: string | null;
   checkOut: string | null;
   numberOfGuests: number | null;
+  /** Valor da reserva (R1) quando pode ir direto para a reserva. */
   totalRevenue: number | null;
+  /**
+   * Valor (R1) da estadia inteira. Igual a totalRevenue, exceto em estadia
+   * acima de 28 noites, cujo valor por ciclo mensal vem dos repasses (R3).
+   */
+  stayTotal: number | null;
   commissionAmount: number | null;
   listingName: string | null;
   /**
@@ -80,11 +106,31 @@ function detectLocale(text: string): 'pt' | 'en' {
   return enHits > ptHits ? 'en' : 'pt';
 }
 
-function detectIntent(subject: string, body: string): EmailIntent {
+function detectIntent(subject: string, body: string, from = ''): EmailIntent {
+  const assunto = normalizeForMatch(subject);
+  const remetente = normalizeForMatch(from);
   const haystack = normalizeForMatch(`${subject}\n${body.slice(0, 3000)}`);
 
-  if (/(cancelad|cancelled|canceled|cancelamento|cancellation)/.test(haystack)) return 'cancelled';
-  if (/(alterad|modificad|modified|changed|alteracao|change to your)/.test(haystack)) return 'modified';
+  // Primeiro, o que não é reserva. Padrões tirados dos e-mails reais que já
+  // viraram reserva falsa ou pendência sem sentido.
+  if (/\bdiscover@/.test(remetente) || /^(perspectiva de reservas|dicas para|novidades)/.test(assunto)) {
+    return 'marketing';
+  }
+  if (/(enviamos um pagamento|foram enviados hoje|we sent you a payout|payout was sent)/.test(haystack)) {
+    return 'payout';
+  }
+  if (/^(consulta sobre|inquiry about)/.test(assunto)) return 'inquiry';
+  if (/(pedido de reserva|reservation request|pre-?aprovacao|pre-?approval)/.test(assunto)) return 'request';
+
+  // Cancelamento: o assunto decide. No corpo, só frases inequívocas — toda
+  // confirmação traz "Política de cancelamento" e não pode virar cancelada.
+  if (
+    /(cancelad|cancelled|canceled|cancelamento|cancellation)/.test(assunto) ||
+    /(foi cancelada|cancelou a reserva|cancelou sua reserva|reservation (?:has been|was) cancell?ed)/.test(haystack)
+  ) {
+    return 'cancelled';
+  }
+  if (/(alterad|modificad|atualizad|modified|changed|alteracao|change to your)/.test(haystack)) return 'modified';
   if (/(nova reserva|reserva confirmada|new booking|new reservation|reservation confirmed|booking confirmed|reserva recebida)/.test(haystack)) {
     return 'new';
   }
@@ -175,25 +221,26 @@ function extractDates(
   let checkIn = parseDateFlexible(checkInRaw, { locale, reference });
   let checkOut = parseDateFlexible(checkOutRaw, { locale, reference });
 
-  // Fallback: intervalos escritos numa linha só ("12 set 2026 - 15 set 2026").
+  // Fallback: período numa linha só ("para 2 – 19 de out. de 2026").
   if (!checkIn || !checkOut) {
     for (const line of lines) {
-      const range = /(.{4,40}?)\s*(?:-|–|—|até|ate|to|a)\s*(.{4,40})/.exec(line);
+      const range = parseDateRange(line, { locale, reference });
       if (!range) continue;
-      const a = parseDateFlexible(range[1], { locale, reference });
-      const b = parseDateFlexible(range[2], { locale, reference });
-      if (a && b && a <= b) {
-        checkIn = checkIn ?? a;
-        checkOut = checkOut ?? b;
-        break;
-      }
+      checkIn = checkIn ?? range.checkIn;
+      checkOut = checkOut ?? range.checkOut;
+      break;
     }
   }
 
-  if (checkIn && checkOut && checkOut < checkIn) {
-    // Ano inferido errado numa das pontas (ex.: reserva de virada de ano).
-    const [year, month, day] = checkOut.split('-').map(Number);
-    checkOut = `${year + 1}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  if (checkIn && checkOut && checkOut <= checkIn) {
+    // Virada de ano sem ano escrito ("29 de dez." → "3 de jan."): a saída é
+    // no ano seguinte. Fora isso, as datas não fecham e a saída é descartada —
+    // gravar uma saída anterior à entrada estraga a reserva.
+    const [, mesEntrada] = checkIn.split('-').map(Number);
+    const [ano, mes, dia] = checkOut.split('-').map(Number);
+    checkOut = mes < mesEntrada
+      ? `${ano + 1}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`
+      : null;
   }
 
   return { checkIn, checkOut };
@@ -220,6 +267,34 @@ function extractTotal(text: string, platform: SyncPlatform): number | null {
   }
 
   return null;
+}
+
+/**
+ * Airbnb: valor da reserva (R1) a partir do bloco "PAGAMENTO DO ANFITRIÃO" do
+ * e-mail de confirmação — "VOCÊ RECEBE" mais a cota do coanfitrião, quando o
+ * e-mail a lista. O bloco anterior, "O HÓSPEDE PAGOU", tem outro "TOTAL (BRL)"
+ * (o que o hóspede pagou) e nunca é o valor da reserva: era ele que estava
+ * sendo gravado (HM552TTR5Z: R$ 4.994,44 no lugar de R$ 4.084,81).
+ */
+export function extractAirbnbHostPayout(text: string): number | null {
+  const lines = toLines(text);
+  const inicio = lines.findIndex((linha) => /^pagamento do anfitriao\b/.test(normalizeForMatch(linha)));
+  if (inicio < 0) return null;
+
+  let recebe: number | null = null;
+  let cota = 0;
+
+  for (let i = inicio + 1; i < Math.min(lines.length, inicio + 40); i++) {
+    const linha = normalizeForMatch(lines[i]);
+    if (/^(consultar ganhos|cancelamentos|o processamento)/.test(linha)) break;
+
+    const valorDaLinha = () => findMoneyInText(lines[i]) ?? (lines[i + 1] ? findMoneyInText(lines[i + 1]) : null);
+
+    if (/^voce recebe\b/.test(linha)) recebe = valorDaLinha();
+    if (/^cotas? do coanfitri/.test(linha)) cota = Math.abs(valorDaLinha() ?? 0);
+  }
+
+  return recebe === null ? null : Number((recebe + cota).toFixed(2));
 }
 
 function extractCommission(text: string): number | null {
@@ -260,9 +335,27 @@ export function isPlausibleGuestName(value: string | null | undefined): boolean 
 
   if (NAO_SAO_NOMES.has(normalizeForMatch(trimmed))) return false;
 
+  const palavras = trimmed.split(/\s+/);
+  if (palavras.length > 6) return false;
+
+  // Uma palavra só, toda em maiúsculas, é rótulo de interface ("PAGOU", do
+  // e-mail de confirmação do Airbnb), não nome de hóspede.
+  if (palavras.length === 1 && trimmed === trimmed.toUpperCase()) return false;
+
+  // Palavras de frase e de interface: "se for possível fazer" veio do texto de
+  // uma mensagem e foi gravado como hóspede.
+  if (palavras.some((palavra) => PALAVRAS_QUE_NAO_SAO_NOME.has(normalizeForMatch(palavra)))) return false;
+
   // Precisa de pelo menos uma palavra de verdade.
   return /[\p{L}]{3,}/u.test(trimmed);
 }
+
+const PALAVRAS_QUE_NAO_SAO_NOME = new Set([
+  'pagou', 'pago', 'pagamento', 'total', 'valor', 'voce', 'hospede', 'hospedes', 'reserva',
+  'confirmada', 'confirmado', 'noite', 'noites', 'taxa', 'limpeza', 'ganhos', 'recebe',
+  'se', 'for', 'possivel', 'fazer', 'que', 'nao', 'sim', 'pode', 'poderia', 'gostaria',
+  'meu', 'minha', 'obrigado', 'obrigada', 'ola', 'oi', 'bom', 'boa', 'check-in', 'checkout',
+]);
 
 function extractGuestName(
   text: string,
@@ -283,10 +376,11 @@ function extractGuestName(
   const candidates: string[] = [];
 
   if (platform === 'Airbnb') {
-    // "Reserva confirmada: Maria chega em 12 de set"
-    const pt = /reserva confirmada[:\-–]?\s*([^,\n]+?)\s+(?:chega|chegara|chegará)/i.exec(subject);
+    // "Reserva confirmada: Maria chega em 12 de set" e o formato atual,
+    // "Reserva confirmada - Luuk Hurkx chega em 10 de dez."
+    const pt = /reserva confirmada\s*[:\-–]?\s*([^,\n]+?)\s+(?:chega|chegara|chegará)/i.exec(subject);
     if (pt) candidates.push(pt[1]);
-    const en = /reservation confirmed[:\-–]?\s*([^,\n]+?)\s+arrives/i.exec(subject);
+    const en = /reservation confirmed\s*[:\-–]?\s*([^,\n]+?)\s+arrives/i.exec(subject);
     if (en) candidates.push(en[1]);
   } else {
     // "Recebemos uma mensagem de Maico Mombach"
@@ -309,12 +403,26 @@ function extractGuestName(
 }
 
 function extractListingName(text: string, platform: SyncPlatform): string | null {
+  const lines = toLines(text);
+
+  if (platform === 'Airbnb') {
+    // No e-mail real o anúncio é a linha logo acima do tipo de espaço
+    // ("Maravilhoso Studio…" / "Casa/apto inteiro"). O rótulo "Acomodação"
+    // casava com "Preço da acomodação para 58 noites", e esse lixo era
+    // aprendido como apelido do imóvel.
+    const tipo = lines.findIndex((linha) =>
+      /^(casa\/apto inteiro|quarto (inteiro|privativo|compartilhado)|espaco inteiro|entire (home|place)|private room)/
+        .test(normalizeForMatch(linha)));
+    const anterior = tipo > 0 ? lines[tipo - 1].replace(/^.*Envie uma Mensagem para \S+/i, '').trim() : '';
+    if (anterior.length > 1 && anterior.length <= 120 && !/\d+\s+noites?/i.test(anterior)) return anterior;
+  }
+
   const labels = platform === 'Airbnb'
-    ? ['Anúncio', 'Anuncio', 'Listing', 'Acomodação', 'Acomodacao']
-    : ['Nome da acomodação', 'Nome da acomodacao', 'Acomodação', 'Acomodacao',
+    ? ['Anúncio', 'Anuncio', 'Listing']
+    : ['Nome da acomodação', 'Nome da acomodacao', 'Nome da propriedade', 'Acomodação', 'Acomodacao',
        'Property', 'Propriedade', 'Quarto', 'Unidade', 'Room'];
 
-  const value = findLabelledValue(toLines(text), labels);
+  const value = findLabelledValue(lines, labels);
   if (!value) return null;
   const cleaned = value.split(/[|•]/)[0].trim();
   return cleaned.length > 1 && cleaned.length <= 120 ? cleaned : null;
@@ -347,7 +455,7 @@ export function parseReservationEmail(
 
   const platform = detectPlatform(email, body);
   const locale = detectLocale(fullText);
-  const intent = detectIntent(subject, body);
+  const intent = detectIntent(subject, body, email.from ?? '');
 
   const result: ParsedEmailReservation = {
     platform,
@@ -361,6 +469,7 @@ export function parseReservationEmail(
     checkOut: null,
     numberOfGuests: null,
     totalRevenue: null,
+    stayTotal: null,
     commissionAmount: null,
     listingName: null,
     bookingHotelId: null,
@@ -392,8 +501,28 @@ export function parseReservationEmail(
   result.guestEmail = extractEmail(body);
   result.guestPhone = extractPhone(body);
   result.numberOfGuests = extractGuestCount(fullText);
-  result.totalRevenue = extractTotal(fullText, platform);
-  result.commissionAmount = extractCommission(fullText);
+
+  // Valor da reserva = regra R1 de REGRAS_DE_NEGOCIO_RESERVAS.md.
+  // - Booking: valor comissionável − comissão. Só quando o e-mail traz os dois.
+  // - Airbnb: "Você recebe" (+ cota do coanfitrião) do bloco "Pagamento do
+  //   anfitrião". Estadia acima de 28 noites é paga em ciclos mensais (R3): o
+  //   total fica registrado, e o valor de cada mês vem dos repasses.
+  if (platform === 'Booking.com') {
+    const bruto = extractTotal(fullText, platform);
+    result.commissionAmount = extractCommission(fullText);
+    result.totalRevenue = bruto && result.commissionAmount && result.commissionAmount < bruto
+      ? Number((bruto - result.commissionAmount).toFixed(2))
+      : null;
+    result.stayTotal = result.totalRevenue;
+  } else {
+    result.stayTotal = extractAirbnbHostPayout(fullText);
+    const noites = result.checkIn && result.checkOut
+      ? (Date.parse(result.checkOut) - Date.parse(result.checkIn)) / 86_400_000
+      : null;
+    result.totalRevenue = result.stayTotal !== null && noites !== null && noites <= 28
+      ? result.stayTotal
+      : null;
+  }
   result.listingName = extractListingName(body, platform);
 
   // O identificador vive no link da extranet, e o link nem sempre aparece como
@@ -413,4 +542,72 @@ export function parseReservationEmail(
   if (!result.totalRevenue) result.missing.push('totalRevenue');
 
   return result;
+}
+
+export interface PayoutLine {
+  hospede: string | null;
+  valor: number;
+  /** "Acomodação", "Recebimento do coanfitrião", "Ajuste"… como o Airbnb escreve. */
+  tipo: string;
+  periodoInicio: string | null;
+  periodoFim: string | null;
+  anuncio: string | null;
+  codigo: string | null;
+}
+
+export interface ParsedPayout {
+  identificador: string | null;
+  totalPago: number | null;
+  linhas: PayoutLine[];
+}
+
+/**
+ * Aviso de repasse do Airbnb ("Enviamos um pagamento de R$905,73 BRL").
+ *
+ * Cada repasse lista, por reserva, o valor de cada lançamento do ciclo:
+ *
+ *   Fernando Franca   R$4.412,47 BRL
+ *   Acomodação • 06/04/2026 - 02/10/2026
+ *   Resort com Píer e Vista Lateral Mar (1366714016506588224)
+ *   HMWE2EHT4F
+ *
+ * É o mesmo dado da tela de Ganhos: o valor de cada mês de uma estadia longa
+ * (REGRAS_DE_NEGOCIO_RESERVAS.md, R3) chega sozinho por aqui.
+ */
+export function parsePayoutEmail(text: string): ParsedPayout {
+  const linhas = toLines(text);
+  const resultado: ParsedPayout = { identificador: null, totalPago: null, linhas: [] };
+
+  const indiceId = linhas.findIndex((l) => /^identifica[cç][aã]o do pagamento$/i.test(l));
+  if (indiceId >= 0 && linhas[indiceId + 1]) resultado.identificador = linhas[indiceId + 1].trim();
+
+  const total = linhas.find((l) => /^total pago/i.test(l));
+  if (total) resultado.totalPago = parseMoney(total.replace(/^total pago:?/i, ''));
+
+  for (let i = 0; i < linhas.length; i++) {
+    const valorLinha = /^(.*?)\s{2,}(-?)R\$\s?([\d.,]+)\s*BRL$/.exec(linhas[i]);
+    const tipoLinha = linhas[i + 1]
+      ? /^(.+?)\s*•\s*(\d{2})\/(\d{2})\/(\d{4})\s*-\s*(\d{2})\/(\d{2})\/(\d{4})$/.exec(linhas[i + 1])
+      : null;
+    if (!valorLinha || !tipoLinha) continue;
+
+    const valor = parseMoney(valorLinha[3]);
+    if (valor === null) continue;
+
+    const codigo = [linhas[i + 2], linhas[i + 3]]
+      .map((l) => /^(HM[A-Z0-9]{8})$/.exec((l ?? '').trim())?.[1])
+      .find(Boolean) ?? null;
+
+    resultado.linhas.push({
+      hospede: valorLinha[1].trim() || null,
+      valor: valorLinha[2] === '-' ? -valor : valor,
+      tipo: tipoLinha[1].trim(),
+      periodoInicio: `${tipoLinha[4]}-${tipoLinha[3]}-${tipoLinha[2]}`,
+      periodoFim: `${tipoLinha[7]}-${tipoLinha[6]}-${tipoLinha[5]}`,
+      anuncio: linhas[i + 2]?.replace(/\s*\(\d+\)\s*$/, '').trim() || null,
+      codigo,
+    });
+  }
+
+  return resultado;
 }

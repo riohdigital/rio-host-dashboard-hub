@@ -72,11 +72,14 @@ export async function findExistingReservation(
   }
 
   if (!isPlaceholderCode(candidate.reservationCode)) {
+    // Estadia longa ocupa uma linha por ciclo mensal com o mesmo código (R3):
+    // a primeira parcela representa a reserva.
     const { data } = await supabase
       .from('reservations')
       .select('*')
       .eq('platform', candidate.platform)
       .eq('reservation_code', candidate.reservationCode)
+      .order('check_in_date', { ascending: true })
       .limit(1);
     if (data?.length) return data[0];
   }
@@ -140,15 +143,19 @@ export async function findReservationByHints(
   supabase: any,
   lookup: ReservationLookup,
 ): Promise<any | null> {
-  // 1. Código real da plataforma.
+  // 1. Código real da plataforma. Várias linhas com o mesmo código são as
+  //    parcelas mensais de uma estadia longa (R3): vale a primeira, desde que
+  //    todas sejam do mesmo imóvel.
   if (lookup.reservationCode) {
     const { data } = await supabase
       .from('reservations')
       .select(COLUNAS_RESERVA)
       .eq('platform', lookup.platform)
       .eq('reservation_code', lookup.reservationCode)
-      .limit(2);
-    if (data?.length === 1) return data[0];
+      .order('check_in_date', { ascending: true })
+      .limit(24);
+    const primeira = umaPropriedadeSo(data);
+    if (primeira) return primeira;
   }
 
   // 2. As duas datas.
@@ -238,6 +245,25 @@ export async function findOverlappingReservation(
 }
 
 /**
+ * Quantas linhas compartilham o código — mais de uma são as parcelas mensais
+ * de uma estadia longa. Em caso de erro, assume parcelada: deixar de corrigir
+ * uma data agora é melhor que esticar uma parcela por cima das outras.
+ */
+async function contarLinhasDoCodigo(supabase: any, platform: string, code: string): Promise<number> {
+  const { count, error } = await supabase
+    .from('reservations')
+    .select('id', { count: 'exact', head: true })
+    .eq('platform', platform)
+    .eq('reservation_code', code);
+
+  if (error) {
+    console.error('Erro ao contar parcelas:', error.message);
+    return 2;
+  }
+  return count ?? 1;
+}
+
+/**
  * Cria ou completa a reserva. Campos já preenchidos manualmente são mantidos;
  * datas e status de cancelamento são as únicas informações que a origem tem
  * autoridade para atualizar.
@@ -316,9 +342,19 @@ export async function applyReservation(
 
   const updates: Record<string, unknown> = {};
 
-  // Datas: a plataforma é a fonte da verdade.
-  if (existing.check_in_date !== candidate.checkIn) updates.check_in_date = candidate.checkIn;
-  if (existing.check_out_date !== candidate.checkOut) updates.check_out_date = candidate.checkOut;
+  // Datas: a plataforma é a fonte da verdade — da estadia. Duas exceções:
+  // - período que não fecha (saída antes da entrada) nunca é gravado;
+  // - reserva parcelada (R3) tem as datas de cada ciclo nas linhas; a fonte
+  //   só traz a estadia inteira e esticaria a 1ª parcela por cima das outras.
+  const periodoValido = candidate.checkIn < candidate.checkOut;
+  const parcelada = periodoValido && !isPlaceholderCode(existing.reservation_code)
+    ? await contarLinhasDoCodigo(supabase, existing.platform, existing.reservation_code) > 1
+    : false;
+
+  if (periodoValido && !parcelada) {
+    if (existing.check_in_date !== candidate.checkIn) updates.check_in_date = candidate.checkIn;
+    if (existing.check_out_date !== candidate.checkOut) updates.check_out_date = candidate.checkOut;
+  }
 
   // Código real substitui placeholder gerado por nós.
   if (isPlaceholderCode(existing.reservation_code) && !isPlaceholderCode(candidate.reservationCode)) {
