@@ -38,6 +38,7 @@ export interface StayCycle {
 export type PayoutRole = 'titular' | 'coanfitriao';
 
 const MAX_NOITES_SEM_CICLO = 28;
+const TOLERANCIA_CENTAVOS = 0.05;
 
 function addDays(iso: string, days: number): string {
   const d = new Date(`${iso}T00:00:00Z`);
@@ -232,7 +233,10 @@ export async function reconcileStayCycles(
       const fimDesejado = ultimo || seguinteTemLinha || linha.check_out_date <= c.fim ? c.fim : linha.check_out_date;
 
       const mudancas: Record<string, unknown> = {};
-      if (Math.abs(Number(linha.total_revenue || 0) - c.valor) > 0.009) mudancas.total_revenue = c.valor;
+      // Até R$ 0,05 é arredondamento: na conta coanfitriã o repasse é dividido
+      // pela taxa e o erro de 1 centavo cresce. O valor lançado fica — ele pode
+      // ter sido acertado para a estadia fechar no total (HMZPZNQTHY).
+      if (Math.abs(Number(linha.total_revenue || 0) - c.valor) > TOLERANCIA_CENTAVOS) mudancas.total_revenue = c.valor;
       if (linha.check_out_date !== fimDesejado) mudancas.check_out_date = fimDesejado;
       if (linha.payment_status !== 'Pago') mudancas.payment_status = 'Pago';
       if (linha.payment_date !== addDays(c.inicio, 1)) mudancas.payment_date = addDays(c.inicio, 1);

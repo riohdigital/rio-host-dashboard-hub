@@ -284,7 +284,7 @@ async function registerBookingInvoice(admin: any, email: RawEmail, dryRun: boole
   }
 
   const resumo = `hotel ${nota.hotelId}, saídas de ${nota.mesInicio} a ${nota.mesFim}, ` +
-    `vendas R$ ${nota.vendas.toFixed(2)}, comissão R$ ${nota.comissao.toFixed(2)}`;
+    (nota.vendas === null ? '' : `vendas R$ ${nota.vendas.toFixed(2)}, `) + `comissão R$ ${nota.comissao.toFixed(2)}`;
   if (dryRun) return { ...base, action: 'skipped', reason: `Simulação. NFS-e ${link.numero}: ${resumo}` };
 
   const resultado = await applyBookingInvoice(admin, link.numero, nota);

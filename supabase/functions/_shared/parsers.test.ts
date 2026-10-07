@@ -799,6 +799,24 @@ Deno.test('NFS-e da Booking: link do e-mail da Prefeitura e campos do PDF', () =
   });
   // O PDF de "nota não encontrada" (código errado) não vira nota.
   assertEquals(parseBookingInvoice('NFS-e não encontrada. Verifique os dados informados.'), null);
+
+  // RPS fora do último dia do mês: vale o mês anterior à emissão (nota de
+  // 05/02/2026 = saídas de janeiro; bate com a 5657143515, R$ 652,50).
+  const fevereiro = 'NOTA FISCAL ELETRÔNICA DE SERVIÇOS - NFS-e Número da Nota Data e Hora de Emissão Código de Verificação ' +
+    'RPS Nº 5571627 Série BKG, emitido em 04/02/2026 01234567 05/02/2026 03:19:49 ABCD-1234 BOOKING.COM BRASIL ' +
+    'COMISSÃO REFERENTE A RESERVAS Inv. 20583882 Código do Cliente: 14463427 Valor Líquido a pagar R$ 97.50 VALOR DAS VENDAS: R$ 750.00';
+  assertEquals(parseBookingInvoice(fevereiro), {
+    hotelId: '14463427', vendas: 750, comissao: 97.5, mesInicio: '2026-01-01', mesFim: '2026-01-31',
+  });
+
+  // Layout até jan/2026: "Codigo do Cliente", "Valor Liquido" e RPS sem série.
+  const antigo = 'NOTA FISCAL ELETRÔNICA DE SERVIÇOS - NFS-e Número da Nota Data e Hora de Emissão Código de Verificação ' +
+    'RPS Nº 5469679, emitido em 31/12/2025 01234567 14/01/2026 22:03:44 ABCD-1234 BOOKING.COM BRASIL ' +
+    'COMISSAO REFERENTE A RESERVAS Inv. 20479374 Codigo do Cliente: 14463427 DEPARTAMENTO FINANCEIRO ' +
+    'Valor Bruto R$ 197.29 Valor Liquido R$ 197.29 Vencimento: 20/01/26 VALOR DAS VENDAS: R$ 1517.64 VALOR TOTAL DO SERVIÇO = R$ 197,29';
+  assertEquals(parseBookingInvoice(antigo), {
+    hotelId: '14463427', vendas: 1517.64, comissao: 197.29, mesInicio: '2025-12-01', mesFim: '2025-12-31',
+  });
 });
 
 Deno.test('status pela data: Em Andamento no check-in, Finalizada no check-out (horário de Brasília)', () => {
