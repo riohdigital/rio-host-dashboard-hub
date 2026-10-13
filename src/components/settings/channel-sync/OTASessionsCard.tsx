@@ -11,17 +11,21 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import BrowserlessScreencastModal from './BrowserlessScreencastModal';
+import PlatformLoginModal from './PlatformLoginModal';
 
+/**
+ * Situação de uma sessão de plataforma, lida da view sem cookies
+ * (agent_browser_sessions_status): o dashboard não lê nem grava cookies.
+ */
 export interface AgentBrowserSession {
   id: string;
   domain: string;
   session_name: string;
-  cookies_encrypted: string | null;
   is_valid: boolean;
   last_used_at: string | null;
   created_at: string;
   updated_at: string;
+  login_lock_until?: string | null;
 }
 
 const KEEPALIVE_WEBHOOK_URL = 'https://n8n-n8n.dgyrua.easypanel.host/webhook/rioh-host-testar-sessao-ota';
@@ -41,7 +45,7 @@ export const OTASessionsCard: React.FC = () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('agent_browser_sessions' as any)
+        .from('agent_browser_sessions_status' as any)
         .select('*')
         .order('domain', { ascending: true });
 
@@ -167,15 +171,7 @@ export const OTASessionsCard: React.FC = () => {
           <div className="grid gap-3 sm:grid-cols-2">
             {sessions.map((session) => {
               const platform = getPlatformDetails(session.domain);
-              let cookieCount = 0;
-              try {
-                if (session.cookies_encrypted) {
-                  const parsed = JSON.parse(session.cookies_encrypted);
-                  cookieCount = Array.isArray(parsed) ? parsed.length : 0;
-                }
-              } catch {
-                cookieCount = 0;
-              }
+              const loginEmAndamento = !!session.login_lock_until && new Date(session.login_lock_until) > new Date();
 
               return (
                 <div
@@ -214,8 +210,8 @@ export const OTASessionsCard: React.FC = () => {
                       <strong className="text-foreground">{formatDateTime(session.last_used_at)}</strong>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span>Cookies em Cache:</span>
-                      <span className="text-foreground">{cookieCount} cookies rotacionados</span>
+                      <span>Último login:</span>
+                      <span className="text-foreground">{loginEmAndamento ? 'em andamento agora' : formatDateTime(session.updated_at)}</span>
                     </div>
                   </div>
 
@@ -234,10 +230,11 @@ export const OTASessionsCard: React.FC = () => {
                       size="sm"
                       variant={session.is_valid ? 'outline' : 'default'}
                       onClick={() => handleOpenScreencast(session)}
+                      disabled={loginEmAndamento}
                       className={!session.is_valid ? 'bg-amber-600 hover:bg-amber-700 text-white' : ''}
                     >
                       <Monitor className="h-3.5 w-3.5 mr-1.5" />
-                      {session.is_valid ? 'Abrir Navegador VPS' : 'Conectar via Navegador VPS'}
+                      {session.is_valid ? 'Entrar de novo' : `Conectar ${platform.name}`}
                     </Button>
                   </div>
                 </div>
@@ -254,8 +251,8 @@ export const OTASessionsCard: React.FC = () => {
         </div>
       </CardContent>
 
-      {/* Modal Interativo de Screencast direto da VPS */}
-      <BrowserlessScreencastModal
+      {/* Login pelo navegador da VPS, através do proxy de login (perfil persistente) */}
+      <PlatformLoginModal
         open={screencastOpen}
         onOpenChange={setScreencastOpen}
         session={selectedSession}
