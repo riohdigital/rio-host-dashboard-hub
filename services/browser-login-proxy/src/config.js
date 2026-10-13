@@ -19,8 +19,13 @@ export function carregarConfig() {
     origens: (process.env.ORIGENS_PERMITIDAS || '').split(',').map((s) => s.trim()).filter(Boolean),
     duracaoMaximaMs: Number(process.env.DURACAO_MAXIMA_MS || 15 * 60_000),
     ociosidadeMs: Number(process.env.OCIOSIDADE_MS || 5 * 60_000),
-    larguraTela: Number(process.env.LARGURA_TELA || 1280),
-    alturaTela: Number(process.env.ALTURA_TELA || 860),
+    // Janela do Chrome = tela virtual do Browserless (Xvfb 1024x768 no start.sh da imagem).
+    // Janela maior que a tela é impossível num computador real e denuncia o robô.
+    larguraTela: Number(process.env.LARGURA_TELA || 1024),
+    alturaTela: Number(process.env.ALTURA_TELA || 768),
+    // Coerente com o IP de saída da VPS (Hostinger, Holanda). UTC é marca de servidor.
+    fusoHorario: process.env.FUSO_HORARIO || 'Europe/Amsterdam',
+    idioma: process.env.IDIOMA || 'pt-BR',
   };
 }
 

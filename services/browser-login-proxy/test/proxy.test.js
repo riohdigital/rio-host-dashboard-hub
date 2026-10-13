@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import { traduzir } from '../src/comandos.js';
 import { origemPermitida } from '../src/config.js';
 import { passoDoLogin } from '../src/plataformas.js';
+import { urlDoBrowserless } from '../src/sessao.js';
 
 const VIEW = { w: 1280, h: 860 };
 
@@ -63,4 +64,22 @@ test('origem: só o dashboard abre o WebSocket', () => {
   assert.equal(origemPermitida('https://evil.com', lista), false);
   assert.equal(origemPermitida('https://rioh-host-dashboard.lovable.app.evil.com', lista), false);
   assert.equal(origemPermitida(undefined, lista), false);
+});
+
+test('Browserless: perfil da plataforma, janela do tamanho da tela e sem stealth', () => {
+  const config = {
+    browserlessWs: 'ws://extra-apps_browserless:3000', browserlessToken: '', pastaPerfis: '/data/profiles',
+    duracaoMaximaMs: 900_000, larguraTela: 1024, alturaTela: 768, idioma: 'pt-BR',
+  };
+  const url = new URL(urlDoBrowserless(config, 'booking'));
+  assert.equal(url.pathname, '/chromium');
+  assert.equal(url.searchParams.get('token'), null);
+  const launch = JSON.parse(url.searchParams.get('launch'));
+  assert.equal(launch.headless, false);
+  // Com janela de verdade, as "camuflagens" do stealth é que denunciam o robô.
+  assert.equal(launch.stealth, false);
+  assert.ok(launch.args.includes('--user-data-dir=/data/profiles/booking'));
+  assert.ok(launch.args.includes('--window-size=1024,768'));
+  assert.ok(launch.args.includes('--lang=pt-BR'));
+  assert.equal(new URL(urlDoBrowserless({ ...config, browserlessToken: 'x' }, 'airbnb')).searchParams.get('token'), 'x');
 });

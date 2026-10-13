@@ -3,18 +3,44 @@
  * plataforma, a tela transmitida ao dashboard e os comandos de mouse e teclado
  * executados em ordem.
  *
+ * O navegador precisa parecer o de uma pessoa: antifraude de login (a Booking
+ * em especial) recusa com "Sign in failed – try again later" quando vê sinais
+ * de automação. Por isso:
+ *   - CDP direto (src/cdp.js), sem Puppeteer, que liga `Runtime.enable` em toda página;
+ *   - a sonda do passo roda num mundo isolado, invisível aos scripts da página;
+ *   - sem `stealth` (com janela de verdade, as "camuflagens" é que denunciam) e sem
+ *     emulação de tamanho: a janela ocupa a tela virtual inteira, como maximizada;
+ *   - fuso horário coerente com o IP de saída da VPS, em vez de UTC.
+ *
  * Nada do que o Dono digita é registrado em log.
  */
-import puppeteer from 'puppeteer-core';
-
+import { Cdp } from './cdp.js';
 import { traduzir } from './comandos.js';
 import { PLATAFORMAS, SONDA, passoDoLogin } from './plataformas.js';
 
 const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
 const LIMITE_FILA_BYTES = 4 * 1024 * 1024;
+const MUNDO_DA_SONDA = 'rioh-sonda';
+
+/** Endereço do Chrome no Browserless, com o perfil da plataforma. */
+export function urlDoBrowserless(config, perfil) {
+  const launch = {
+    headless: false,
+    stealth: false,
+    args: [
+      `--user-data-dir=${config.pastaPerfis}/${perfil}`,
+      `--window-size=${config.larguraTela},${config.alturaTela}`,
+      '--window-position=0,0',
+      `--lang=${config.idioma}`,
+    ],
+  };
+  const qs = new URLSearchParams({ timeout: String(config.duracaoMaximaMs + 60_000), launch: JSON.stringify(launch) });
+  if (config.browserlessToken) qs.set('token', config.browserlessToken);
+  return `${config.browserlessWs}/chromium?${qs}`;
+}
 
 export class SessaoLogin {
-  constructor({ ws, plataforma, usuario, token, config, supabase, log, aoTerminar }) {
+  constructor({ ws, plataforma, usuario, token, config, supabase, log, aoTerminar, urlDoNavegador }) {
     this.ws = ws;
     this.plataforma = plataforma;
     this.def = PLATAFORMAS[plataforma];
@@ -25,6 +51,9 @@ export class SessaoLogin {
     this.supabase = supabase;
     this.log = log;
     this.aoTerminar = aoTerminar;
+    // Nos testes, um Chrome local; em produção, o Browserless.
+    this.urlDoNavegador = urlDoNavegador || (() => urlDoBrowserless(config, this.def.perfil));
+    // Tamanho da página em px CSS. Vem dos quadros da tela (a janela real manda).
     this.viewport = { w: config.larguraTela, h: config.alturaTela };
     this.inicio = Date.now();
     this.ultimaAcao = Date.now();
@@ -37,46 +66,101 @@ export class SessaoLogin {
     if (this.ws.readyState === 1) this.ws.send(JSON.stringify(obj));
   }
 
+  /** Comando na aba do login. */
+  aba(method, params) {
+    return this.cdp.send(method, params, this.sessao);
+  }
+
   async iniciar() {
-    const { w, h } = this.viewport;
     this.enviar({ t: 'state', passo: 'conectando' });
     await this.supabase.travar(this.token, this.def.dominio, new Date(Date.now() + this.config.duracaoMaximaMs).toISOString()).catch(() => {});
 
-    // Com janela (headless: false): o modo headless se anuncia como "HeadlessChrome"
-    // e é o primeiro sinal de robô que Airbnb e Booking olham.
-    const launch = {
-      headless: false,
-      args: [`--user-data-dir=${this.config.pastaPerfis}/${this.def.perfil}`, `--window-size=${w},${h}`, '--lang=pt-BR'],
-      stealth: true,
+    this.cdp = new Cdp(this.urlDoNavegador());
+    await this.cdp.abrir();
+    this.cdp.aoFechar = () => {
+      if (!this.fim && !this.concluindo) this.encerrar('navegador');
     };
-    const qs = new URLSearchParams({ timeout: String(this.config.duracaoMaximaMs + 60_000), launch: JSON.stringify(launch) });
-    if (this.config.browserlessToken) qs.set('token', this.config.browserlessToken);
 
-    this.browser = await puppeteer.connect({
-      browserWSEndpoint: `${this.config.browserlessWs}/chromium?${qs}`,
-      defaultViewport: { width: w, height: h },
-      protocolTimeout: 60_000,
+    const { targetInfos } = await this.cdp.send('Target.getTargets');
+    let alvo = targetInfos.find((t) => t.type === 'page');
+    if (!alvo) {
+      const { targetId } = await this.cdp.send('Target.createTarget', { url: 'about:blank' });
+      alvo = { targetId };
+    }
+    ({ sessionId: this.sessao } = await this.cdp.send('Target.attachToTarget', { targetId: alvo.targetId, flatten: true }));
+
+    await this.aba('Page.enable');
+    if (this.config.fusoHorario) await this.aba('Emulation.setTimezoneOverride', { timezoneId: this.config.fusoHorario }).catch(() => {});
+
+    this.cdp.on('Page.screencastFrame', (quadro, sid) => {
+      if (sid === this.sessao) this.quadro(quadro);
     });
-    const paginas = await this.browser.pages();
-    this.page = paginas[0] || (await this.browser.newPage());
-    await this.page.setViewport({ width: w, height: h });
+    await this.aba('Page.startScreencast', {
+      format: 'jpeg',
+      quality: 80,
+      maxWidth: this.config.larguraTela,
+      maxHeight: this.config.alturaTela,
+      everyNthFrame: 1,
+    });
 
-    this.cdp = await this.page.createCDPSession();
-    this.cdp.on('Page.screencastFrame', (quadro) => this.quadro(quadro));
-    await this.cdp.send('Page.startScreencast', { format: 'jpeg', quality: 80, maxWidth: w, maxHeight: h, everyNthFrame: 1 });
-    this.enviar({ t: 'meta', w, h });
-
-    await this.page.goto(this.def.inicio, { waitUntil: 'domcontentloaded', timeout: 45_000 }).catch(() => {});
+    await this.ir(this.def.inicio);
     this.vigiar();
     this.log('sessao_iniciada', { plataforma: this.plataforma, usuario: this.usuario.id });
   }
 
-  quadro({ data, sessionId }) {
+  quadro({ data, sessionId, metadata }) {
+    // O tamanho da página pode mudar (ex.: barra de rolagem); o front acompanha pelo `meta`.
+    const w = Math.round(metadata?.deviceWidth || 0);
+    const h = Math.round(metadata?.deviceHeight || 0);
+    if (w && h && (w !== this.viewport.w || h !== this.viewport.h || !this.metaEnviada)) {
+      this.viewport = { w, h };
+      this.metaEnviada = true;
+      this.enviar({ t: 'meta', w, h });
+    }
     // Rede lenta: descarta o quadro em vez de acumular atraso. O próximo vem em seguida.
     if (this.ws.readyState === 1 && this.ws.bufferedAmount < LIMITE_FILA_BYTES) {
       this.ws.send(Buffer.from(data, 'base64'), { binary: true });
     }
-    this.cdp?.send('Page.screencastFrameAck', { sessionId }).catch(() => {});
+    this.aba('Page.screencastFrameAck', { sessionId }).catch(() => {});
+  }
+
+  /** Abre um endereço e espera o DOM, sem travar se a página demorar. */
+  async ir(url) {
+    const carregou = this.cdp.esperarEvento('Page.domContentEventFired', this.sessao, 45_000);
+    await this.aba('Page.navigate', { url });
+    await carregou;
+  }
+
+  /**
+   * A sonda roda num mundo isolado: enxerga o mesmo DOM, mas os scripts da
+   * página não veem as chamadas dela. O mundo some a cada navegação; aí é recriado.
+   */
+  async sondar() {
+    if (!this.mundo) {
+      const { frameTree } = await this.aba('Page.getFrameTree');
+      ({ executionContextId: this.mundo } = await this.aba('Page.createIsolatedWorld', {
+        frameId: frameTree.frame.id,
+        worldName: MUNDO_DA_SONDA,
+        grantUniveralAccess: false,
+      }));
+    }
+    try {
+      const { result, exceptionDetails } = await this.aba('Runtime.evaluate', {
+        expression: SONDA,
+        contextId: this.mundo,
+        returnByValue: true,
+      });
+      if (exceptionDetails) throw new Error('sonda');
+      return result.value;
+    } catch (erro) {
+      this.mundo = null;
+      throw erro;
+    }
+  }
+
+  async cookiesDaPlataforma() {
+    const { cookies } = await this.cdp.send('Storage.getCookies');
+    return cookies.filter((c) => this.def.cookiesDe.some((d) => c.domain.endsWith(d)));
   }
 
   vigiar() {
@@ -87,9 +171,8 @@ export class SessaoLogin {
       if (this.verificando || this.concluindo) return;
       this.verificando = true;
       try {
-        const sonda = await this.page.evaluate(SONDA);
-        const { cookies } = await this.cdp.send('Network.getAllCookies');
-        const nomes = cookies.filter((c) => this.def.cookiesDe.some((d) => c.domain.endsWith(d))).map((c) => c.name);
+        const sonda = await this.sondar();
+        const nomes = (await this.cookiesDaPlataforma()).map((c) => c.name);
         const passo = passoDoLogin(this.plataforma, sonda, nomes);
         if (passo !== this.passo) {
           this.passo = passo;
@@ -122,7 +205,7 @@ export class SessaoLogin {
     if (!comandos.length) return;
     this.fila = this.fila
       .then(async () => {
-        for (const c of comandos) await this.cdp.send(c.method, c.params);
+        for (const c of comandos) await this.aba(c.method, c.params);
       })
       .catch(() => {});
   }
@@ -134,9 +217,25 @@ export class SessaoLogin {
   }
 
   async navegar(para) {
-    if (para === 'inicio') await this.page.goto(this.def.inicio, { waitUntil: 'domcontentloaded', timeout: 45_000 });
-    else if (para === 'voltar') await this.page.goBack({ waitUntil: 'domcontentloaded', timeout: 20_000 });
-    else if (para === 'recarregar') await this.page.reload({ waitUntil: 'domcontentloaded', timeout: 45_000 });
+    if (para === 'inicio') return this.ir(this.def.inicio);
+    if (para === 'recarregar') {
+      const carregou = this.cdp.esperarEvento('Page.domContentEventFired', this.sessao, 45_000);
+      await this.aba('Page.reload');
+      return carregou;
+    }
+    if (para === 'voltar') {
+      const { currentIndex, entries } = await this.aba('Page.getNavigationHistory');
+      if (currentIndex > 0) await this.aba('Page.navigateToHistoryEntry', { entryId: entries[currentIndex - 1].id });
+    }
+  }
+
+  /** Fecha o Chrome pelo próprio Chrome: é o fechamento limpo que grava cookies e perfil em disco. */
+  async fecharNavegador() {
+    if (!this.cdp) return;
+    await this.aba('Page.stopScreencast').catch(() => {});
+    await this.cdp.send('Browser.close').catch(() => {});
+    this.cdp.fechar();
+    this.cdp = null;
   }
 
   async concluir() {
@@ -145,12 +244,8 @@ export class SessaoLogin {
     try {
       // Deixa a página terminar de gravar o que precisa antes de fechar.
       await esperar(3000);
-      const { cookies } = await this.cdp.send('Network.getAllCookies');
-      const daPlataforma = cookies.filter((c) => this.def.cookiesDe.some((d) => c.domain.endsWith(d)));
-      await this.cdp.send('Page.stopScreencast').catch(() => {});
-      // Fechar o navegador de forma limpa grava cookies e perfil em disco.
-      await this.browser.close().catch(() => {});
-      this.browser = null;
+      const daPlataforma = await this.cookiesDaPlataforma();
+      await this.fecharNavegador();
       await this.supabase.registrarLogin(this.token, this.def.dominio, daPlataforma);
       this.enviar({ t: 'state', passo: 'pronto' });
       this.log('login_concluido', { plataforma: this.plataforma, cookies: daPlataforma.length });
@@ -166,12 +261,8 @@ export class SessaoLogin {
     if (this.fim) return;
     this.fim = true;
     clearInterval(this.timer);
-    if (this.browser) {
-      await this.cdp?.send('Page.stopScreencast').catch(() => {});
-      // Fechamento limpo também aqui: o que já avançou (ex.: "lembrar dispositivo") fica no perfil.
-      await this.browser.close().catch(() => {});
-      this.browser = null;
-    }
+    // Fechamento limpo também aqui: o que já avançou (ex.: "lembrar dispositivo") fica no perfil.
+    await this.fecharNavegador();
     await this.supabase.travar(this.token, this.def.dominio, null).catch(() => {});
     if (motivo !== 'concluido' && motivo !== 'desconectado') this.enviar({ t: 'fim', motivo });
     if (this.ws.readyState === 1) this.ws.close(1000, motivo);

@@ -19,6 +19,17 @@ Dashboard (PlatformLoginModal) ──wss──▶ este proxy ──ws interno─
   proxy confere o usuário no Supabase e exige perfil `master`. Ele **não tem chave
   de service role**: as gravações no banco são feitas com o token do próprio Dono,
   e a política da tabela `agent_browser_sessions` só deixa master ler e atualizar.
+- **Navegador com cara de pessoa.** O antifraude de login (a Booking em especial)
+  recusa com "Sign in failed – try again later" quando vê sinais de automação. Por isso:
+  - o proxy fala **CDP direto** (`src/cdp.js`), sem Puppeteer. O Puppeteer liga
+    `Runtime.enable` em toda página, e isso é detectável;
+  - a sonda do passo roda num **mundo isolado**: ela enxerga o DOM, mas os scripts da
+    página não veem as chamadas dela;
+  - sem `stealth` e sem emulação de tamanho: a janela ocupa a tela virtual do
+    Browserless (1024×768), como uma janela maximizada;
+  - fuso horário coerente com o IP de saída da VPS (Holanda), em vez de UTC.
+  Testado contra um Chrome local com detectores na página: nem o `Runtime.enable` nem
+  a sonda foram vistos.
 - **Comandos permitidos** (`src/comandos.js`): mover, clicar, rolar, digitar e
   teclas de edição. O front não executa JavaScript no navegador logado.
 - **Digitação real:** cada caractere vira uma tecla (keyDown com `text`), como um
@@ -42,6 +53,9 @@ Dashboard (PlatformLoginModal) ──wss──▶ este proxy ──ws interno─
 | `BROWSERLESS_TOKEN` | o `TOKEN` do Browserless | **sim** — o Dono cola no EasyPanel |
 | `ORIGENS_PERMITIDAS` | `rioh-host-dashboard.lovable.app,localhost:8080` | não |
 | `PASTA_PERFIS` | `/data/profiles` (volume do Browserless) | não |
+| `FUSO_HORARIO` | `Europe/Amsterdam` (o do IP da VPS) | não |
+| `IDIOMA` | `pt-BR` | não |
+| `LARGURA_TELA` / `ALTURA_TELA` | `1024` / `768` (a tela virtual do Browserless) | não |
 
 ## Protocolo do WebSocket `/login`
 
