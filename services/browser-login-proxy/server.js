@@ -16,10 +16,12 @@ import { carregarConfig, origemPermitida } from './src/config.js';
 import { PLATAFORMAS } from './src/plataformas.js';
 import { SessaoLogin } from './src/sessao.js';
 import { criarSupabase } from './src/supabase.js';
+import { codigoDaVersao } from './src/versao.js';
 
 const config = carregarConfig();
 const supabase = criarSupabase(config);
 const ativas = new Map();
+const VERSAO = codigoDaVersao();
 
 const log = (evento, dados = {}) => console.log(JSON.stringify({ quando: new Date().toISOString(), evento, ...dados }));
 
@@ -38,7 +40,7 @@ async function browserlessNoAr() {
 const servidor = http.createServer(async (req, res) => {
   if (req.url === '/health') {
     res.writeHead(200, { 'content-type': 'application/json' });
-    res.end(JSON.stringify({ ok: true, sessoes: [...ativas.keys()], browserless: await browserlessNoAr() }));
+    res.end(JSON.stringify({ ok: true, codigo: VERSAO, sessoes: [...ativas.keys()], browserless: await browserlessNoAr() }));
     return;
   }
   res.writeHead(404);
@@ -122,4 +124,4 @@ const desligar = async () => {
 process.on('SIGTERM', desligar);
 process.on('SIGINT', desligar);
 
-servidor.listen(config.porta, () => log('no_ar', { porta: config.porta, origens: config.origens }));
+servidor.listen(config.porta, () => log('no_ar', { porta: config.porta, codigo: VERSAO, origens: config.origens }));
