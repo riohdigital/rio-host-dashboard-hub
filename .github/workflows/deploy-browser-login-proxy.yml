@@ -51,6 +51,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [validar]
     steps:
+      - uses: actions/checkout@v4
+
       - name: Disparar deploy
         env:
           DEPLOY_URL: ${{ secrets.EASYPANEL_BROWSER_LOGIN_DEPLOY_URL }}
@@ -71,12 +73,17 @@ jobs:
           DEPLOY_URL: ${{ secrets.EASYPANEL_BROWSER_LOGIN_DEPLOY_URL }}
         run: |
           [ -z "$DEPLOY_URL" ] && exit 0
+          # Um /health "ok" logo depois do deploy pode ser o contêiner antigo: espera o
+          # código da versão (hash do código-fonte) bater com o deste commit.
+          esperado=$(node services/browser-login-proxy/src/versao.js)
+          echo "versão esperada: $esperado"
           sleep 30
           for i in $(seq 1 30); do
             code=$(curl -s -o /tmp/h.json -w "%{http_code}" -m 20 "$HOST/health" || echo 000)
-            if [ "$code" = "200" ]; then echo "no ar após $i tentativa(s)"; cat /tmp/h.json; exit 0; fi
-            echo "  tentativa $i — HTTP $code"
+            no_ar=$(jq -r '.codigo // "?"' /tmp/h.json 2>/dev/null || echo "?")
+            if [ "$code" = "200" ] && [ "$no_ar" = "$esperado" ]; then echo "versão nova no ar após $i tentativa(s)"; cat /tmp/h.json; exit 0; fi
+            echo "  tentativa $i — HTTP $code, versão no ar: $no_ar"
             sleep 15
           done
-          echo "::error::O serviço não voltou em ~8 min. Veja os logs no EasyPanel."
+          echo "::error::A versão nova não entrou no ar em ~8 min. Veja os logs do build no EasyPanel."
           exit 1
