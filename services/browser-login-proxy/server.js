@@ -23,10 +23,22 @@ const ativas = new Map();
 
 const log = (evento, dados = {}) => console.log(JSON.stringify({ quando: new Date().toISOString(), evento, ...dados }));
 
-const servidor = http.createServer((req, res) => {
+/** O Browserless responde pela rede interna? (só a versão do Chrome; nada de sessão) */
+async function browserlessNoAr() {
+  try {
+    const base = config.browserlessWs.replace(/^ws/, 'http');
+    const qs = config.browserlessToken ? `?token=${encodeURIComponent(config.browserlessToken)}` : '';
+    const r = await fetch(`${base}/json/version${qs}`, { signal: AbortSignal.timeout(3000) });
+    return r.ok ? ((await r.json()).Browser || true) : false;
+  } catch {
+    return false;
+  }
+}
+
+const servidor = http.createServer(async (req, res) => {
   if (req.url === '/health') {
     res.writeHead(200, { 'content-type': 'application/json' });
-    res.end(JSON.stringify({ ok: true, sessoes: [...ativas.keys()] }));
+    res.end(JSON.stringify({ ok: true, sessoes: [...ativas.keys()], browserless: await browserlessNoAr() }));
     return;
   }
   res.writeHead(404);
