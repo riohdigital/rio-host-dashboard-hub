@@ -1,0 +1,82 @@
+# Publica o proxy de login das plataformas (services/browser-login-proxy) no EasyPanel.
+#
+# Mesmo padrão do gateway do DigiRioh: valida (testes + build da imagem),
+# dispara o deploy pela URL do EasyPanel e confere o /health.
+#
+# Configuração única do Dono (o segredo só existe depois de criado no painel):
+#   EasyPanel → extra-apps → rioh-host-browser-login → Deploy → "Deploy webhook"
+#   GitHub → Settings → Secrets and variables → Actions → New repository secret
+#     EASYPANEL_BROWSER_LOGIN_DEPLOY_URL = (a URL do webhook)
+# Sem o segredo, a validação roda e o deploy é pulado com aviso.
+
+name: Deploy Browser Login Proxy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "services/browser-login-proxy/**"
+      - ".github/workflows/deploy-browser-login-proxy.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-browser-login-proxy
+  cancel-in-progress: false
+
+env:
+  HOST: https://rioh-host-browser-login.dgyrua.easypanel.host
+
+jobs:
+  validar:
+    name: Validar
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/browser-login-proxy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Instalar dependências
+        run: npm install --no-audit --no-fund
+      - name: Testes
+        run: npm test
+      # Constrói a imagem aqui: falha de build aparece antes do deploy, não no EasyPanel.
+      - name: Build da imagem
+        run: docker build -t browser-login-proxy:ci .
+
+  deploy:
+    name: Deploy no EasyPanel
+    runs-on: ubuntu-latest
+    needs: [validar]
+    steps:
+      - name: Disparar deploy
+        env:
+          DEPLOY_URL: ${{ secrets.EASYPANEL_BROWSER_LOGIN_DEPLOY_URL }}
+        run: |
+          if [ -z "$DEPLOY_URL" ]; then
+            echo "::warning::Secret EASYPANEL_BROWSER_LOGIN_DEPLOY_URL ausente — deploy não disparado (ver o topo deste arquivo)."
+            exit 0
+          fi
+          code=$(curl -s -o /tmp/deploy.out -w "%{http_code}" -m 120 -X POST "$DEPLOY_URL")
+          echo "HTTP $code"
+          if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
+            echo "::error::EasyPanel recusou o deploy (HTTP $code)"
+            exit 1
+          fi
+
+      - name: Aguardar o serviço voltar
+        env:
+          DEPLOY_URL: ${{ secrets.EASYPANEL_BROWSER_LOGIN_DEPLOY_URL }}
+        run: |
+          [ -z "$DEPLOY_URL" ] && exit 0
+          sleep 30
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /tmp/h.json -w "%{http_code}" -m 20 "$HOST/health" || echo 000)
+            if [ "$code" = "200" ]; then echo "no ar após $i tentativa(s)"; cat /tmp/h.json; exit 0; fi
+            echo "  tentativa $i — HTTP $code"
+            sleep 15
+          done
+          echo "::error::O serviço não voltou em ~8 min. Veja os logs no EasyPanel."
+          exit 1

@@ -1,0 +1,19 @@
+{
+  "name": "rioh-host-browser-login-proxy",
+  "version": "1.0.0",
+  "description": "Proxy de login das plataformas (Airbnb, Booking) do Rioh Host: tela do navegador e digitação real, com perfil persistente no Browserless.",
+  "private": true,
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "puppeteer-core": "25.13.0",
+    "ws": "8.22.0"
+  }
+}
