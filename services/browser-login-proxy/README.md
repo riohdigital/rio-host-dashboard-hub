@@ -81,6 +81,22 @@ outra verificação estiver usando o perfil, responde 409 (`ocupado`).
 Quem chama é o workflow de keep-alive do n8n, que decide o ritmo de cada plataforma,
 registra as verificações e avisa o Dono.
 
+## Leitura de reserva (auditoria)
+
+`POST /interno/reserva` com `{"plataforma", "codigo", "hotel_id"}` (o `hotel_id` só na Booking).
+Mesmas regras das outras rotas internas: só a rede da VPS e o perfil abre uma vez por vez.
+
+O proxy abre a página da reserva com o perfil do login e **captura a resposta JSON que a
+própria página busca**. Não usa hash fixo, chave de API nem cookies copiados.
+- **Airbnb:** `StayHostingDetailsQuery` → `src/extratores.js` (`lerReservaAirbnb`):
+  - R1: Total (BRL) de "Você recebe" + |Cotas do coanfitrião|;
+  - datas em Brasília, status (cancelada/pedido), limpeza e hóspedes.
+
+  O formato devolvido é o mesmo que a auditoria do n8n já compara.
+- **Booking:** por enquanto devolve `status: "diagnostico"`, com o **esqueleto** das respostas
+  JSON da página de detalhe (só nomes de campos e tipos, sem valores). Isso serve para
+  escrever o extrator.
+
 ## Testes
 
 ```sh
