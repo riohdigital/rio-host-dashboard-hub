@@ -54,7 +54,23 @@ publica as três Edge Functions. **Confirme que a execução terminou com sucess
 antes de pedir ao usuário para testar** — um deploy que falha silenciosamente
 já fez o usuário testar código antigo e concluir que a correção não funcionou.
 
-O front é publicado pelo Lovable a partir da `main`.
+O front está em dois lugares, os dois alimentados pela `main`:
+
+- **Vercel** (oficial): `https://anfitriao.rioh.digital` e
+  `https://rio-host-dashboard-hub.vercel.app`. A Vercel publica sozinha a cada
+  push na `main` que mexa no front (o `ignoreCommand` do `vercel.json` pula os
+  pushes que só mexem em `supabase/`, `services/` ou `docs/`). Confira que o
+  deploy ficou `READY` antes de pedir teste.
+- **Lovable** (em paralelo, sem data para desligar):
+  `https://rioh-host-dashboard.lovable.app`. Só muda quando o usuário clica em
+  **Publish** no Lovable.
+
+A rede do trabalho do usuário (Zscaler) bloqueia todo o `rioh.digital`. Lá ele
+usa o endereço `vercel.app`. Domínio novo para o front precisa entrar em três
+lugares: Redirect URLs do Supabase Auth, `ORIGENS` do
+`n8n-manager/tools/provisionar_browser_login_proxy.py` (proxy de login) e o
+próprio projeto na Vercel. Estudo completo:
+`n8n-manager/projects/rioh-host/MIGRACAO_FRONTEND_VERCEL.md`.
 
 ## Lovable
 

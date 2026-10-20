@@ -25,6 +25,7 @@ import PainelGestorPage from "./pages/PainelGestorPage";
 import PagamentosPage from "./pages/PagamentosPage";
 import NotFound from "./pages/NotFound";
 import LandingPage from "./pages/LandingPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import { AIChat } from "@/components/chat/AIChat";
 
 const queryClient = new QueryClient({
@@ -51,6 +52,8 @@ const AppRoutes = () => {
     <Routes>
       <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
       <Route path="/auth" element={user ? <Navigate to="/dashboard" replace /> : <AuthPage />} />
+      {/* Fora das rotas protegidas: o link do e-mail chega com a sessão de recuperação */}
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
 
       {/* Rotas protegidas */}
       <Route

@@ -51,7 +51,7 @@ Dashboard (PlatformLoginModal) ──wss──▶ este proxy ──ws interno─
 | `SUPABASE_ANON_KEY` | a chave pública do front | não (vai no bundle do site) |
 | `BROWSERLESS_WS` | `ws://extra-apps_browserless:3000` (rede interna) | não |
 | `BROWSERLESS_TOKEN` | o `TOKEN` do Browserless | **sim** — o Dono cola no EasyPanel |
-| `ORIGENS_PERMITIDAS` | `rioh-host-dashboard.lovable.app,localhost:8080` | não |
+| `ORIGENS_PERMITIDAS` | `anfitriao.rioh.digital,rio-host-dashboard-hub.vercel.app,rioh-host-dashboard.lovable.app,localhost:8080` | não |
 | `PASTA_PERFIS` | `/data/profiles` (volume do Browserless) | não |
 | `FUSO_HORARIO` | `Europe/Amsterdam` (o do IP da VPS) | não |
 | `IDIOMA` | `pt-BR` | não |
