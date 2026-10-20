@@ -15,6 +15,7 @@ import { WebSocketServer } from 'ws';
 import { carregarConfig, origemPermitida, pedidoInterno } from './src/config.js';
 import { PLATAFORMAS } from './src/plataformas.js';
 import { SessaoLogin } from './src/sessao.js';
+import { LeituraDeReserva } from './src/reserva.js';
 import { Verificacao } from './src/verificacao.js';
 import { criarSupabase } from './src/supabase.js';
 import { codigoDaVersao } from './src/versao.js';
@@ -52,8 +53,13 @@ async function lerCorpo(req) {
   return dados ? JSON.parse(dados) : {};
 }
 
-/** Keep-alive: o n8n pergunta se a plataforma continua conectada (só pela rede interna). */
-async function verificar(req, res) {
+/**
+ * Rotas internas (só rede da VPS): o n8n usa o perfil salvo do login.
+ * - verificar: a plataforma continua conectada? (keep-alive)
+ * - reserva: dados de uma reserva lidos da página dela (auditoria)
+ * O mesmo perfil nunca abre duas vezes: com login ou outra rota em andamento, 409.
+ */
+async function rotaInterna(req, res, nome, criar) {
   if (!pedidoInterno(req, config.hostsInternos)) return json(res, 403, { erro: 'somente rede interna' });
   let corpo;
   try {
@@ -63,25 +69,34 @@ async function verificar(req, res) {
   }
   const plataforma = corpo.plataforma;
   if (!PLATAFORMAS[plataforma]) return json(res, 400, { erro: 'plataforma desconhecida' });
-  // Mesmo perfil não abre duas vezes: login em andamento ou outra verificação.
   if (ativas.has(plataforma)) return json(res, 409, { erro: 'ocupado', plataforma });
 
-  const v = new Verificacao({ plataforma, config });
-  ativas.set(plataforma, v);
+  const tarefa = criar(plataforma, corpo);
+  if (!tarefa) return json(res, 400, { erro: 'pedido incompleto' });
+  ativas.set(plataforma, tarefa);
   try {
-    const resultado = await v.executar();
-    log('verificacao', { plataforma, conectado: resultado.conectado, passo: resultado.passo, duracao_ms: resultado.duracao_ms });
+    const resultado = await tarefa.executar();
+    // Só o desfecho vai para o log: nada de hóspede nem valores.
+    log(nome, { plataforma, status: resultado.status ?? null, conectado: resultado.conectado ?? null, passo: resultado.passo ?? null });
     return json(res, 200, resultado);
   } catch (erro) {
-    log('verificacao_falhou', { plataforma, erro: String(erro?.message || erro) });
+    log(`${nome}_falhou`, { plataforma, erro: String(erro?.message || erro) });
     return json(res, 502, { erro: 'navegador', plataforma, detalhe: String(erro?.message || erro).slice(0, 200) });
   } finally {
     ativas.delete(plataforma);
   }
 }
 
+const verificar = (req, res) => rotaInterna(req, res, 'verificacao', (plataforma) => new Verificacao({ plataforma, config }));
+const lerReserva = (req, res) =>
+  rotaInterna(req, res, 'leitura_reserva', (plataforma, corpo) =>
+    /^[A-Z0-9]{6,20}$/i.test(String(corpo.codigo || '').trim())
+      ? new LeituraDeReserva({ plataforma, codigo: corpo.codigo, hotelId: corpo.hotel_id, config })
+      : null);
+
 const servidor = http.createServer(async (req, res) => {
   if (req.method === 'POST' && req.url === '/interno/verificar') return verificar(req, res);
+  if (req.method === 'POST' && req.url === '/interno/reserva') return lerReserva(req, res);
   if (req.url === '/health') {
     res.writeHead(200, { 'content-type': 'application/json' });
     res.end(JSON.stringify({ ok: true, codigo: VERSAO, sessoes: [...ativas.keys()], browserless: await browserlessNoAr() }));

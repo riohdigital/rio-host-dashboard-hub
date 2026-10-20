@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import { traduzir } from '../src/comandos.js';
 import { origemPermitida, pedidoInterno } from '../src/config.js';
 import { passoDoLogin } from '../src/plataformas.js';
+import { esqueleto, lerReservaAirbnb, valorBRL } from '../src/extratores.js';
 import { urlDoBrowserless } from '../src/sessao.js';
 
 const VIEW = { w: 1280, h: 860 };
@@ -93,4 +94,82 @@ test('rota interna: só aceita quem chega pela rede da VPS, nunca pelo Traefik',
   assert.equal(pedidoInterno({ headers: { host: 'extra-apps_rioh-host-browser-login', 'x-forwarded-host': 'x' } }, internos), false);
   assert.equal(pedidoInterno({ headers: { host: 'outro-servico:3000' } }, internos), false);
   assert.equal(pedidoInterno({ headers: {} }, internos), false);
+});
+
+// Resposta do StayHostingDetailsQuery no formato real (13/10/2026), com dados fictícios.
+function detalheAirbnb({ cabecalho, resumo, entrada, saida, linhas, total, cancelada = false, confirmada = true, hospede = 'Hóspede Teste', extras = 2 }) {
+  const item = ([label, formattedValue]) => ({ label, formattedValue });
+  return {
+    data: { presentation: { hostingDetails: { stayHostingDetails: {
+      headerPlacement: [{ sectionId: 'HEADER_SECTION', sectionData: { title: cabecalho } }],
+      rootPlacement: [
+        { sectionId: 'FACEPILE_SECTION', sectionData: { additionalGuests: extras, guests: [{ name: hospede.split(' ')[0] }] } },
+        { sectionId: 'SMART_SUMMARY_SECTION', sectionData: { title: resumo } },
+        { sectionId: 'CHECK_IN_CHECK_OUT_SECTION', sectionData: { checkInAction: { checkInTime: entrada, checkOutTime: saida } } },
+        { sectionId: 'WHOSCOMING_SECTION', sectionData: { reservationGroups: [{ isCanceled: cancelada, guests: [{ name: hospede }] }] } },
+        { sectionId: 'PAYMENTINFO_SECTION', sectionData: { isConfirmed: confirmada, hostEarningsGroup: { groupName: 'Você recebe', lineItems: linhas.map(item), totalLineItem: item(['Total (BRL)', total]) } } },
+      ],
+    } } } },
+  };
+}
+
+test('valores em reais: sinal, milhar e centavos', () => {
+  assert.equal(valorBRL('R$ 2.598,37'), 2598.37);
+  assert.equal(valorBRL('-R$ 14.726,63'), -14726.63);
+  assert.equal(valorBRL('R$ 0,00'), 0);
+  assert.equal(valorBRL('sem valor'), null);
+});
+
+test('Airbnb R1: Total + cota do coanfitrião (exemplo HMZPZNQTHY do documento de regras)', () => {
+  const r = lerReservaAirbnb(detalheAirbnb({
+    cabecalho: 'Participante anterior', resumo: 'Hóspede', entrada: '2026-03-01T17:00:00.000Z', saida: '2026-06-22T14:00:00.000Z',
+    linhas: [['Preço da acomodação para 113 noites', 'R$ 31.780,00'], ['Taxa de limpeza', 'R$ 250,00'], ['Desconto mensal', '-R$ 12.712,00'],
+      ['Taxa de serviço do anfitrião (3,0% + IVA)', '-R$ 659,68'], ['Cotas do coanfitrião', '-R$ 14.726,63']],
+    total: 'R$ 3.931,69',
+  }), 'HMZPZNQTHY');
+  assert.equal(r.status, 'success');
+  assert.equal(r.total_revenue, 18658.32);
+  assert.equal(r.payout_breakdown.cohost_fee, 14726.63);
+  assert.equal(r.cleaning_fee, 250);
+  assert.equal(r.check_in_date, '2026-03-01');
+  assert.equal(r.check_out_date, '2026-06-22');
+  assert.equal(r.number_of_nights, 113);
+  assert.equal(r.is_multi_month, true);
+  assert.equal(r.reservation_status, 'Confirmada');
+});
+
+test('Airbnb: reserva sem cota vale o Total; hóspedes e datas em Brasília', () => {
+  const r = lerReservaAirbnb(detalheAirbnb({
+    cabecalho: 'Chega em 72 dias', resumo: 'Grupo com 3 pessoas', entrada: '2026-12-31T17:00:00.000Z', saida: '2027-01-02T14:00:00.000Z',
+    linhas: [['Preço da acomodação para 2 noites', 'R$ 2.885,00'], ['Taxa de limpeza para estadias curtas', 'R$ 117,00'],
+      ['Taxa de serviço do anfitrião (16,0% + IVA)', '-R$ 578,63'], ['Taxa de animais de estimação', 'R$ 175,00']],
+    total: 'R$ 2.598,37', hospede: 'Maria Teste da Silva',
+  }), 'HM825M59DQ');
+  assert.equal(r.total_revenue, 2598.37);
+  assert.equal(r.cleaning_fee, 117);
+  assert.equal(r.number_of_guests, 3);
+  assert.equal(r.guest_name, 'Maria Teste da Silva');
+  assert.equal(r.is_booking_request_only, false);
+  assert.equal(r.is_multi_month, false);
+});
+
+test('Airbnb: cancelada pelo hóspede vira Cancelada, com o valor que a plataforma paga', () => {
+  const r = lerReservaAirbnb(detalheAirbnb({
+    cabecalho: 'Cancelado pelo hóspede', resumo: 'Reserva cancelada', entrada: '2026-10-02T17:00:00.000Z', saida: '2026-10-19T14:00:00.000Z',
+    linhas: [['Preço da acomodação para 17 noites', 'R$ 129,40'], ['Taxa de limpeza', 'R$ 120,00'], ['Ajuste de preço por noite', '-R$ 249,40']],
+    total: 'R$ 0,00', cancelada: true,
+  }), 'HM5B4EB3ST');
+  assert.equal(r.reservation_status, 'Cancelada');
+  assert.equal(r.total_revenue, 0);
+  assert.equal(r.status, 'success');
+});
+
+test('Airbnb: resposta sem detalhe não vira sucesso', () => {
+  assert.equal(lerReservaAirbnb({ data: {} }, 'HMX').status, 'error');
+});
+
+test('esqueleto: só nomes e tipos, nenhum valor', () => {
+  const e = esqueleto({ hospede: 'Fulano', valor: 10.5, linhas: [{ a: 'x' }, { a: 'y' }] });
+  assert.deepEqual(e, { hospede: 'string', valor: 'number', linhas: [{ a: 'string' }, '×2'] });
+  assert.ok(!JSON.stringify(e).includes('Fulano'));
 });
