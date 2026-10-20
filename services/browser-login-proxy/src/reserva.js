@@ -6,7 +6,7 @@
  * chave de API ou cookies copiados: se a plataforma mudar a consulta, a página continua
  * buscando o detalhe e a captura continua funcionando.
  *
- * Booking: o formato da página de detalhe ainda está sendo levantado; por enquanto a
+ * Booking: o formato da lista de reservas (retrieve_list_v2) ainda está sendo levantado; a
  * rota devolve o esqueleto (só nomes de campos) das respostas JSON da página.
  */
 import { Cdp } from './cdp.js';
@@ -150,8 +150,10 @@ export class LeituraDeReserva {
     if (!this.hotelId) return { status: 'error', platform: 'Booking.com', reservation_code: this.codigo, discrepancies: ['hotel_id da Booking não informado para este imóvel'] };
 
     this.pedidos.clear();
-    const qs = new URLSearchParams({ res_id: this.codigo, hotel_id: this.hotelId, lang: 'pt', ses });
-    await this.ir(`https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/booking.html?${qs}`);
+    // Lista de reservas, não o detalhe: a página de detalhe pede verificação de identidade
+    // (auth-assurance) por mostrar dados pessoais do hóspede. Visto em 20/10/2026.
+    const qs = new URLSearchParams({ hotel_id: this.hotelId, lang: 'pt', ses });
+    await this.ir(`https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/search_reservations.html?${qs}`);
     // Deixa a página buscar o que precisa.
     const inicio = Date.now();
     let quantos = -1;
@@ -181,7 +183,7 @@ export class LeituraDeReserva {
         tamanho: texto.length,
         tem_o_codigo: texto.includes(this.codigo),
         corpo_do_pedido: p.corpoPedido ? esqueletoDoPedido(p.corpoPedido) : null,
-        esqueleto: texto.includes(this.codigo) ? esqueleto(json) : null,
+        esqueleto: texto.includes(this.codigo) || u.pathname.includes('retrieve_list') ? esqueleto(json) : null,
       });
     }
     return {
