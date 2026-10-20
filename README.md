@@ -1,8 +1,21 @@
-# Welcome to your Lovable project
+# Rioh Host Dashboard
 
-## Project info
+Gestão de hospedagens por temporada: reservas do Airbnb e do Booking.com,
+faxinas, despesas, repasses e precificação.
 
-**URL**: https://lovable.dev/projects/4d4fff81-ff20-455f-8ae5-0beadd472f1c
+## Onde está no ar
+
+- **Oficial (Vercel):** https://anfitriao.rioh.digital. Publica sozinho a cada
+  merge na `main` que mexa no front.
+- **Vercel, endereço alternativo:** https://rio-host-dashboard-hub.vercel.app
+  (para redes que bloqueiam o `rioh.digital`).
+- **Lovable, em paralelo:** https://rioh-host-dashboard.lovable.app. Só muda
+  com Publish no editor:
+  https://lovable.dev/projects/4d4fff81-ff20-455f-8ae5-0beadd472f1c
+
+O plano do produto, os workflows do n8n e o histórico de decisões ficam no
+n8n-manager (`projects/rioh-host/`). Os endereços e o que cada domínio exige
+estão em `projects/rioh-host/MIGRACAO_FRONTEND_VERCEL.md` de lá.
 
 ## Sincronização automática de reservas
 

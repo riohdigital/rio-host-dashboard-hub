@@ -23,6 +23,11 @@ usuário: **português do Brasil**.
   migrations. Para qualquer dado do banco, **peça ao usuário para rodar a
   consulta no SQL Editor e colar o resultado** — nunca deduza o conteúdo do
   banco a partir de saídas antigas.
+- **Exceção: a Management API do Supabase responde** (`api.supabase.com`, não
+  `*.supabase.co`), com o `RIOH_HOST_SUPABASE_ACCESS_TOKEN` do `.env` do
+  n8n-manager. O `SUPABASE_ACCESS_TOKEN` de lá é de outra conta e é recusado.
+  Foi usada em 20/10/2026 para ler e ajustar o Auth (`/config/auth`). Leitura
+  pode ser feita direto; **gravar exige o sim explícito do usuário**.
 - **O Google Apps Script vive na conta do usuário.** Alterações em
   `docs/scripts/gmail-forwarder.gs` só entram em vigor quando ele copia e cola
   o arquivo. Avise sempre que o script mudar.
@@ -66,7 +71,11 @@ O front está em dois lugares, os dois alimentados pela `main`:
   **Publish** no Lovable.
 
 A rede do trabalho do usuário (Zscaler) bloqueia todo o `rioh.digital`. Lá ele
-usa o endereço `vercel.app`. Domínio novo para o front precisa entrar em três
+usa o endereço `vercel.app`. Pelo mesmo motivo, as chamadas do front ao n8n
+passam por `src/lib/n8n.ts` (`fetchN8n`): principal `n8n.rioh.digital`, com
+reserva automática no endereço do EasyPanel só quando o pedido não chegou ao n8n
+(falha de rede ou 403 em HTML do Zscaler). Webhook novo do n8n no front: use
+`fetchN8n`, nunca um endereço fixo. Domínio novo para o front precisa entrar em três
 lugares: Redirect URLs do Supabase Auth, `ORIGENS` do
 `n8n-manager/tools/provisionar_browser_login_proxy.py` (proxy de login) e o
 próprio projeto na Vercel. Estudo completo:
