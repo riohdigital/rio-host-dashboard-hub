@@ -66,6 +66,21 @@ Do dashboard: `{t:'auth', token, plataforma}` (primeiro), depois `mouse`, `wheel
 Do proxy: quadros JPEG (binário), `{t:'meta', w, h}`, `{t:'state', passo}`,
 `{t:'pong', id}`, `{t:'erro', code, msg}` e `{t:'fim', motivo}`.
 
+## Verificação de sessão (keep-alive)
+
+`POST /interno/verificar` com `{"plataforma": "airbnb" | "booking"}`. Só aceita pedidos da
+rede interna do EasyPanel (`http://extra-apps_rioh-host-browser-login:3000`): qualquer
+requisição que passou pelo Traefik (`X-Forwarded-*`) ou chegou pelo domínio público é
+recusada com 403.
+
+O proxy abre o perfil da plataforma no mesmo navegador do login, vê se continua conectado,
+fica alguns segundos na página e fecha de forma limpa. Devolve
+`{plataforma, conectado, passo, host, caminho, duracao_ms}`, nunca cookies. Se um login ou
+outra verificação estiver usando o perfil, responde 409 (`ocupado`).
+
+Quem chama é o workflow de keep-alive do n8n, que decide o ritmo de cada plataforma,
+registra as verificações e avisa o Dono.
+
 ## Testes
 
 ```sh

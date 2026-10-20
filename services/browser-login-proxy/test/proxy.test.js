@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { traduzir } from '../src/comandos.js';
-import { origemPermitida } from '../src/config.js';
+import { origemPermitida, pedidoInterno } from '../src/config.js';
 import { passoDoLogin } from '../src/plataformas.js';
 import { urlDoBrowserless } from '../src/sessao.js';
 
@@ -82,4 +82,15 @@ test('Browserless: perfil da plataforma, janela do tamanho da tela e sem stealth
   assert.ok(launch.args.includes('--window-size=1024,768'));
   assert.ok(launch.args.includes('--lang=pt-BR'));
   assert.equal(new URL(urlDoBrowserless({ ...config, browserlessToken: 'x' }, 'airbnb')).searchParams.get('token'), 'x');
+});
+
+test('rota interna: só aceita quem chega pela rede da VPS, nunca pelo Traefik', () => {
+  const internos = ['extra-apps_rioh-host-browser-login', 'localhost'];
+  assert.equal(pedidoInterno({ headers: { host: 'extra-apps_rioh-host-browser-login:3000' } }, internos), true);
+  // Vindo da internet: o Traefik acrescenta X-Forwarded-* e usa o domínio público.
+  assert.equal(pedidoInterno({ headers: { host: 'rioh-host-browser-login.dgyrua.easypanel.host', 'x-forwarded-for': '1.2.3.4' } }, internos), false);
+  // Host interno forjado, mas passando pelo Traefik: recusado pelo cabeçalho.
+  assert.equal(pedidoInterno({ headers: { host: 'extra-apps_rioh-host-browser-login', 'x-forwarded-host': 'x' } }, internos), false);
+  assert.equal(pedidoInterno({ headers: { host: 'outro-servico:3000' } }, internos), false);
+  assert.equal(pedidoInterno({ headers: {} }, internos), false);
 });

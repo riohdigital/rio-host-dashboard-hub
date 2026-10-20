@@ -12,9 +12,10 @@
 import http from 'node:http';
 import { WebSocketServer } from 'ws';
 
-import { carregarConfig, origemPermitida } from './src/config.js';
+import { carregarConfig, origemPermitida, pedidoInterno } from './src/config.js';
 import { PLATAFORMAS } from './src/plataformas.js';
 import { SessaoLogin } from './src/sessao.js';
+import { Verificacao } from './src/verificacao.js';
 import { criarSupabase } from './src/supabase.js';
 import { codigoDaVersao } from './src/versao.js';
 
@@ -37,7 +38,50 @@ async function browserlessNoAr() {
   }
 }
 
+const json = (res, codigo, corpo) => {
+  res.writeHead(codigo, { 'content-type': 'application/json' });
+  res.end(JSON.stringify(corpo));
+};
+
+async function lerCorpo(req) {
+  let dados = '';
+  for await (const pedaco of req) {
+    dados += pedaco;
+    if (dados.length > 4096) throw new Error('corpo grande demais');
+  }
+  return dados ? JSON.parse(dados) : {};
+}
+
+/** Keep-alive: o n8n pergunta se a plataforma continua conectada (só pela rede interna). */
+async function verificar(req, res) {
+  if (!pedidoInterno(req, config.hostsInternos)) return json(res, 403, { erro: 'somente rede interna' });
+  let corpo;
+  try {
+    corpo = await lerCorpo(req);
+  } catch {
+    return json(res, 400, { erro: 'corpo inválido' });
+  }
+  const plataforma = corpo.plataforma;
+  if (!PLATAFORMAS[plataforma]) return json(res, 400, { erro: 'plataforma desconhecida' });
+  // Mesmo perfil não abre duas vezes: login em andamento ou outra verificação.
+  if (ativas.has(plataforma)) return json(res, 409, { erro: 'ocupado', plataforma });
+
+  const v = new Verificacao({ plataforma, config });
+  ativas.set(plataforma, v);
+  try {
+    const resultado = await v.executar();
+    log('verificacao', { plataforma, conectado: resultado.conectado, passo: resultado.passo, duracao_ms: resultado.duracao_ms });
+    return json(res, 200, resultado);
+  } catch (erro) {
+    log('verificacao_falhou', { plataforma, erro: String(erro?.message || erro) });
+    return json(res, 502, { erro: 'navegador', plataforma, detalhe: String(erro?.message || erro).slice(0, 200) });
+  } finally {
+    ativas.delete(plataforma);
+  }
+}
+
 const servidor = http.createServer(async (req, res) => {
+  if (req.method === 'POST' && req.url === '/interno/verificar') return verificar(req, res);
   if (req.url === '/health') {
     res.writeHead(200, { 'content-type': 'application/json' });
     res.end(JSON.stringify({ ok: true, codigo: VERSAO, sessoes: [...ativas.keys()], browserless: await browserlessNoAr() }));
