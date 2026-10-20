@@ -43,15 +43,29 @@ const normalizar = (s: string) =>
   s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
 /**
- * O evento vale para o imóvel? Evento sem cidade vale para todos; com cidade, só para
- * imóveis cujo endereço cita essa cidade. Provisório até o cadastro do imóvel ter um campo
- * de cidade: o nome de um estado igual ao de uma cidade (ex.: "Rio de Janeiro") pode casar
- * com imóveis de outras cidades desse estado.
+ * Cidade do imóvel entre as cidades que têm eventos: a que aparece primeiro no endereço
+ * (sem acento e sem espaço). Endereço brasileiro traz a cidade antes do estado, então
+ * "Rio das Ostras, Rio de Janeiro" é Rio das Ostras. Mesma regra do radar no n8n.
+ * Provisório até o cadastro do imóvel ter um campo de cidade.
  */
-export function eventoValeParaImovel(ev: Pick<EventoLocal, 'city'>, endereco: string | null | undefined): boolean {
+export function cidadeDoImovel(endereco: string | null | undefined, cidades: string[]): string | null {
+  if (!endereco) return null;
+  const e = normalizar(endereco);
+  let melhor: { cidade: string; pos: number; tam: number } | null = null;
+  for (const cidade of cidades) {
+    const c = normalizar(cidade);
+    if (!c) continue;
+    const pos = e.indexOf(c);
+    if (pos < 0) continue;
+    if (!melhor || pos < melhor.pos || (pos === melhor.pos && c.length > melhor.tam)) melhor = { cidade, pos, tam: c.length };
+  }
+  return melhor?.cidade ?? null;
+}
+
+/** O evento vale para o imóvel? Sem cidade no evento, vale para todos. */
+export function eventoValeParaImovel(ev: Pick<EventoLocal, 'city'>, endereco: string | null | undefined, cidades: string[]): boolean {
   if (!ev.city) return true;
-  if (!endereco) return false;
-  return normalizar(endereco).includes(normalizar(ev.city));
+  return cidadeDoImovel(endereco, cidades) === ev.city;
 }
 
 export function somarDias(data: string, dias: number): string {
