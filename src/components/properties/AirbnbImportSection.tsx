@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Property } from '@/types/property';
 import ImportLoadingState from './ImportLoadingState';
 import { getPropertyFieldsSchema } from '@/utils/propertyFieldsSchema';
+import { fetchN8n } from '@/lib/n8n';
 
 interface AirbnbImportSectionProps {
   onImportSuccess: (data: Partial<Property>) => void;
@@ -52,7 +53,7 @@ const AirbnbImportSection = ({ onImportSuccess, onImportError }: AirbnbImportSec
 
       console.log('📤 Payload enviado ao webhook:', payload);
 
-      const response = await fetch('https://n8n-n8n.dgyrua.easypanel.host/webhook/detalhes_de_propriedade_airbnb', {
+      const response = await fetchN8n('detalhes_de_propriedade_airbnb', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

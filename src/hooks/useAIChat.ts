@@ -3,8 +3,9 @@ import { ChatMessage, MessageStatus, MessageReaction } from '@/types/chat';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchN8n } from '@/lib/n8n';
 
-const N8N_WEBHOOK_URL = 'https://n8n-n8n.dgyrua.easypanel.host/webhook/DashBoard%20RiohHost%20ChatAI';
+const CHAT_WEBHOOK = 'DashBoard%20RiohHost%20ChatAI';
 
 export const useAIChat = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -203,7 +204,7 @@ export const useAIChat = () => {
         attachments: attachmentsBase64,
       };
 
-      const response = await fetch(N8N_WEBHOOK_URL, {
+      const response = await fetchN8n(CHAT_WEBHOOK, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
