@@ -1,159 +1,147 @@
-import React, { useState, useEffect } from 'react';
-import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Sparkles, Home, AlertTriangle, Layers, Calendar } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { AlertTriangle, Calendar, Home, Layers, Sparkles } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
 import { useDateRange } from '@/hooks/dashboard/useDateRange';
 import { Property } from '@/types/property';
-import PropertyPricingDashboard from '@/components/pricing/PropertyPricingDashboard';
+import { PricingOverview, ConcorrentesEmReconstrucao } from '@/components/pricing/PricingOverview';
+import { ReservationsAuditTab } from '@/components/pricing/ReservationsAuditTab';
 import { formatLocalDate } from '@/utils/dateUtils';
 
+/**
+ * Precificação sobre dados reais de cada usuário: reservas, cadastro e eventos da cidade
+ * dos imóveis. Multi-inquilino: nada fixo no código (regra P0). Histórico da reconstrução
+ * (20/10/2026) em n8n-manager/projects/rioh-host/docs/DIAGNOSTICO_PRECIFICACAO_2026-10-20.md.
+ */
 const PrecificacaoPage: React.FC = () => {
   const { hasPermission, getAccessibleProperties, isMaster, loading: permissionsLoading } = useUserPermissions();
   const { selectedProperties, selectedPeriod, customStartDate, customEndDate } = useGlobalFilters();
-  const { startDate, endDate, startDateString, endDateString } = useDateRange(selectedPeriod, customStartDate, customEndDate);
-  
+  const { startDateString, endDateString } = useDateRange(selectedPeriod, customStartDate, customEndDate);
+
   const [properties, setProperties] = useState<Property[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  // Busca lista de propriedades acessíveis
-  const fetchProperties = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('properties')
-        .select('*')
-        .order('name', { ascending: true });
-
-      if (error) throw error;
-
-      let filtered = (data as Property[]) || [];
-      if (!isMaster() && !hasPermission('properties_view_all')) {
-        const accessible = getAccessibleProperties();
-        filtered = filtered.filter(p => accessible.includes(p.id));
-      }
-
-      setProperties(filtered);
-    } catch (e) {
-      console.error('Erro ao buscar propriedades na PrecificacaoPage:', e);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
-    fetchProperties();
+    (async () => {
+      const { data, error } = await supabase.from('properties').select('*').order('name', { ascending: true });
+      if (error) {
+        console.error('Erro ao buscar propriedades na PrecificacaoPage:', error);
+        return;
+      }
+      let lista = (data as Property[]) || [];
+      if (!isMaster() && !hasPermission('properties_view_all')) {
+        const acessiveis = getAccessibleProperties();
+        lista = lista.filter((p) => acessiveis.includes(p.id));
+      }
+      setProperties(lista);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Seleção do filtro global: todas, um imóvel ou um subconjunto.
+  const todas = !selectedProperties || selectedProperties.length === 0 || selectedProperties.includes('todas');
+  const selecionados = useMemo(
+    () => (todas ? properties : properties.filter((p) => selectedProperties.includes(p.id))),
+    [todas, properties, selectedProperties],
+  );
+  // Sem diária base cadastrada não há o que precificar: o imóvel fica fora da análise.
+  const analisados = useMemo(() => selecionados.filter((p) => Number(p.base_nightly_price) > 0), [selecionados]);
+  const foraDaAnalise = selecionados.filter((p) => !(Number(p.base_nightly_price) > 0));
+  const unico = selecionados.length === 1 ? selecionados[0] : null;
 
   if (permissionsLoading && properties.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex h-64 items-center justify-center">
         <div className="text-center text-gray-500">Carregando permissões...</div>
       </div>
     );
   }
 
-  const canAccess = hasPermission('properties_view_all') || hasPermission('properties_view_assigned') || isMaster();
-
-  if (!canAccess) {
+  const podeAcessar = hasPermission('properties_view_all') || hasPermission('properties_view_assigned') || isMaster();
+  if (!podeAcessar) {
     return (
-      <div className="p-6 space-y-6 bg-[#F8F9FA] min-h-screen">
-        <div className="border-b border-gray-200 pb-4">
-          <h1 className="text-3xl font-bold text-gradient-primary">Precificação & Yield</h1>
-          <p className="text-gray-600 mt-2">Inteligência de mercado e rentabilidade de tarifas</p>
-        </div>
+      <div className="min-h-screen space-y-6 bg-[#F8F9FA] p-6">
+        <h1 className="text-3xl font-bold text-gradient-primary">Precificação</h1>
         <Alert>
           <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>
-            Você não tem permissão para visualizar o Radar de Precificação. Entre em contato com o administrador.
-          </AlertDescription>
+          <AlertDescription>Você não tem permissão para ver a Precificação. Fale com o administrador.</AlertDescription>
         </Alert>
       </div>
     );
   }
 
-  // Resolução do imóvel selecionado via seletor global
-  const isAllSelected = !selectedProperties || selectedProperties.length === 0 || selectedProperties.includes('todas');
-  const isSingleProperty = !isAllSelected && selectedProperties.length === 1;
-  const selectedPropertyId = isSingleProperty ? selectedProperties[0] : 'todas';
-  const selectedProperty = isSingleProperty ? properties.find(p => p.id === selectedPropertyId) : null;
-
-  // Rótulo amigável do período ativo
-  const getPeriodBadgeLabel = () => {
-    if (selectedPeriod === 'current_year') return `Ano Atual (${new Date().getFullYear()})`;
-    if (selectedPeriod === 'current_month') return 'Mês Atual';
-    if (selectedPeriod === 'general') return 'Geral (Todo Histórico)';
-    if (selectedPeriod === 'custom' && customStartDate && customEndDate) {
-      return `${formatLocalDate(startDateString)} a ${formatLocalDate(endDateString)}`;
-    }
+  const rotuloPeriodo = () => {
+    if (selectedPeriod === 'current_year') return `Ano atual (${new Date().getFullYear()})`;
+    if (selectedPeriod === 'current_month') return 'Mês atual';
+    if (selectedPeriod === 'general') return 'Todo o histórico';
     return `${formatLocalDate(startDateString)} a ${formatLocalDate(endDateString)}`;
   };
 
   return (
-    <div className="p-6 space-y-6 bg-[#F8F9FA] min-h-screen">
-      {/* Header com Título e Badges Informativos do Filtro Global */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-4">
+    <div className="min-h-screen space-y-6 bg-[#F8F9FA] p-4 sm:p-6">
+      <div className="flex flex-col gap-3 border-b border-gray-200 pb-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gradient-primary flex items-center gap-2.5">
-            <Sparkles className="h-7 w-7 text-[#6A6DDF]" />
-            Precificação & Yield Estratégico
+          <h1 className="flex items-center gap-2.5 text-2xl font-bold text-gradient-primary sm:text-3xl">
+            <Sparkles className="h-6 w-6 text-[#6A6DDF]" />
+            Precificação
           </h1>
-          <p className="text-gray-600 mt-1 text-sm">
-            Inteligência de mercado, oportunidades de receita e mitigação de risco sincronizadas com os filtros globais.
-          </p>
+          <p className="mt-1 text-sm text-gray-600">Ocupação, diárias e datas de oportunidade dos seus imóveis, com dados reais de reservas.</p>
         </div>
-
-        {/* Badges de Contexto Ativo (Controlados pelo Menu Lateral) */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Badge do Imóvel Selecionado */}
-          {isAllSelected ? (
-            <Badge variant="outline" className="bg-white border-gray-200 text-gray-700 py-1.5 px-3 flex items-center gap-1.5 shadow-2xs text-xs font-medium">
-              <Layers className="h-3.5 w-3.5 text-[#6A6DDF]" />
-              <span>Visão Geral ({properties.length} Imóveis)</span>
-            </Badge>
-          ) : isSingleProperty && selectedProperty ? (
-            <Badge variant="outline" className="bg-white border-emerald-200 text-gray-800 py-1.5 px-3 flex items-center gap-2 shadow-2xs text-xs font-semibold">
-              <span className={`w-2 h-2 rounded-full ${selectedProperty.status === 'Ativo' ? 'bg-emerald-500' : 'bg-gray-400'}`} />
-              <Home className="h-3.5 w-3.5 text-[#6A6DDF]" />
-              <span>{selectedProperty.name}</span>
-              {selectedProperty.nickname && (
-                <span className="text-gray-500 font-normal">({selectedProperty.nickname})</span>
-              )}
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="bg-white border-indigo-200 text-gray-800 py-1.5 px-3 flex items-center gap-1.5 shadow-2xs text-xs font-medium">
-              <Home className="h-3.5 w-3.5 text-[#6A6DDF]" />
-              <span>{selectedProperties.length} Imóveis Selecionados</span>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="outline" className="flex items-center gap-1.5 border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700">
+            {unico ? <Home className="h-3.5 w-3.5 text-[#6A6DDF]" /> : <Layers className="h-3.5 w-3.5 text-[#6A6DDF]" />}
+            {unico ? nomeDoImovel(unico) : todas ? `Todos os imóveis (${analisados.length})` : `${analisados.length} imóveis selecionados`}
+          </Badge>
+          {foraDaAnalise.length > 0 && (
+            <Badge variant="outline" className="border-gray-200 bg-white px-3 py-1.5 text-xs font-normal text-gray-500">
+              Fora da análise, sem diária base: {foraDaAnalise.map(nomeDoImovel).join(', ')}
             </Badge>
           )}
-
-          {/* Badge do Período Ativo */}
-          <Badge variant="outline" className="bg-[#6A6DDF]/5 border-[#6A6DDF]/20 text-[#6A6DDF] py-1.5 px-3 flex items-center gap-1.5 shadow-2xs text-xs font-medium">
-            <Calendar className="h-3.5 w-3.5 text-[#6A6DDF]" />
-            <span>{getPeriodBadgeLabel()}</span>
-          </Badge>
         </div>
       </div>
 
-      {/* Componente Individual de Precificação com Dados Filtrados */}
-      <PropertyPricingDashboard
-        propertyId={selectedPropertyId}
-        selectedPropertyIds={selectedProperties}
-        properties={properties}
-        dateRange={{
-          startDate,
-          endDate,
-          startDateString,
-          endDateString,
-          selectedPeriod
-        }}
-        onRefresh={fetchProperties}
-      />
+      <Tabs defaultValue="visao" className="space-y-4">
+        <TabsList className="h-auto flex-wrap justify-start gap-1 bg-white p-1 shadow-none ring-1 ring-gray-200">
+          <TabsTrigger value="visao" className="data-[state=active]:bg-[#6A6DDF] data-[state=active]:text-white">
+            Visão geral
+          </TabsTrigger>
+          <TabsTrigger value="concorrentes" className="data-[state=active]:bg-[#6A6DDF] data-[state=active]:text-white">
+            Concorrentes
+          </TabsTrigger>
+          <TabsTrigger value="auditoria" className="data-[state=active]:bg-[#6A6DDF] data-[state=active]:text-white">
+            Auditoria de reservas
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="visao" className="mt-0">
+          <PricingOverview properties={analisados} />
+        </TabsContent>
+
+        <TabsContent value="concorrentes" className="mt-0">
+          <ConcorrentesEmReconstrucao />
+        </TabsContent>
+
+        <TabsContent value="auditoria" className="mt-0 space-y-2">
+          <p className="flex items-center gap-1.5 text-xs text-gray-500">
+            <Calendar className="h-3.5 w-3.5" /> Período do filtro: {rotuloPeriodo()}
+          </p>
+          <ReservationsAuditTab
+            propertyId={unico ? unico.id : 'todas'}
+            selectedProperty={unico}
+            selectedPropertyIds={selectedProperties}
+            dateRange={{ startDateString, endDateString, selectedPeriod }}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
 
-export default PrecificacaoPage;
+function nomeDoImovel(p: Property) {
+  return p.nickname || p.name;
+}
 
+export default PrecificacaoPage;
