@@ -26,6 +26,9 @@ export function carregarConfig() {
     // Coerente com o IP de saída da VPS (Hostinger, Holanda). UTC é marca de servidor.
     fusoHorario: process.env.FUSO_HORARIO || 'Europe/Amsterdam',
     idioma: process.env.IDIOMA || 'pt-BR',
+    // Nomes pelos quais o n8n chega a este serviço na rede interna do EasyPanel.
+    hostsInternos: (process.env.HOSTS_INTERNOS || 'extra-apps_rioh-host-browser-login,localhost,127.0.0.1')
+      .split(',').map((s) => s.trim().toLowerCase()).filter(Boolean),
   };
 }
 
@@ -43,4 +46,14 @@ export function origemPermitida(origem, permitidas) {
     if (alvo.startsWith('*.')) return host.endsWith(alvo.slice(1));
     return host === alvo;
   });
+}
+
+/**
+ * Pedido de dentro da rede da VPS (n8n)? O Traefik, porta de entrada da internet,
+ * sempre acrescenta X-Forwarded-*, e só roteia pelo domínio público.
+ */
+export function pedidoInterno(req, hostsInternos) {
+  if (Object.keys(req.headers).some((h) => h.startsWith('x-forwarded-') || h === 'x-real-ip' || h === 'forwarded')) return false;
+  const host = String(req.headers.host || '').split(':')[0].toLowerCase();
+  return hostsInternos.includes(host);
 }
