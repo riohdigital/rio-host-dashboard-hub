@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import PlatformLoginModal from './PlatformLoginModal';
+import { fetchN8n } from '@/lib/n8n';
 
 /**
  * Situação de uma sessão de plataforma, lida da view sem cookies
@@ -28,7 +29,7 @@ export interface AgentBrowserSession {
   login_lock_until?: string | null;
 }
 
-const KEEPALIVE_WEBHOOK_URL = 'https://n8n-n8n.dgyrua.easypanel.host/webhook/rioh-host-testar-sessao-ota';
+const KEEPALIVE_WEBHOOK = 'rioh-host-testar-sessao-ota';
 
 const formatDateTime = (value: string | null) =>
   value ? format(new Date(value), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : 'Nunca';
@@ -73,7 +74,7 @@ export const OTASessionsCard: React.FC = () => {
         description: 'O robô Browserless está testando a autenticação no Airbnb e Booking.com em tempo real.',
       });
 
-      const response = await fetch(KEEPALIVE_WEBHOOK_URL, {
+      const response = await fetchN8n(KEEPALIVE_WEBHOOK, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ trigger: 'dashboard_manual_test' }),

@@ -33,6 +33,7 @@ import EventsCalendarTab from './EventsCalendarTab';
 import ReservationsAuditTab from './ReservationsAuditTab';
 import { formatLocalDate } from '@/utils/dateUtils';
 import { ReservaParaOcupacao, cidadeDoImovel, eventosFuturos, hojeLocal, situacaoNoEvento } from './ocupacao';
+import { fetchN8n } from '@/lib/n8n';
 
 interface PropertyPricingDashboardProps {
   propertyId: string;
@@ -351,7 +352,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
       }
 
       // 2. Dispara webhook do n8n para reprocessar o radar com as tarifas e calendários atuais
-      await fetch('https://n8n-n8n.dgyrua.easypanel.host/webhook/rioh-host-yield-radar-manual', {
+      await fetchN8n('rioh-host-yield-radar-manual', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

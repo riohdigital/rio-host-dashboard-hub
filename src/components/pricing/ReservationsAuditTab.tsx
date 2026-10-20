@@ -28,6 +28,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Property } from '@/types/property';
 import { formatLocalDate } from '@/utils/dateUtils';
+import { fetchN8n } from '@/lib/n8n';
 
 interface ReservationsAuditTabProps {
   propertyId: string;
@@ -170,7 +171,7 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
 
     try {
       // 2. Chama o Webhook Manual que AGORA responde de forma síncrona com os dados concluídos!
-      const resp = await fetch('https://n8n-n8n.dgyrua.easypanel.host/webhook/rioh-host-auditoria-reservas-manual', {
+      const resp = await fetchN8n('rioh-host-auditoria-reservas-manual', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
