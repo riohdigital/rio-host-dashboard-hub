@@ -10,6 +10,19 @@ Functions em Deno) no back. O projeto é editado também pelo **Lovable**.
 [`docs/HANDOFF.md`](docs/HANDOFF.md).** Ele tem o estado do sistema, o que
 ainda falta e as armadilhas já descobertas nos dados reais das plataformas.
 
+## Regra P0: nada pela metade
+
+**Antes de criar ou mudar qualquer funcionalidade, leia
+`n8n-manager/projects/rioh-host/MAPA_DE_FUNCIONALIDADES_DASHBOARD.md`.**
+Ele lista os módulos (do Dashboard às Configurações), com o que cada um se
+relaciona, a matriz "mudou X → revise Y" e o checklist de integração
+obrigatório. Toda entrega cobre todos os pontos relacionados: cadastro, telas,
+Configurações, Anfitrião Alerta, Dashboard e Relatórios, Chat AI, automação e
+multi-inquilino. Ao terminar, atualize o mapa.
+
+Também é P0: o dashboard é **multi-inquilino**. Nada fixo no código; tudo vem
+do cadastro e das configurações de cada usuário.
+
 ## Idioma
 
 Código, comentários, mensagens de commit, descrições de PR e conversa com o
