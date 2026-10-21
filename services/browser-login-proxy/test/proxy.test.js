@@ -3,7 +3,7 @@ import { test } from 'node:test';
 
 import { traduzir } from '../src/comandos.js';
 import { origemPermitida, pedidoInterno } from '../src/config.js';
-import { passoDoLogin } from '../src/plataformas.js';
+import { passoDoLogin, pastaDoUsuario, pastaValida } from '../src/plataformas.js';
 import { esqueleto, lerReservaAirbnb, valorBRL } from '../src/extratores.js';
 import { urlDoBrowserless } from '../src/sessao.js';
 
@@ -83,6 +83,23 @@ test('Browserless: perfil da plataforma, janela do tamanho da tela e sem stealth
   assert.ok(launch.args.includes('--window-size=1024,768'));
   assert.ok(launch.args.includes('--lang=pt-BR'));
   assert.equal(new URL(urlDoBrowserless({ ...config, browserlessToken: 'x' }, 'airbnb')).searchParams.get('token'), 'x');
+});
+
+test('F7: pasta de perfil por usuário, a antiga continua valendo e nada de caminho livre', () => {
+  const id = '9ceae31d-8b83-4da3-818a-aa48252add1e';
+  assert.equal(pastaDoUsuario(id, 'airbnb'), `${id}/airbnb`);
+  assert.equal(pastaValida(`${id}/airbnb`, 'airbnb'), true);
+  assert.equal(pastaValida('airbnb', 'airbnb'), true);
+  // Pasta de outra plataforma, subida de diretório e lixo são recusados.
+  assert.equal(pastaValida(`${id}/booking`, 'airbnb'), false);
+  assert.equal(pastaValida('../booking', 'booking'), false);
+  assert.equal(pastaValida(`${id}/../booking`, 'booking'), false);
+  assert.equal(pastaValida('', 'airbnb'), false);
+  assert.equal(pastaValida(undefined, 'airbnb'), false);
+  assert.equal(pastaValida(`${id}/airbnb`, 'vrbo'), false);
+  const config = { browserlessWs: 'ws://b:3000', browserlessToken: '', pastaPerfis: '/data/profiles', duracaoMaximaMs: 1, larguraTela: 1024, alturaTela: 768, idioma: 'pt-BR' };
+  const launch = JSON.parse(new URL(urlDoBrowserless(config, `${id}/booking`)).searchParams.get('launch'));
+  assert.ok(launch.args.includes(`--user-data-dir=/data/profiles/${id}/booking`));
 });
 
 test('rota interna: só aceita quem chega pela rede da VPS, nunca pelo Traefik', () => {

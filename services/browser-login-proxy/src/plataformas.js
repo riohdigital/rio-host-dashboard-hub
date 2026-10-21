@@ -2,10 +2,26 @@
  * Plataformas de login: onde começar, o perfil de navegador de cada uma e
  * como reconhecer em que passo o login está.
  *
- * O perfil (`/data/profiles/<perfil>`) é o mesmo que o keep-alive e a
+ * O perfil (`/data/profiles/<pasta>`) é o mesmo que o keep-alive e a
  * auditoria abrem depois: a plataforma vê sempre o mesmo "dispositivo", com
  * cookies, localStorage e o "lembrar este dispositivo" preservados.
+ *
+ * Multi-inquilino (F7): cada usuário tem o próprio perfil, `<user_id>/<perfil>`.
+ * As duas sessões de antes da F7 continuam na pasta antiga (`<perfil>`), gravada
+ * em agent_browser_sessions.profile_dir, para ninguém precisar conectar de novo.
  */
+
+const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
+
+/** Pasta de perfil válida para a plataforma: `<perfil>` ou `<uuid>/<perfil>` (a mesma regra do banco). */
+export function pastaValida(pasta, plataforma) {
+  const def = PLATAFORMAS[plataforma];
+  if (!def || typeof pasta !== 'string') return false;
+  return new RegExp(`^(${UUID}/)?${def.perfil}$`).test(pasta);
+}
+
+/** Pasta de perfil de uma sessão nova do usuário. */
+export const pastaDoUsuario = (usuarioId, plataforma) => `${usuarioId}/${PLATAFORMAS[plataforma].perfil}`;
 
 export const PLATAFORMAS = {
   airbnb: {

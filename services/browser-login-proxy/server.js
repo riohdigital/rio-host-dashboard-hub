@@ -2,7 +2,8 @@
  * Rioh Host — proxy de login das plataformas (Airbnb, Booking).
  *
  * O dashboard abre um WebSocket em /login. A primeira mensagem traz o token do
- * usuário logado no dashboard e a plataforma; só usuário master entra. Daí em
+ * usuário logado no dashboard e a plataforma; entra quem cuida de imóveis
+ * (master ou owner), sempre na PRÓPRIA conta da plataforma (multi-inquilino). Daí em
  * diante o proxy transmite a tela do navegador (JPEG binário) e executa os
  * comandos de mouse e teclado da lista fechada (src/comandos.js).
  *
@@ -13,7 +14,7 @@ import http from 'node:http';
 import { WebSocketServer } from 'ws';
 
 import { carregarConfig, origemPermitida, pedidoInterno } from './src/config.js';
-import { PLATAFORMAS } from './src/plataformas.js';
+import { PLATAFORMAS, pastaValida } from './src/plataformas.js';
 import { SessaoLogin } from './src/sessao.js';
 import { LeituraDeReserva } from './src/reserva.js';
 import { Verificacao } from './src/verificacao.js';
@@ -58,6 +59,8 @@ async function lerCorpo(req) {
  * - verificar: a plataforma continua conectada? (keep-alive)
  * - reserva: dados de uma reserva lidos da página dela (auditoria)
  * O mesmo perfil nunca abre duas vezes: com login ou outra rota em andamento, 409.
+ * O n8n informa a pasta do perfil (`pasta`, de agent_browser_sessions.profile_dir);
+ * sem ela, vale a pasta antiga da plataforma (pedidos de antes da F7).
  */
 async function rotaInterna(req, res, nome, criar) {
   if (!pedidoInterno(req, config.hostsInternos)) return json(res, 403, { erro: 'somente rede interna' });
@@ -69,11 +72,13 @@ async function rotaInterna(req, res, nome, criar) {
   }
   const plataforma = corpo.plataforma;
   if (!PLATAFORMAS[plataforma]) return json(res, 400, { erro: 'plataforma desconhecida' });
-  if (ativas.has(plataforma)) return json(res, 409, { erro: 'ocupado', plataforma });
+  const pasta = corpo.pasta || PLATAFORMAS[plataforma].perfil;
+  if (!pastaValida(pasta, plataforma)) return json(res, 400, { erro: 'pasta de perfil inválida' });
+  if (ativas.has(pasta)) return json(res, 409, { erro: 'ocupado', plataforma });
 
-  const tarefa = criar(plataforma, corpo);
+  const tarefa = criar(plataforma, { ...corpo, pasta });
   if (!tarefa) return json(res, 400, { erro: 'pedido incompleto' });
-  ativas.set(plataforma, tarefa);
+  ativas.set(pasta, tarefa);
   try {
     const resultado = await tarefa.executar();
     // Só o desfecho vai para o log: nada de hóspede nem valores.
@@ -83,15 +88,16 @@ async function rotaInterna(req, res, nome, criar) {
     log(`${nome}_falhou`, { plataforma, erro: String(erro?.message || erro) });
     return json(res, 502, { erro: 'navegador', plataforma, detalhe: String(erro?.message || erro).slice(0, 200) });
   } finally {
-    ativas.delete(plataforma);
+    ativas.delete(pasta);
   }
 }
 
-const verificar = (req, res) => rotaInterna(req, res, 'verificacao', (plataforma) => new Verificacao({ plataforma, config }));
+const verificar = (req, res) =>
+  rotaInterna(req, res, 'verificacao', (plataforma, corpo) => new Verificacao({ plataforma, pasta: corpo.pasta, config }));
 const lerReserva = (req, res) =>
   rotaInterna(req, res, 'leitura_reserva', (plataforma, corpo) =>
     /^[A-Z0-9]{6,20}$/i.test(String(corpo.codigo || '').trim())
-      ? new LeituraDeReserva({ plataforma, codigo: corpo.codigo, hotelId: corpo.hotel_id, config })
+      ? new LeituraDeReserva({ plataforma, pasta: corpo.pasta, codigo: corpo.codigo, hotelId: corpo.hotel_id, config })
       : null);
 
 const servidor = http.createServer(async (req, res) => {
@@ -145,22 +151,29 @@ function atender(ws) {
     autenticando = true;
     clearTimeout(prazo);
 
-    const usuario = await supabase.usuarioMaster(msg.token).catch(() => null);
-    if (!usuario) return recusar(ws, 'auth', 'Acesso restrito ao administrador do sistema. Entre de novo no dashboard.');
+    const usuario = await supabase.usuarioQueConecta(msg.token).catch(() => null);
+    if (!usuario) return recusar(ws, 'auth', 'Conectar plataformas é para quem cuida de imóveis. Entre de novo no dashboard.');
     if (!PLATAFORMAS[msg.plataforma]) return recusar(ws, 'plataforma', 'Plataforma desconhecida.');
-    if (ativas.has(msg.plataforma)) return recusar(ws, 'ocupado', 'Já existe um login desta plataforma em andamento. Aguarde terminar.');
+    const minha = await supabase.sessaoDoUsuario(msg.token, usuario.id, msg.plataforma).catch((erro) => {
+      log('sessao_nao_encontrada', { plataforma: msg.plataforma, erro: String(erro?.message || erro) });
+      return null;
+    });
+    if (!minha) return recusar(ws, 'sessao', 'Não consegui preparar a sua sessão desta plataforma. Tente de novo.');
+    if (ativas.has(minha.pasta)) return recusar(ws, 'ocupado', 'Já existe um login desta plataforma em andamento. Aguarde terminar.');
 
     sessao = new SessaoLogin({
       ws,
       plataforma: msg.plataforma,
+      sessaoId: minha.id,
+      pasta: minha.pasta,
       usuario,
       token: msg.token,
       config,
       supabase,
       log,
-      aoTerminar: () => ativas.delete(msg.plataforma),
+      aoTerminar: () => ativas.delete(minha.pasta),
     });
-    ativas.set(msg.plataforma, sessao);
+    ativas.set(minha.pasta, sessao);
     sessao.iniciar().catch((erro) => {
       log('falha_ao_iniciar', { plataforma: msg.plataforma, erro: String(erro?.message || erro) });
       recusar(ws, 'navegador', 'Não consegui abrir o navegador agora. Tente de novo em instantes.');

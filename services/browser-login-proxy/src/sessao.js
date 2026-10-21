@@ -22,7 +22,7 @@ const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
 const LIMITE_FILA_BYTES = 4 * 1024 * 1024;
 const MUNDO_DA_SONDA = 'rioh-sonda';
 
-/** Endereço do Chrome no Browserless, com o perfil da plataforma. */
+/** Endereço do Chrome no Browserless, com a pasta de perfil da sessão (`<perfil>` ou `<user_id>/<perfil>`). */
 export function urlDoBrowserless(config, perfil) {
   const launch = {
     headless: false,
@@ -40,10 +40,13 @@ export function urlDoBrowserless(config, perfil) {
 }
 
 export class SessaoLogin {
-  constructor({ ws, plataforma, usuario, token, config, supabase, log, aoTerminar, urlDoNavegador }) {
+  constructor({ ws, plataforma, sessaoId, pasta, usuario, token, config, supabase, log, aoTerminar, urlDoNavegador }) {
     this.ws = ws;
     this.plataforma = plataforma;
     this.def = PLATAFORMAS[plataforma];
+    // A sessão do usuário nesta plataforma (agent_browser_sessions) e a pasta do perfil dela.
+    this.sessaoId = sessaoId;
+    this.pasta = pasta;
     this.usuario = usuario;
     // Token do login do dashboard: as gravações no banco são feitas em nome do Dono.
     this.token = token;
@@ -52,7 +55,7 @@ export class SessaoLogin {
     this.log = log;
     this.aoTerminar = aoTerminar;
     // Nos testes, um Chrome local; em produção, o Browserless.
-    this.urlDoNavegador = urlDoNavegador || (() => urlDoBrowserless(config, this.def.perfil));
+    this.urlDoNavegador = urlDoNavegador || (() => urlDoBrowserless(config, this.pasta));
     // Tamanho da página em px CSS. Vem dos quadros da tela (a janela real manda).
     this.viewport = { w: config.larguraTela, h: config.alturaTela };
     this.inicio = Date.now();
@@ -73,7 +76,7 @@ export class SessaoLogin {
 
   async iniciar() {
     this.enviar({ t: 'state', passo: 'conectando' });
-    await this.supabase.travar(this.token, this.def.dominio, new Date(Date.now() + this.config.duracaoMaximaMs).toISOString()).catch(() => {});
+    await this.supabase.travar(this.token, this.sessaoId, new Date(Date.now() + this.config.duracaoMaximaMs).toISOString()).catch(() => {});
 
     this.cdp = new Cdp(this.urlDoNavegador());
     await this.cdp.abrir();
@@ -212,7 +215,7 @@ export class SessaoLogin {
 
   /** O front renova o token do dashboard (ele vence em 1 h); só vale se for do mesmo usuário. */
   async renovarToken(novo) {
-    const usuario = await this.supabase.usuarioMaster(novo).catch(() => null);
+    const usuario = await this.supabase.usuarioQueConecta(novo).catch(() => null);
     if (usuario?.id === this.usuario.id) this.token = novo;
   }
 
@@ -246,7 +249,7 @@ export class SessaoLogin {
       await esperar(3000);
       const daPlataforma = await this.cookiesDaPlataforma();
       await this.fecharNavegador();
-      await this.supabase.registrarLogin(this.token, this.def.dominio, daPlataforma);
+      await this.supabase.registrarLogin(this.token, this.sessaoId, daPlataforma);
       this.enviar({ t: 'state', passo: 'pronto' });
       this.log('login_concluido', { plataforma: this.plataforma, cookies: daPlataforma.length });
       this.encerrar('concluido');
@@ -263,7 +266,7 @@ export class SessaoLogin {
     clearInterval(this.timer);
     // Fechamento limpo também aqui: o que já avançou (ex.: "lembrar dispositivo") fica no perfil.
     await this.fecharNavegador();
-    await this.supabase.travar(this.token, this.def.dominio, null).catch(() => {});
+    await this.supabase.travar(this.token, this.sessaoId, null).catch(() => {});
     if (motivo !== 'concluido' && motivo !== 'desconectado') this.enviar({ t: 'fim', motivo });
     if (this.ws.readyState === 1) this.ws.close(1000, motivo);
     this.log('sessao_encerrada', { plataforma: this.plataforma, motivo, duracao_s: Math.round((Date.now() - this.inicio) / 1000) });
