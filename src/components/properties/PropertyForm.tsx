@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Property } from '@/types/property';
 import { useAuth } from '@/hooks/useAuth';
 import AirbnbImportSection from './AirbnbImportSection';
+import { fetchN8n } from '@/lib/n8n';
 
 interface PropertyFormProps {
   property?: Property | null;
@@ -35,6 +36,9 @@ const PropertyForm = ({ property, onSuccess, onCancel }: PropertyFormProps) => {
     default_checkin_time: '15:00',
     default_checkout_time: '11:00'
   });
+  // Localização usada na precificação: a esteira encontra pelo endereço; o usuário pode corrigir.
+  const [local, setLocal] = useState({ city: '', uf: '', country_code: '' });
+  const [localEditado, setLocalEditado] = useState(false);
   const [loading, setLoading] = useState(false);
   const [importedData, setImportedData] = useState(false);
   const { toast } = useToast();
@@ -58,6 +62,12 @@ const PropertyForm = ({ property, onSuccess, onCancel }: PropertyFormProps) => {
         default_checkin_time: property.default_checkin_time || '15:00',
         default_checkout_time: property.default_checkout_time || '11:00'
       });
+      setLocal({
+        city: property.city || '',
+        uf: (property.state_code || '').split('-').pop() || '',
+        country_code: property.country_code || '',
+      });
+      setLocalEditado(false);
     }
   }, [property]);
 
@@ -75,7 +85,18 @@ const PropertyForm = ({ property, onSuccess, onCancel }: PropertyFormProps) => {
         address: formData.address || null,
         airbnb_link: formData.airbnb_link || null,
         booking_link: formData.booking_link || null,
-        notes: formData.notes || null
+        notes: formData.notes || null,
+        // Localização digitada pelo usuário vale como manual e a esteira não a sobrescreve.
+        ...(localEditado && local.city.trim() && local.country_code.trim()
+          ? {
+              city: local.city.trim(),
+              country_code: local.country_code.trim().toUpperCase(),
+              state_code: local.uf.trim() ? `${local.country_code.trim().toUpperCase()}-${local.uf.trim().toUpperCase()}` : null,
+              geo_status: 'manual',
+              geo_source: 'usuario',
+              geo_checked_at: new Date().toISOString(),
+            }
+          : {})
       };
 
       let error;
@@ -94,9 +115,21 @@ const { error: insertError } = await supabase
 
       if (error) throw error;
 
+      // Imóvel com precificação automática: revisa localização, feriados e regras na hora,
+      // para uma pendência corrigida aqui sumir da página Precificação sem esperar a próxima hora.
+      if (property?.pricing_activated_at) {
+        fetchN8n('rioh-host-esteira-precificacao', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ property_id: property.id }),
+        }).catch(err => console.error('Esteira de precificação não respondeu:', err));
+      }
+
       toast({
         title: "Sucesso",
-        description: property ? "Propriedade atualizada com sucesso." : "Propriedade criada com sucesso.",
+        description: property
+          ? "Propriedade atualizada com sucesso."
+          : "Propriedade criada. Ative a precificação automática na página Precificação.",
       });
       
       onSuccess();
@@ -112,7 +145,7 @@ const { error: insertError } = await supabase
     }
   };
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: string | number) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -197,6 +230,43 @@ const { error: insertError } = await supabase
             onChange={(e) => handleInputChange('address', e.target.value)}
             placeholder="Rua, número, bairro, cidade"
           />
+        </div>
+
+        {/* Localização usada na precificação (feriados e eventos da cidade, estado e país) */}
+        <div className="rounded-lg border bg-gray-50/60 p-3 space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-sm font-medium text-gray-700">Localização para a precificação</span>
+            {property?.geo_status === 'ok' && !localEditado && (
+              <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200">Encontrada pelo endereço</Badge>
+            )}
+            {(property?.geo_status === 'manual' || localEditado) && (
+              <Badge variant="outline" className="text-[10px] bg-indigo-50 text-[#6A6DDF] border-indigo-200">Informada por você</Badge>
+            )}
+            {property?.geo_status === 'nao_encontrado' && !localEditado && (
+              <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">Endereço não encontrado no mapa</Badge>
+            )}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div>
+              <Label htmlFor="geo_city" className="text-xs">Cidade</Label>
+              <Input id="geo_city" value={local.city} placeholder="Ex: Rio de Janeiro"
+                onChange={(e) => { setLocal(l => ({ ...l, city: e.target.value })); setLocalEditado(true); }} />
+            </div>
+            <div>
+              <Label htmlFor="geo_uf" className="text-xs">Estado (sigla)</Label>
+              <Input id="geo_uf" value={local.uf} maxLength={3} placeholder="Ex: RJ"
+                onChange={(e) => { setLocal(l => ({ ...l, uf: e.target.value })); setLocalEditado(true); }} />
+            </div>
+            <div>
+              <Label htmlFor="geo_country" className="text-xs">País (código de 2 letras)</Label>
+              <Input id="geo_country" value={local.country_code} maxLength={2} placeholder="Ex: BR"
+                onChange={(e) => { setLocal(l => ({ ...l, country_code: e.target.value })); setLocalEditado(true); }} />
+            </div>
+          </div>
+          <p className="text-[11px] text-gray-500">
+            Preenchida sozinha a partir do endereço quando a precificação automática está ativa. Só altere se estiver errada:
+            o que você digitar aqui passa a valer e não é sobrescrito.
+          </p>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

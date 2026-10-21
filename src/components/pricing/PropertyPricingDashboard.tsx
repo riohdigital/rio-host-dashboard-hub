@@ -25,14 +25,18 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { PricingAlert, LocalEvent, PropertyPricingKPIs } from '@/types/pricing';
+import { PricingAlert, LocalEvent, PropertyPricingKPIs, PricingRule } from '@/types/pricing';
 import { Property } from '@/types/property';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CompetitorsRadarTab from './CompetitorsRadarTab';
 import EventsCalendarTab from './EventsCalendarTab';
 import ReservationsAuditTab from './ReservationsAuditTab';
 import { formatLocalDate } from '@/utils/dateUtils';
-import { ReservaParaOcupacao, cidadeDoImovel, eventosFuturos, hojeLocal, situacaoNoEvento } from './ocupacao';
+import {
+  ReservaParaOcupacao, NOME_DO_TIPO, ORIGEM_DA_REGRA, escopoDoEvento, eventoValeParaImovel, eventosFuturos, hojeLocal,
+  imovelLocalizado, percentual, situacaoNoEvento, tipoDeData,
+} from './ocupacao';
+import ProntidaoPrecificacao from './ProntidaoPrecificacao';
 import { fetchN8n } from '@/lib/n8n';
 
 interface PropertyPricingDashboardProps {
@@ -63,6 +67,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
   const [alerts, setAlerts] = useState<PricingAlert[]>([]);
   const [events, setEvents] = useState<LocalEvent[]>([]);
   const [reservations, setReservations] = useState<ReservaParaOcupacao[]>([]);
+  const [regras, setRegras] = useState<PricingRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<'all' | 'Pendente' | 'Aprovado' | 'Rejeitado'>('Pendente');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
@@ -139,6 +144,8 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
       let eventsQuery = supabase
         .from('local_events')
         .select('*')
+        .eq('is_active', true)
+        .eq('is_confirmed', true)
         .order('start_date', { ascending: true });
 
       const hoje = hojeLocal();
@@ -177,6 +184,19 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
 
       const { data: resData } = await resQuery;
       setReservations((resData as ReservaParaOcupacao[]) || []);
+
+      // 4. Regras de preço vigentes de cada imóvel (aprendidas pela esteira: manual > mercado > histórico)
+      const idsDaSelecao = activeSelectedProperties.map(p => p.id);
+      if (idsDaSelecao.length) {
+        const { data: regrasData, error: regrasError } = await supabase
+          .from('property_pricing_rules_vigentes')
+          .select('*')
+          .in('property_id', idsDaSelecao);
+        if (regrasError) console.error('Erro ao buscar regras de preço:', regrasError);
+        setRegras((regrasData as unknown as PricingRule[]) || []);
+      } else {
+        setRegras([]);
+      }
     } catch (err) {
       console.error('Erro geral ao buscar dados do dashboard:', err);
       toast({
@@ -194,36 +214,25 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
   }, [
     propertyId,
     selectedPropertyIds?.join(','),
+    properties.map(p => p.id).join(','),
     dateRange?.startDateString,
     dateRange?.endDateString,
     dateRange?.selectedPeriod
   ]);
 
-  const cidadesDosEventos = useMemo(() => [...new Set(events.map(e => e.city).filter(Boolean))], [events]);
-  const cidadeDe = (p: Property) => cidadeDoImovel(p.address, cidadesDosEventos);
+  // O evento vale pelo escopo (país, estado ou cidade) contra a localização de cada imóvel.
   const relevantEvents = useMemo(
-    () => events.filter(ev => !ev.city || activeSelectedProperties.some(p => cidadeDoImovel(p.address, cidadesDosEventos) === ev.city)),
-    [events, activeSelectedProperties, cidadesDosEventos],
+    () => events.filter(ev => activeSelectedProperties.some(p => eventoValeParaImovel(ev, p))),
+    [events, activeSelectedProperties],
   );
+  const semLocalizacao = activeSelectedProperties.filter(p => !imovelLocalizado(p));
 
-  /** Altas demandas do cadastro do imóvel, nos dois formatos de chave gravados, só as que não passaram. */
-  const altasDemandas = (p: Property) => {
-    const hoje = hojeLocal();
-    return ((p.high_demand_events || []) as Array<Record<string, unknown>>)
-      .map(h => ({
-        nome: String(h.event_name ?? h.name ?? ''),
-        multiplicador: (h.recommended_multiplier ?? h.recommended_price_multiplier ?? null) as number | string | null,
-        periodo: (h.period_description ?? (h.start_date && h.end_date ? `${formatLocalDate(String(h.start_date))} a ${formatLocalDate(String(h.end_date))}` : null)) as string | null,
-        fim: (h.end_date ?? null) as string | null,
-        notas: (h.notes ?? null) as string | null,
-      }))
-      .filter(h => h.nome && (!h.fim || String(h.fim).slice(0, 10) >= hoje));
-  };
+  const regraDe = (propertyId: string, tipo: string) => regras.find(r => r.property_id === propertyId && r.tipo_data === tipo) || null;
 
-  /** Situação de cada imóvel da seleção (na cidade do evento) nas noites do evento. */
+  /** Situação de cada imóvel da seleção (onde o evento vale) nas noites do evento. */
   const situacoesNoEvento = (ev: LocalEvent) =>
     activeSelectedProperties
-      .filter(p => !ev.city || cidadeDe(p) === ev.city)
+      .filter(p => eventoValeParaImovel(ev, p))
       .map(p => ({ p, ...situacaoNoEvento(reservations.filter(r => r.property_id === p.id), ev) }));
 
   // KPIs calculados
@@ -403,7 +412,11 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
       <Card className="shadow-xs">
         <CardContent className="p-4 space-y-3">
           {relevantEvents.length === 0 ? (
-            <p className="text-xs text-gray-400 py-4 text-center">Nenhum evento nas cidades dos imóveis no período.</p>
+            <p className="text-xs text-gray-400 py-4 text-center">
+              {semLocalizacao.length === activeSelectedProperties.length
+                ? 'Os imóveis ainda não foram localizados. Ative a precificação automática acima.'
+                : 'Nenhum feriado ou evento onde os imóveis estão, no período.'}
+            </p>
           ) : (
             relevantEvents.map(ev => {
               const sits = situacoesNoEvento(ev);
@@ -436,9 +449,17 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
                       {formatLocalDate(ev.start_date)} a{' '}
                       {formatLocalDate(ev.end_date)}
                     </span>
-                    <span className="font-medium text-[#6A6DDF]">
-                      {ev.recommended_price_multiplier ? `${ev.recommended_price_multiplier}x diária` : 'Normal'}
-                    </span>
+                    {(() => {
+                      // O quanto subir vem da regra aprendida do imóvel, não do evento.
+                      const r = sits.length === 1 ? regraDe(sits[0].p.id, tipoDeData(ev)) : null;
+                      return r ? (
+                        <span className="font-medium text-[#6A6DDF]" title={`Regra ${ORIGEM_DA_REGRA[r.origem] || r.origem}`}>
+                          {percentual(Number(r.fator))} na diária
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">{escopoDoEvento(ev)}</span>
+                      );
+                    })()}
                   </div>
 
                   {/* Status de Ocupação no Imóvel */}
@@ -469,13 +490,13 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
         </CardContent>
       </Card>
 
-      {/* Card: Altas Demandas Mapeadas no Imóvel */}
+      {/* Card: Regras de preço aprendidas por imóvel */}
       <Card className="shadow-xs border-t-2 border-t-amber-500">
         <CardHeader className="p-4 pb-2">
           <CardTitle className="text-sm font-bold flex items-center justify-between">
             <span className="flex items-center gap-1.5 text-gray-800">
               <Flame className="h-4 w-4 text-amber-500" />
-              Altas Demandas do Imóvel
+              Quanto a diária sobe
             </span>
             {selectedProperty && (
               <Badge variant="outline" className="text-[10px] font-medium border-amber-200 text-amber-700 bg-amber-50">
@@ -484,48 +505,47 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
             )}
           </CardTitle>
           <CardDescription className="text-[11px]">
-            {selectedProperty
-              ? 'Picos sazonais configurados no banco de dados para este imóvel'
-              : 'Altas demandas cadastradas em cada imóvel da seleção'}
+            Aprendido das reservas de cada imóvel: diária em cada tipo de data comparada às noites comuns
           </CardDescription>
         </CardHeader>
         <CardContent className="p-4 pt-1 space-y-2">
-          {selectedProperty && altasDemandas(selectedProperty).length > 0 ? (
-            altasDemandas(selectedProperty).map((hde, idx) => (
-              <div key={idx} className="p-2.5 rounded-lg border bg-amber-50/40 border-amber-200/60 space-y-1 text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-gray-800">{hde.nome}</span>
-                  <Badge className="bg-amber-500 text-white text-[10px] px-1.5 py-0">
-                    {hde.multiplicador ? `${hde.multiplicador}x` : 'Alta'}
-                  </Badge>
-                </div>
-                {hde.periodo && (
-                  <p className="text-[11px] text-gray-500">{hde.periodo}</p>
-                )}
-                {hde.notas && (
-                  <p className="text-[11px] text-gray-600 italic">{hde.notas}</p>
+          {activeSelectedProperties.map(p => {
+            const minhas = regras.filter(r => r.property_id === p.id);
+            if (!selectedProperty && minhas.length === 0) return null;
+            return (
+              <div key={p.id} className="p-2.5 rounded-lg border bg-amber-50/40 border-amber-200/60 space-y-1.5 text-xs">
+                {!selectedProperty && <div className="font-semibold text-gray-700">{p.nickname || p.name}</div>}
+                {minhas.length === 0 ? (
+                  <p className="text-[11px] text-gray-500">
+                    {p.pricing_activated_at
+                      ? 'Ainda sem reservas suficientes para aprender (mínimo de 15 noites comuns e 4 noites em cada tipo de data).'
+                      : 'Ative a precificação automática para o sistema aprender com as reservas deste imóvel.'}
+                  </p>
+                ) : (
+                  minhas
+                    .sort((a, b) => Number(b.fator) - Number(a.fator))
+                    .map(r => {
+                      const d = (r.detalhe || {}) as { mediana_tipo?: number; mediana_comum?: number };
+                      return (
+                        <div key={r.tipo_data} className="flex items-center justify-between gap-2">
+                          <span className="text-gray-700">{NOME_DO_TIPO[r.tipo_data] || r.tipo_data}</span>
+                          <span className="text-right">
+                            <span className={`font-bold ${Number(r.fator) > 1.03 ? 'text-amber-700' : 'text-gray-500'}`}>{percentual(Number(r.fator))}</span>
+                            <span className="block text-[10px] text-gray-400">
+                              {d.mediana_tipo && d.mediana_comum
+                                ? `${reais(Math.round(d.mediana_tipo))} vs ${reais(Math.round(d.mediana_comum))} • ${r.amostras ?? 0} noites`
+                                : ORIGEM_DA_REGRA[r.origem] || r.origem}
+                            </span>
+                          </span>
+                        </div>
+                      );
+                    })
                 )}
               </div>
-            ))
-          ) : selectedProperty ? (
-            <p className="text-xs text-gray-400 py-3 text-center">Nenhuma alta demanda cadastrada diretamente neste imóvel.</p>
-          ) : (
-            <div className="space-y-2">
-              {activeSelectedProperties.filter(p => altasDemandas(p).length > 0).length === 0 ? (
-                <p className="text-xs text-gray-400 py-3 text-center">Nenhum imóvel da seleção tem altas demandas cadastradas.</p>
-              ) : (
-                activeSelectedProperties
-                  .filter(p => altasDemandas(p).length > 0)
-                  .map(p => (
-                    <div key={p.id} className="p-2 rounded-lg bg-gray-50 border text-[11px] space-y-1">
-                      <div className="font-semibold text-gray-700">{p.nickname || p.name}</div>
-                      <div className="text-gray-600">
-                        {altasDemandas(p).map(h => `${h.nome}${h.multiplicador ? ` (${h.multiplicador}x)` : ''}`).join(', ')}
-                      </div>
-                    </div>
-                  ))
-              )}
-            </div>
+            );
+          })}
+          {!selectedProperty && regras.length === 0 && (
+            <p className="text-xs text-gray-400 py-3 text-center">Nenhum imóvel da seleção tem regras aprendidas ainda.</p>
           )}
         </CardContent>
       </Card>
@@ -576,6 +596,9 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
           </div>
         </CardContent>
       </Card>
+
+      {/* Prontidão e ativação da precificação automática */}
+      <ProntidaoPrecificacao properties={activeSelectedProperties} regras={regras} onAtualizado={fetchData} />
 
       {/* Grid de KPIs Rápidos */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -636,7 +659,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
               <div>
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Eventos na Região</p>
                 <h3 className="text-2xl font-bold text-[#6A6DDF] mt-1">{kpis.upcomingEventsCount}</h3>
-                <p className="text-xs text-gray-500 mt-1">Nas cidades dos imóveis, a partir de hoje</p>
+                <p className="text-xs text-gray-500 mt-1">Feriados e eventos onde os imóveis estão, a partir de hoje</p>
               </div>
               <div className="p-2.5 rounded-full bg-[#6A6DDF]/10 text-[#6A6DDF]">
                 <Calendar className="h-5 w-5" />
@@ -822,7 +845,9 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
                                 </Badge>
 
                                 <Badge variant="secondary" className="text-xs">
-                                  {isUnderpricing ? 'Evento de Alta Demanda' : 'Preenchimento de Noite Órfã'}
+                                  {isUnderpricing
+                                    ? (NOME_DO_TIPO[alert.supporting_data?.regra_tipo || ''] || 'Feriado ou evento')
+                                    : 'Preenchimento de Noite Órfã'}
                                 </Badge>
 
                                 <span className="text-xs text-gray-500 ml-auto flex items-center gap-1 font-medium">
@@ -844,9 +869,13 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
                                     <Sparkles className="h-3.5 w-3.5 text-[#6A6DDF]" />
                                     <span>Raciocínio da Sugestão & Dados Comprobatórios</span>
                                   </div>
-                                  {alert.supporting_data?.calculation_formula && (
-                                    <span className="text-[11px] font-mono bg-white px-2 py-0.5 rounded border border-gray-200 text-gray-700 font-medium shadow-xs">
-                                      {alert.supporting_data.calculation_formula}
+                                  {alert.supporting_data?.confianca && (
+                                    <span className={`text-[11px] px-2 py-0.5 rounded border font-medium shadow-xs ${
+                                      alert.supporting_data.confianca === 'alta'
+                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                        : 'bg-amber-50 text-amber-700 border-amber-200'
+                                    }`}>
+                                      Confiança {alert.supporting_data.confianca}
                                     </span>
                                   )}
                                 </div>
@@ -859,24 +888,41 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
 
                                 {alert.supporting_data && (
                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-[11px]">
-                                    {alert.supporting_data.market_evidence && (
+                                    {alert.supporting_data.regra_fator ? (
                                       <div className="bg-white p-2 rounded-lg border border-gray-100 flex items-start gap-2 shadow-xs">
                                         <Layers className="h-3.5 w-3.5 text-[#6A6DDF] shrink-0 mt-0.5" />
                                         <div>
-                                          <span className="font-semibold text-gray-800 block">Comprovação de Mercado:</span>
-                                          <span className="text-gray-600">{alert.supporting_data.market_evidence}</span>
+                                          <span className="font-semibold text-gray-800 block">
+                                            Regra do imóvel: {percentual(Number(alert.supporting_data.regra_fator))}
+                                          </span>
+                                          <span className="text-gray-600">
+                                            Aprendida de {ORIGEM_DA_REGRA[alert.supporting_data.regra_origem || ''] || alert.supporting_data.regra_origem}
+                                            {alert.supporting_data.regra_amostras ? ` (${alert.supporting_data.regra_amostras} noites)` : ''}
+                                            {alert.supporting_data.compset_amostras ? `; ${alert.supporting_data.compset_amostras} diárias de concorrentes` : ''}
+                                          </span>
                                         </div>
                                       </div>
-                                    )}
-                                    {alert.supporting_data.calendar_protection && (
+                                    ) : null}
+                                    {alert.supporting_data.base_desatualizada ? (
+                                      <div className="bg-amber-50/70 p-2 rounded-lg border border-amber-200 flex items-start gap-2 shadow-xs">
+                                        <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
+                                        <div>
+                                          <span className="font-semibold text-amber-900 block">Confira a diária base</span>
+                                          <span className="text-amber-800">
+                                            Ela está longe do que o imóvel vende em noite comum
+                                            {alert.supporting_data.mediana_comum_vendida ? ` (${reais(Math.round(alert.supporting_data.mediana_comum_vendida))})` : ''}.
+                                          </span>
+                                        </div>
+                                      </div>
+                                    ) : alert.supporting_data.fonte_diaria_atual === 'calendario_coletado' ? (
                                       <div className="bg-white p-2 rounded-lg border border-gray-100 flex items-start gap-2 shadow-xs">
                                         <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5" />
                                         <div>
-                                          <span className="font-semibold text-gray-800 block">Proteção de Calendário:</span>
-                                          <span className="text-gray-600">{alert.supporting_data.calendar_protection}</span>
+                                          <span className="font-semibold text-gray-800 block">Tarifa conferida</span>
+                                          <span className="text-gray-600">Diária atual lida do calendário do anúncio.</span>
                                         </div>
                                       </div>
-                                    )}
+                                    ) : null}
                                   </div>
                                 )}
                               </div>
@@ -886,7 +932,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
                                 <div>
                                   <div className="flex items-center gap-1.5 mb-0.5">
                                     <span className="text-gray-600 font-medium">Tarifa Atual</span>
-                                    {alert.supporting_data?.is_from_real_calendar || alert.supporting_data?.fonte_diaria_atual === 'calendario_coletado' ? (
+                                    {alert.supporting_data?.fonte_diaria_atual === 'calendario_coletado' ? (
                                       <Badge
                                         variant="outline"
                                         className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-semibold py-0 px-1.5 shadow-2xs"
@@ -1283,6 +1329,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
         properties={activeSelectedProperties}
         selectedProperty={selectedProperty}
         reservations={reservations}
+        regras={regras}
       />
     </TabsContent>
 

@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -18,6 +19,9 @@ const PropertiesList = () => {
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
   const { toast } = useToast();
   const { hasPermission, canAccessProperty, getAccessibleProperties, isMaster } = useUserPermissions();
+  // ?editar=<id> abre o cadastro direto (vem do pedido de "Atualizar cadastro" da Precificação).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const editarId = searchParams.get('editar');
 
   useEffect(() => {
     fetchProperties();
@@ -78,6 +82,15 @@ const PropertiesList = () => {
       });
     }
   };
+
+  useEffect(() => {
+    if (!editarId || loading) return;
+    const alvo = properties.find(p => p.id === editarId);
+    if (alvo) handleEdit(alvo);
+    searchParams.delete('editar');
+    setSearchParams(searchParams, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editarId, loading, properties]);
 
   const handleDelete = async (propertyId: string) => {
     const accessLevel = canAccessProperty(propertyId);
