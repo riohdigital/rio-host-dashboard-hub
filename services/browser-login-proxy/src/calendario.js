@@ -14,6 +14,8 @@ import { LeituraDeReserva } from './reserva.js';
 
 const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
 const INTERESSE = /calendar|availability|pricing|price|nightly|multicalendar/i;
+// Rolagens no calendário para a página buscar os meses seguintes (cerca de 1 ano).
+const MAX_ROLAGENS = 12;
 
 export class LeituraDeCalendario extends LeituraDeReserva {
   constructor({ plataforma, pasta, anuncio, config, urlDoNavegador }) {
@@ -37,14 +39,15 @@ export class LeituraDeCalendario extends LeituraDeReserva {
     if (!this.anuncio) return { status: 'error', motivo: 'id do anúncio do Airbnb não informado' };
     await this.ir(`https://www.airbnb.com.br/multicalendar/${this.anuncio}`);
 
-    // Deixa a página buscar o calendário (ela pede os meses em sequência).
-    const inicio = Date.now();
-    let quantos = -1;
-    while (Date.now() - inicio < 25_000) {
-      await esperar(1500);
-      const agora = [...this.pedidos.values()].filter((p) => p.terminou).length;
-      if (agora === quantos && agora > 0) break;
-      quantos = agora;
+    // Deixa a página buscar o calendário e rola como uma pessoa, para ela pedir os meses
+    // seguintes (a página só busca os meses que aparecem). Para quando a rolagem não traz mais nada.
+    await this.assentar(25_000);
+    for (let i = 0; i < MAX_ROLAGENS; i++) {
+      const antes = this.pedidos.size;
+      await this.aba('Input.dispatchMouseEvent', { type: 'mouseWheel', x: 512, y: 450, deltaX: 0, deltaY: 700 + Math.floor(Math.random() * 300) }).catch(() => {});
+      await esperar(1500 + Math.floor(Math.random() * 1500));
+      await this.assentar(5_000);
+      if (this.pedidos.size === antes && i >= 2) break;
     }
     const { passo } = await this.passoAtual(3_000);
     if (passo !== 'conectado' && passo !== 'carregando') return { status: 'auth_required', motivo: `sessão do Airbnb caiu (tela: ${passo})` };
@@ -67,11 +70,31 @@ export class LeituraDeCalendario extends LeituraDeReserva {
       respostas.push({ caminho: u.pathname, operacao, tamanho: texto.length, tem_o_anuncio: texto.includes(this.anuncio), esqueleto: esqueleto(json, 0, 10) });
     }
 
-    // Formato conhecido: devolve os dias; senão, o diagnóstico para mapear o formato.
+    // Formato conhecido: junta os dias de todas as respostas (um mês por resposta); senão, o
+    // diagnóstico para mapear o formato.
+    const dias = new Map();
+    let operacao = null;
     for (const c of corpos) {
-      const dias = lerCalendarioAirbnb(c.json, this.anuncio);
-      if (dias && dias.length) return { status: 'ok', plataforma: 'airbnb', anuncio: this.anuncio, operacao: c.operacao, dias };
+      for (const d of lerCalendarioAirbnb(c.json, this.anuncio) || []) {
+        dias.set(d.data, d);
+        operacao = operacao || c.operacao;
+      }
+    }
+    if (dias.size) {
+      return { status: 'ok', plataforma: 'airbnb', anuncio: this.anuncio, operacao, dias: [...dias.values()].sort((a, b) => a.data.localeCompare(b.data)) };
     }
     return { status: 'diagnostico', plataforma: 'airbnb', anuncio: this.anuncio, respostas };
+  }
+
+  /** Espera a página parar de buscar (nenhum pedido novo terminando) ou o prazo acabar. */
+  async assentar(prazoMs) {
+    const inicio = Date.now();
+    let quantos = -1;
+    while (Date.now() - inicio < prazoMs) {
+      await esperar(1500);
+      const agora = [...this.pedidos.values()].filter((p) => p.terminou).length;
+      if (agora === quantos && agora > 0) return;
+      quantos = agora;
+    }
   }
 }
