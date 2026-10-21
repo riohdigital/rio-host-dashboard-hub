@@ -183,9 +183,12 @@ export function lerBuscaAirbnb(resposta, noites) {
       const valor = valorBRL(linha.discountedPrice) ?? valorBRL(linha.price) ?? valorBRL(rotulo);
       if (id && valor > 0 && !achados.has(id)) {
         const total = /total/i.test(`${rotulo} ${linha.qualifier || ''}`) || (noites > 1 && !/noite|night/i.test(rotulo));
-        const nota = String(no.avgRatingLocalized || no.avgRatingA11yLabel || listing.avgRatingLocalized || '');
+        // A nota curta ("4,91") e o rótulo de acessibilidade ("... 4,91 de 5, 57 avaliações") trazem
+        // partes diferentes: lê os dois juntos.
+        const nota = [no.avgRatingLocalized, no.avgRatingA11yLabel, listing.avgRatingLocalized, listing.avgRatingA11yLabel].filter(Boolean).join(' | ');
         const mNota = nota.match(/(\d[.,]\d{1,2})/);
-        const mAval = nota.match(/\((\d[\d.]*)\)/) || nota.match(/(\d[\d.]*)\s+(?:avalia|review)/i);
+        const contagem = [no.reviewsCount, listing.reviewsCount, no.reviewCount, listing.reviewCount].find((v) => Number.isInteger(v));
+        const mAval = nota.match(/\((\d[\d.]*)\)/) || nota.match(/(\d[\d.]*)\s+(?:avalia|coment|review)/i);
         const conteudo = JSON.stringify(no.structuredContent || {});
         const mQuartos = conteudo.match(/(\d+)\s+quartos?/i);
         const coord = listing.location?.coordinate || listing.coordinate || {};
@@ -197,7 +200,9 @@ export function lerBuscaAirbnb(resposta, noites) {
           preco_mostrado: valor,
           preco_e_total: Boolean(total),
           nota: mNota ? Number(mNota[1].replace(',', '.')) : null,
-          avaliacoes: mAval ? Number(mAval[1].replace(/\./g, '')) : null,
+          avaliacoes: contagem ?? (mAval ? Number(mAval[1].replace(/\./g, '')) : null),
+          // Texto da nota como a página mostrou (para conferir e mapear formatos novos).
+          nota_texto: nota.slice(0, 160) || null,
           quartos: mQuartos ? Number(mQuartos[1]) : /est[uú]dio|studio/i.test(conteudo) ? 0 : null,
           lat: Number.isFinite(coord.latitude) ? coord.latitude : null,
           lng: Number.isFinite(coord.longitude) ? coord.longitude : null,
