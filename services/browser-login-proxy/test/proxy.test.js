@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import { traduzir } from '../src/comandos.js';
 import { origemPermitida, pedidoInterno } from '../src/config.js';
 import { passoDoLogin, pastaDoUsuario, pastaValida } from '../src/plataformas.js';
-import { esqueleto, lerCalendarioAirbnb, lerReservaAirbnb, valorBRL } from '../src/extratores.js';
+import { esqueleto, lerBuscaAirbnb, lerCalendarioAirbnb, lerReservaAirbnb, valorBRL } from '../src/extratores.js';
 import { urlDoBrowserless } from '../src/sessao.js';
 
 const VIEW = { w: 1280, h: 860 };
@@ -204,4 +204,29 @@ test('E4: dias do calendário com preço; bloco sem uma semana de dias é ignora
   assert.equal(lidos[9].diaria, 309);
   assert.equal(lerCalendarioAirbnb({ data: { dias: dias.slice(0, 3) } }), null);
   assert.equal(lerCalendarioAirbnb({ data: { nada: true } }), null);
+});
+
+test('E5/E6: anúncios da busca com o preço por noite; total dividido pelas noites', () => {
+  const id = Buffer.from('DemandStayListing:712309518667103780').toString('base64');
+  const resposta = { data: { presentation: { staysSearch: { results: { searchResults: [
+    {
+      __typename: 'StaySearchResult',
+      demandStayListing: { id, description: { name: { localizedStringWithTranslationPreference: 'Cobertura no Flamengo' } }, location: { coordinate: { latitude: -22.93, longitude: -43.17 } } },
+      structuredDisplayPrice: { primaryLine: { price: 'R$ 1.500', qualifier: 'total', accessibilityLabel: 'R$ 1.500 no total' } },
+      avgRatingLocalized: '4,92 (123)',
+      structuredContent: { primaryLine: [{ body: '2 quartos' }] },
+    },
+    { __typename: 'StaySearchResult', demandStayListing: { id: '999' }, structuredDisplayPrice: { primaryLine: { price: 'Indisponível' } } },
+  ] } } } } };
+  const [a] = lerBuscaAirbnb(resposta, 3);
+  assert.equal(a.id, '712309518667103780');
+  assert.equal(a.nome, 'Cobertura no Flamengo');
+  assert.equal(a.diaria, 500);
+  assert.equal(a.preco_e_total, true);
+  assert.equal(a.nota, 4.92);
+  assert.equal(a.avaliacoes, 123);
+  assert.equal(a.quartos, 2);
+  assert.equal(a.lat, -22.93);
+  assert.equal(lerBuscaAirbnb(resposta, 3).length, 1);
+  assert.equal(lerBuscaAirbnb({ data: {} }, 2), null);
 });

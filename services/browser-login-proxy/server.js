@@ -18,6 +18,7 @@ import { PLATAFORMAS, pastaValida } from './src/plataformas.js';
 import { SessaoLogin } from './src/sessao.js';
 import { LeituraDeReserva } from './src/reserva.js';
 import { LeituraDeCalendario } from './src/calendario.js';
+import { BuscaNoMapa } from './src/busca.js';
 import { Verificacao } from './src/verificacao.js';
 import { criarSupabase } from './src/supabase.js';
 import { codigoDaVersao } from './src/versao.js';
@@ -60,6 +61,7 @@ async function lerCorpo(req) {
  * - verificar: a plataforma continua conectada? (keep-alive)
  * - reserva: dados de uma reserva lidos da página dela (auditoria)
  * - calendario: diárias e disponibilidade do próprio anúncio (precificação, E4)
+ * - busca: anúncios no mapa em volta do imóvel, com preço das datas (concorrentes, E5 e E6)
  * O mesmo perfil nunca abre duas vezes: com login ou outra rota em andamento, 409.
  * O n8n informa a pasta do perfil (`pasta`, de agent_browser_sessions.profile_dir);
  * sem ela, vale a pasta antiga da plataforma (pedidos de antes da F7).
@@ -108,10 +110,17 @@ const lerCalendario = (req, res) =>
       ? new LeituraDeCalendario({ plataforma, pasta: corpo.pasta, anuncio: corpo.anuncio, config })
       : null);
 
+const buscar = (req, res) =>
+  rotaInterna(req, res, 'busca', (plataforma, corpo) =>
+    BuscaNoMapa.valido(corpo)
+      ? new BuscaNoMapa({ plataforma, pasta: corpo.pasta, lat: corpo.lat, lng: corpo.lng, raioKm: corpo.raio_km, checkin: corpo.checkin, checkout: corpo.checkout, hospedes: corpo.hospedes, config })
+      : null);
+
 const servidor = http.createServer(async (req, res) => {
   if (req.method === 'POST' && req.url === '/interno/verificar') return verificar(req, res);
   if (req.method === 'POST' && req.url === '/interno/reserva') return lerReserva(req, res);
   if (req.method === 'POST' && req.url === '/interno/calendario') return lerCalendario(req, res);
+  if (req.method === 'POST' && req.url === '/interno/busca') return buscar(req, res);
   if (req.url === '/health') {
     res.writeHead(200, { 'content-type': 'application/json' });
     res.end(JSON.stringify({ ok: true, codigo: VERSAO, sessoes: [...ativas.keys()], browserless: await browserlessNoAr() }));

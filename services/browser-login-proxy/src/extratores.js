@@ -147,3 +147,66 @@ export function lerCalendarioAirbnb(resposta) {
   if (dias.size < 7) return null;
   return [...dias.values()].sort((a, b) => a.data.localeCompare(b.data));
 }
+
+/** Número do anúncio dentro de um id do Airbnb ("DemandStayListing:123" em base64, ou já número). */
+function numeroDoAnuncio(id) {
+  if (id === null || id === undefined) return null;
+  const s = String(id);
+  if (/^\d{4,20}$/.test(s)) return s;
+  try {
+    const m = Buffer.from(s, 'base64').toString('utf8').match(/Listing:(\d{4,20})/);
+    if (m) return m[1];
+  } catch {
+    /* não é base64 */
+  }
+  const m = s.match(/(\d{6,20})/);
+  return m ? m[1] : null;
+}
+
+/**
+ * Airbnb — anúncios de uma resposta de busca (StaysSearch), com o preço das datas pesquisadas.
+ * O preço vem do texto que a página mostra; "total" é dividido pelas noites. Cada anúncio leva
+ * `bruto`: o trecho do preço como a página mostrou (prova da origem).
+ */
+export function lerBuscaAirbnb(resposta, noites) {
+  const achados = new Map();
+  const texto = (v) => (typeof v === 'string' ? v : v && typeof v === 'object' ? v.localizedStringWithTranslationPreference || v.localizedString || null : null);
+  const visitar = (no, profundidade) => {
+    if (!no || typeof no !== 'object' || profundidade > 16) return;
+    if (Array.isArray(no)) return no.forEach((x) => visitar(x, profundidade + 1));
+    const precoBloco = no.structuredDisplayPrice || no.pricingQuote?.structuredStayDisplayPrice || null;
+    const listing = no.demandStayListing || no.listing || null;
+    if (precoBloco && listing) {
+      const id = numeroDoAnuncio(listing.id) || numeroDoAnuncio(no.listingParamOverrides?.listingId);
+      const linha = precoBloco.primaryLine || {};
+      const rotulo = String(linha.accessibilityLabel || linha.qualifier || '');
+      const valor = valorBRL(linha.discountedPrice) ?? valorBRL(linha.price) ?? valorBRL(rotulo);
+      if (id && valor > 0 && !achados.has(id)) {
+        const total = /total/i.test(`${rotulo} ${linha.qualifier || ''}`) || (noites > 1 && !/noite|night/i.test(rotulo));
+        const nota = String(no.avgRatingLocalized || no.avgRatingA11yLabel || listing.avgRatingLocalized || '');
+        const mNota = nota.match(/(\d[.,]\d{1,2})/);
+        const mAval = nota.match(/\((\d[\d.]*)\)/) || nota.match(/(\d[\d.]*)\s+(?:avalia|review)/i);
+        const conteudo = JSON.stringify(no.structuredContent || {});
+        const mQuartos = conteudo.match(/(\d+)\s+quartos?/i);
+        const coord = listing.location?.coordinate || listing.coordinate || {};
+        achados.set(id, {
+          id,
+          nome: texto(no.nameLocalized) || texto(listing.description?.name) || texto(no.title) || listing.name || null,
+          titulo: texto(no.title) || null,
+          diaria: centavos(total && noites > 0 ? valor / noites : valor),
+          preco_mostrado: valor,
+          preco_e_total: Boolean(total),
+          nota: mNota ? Number(mNota[1].replace(',', '.')) : null,
+          avaliacoes: mAval ? Number(mAval[1].replace(/\./g, '')) : null,
+          quartos: mQuartos ? Number(mQuartos[1]) : /est[uú]dio|studio/i.test(conteudo) ? 0 : null,
+          lat: Number.isFinite(coord.latitude) ? coord.latitude : null,
+          lng: Number.isFinite(coord.longitude) ? coord.longitude : null,
+          bruto: { primaryLine: { price: linha.price ?? null, discountedPrice: linha.discountedPrice ?? null, qualifier: linha.qualifier ?? null, accessibilityLabel: linha.accessibilityLabel ?? null } },
+        });
+      }
+    }
+    for (const v of Object.values(no)) if (v && typeof v === 'object') visitar(v, profundidade + 1);
+  };
+  visitar(resposta, 0);
+  return achados.size ? [...achados.values()] : null;
+}
