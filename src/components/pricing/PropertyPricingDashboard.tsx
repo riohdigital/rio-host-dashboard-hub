@@ -49,6 +49,9 @@ interface PropertyPricingDashboardProps {
   onRefresh?: () => void;
 }
 
+const reais = (v: number | string | null | undefined) =>
+  v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) ? '—' : `R$ ${Number(v).toLocaleString('pt-BR')}`;
+
 export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> = ({
   propertyId,
   selectedPropertyIds,
@@ -883,7 +886,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
                                 <div>
                                   <div className="flex items-center gap-1.5 mb-0.5">
                                     <span className="text-gray-600 font-medium">Tarifa Atual</span>
-                                    {alert.supporting_data?.is_from_real_calendar ? (
+                                    {alert.supporting_data?.is_from_real_calendar || alert.supporting_data?.fonte_diaria_atual === 'calendario_coletado' ? (
                                       <Badge
                                         variant="outline"
                                         className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-semibold py-0 px-1.5 shadow-2xs"
@@ -900,7 +903,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
                                     )}
                                   </div>
                                   <span className="font-semibold text-gray-800 text-sm">
-                                    {alert.current_price ? `R$ ${alert.current_price}` : '—'}/noite
+                                    {reais(alert.current_price)}/noite
                                   </span>
                                 </div>
 
@@ -909,7 +912,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
                                 <div>
                                   <span className="text-gray-600 font-medium block">Tarifa Sugerida</span>
                                   <span className="font-bold text-[#6A6DDF] text-sm">
-                                    R$ {alert.suggested_price}/noite
+                                    {reais(alert.suggested_price)}/noite
                                   </span>
                                 </div>
 
@@ -923,7 +926,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
                                 <div className="border-l pl-4 ml-auto text-right">
                                   <span className="text-emerald-700 font-semibold block">Ganho Estimado</span>
                                   <span className="font-bold text-emerald-600 text-sm">
-                                    +R$ {alert.estimated_revenue_gain?.toLocaleString('pt-BR') || 0}
+                                    +{reais(alert.estimated_revenue_gain || 0)}
                                   </span>
                                 </div>
                               </div>
@@ -940,7 +943,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
                                     className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 h-8 text-xs font-semibold"
                                   >
                                     <CheckCircle2 className="h-3.5 w-3.5" />
-                                    Aprovar Aumento
+                                    {alert.alert_type === 'orphan_night' ? 'Aprovar Sugestão' : 'Aprovar Aumento'}
                                   </Button>
                                   <Button
                                     size="sm"
@@ -1175,7 +1178,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
                                     </Badge>
                                   </div>
                                   <span className="font-bold text-gray-900 text-sm">
-                                    R$ {alert.current_price}/noite
+                                    {reais(alert.current_price)}/noite
                                   </span>
                                 </div>
 
@@ -1184,7 +1187,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
                                 <div>
                                   <span className="text-gray-600 font-medium block">Mediana CompSet (Sugerida)</span>
                                   <span className="font-bold text-[#6A6DDF] text-sm">
-                                    R$ {alert.suggested_price}/noite
+                                    {reais(alert.suggested_price)}/noite
                                   </span>
                                 </div>
 
@@ -1215,7 +1218,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
                                     className="bg-[#6A6DDF] hover:bg-[#585ac7] text-white gap-1.5 h-8 text-xs font-semibold shadow-xs"
                                   >
                                     <CheckCircle2 className="h-3.5 w-3.5" />
-                                    Calibrar p/ R$ {alert.suggested_price}
+                                    Calibrar p/ {reais(alert.suggested_price)}
                                   </Button>
                                   <Button
                                     size="sm"
@@ -1225,7 +1228,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
                                     className="border-purple-300 text-purple-700 hover:bg-purple-50 gap-1.5 h-8 text-xs font-semibold"
                                   >
                                     <ShieldCheck className="h-3.5 w-3.5" />
-                                    Manter R$ {alert.current_price}
+                                    Manter {reais(alert.current_price)}
                                   </Button>
                                   <Button
                                     size="sm"
