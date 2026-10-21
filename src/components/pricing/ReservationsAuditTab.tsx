@@ -25,6 +25,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { supabase } from '@/integrations/supabase/client';
+import type { Tables } from '@/integrations/supabase/types';
 import { useToast } from '@/hooks/use-toast';
 import { Property } from '@/types/property';
 import { formatLocalDate } from '@/utils/dateUtils';
@@ -41,6 +42,18 @@ interface ReservationsAuditTabProps {
   };
 }
 
+/** Linha de reserva da consulta abaixo, com o imóvel junto. */
+type ReservaAuditada = Tables<'reservations'> & {
+  // Colunas da auditoria, ainda fora dos tipos gerados do Supabase.
+  is_verified_by_ai?: boolean | null;
+  verified_at?: string | null;
+  verification_notes?: string | null;
+  platform_verified_data?: unknown;
+  properties?: { id: string; name: string; nickname: string | null } | null;
+};
+
+const brl = (v: unknown) => Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
   propertyId,
   selectedProperty,
@@ -48,10 +61,10 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
   dateRange
 }) => {
   const { toast } = useToast();
-  const [reservations, setReservations] = useState<any[]>([]);
+  const [reservations, setReservations] = useState<ReservaAuditada[]>([]);
   const [loading, setLoading] = useState(true);
   const [auditingIds, setAuditingIds] = useState<Record<string, boolean>>({});
-  const [selectedModalRes, setSelectedModalRes] = useState<any | null>(null);
+  const [selectedModalRes, setSelectedModalRes] = useState<ReservaAuditada | null>(null);
   // hotel_id da Booking por imóvel: sem ele o link da extranet dá erro 400.
   const [bookingHotelIds, setBookingHotelIds] = useState<Record<string, string>>({});
 
@@ -117,7 +130,7 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
 
       const { data, error } = await query;
       if (error) throw error;
-      setReservations(data || []);
+      setReservations((data as unknown as ReservaAuditada[]) || []);
     } catch (e) {
       console.error('Erro ao buscar reservas auditadas:', e);
     } finally {
@@ -157,7 +170,7 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
     };
   }, [propertyId]);
 
-  const handleAuditSingle = async (e: React.MouseEvent, res: any) => {
+  const handleAuditSingle = async (e: React.MouseEvent, res: ReservaAuditada) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -166,7 +179,7 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
 
     toast({
       title: 'Auditoria Iniciada',
-      description: `O Agente Navegador da VPS está acessando o portal ${res.platform} para validar a reserva ${res.reservation_code}...`,
+      description: `Conferindo a reserva ${res.reservation_code} no portal ${res.platform}...`,
     });
 
     try {
@@ -271,7 +284,7 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
             Auditoria de Reservas & Validação de Plataforma (IA)
           </h3>
           <p className="text-xs text-gray-500 mt-0.5">
-            Conferência automatizada pelo Agente Navegador diretamente no portal de anfitrião (Airbnb e Booking.com)
+            Conferência automática no portal da plataforma, com o login salvo do anfitrião
           </p>
         </div>
 
@@ -374,12 +387,12 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
                         </span>
                         <span>•</span>
                         <span className="font-semibold text-gray-700">
-                          Receita Total: R$ {parseFloat(res.total_revenue || 0).toFixed(2)}
+                          Receita Total: R$ {brl(res.total_revenue)}
                         </span>
                         {res.cleaning_fee > 0 && (
                           <>
                             <span>•</span>
-                            <span>Limpeza: R$ {parseFloat(res.cleaning_fee).toFixed(2)}</span>
+                            <span>Limpeza: R$ {brl(res.cleaning_fee)}</span>
                           </>
                         )}
                       </div>
@@ -526,14 +539,14 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
                 <div className="flex justify-between items-center py-1 border-b">
                   <span className="text-gray-500 font-medium">Receita Bruta Total:</span>
                   <span className="font-bold text-gray-900 text-sm">
-                    R$ {parseFloat(selectedModalRes.total_revenue || 0).toFixed(2)}
+                    R$ {brl(selectedModalRes.total_revenue)}
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center py-1 border-b">
                   <span className="text-gray-500 font-medium">Taxa de Limpeza:</span>
                   <span className="font-semibold text-gray-700">
-                    R$ {parseFloat(selectedModalRes.cleaning_fee || 0).toFixed(2)}
+                    R$ {brl(selectedModalRes.cleaning_fee)}
                   </span>
                 </div>
 
@@ -541,7 +554,7 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
                   <div className="flex justify-between items-center py-1 border-b">
                     <span className="text-gray-500 font-medium">Receita Líquida Estimada:</span>
                     <span className="font-semibold text-emerald-700">
-                      R$ {parseFloat(selectedModalRes.net_revenue || 0).toFixed(2)}
+                      R$ {brl(selectedModalRes.net_revenue)}
                     </span>
                   </div>
                 )}

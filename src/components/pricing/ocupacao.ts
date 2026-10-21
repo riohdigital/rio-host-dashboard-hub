@@ -152,14 +152,14 @@ export function situacaoNoEvento(reservas: ReservaParaOcupacao[], ev: EventoLoca
   return { situacao, noitesLivres: o.noitesLivres, noitesDoEvento: o.noitesNaJanela };
 }
 
-/** Eventos ainda por vir (ou em andamento), sem repetir o mesmo nome no mesmo período. */
+/** Eventos ainda por vir (ou em andamento), sem repetir o mesmo nome no mesmo período e na mesma cidade. */
 export function eventosFuturos(eventos: EventoLocal[], hoje: string): EventoLocal[] {
   const vistos = new Set<string>();
   return eventos
     .filter((e) => (e.end_date || e.start_date) >= hoje)
     .sort((a, b) => a.start_date.localeCompare(b.start_date))
     .filter((e) => {
-      const chave = `${e.start_date}|${e.end_date}|${e.name.toLowerCase().replace(/\s+prolongado$/, '').trim()}`;
+      const chave = `${e.city ?? ''}|${e.start_date}|${e.end_date}|${e.name.toLowerCase().replace(/\s+prolongado$/, '').trim()}`;
       if (vistos.has(chave)) return false;
       vistos.add(chave);
       return true;
