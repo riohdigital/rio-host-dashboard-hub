@@ -100,3 +100,50 @@ export function esqueleto(valor, profundidade = 0, limite = 5) {
   for (const [k, v] of Object.entries(valor).slice(0, 60)) r[k] = esqueleto(v, profundidade + 1, limite);
   return r;
 }
+
+/**
+ * Airbnb — dias do calendário do anúncio numa resposta do multicalendário (E4).
+ * Procura objetos de dia (data AAAA-MM-DD) com preço; só aceita a resposta com ao menos uma
+ * semana de dias com preço, para não confundir com outro bloco da página. Sem isso, null
+ * (a rota devolve o diagnóstico do formato).
+ */
+export function lerCalendarioAirbnb(resposta) {
+  const dias = new Map();
+  const DATA = /^\d{4}-\d{2}-\d{2}$/;
+  const preco = (o) => {
+    for (const [k, v] of Object.entries(o)) {
+      if (!/price/i.test(k) || v === null || v === undefined) continue;
+      if (typeof v === 'number' && v > 0) return v;
+      if (typeof v === 'string') {
+        const n = valorBRL(v.includes('R$') ? v : `R$${v}`);
+        if (n > 0) return n;
+      }
+      if (typeof v === 'object') {
+        if (typeof v.amount === 'number' && v.amount > 0) return v.amount;
+        if (typeof v.amountMicros === 'number' && v.amountMicros > 0) return v.amountMicros / 1e6;
+        for (const t of [v.amountFormatted, v.localPriceFormatted, v.priceFormatted, v.formatted]) {
+          const n = valorBRL(t);
+          if (n > 0) return n;
+        }
+      }
+    }
+    return null;
+  };
+  const visitar = (no, profundidade) => {
+    if (!no || typeof no !== 'object' || profundidade > 14) return;
+    if (Array.isArray(no)) return no.forEach((x) => visitar(x, profundidade + 1));
+    const data = ['calendarDate', 'date', 'day'].map((k) => no[k]).find((v) => typeof v === 'string' && DATA.test(v));
+    if (data) {
+      const valor = preco(no);
+      if (valor !== null && !dias.has(data)) {
+        const disponivel = [no.available, no.isAvailable, no.availableForCheckin, no.bookable].find((v) => typeof v === 'boolean');
+        const minimo = [no.minNights, no.minimumNights, no.min_nights].find((v) => Number.isInteger(v) && v > 0);
+        dias.set(data, { data, diaria: centavos(valor), disponivel: disponivel ?? null, estadia_minima: minimo ?? null });
+      }
+    }
+    for (const v of Object.values(no)) if (v && typeof v === 'object') visitar(v, profundidade + 1);
+  };
+  visitar(resposta, 0);
+  if (dias.size < 7) return null;
+  return [...dias.values()].sort((a, b) => a.data.localeCompare(b.data));
+}

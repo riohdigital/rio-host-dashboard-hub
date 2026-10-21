@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import { traduzir } from '../src/comandos.js';
 import { origemPermitida, pedidoInterno } from '../src/config.js';
 import { passoDoLogin, pastaDoUsuario, pastaValida } from '../src/plataformas.js';
-import { esqueleto, lerReservaAirbnb, valorBRL } from '../src/extratores.js';
+import { esqueleto, lerCalendarioAirbnb, lerReservaAirbnb, valorBRL } from '../src/extratores.js';
 import { urlDoBrowserless } from '../src/sessao.js';
 
 const VIEW = { w: 1280, h: 860 };
@@ -189,4 +189,19 @@ test('esqueleto: só nomes e tipos, nenhum valor', () => {
   const e = esqueleto({ hospede: 'Fulano', valor: 10.5, linhas: [{ a: 'x' }, { a: 'y' }] });
   assert.deepEqual(e, { hospede: 'string', valor: 'number', linhas: [{ a: 'string' }, '×2'] });
   assert.ok(!JSON.stringify(e).includes('Fulano'));
+});
+
+test('E4: dias do calendário com preço; bloco sem uma semana de dias é ignorado', () => {
+  const dias = Array.from({ length: 10 }, (_, i) => ({
+    calendarDate: `2026-11-${String(i + 1).padStart(2, '0')}`,
+    available: i % 3 !== 0,
+    minNights: 2,
+    price: { localPriceFormatted: `R$ ${300 + i},00` },
+  }));
+  const lidos = lerCalendarioAirbnb({ data: { merlin: { calendarMonths: [{ days: dias }] } } });
+  assert.equal(lidos.length, 10);
+  assert.deepEqual(lidos[0], { data: '2026-11-01', diaria: 300, disponivel: false, estadia_minima: 2 });
+  assert.equal(lidos[9].diaria, 309);
+  assert.equal(lerCalendarioAirbnb({ data: { dias: dias.slice(0, 3) } }), null);
+  assert.equal(lerCalendarioAirbnb({ data: { nada: true } }), null);
 });
