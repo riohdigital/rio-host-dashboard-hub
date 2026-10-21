@@ -443,7 +443,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
 
                   {/* Status de Ocupação no Imóvel */}
                   <div className="pt-1 flex items-center justify-between border-t border-gray-100 text-[11px]">
-                    <span className="text-gray-400">{sits.length > 1 ? 'Status nos imóveis:' : 'Status no imóvel:'}</span>
+                    <span className="text-gray-400 truncate">{sits.length > 1 ? 'Status nos imóveis:' : sits[0] ? `${sits[0].p.nickname || sits[0].p.name}:` : 'Status no imóvel:'}</span>
                     {livres.length === 0 ? (
                       <span className="text-emerald-700 font-semibold flex items-center gap-1">
                         <CheckCircle2 className="h-3 w-3" /> {sits.length > 1 ? 'Todos reservados' : 'Já Reservado'}
@@ -1041,7 +1041,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
                   <ShieldCheck className="h-10 w-10 text-emerald-500 mx-auto mb-2" />
                   <p className="font-medium text-gray-700">Nenhum alerta de sobrepreço com status "{statusFilter}" no momento.</p>
                   <p className="text-xs text-gray-400 mt-1">
-                    Seu calendário não possui tarifas acima da concorrência com risco de vacância identificado.
+                    A calibração compara sua diária com a mediana de concorrentes reais aprovados. Ainda não há concorrentes aprovados para estes imóveis.
                   </p>
                 </div>
               ) : (
