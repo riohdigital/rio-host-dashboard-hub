@@ -12,7 +12,7 @@ export interface ReservaParaOcupacao {
   check_in_date: string;
   check_out_date: string;
   total_revenue: number | string | null;
-  cleaning_fee: number | string | null;
+  cleaning_fee?: number | string | null;
   base_revenue?: number | string | null;
   reservation_status?: string | null;
 }
@@ -217,5 +217,17 @@ export function eventosFuturos(eventos: EventoLocal[], hoje: string): EventoLoca
       if (vistos.has(chave)) return false;
       vistos.add(chave);
       return true;
-    });
+    })
+    // Dias seguidos do mesmo feriado no mesmo lugar (ex.: segunda e terça de Carnaval) viram um só.
+    .reduce<EventoLocal[]>((acc, e) => {
+      const anterior = acc.find((a) => a.name === e.name && a.category === e.category &&
+        (a.city ?? null) === (e.city ?? null) && (a.region_code ?? null) === (e.region_code ?? null) &&
+        (a.country_code ?? null) === (e.country_code ?? null) && e.start_date <= a.end_date);
+      if (anterior) {
+        if (e.end_date > anterior.end_date) anterior.end_date = e.end_date;
+      } else {
+        acc.push({ ...e });
+      }
+      return acc;
+    }, []);
 }

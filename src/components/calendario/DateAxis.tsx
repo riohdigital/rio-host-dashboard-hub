@@ -7,9 +7,11 @@ interface DateAxisProps {
   startDate: Date;
   endDate: Date;
   dayWidth: number;
+  /** Dias de feriado ou evento onde os imóveis estão ('AAAA-MM-DD' → nomes). */
+  datasEspeciais?: Map<string, string[]>;
 }
 
-export const DateAxis: React.FC<DateAxisProps> = ({ startDate, endDate, dayWidth }) => {
+export const DateAxis: React.FC<DateAxisProps> = ({ startDate, endDate, dayWidth, datasEspeciais }) => {
   const days = eachDayOfInterval({ start: startDate, end: endDate });
 
   return (
@@ -25,17 +27,21 @@ export const DateAxis: React.FC<DateAxisProps> = ({ startDate, endDate, dayWidth
           {days.map((day) => {
             const isTodayDate = isToday(day);
             const isWeekendDate = isWeekend(day);
+            const especiais = datasEspeciais?.get(format(day, 'yyyy-MM-dd'));
 
             return (
               <div
                 key={day.toISOString()}
                 style={{ minWidth: `${dayWidth}px`, width: `${dayWidth}px` }}
+                title={especiais ? especiais.join(' • ') : undefined}
                 className={cn(
                   'border-r flex flex-col items-center justify-center py-2 relative',
                   isTodayDate && 'bg-primary/10',
-                  isWeekendDate && !isTodayDate && 'bg-muted/30'
+                  especiais && !isTodayDate && 'bg-amber-50',
+                  isWeekendDate && !isTodayDate && !especiais && 'bg-muted/30'
                 )}
               >
+                {especiais && <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-amber-500" />}
                 {/* Linha vertical indicadora de "hoje" */}
                 {isTodayDate && (
                   <div className="absolute inset-x-0 top-0 bottom-0 w-0.5 bg-primary/50 left-1/2 -translate-x-1/2 z-10" />

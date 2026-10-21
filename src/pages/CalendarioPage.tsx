@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useCalendarView } from '@/hooks/useCalendarView';
 import { useCalendarData } from '@/hooks/useCalendarData';
 import { useOccupancyStats } from '@/hooks/useOccupancyStats';
@@ -18,6 +18,9 @@ import { Button } from '@/components/ui/button';
 import ReservationForm from '@/components/reservations/ReservationForm';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Info } from 'lucide-react';
+import { useEventosDoPeriodo } from '@/hooks/useEventosDoPeriodo';
+import { FeriadosDoPeriodo } from '@/components/calendario/FeriadosDoPeriodo';
+import { eventoValeParaImovel, noites, somarDias } from '@/components/pricing/ocupacao';
 
 const CalendarioPage = () => {
   const { selectedProperties, selectedPlatform, selectedPeriod, customStartDate, customEndDate } = useGlobalFilters();
@@ -72,6 +75,21 @@ const CalendarioPage = () => {
 
   const isLoading = isLoadingProperties || isLoadingReservations;
 
+  // Feriados e eventos onde os imóveis do filtro estão (mesma regra da Precificação).
+  const { data: eventos = [] } = useEventosDoPeriodo(startDate, endDate);
+  const datasEspeciais = useMemo(() => {
+    const mapa = new Map<string, string[]>();
+    for (const ev of eventos) {
+      if (!filteredProperties.some(p => eventoValeParaImovel(ev, p))) continue;
+      const n = Math.max(1, noites(ev.start_date, ev.end_date));
+      for (let i = 0; i < n; i++) {
+        const d = somarDias(ev.start_date, i);
+        mapa.set(d, [...(mapa.get(d) || []), ev.name]);
+      }
+    }
+    return mapa;
+  }, [eventos, filteredProperties]);
+
   // Calcular estatísticas de ocupação usando startDate e endDate corretos
   const occupancyStats = useOccupancyStats(
     filteredProperties,
@@ -103,6 +121,8 @@ const CalendarioPage = () => {
           {/* Estatísticas de Ocupação - Compacta e colapsável */}
           <OccupancyStatsCard stats={occupancyStats} />
 
+          <FeriadosDoPeriodo eventos={eventos} properties={filteredProperties} reservations={reservations} />
+
           {/* Layout melhorado - Calendário em largura total */}
           <div className="relative">
             {view === 'timeline' ? (
@@ -113,6 +133,7 @@ const CalendarioPage = () => {
                 endDate={endDate}
                 dayWidth={dayWidth}
                 onReservationClick={handleReservationClick}
+                datasEspeciais={datasEspeciais}
               />
             ) : view === 'grid' ? (
               <GridView
