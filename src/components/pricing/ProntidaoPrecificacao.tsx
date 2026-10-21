@@ -23,12 +23,14 @@ import { NOME_DO_TIPO, ORIGEM_DA_REGRA, percentual } from './ocupacao';
  * cadastro, com o motivo que a própria etapa registrou.
  */
 
-// Etapa opcional (eventos da cidade) não vira pendência do anfitrião: sem ela, a precificação
-// segue com os feriados oficiais; o bloqueio aparece só como informação.
+// Etapas opcionais (eventos da cidade, diárias do anúncio) não viram pendência do anfitrião: sem
+// elas, a precificação segue com os feriados oficiais e a diária base; o bloqueio aparece como
+// informação, com o que falta (ex.: conectar o Airbnb).
 const ETAPAS: { chave: string; nome: string; descricao: string; opcional?: boolean }[] = [
   { chave: 'E1_localizacao', nome: 'Localização', descricao: 'Cidade, estado e país a partir do endereço' },
   { chave: 'E2_feriados', nome: 'Feriados oficiais', descricao: 'Feriados nacionais, estaduais e prolongados' },
   { chave: 'E3_eventos', nome: 'Eventos da cidade', descricao: 'Shows, festivais, esportes e congressos, com fonte', opcional: true },
+  { chave: 'E4_calendario', nome: 'Diárias do anúncio', descricao: 'Preço e disponibilidade de cada noite, lidos do seu calendário no Airbnb', opcional: true },
   { chave: 'E7_regras', nome: 'Regras de preço', descricao: 'Quanto o imóvel sobe em cada tipo de data, aprendido das suas reservas' },
 ];
 const OBRIGATORIAS = ETAPAS.filter(e => !e.opcional);
