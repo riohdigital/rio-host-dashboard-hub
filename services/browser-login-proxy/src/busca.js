@@ -58,21 +58,50 @@ export class BuscaNoMapa extends LeituraDeReserva {
     });
     await this.ir(`https://www.airbnb.com.br/s/homes?${qs}`);
 
+    const noites = Math.round((Date.parse(`${this.checkout}T00:00:00Z`) - Date.parse(`${this.checkin}T00:00:00Z`)) / 86400000);
+    const fim = (anuncios, origem) => ({ status: 'ok', plataforma: 'airbnb', origem, checkin: this.checkin, checkout: this.checkout, noites, hospedes: this.hospedes, anuncios });
+
+    // 1) A busca que a página faz por XHR (quando o mapa se move ou a página pede mais).
     const alvo = (p) => /\/api\/v3\/StaysSearch\b/.test(p.url);
-    const requestId = await this.esperarResposta(alvo, 30_000);
-    if (!requestId) {
-      const { passo } = await this.passoAtual(5_000);
-      if (['email', 'senha', 'codigo', 'captcha'].includes(passo)) return { status: 'auth_required', motivo: `sessão do Airbnb caiu (tela: ${passo})` };
-      return { status: 'error', motivo: 'a página de busca não buscou os anúncios' };
-    }
+    const requestId = await this.esperarResposta(alvo, 15_000);
     // Uma pessoa olha o mapa antes de fechar.
     await esperar(2000 + Math.floor(Math.random() * 3000));
-    const json = await this.corpo(requestId);
-    const noites = Math.round((Date.parse(`${this.checkout}T00:00:00Z`) - Date.parse(`${this.checkin}T00:00:00Z`)) / 86400000);
-    const anuncios = lerBuscaAirbnb(json, noites);
-    if (anuncios && anuncios.length) {
-      return { status: 'ok', plataforma: 'airbnb', checkin: this.checkin, checkout: this.checkout, noites, hospedes: this.hospedes, anuncios };
+    if (requestId) {
+      const anuncios = lerBuscaAirbnb(await this.corpo(requestId), noites);
+      if (anuncios && anuncios.length) return fim(anuncios, 'xhr');
     }
-    return { status: 'diagnostico', plataforma: 'airbnb', esqueleto: esqueleto(json, 0, 12) };
+
+    // 2) O primeiro resultado vem embutido no HTML (estado da página), sem chamada à parte.
+    const { passo } = await this.passoAtual(3_000);
+    if (['email', 'senha', 'codigo', 'captcha'].includes(passo)) return { status: 'auth_required', motivo: `sessão do Airbnb caiu (tela: ${passo})` };
+    const estados = await this.estadoEmbutido();
+    for (const estado of estados) {
+      const anuncios = lerBuscaAirbnb(estado, noites);
+      if (anuncios && anuncios.length) return fim(anuncios, 'estado_da_pagina');
+    }
+    const operacoes = [...new Set([...this.pedidos.values()].map((p) => (p.url.match(/\/api\/v3\/([^/?]+)/) || [])[1]).filter(Boolean))];
+    return { status: 'diagnostico', plataforma: 'airbnb', operacoes, estados: estados.map((e) => esqueleto(e, 0, 9)) };
+  }
+
+  /** JSON embutido nos <script> de estado da página (lido num mundo isolado, invisível à página). */
+  async estadoEmbutido() {
+    try {
+      const { frameTree } = await this.aba('Page.getFrameTree');
+      const { executionContextId } = await this.aba('Page.createIsolatedWorld', { frameId: frameTree.frame.id, worldName: 'rioh-estado', grantUniveralAccess: false });
+      const { result } = await this.aba('Runtime.evaluate', {
+        contextId: executionContextId,
+        returnByValue: true,
+        expression: `Array.from(document.querySelectorAll('script[id^="data-deferred-state"], script[type="application/json"]')).map((s) => s.textContent).filter((t) => t && t.length > 200 && t.length < 8000000)`,
+      });
+      return (result.value || []).map((t) => {
+        try {
+          return JSON.parse(t);
+        } catch {
+          return null;
+        }
+      }).filter(Boolean);
+    } catch {
+      return [];
+    }
   }
 }
