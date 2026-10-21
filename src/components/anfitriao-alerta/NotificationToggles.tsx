@@ -13,6 +13,27 @@ interface ToggleConfig {
   description: string;
 }
 
+// Alertas de mudança de reserva: o workflow "Anfitrião Alerta Avisos" já os envia (padrão ligado).
+const MUDANCAS_DE_RESERVA: ToggleConfig[] = [
+  {
+    key: 'cancellation_alert',
+    title: 'Reserva Cancelada',
+    description: 'Aviso quando uma reserva é cancelada na plataforma'
+  },
+  {
+    key: 'modification_alert',
+    title: 'Reserva Modificada',
+    description: 'Aviso quando datas, hóspedes ou valor de uma reserva mudam'
+  }
+];
+
+// Radar de precificação (Precificação → Oportunidades): ligado por padrão.
+const OPORTUNIDADES_DE_PRECO: ToggleConfig = {
+  key: 'pricing_alert',
+  title: 'Oportunidades de Preço',
+  description: 'Feriados e eventos encontrados com o imóvel livre, para antecipar a precificação (as oportunidades continuam na página Precificação)'
+};
+
 // Toggles específicos por role
 const getTogglesByRole = (role: string): ToggleConfig[] => {
   switch (role) {
@@ -37,7 +58,9 @@ const getTogglesByRole = (role: string): ToggleConfig[] => {
           key: 'cleaner_day_of_alerts',
           title: 'Aviso Dia da Faxina',
           description: 'Mensagem motivacional às 7h no dia'
-        }
+        },
+        // Só das reservas em que a faxineira está atribuída.
+        ...MUDANCAS_DE_RESERVA
       ];
     
     case 'proprietario':
@@ -51,7 +74,14 @@ const getTogglesByRole = (role: string): ToggleConfig[] => {
           key: 'payment_notifications',
           title: 'Notificações de Pagamento',
           description: 'Alertas sobre pagamentos recebidos'
-        }
+        },
+        {
+          key: 'new_booking_alert',
+          title: 'Nova Reserva',
+          description: 'Notificação imediata de novas reservas confirmadas'
+        },
+        ...MUDANCAS_DE_RESERVA,
+        OPORTUNIDADES_DE_PRECO
       ];
     
     case 'co-anfitriao':
@@ -81,7 +111,9 @@ const getTogglesByRole = (role: string): ToggleConfig[] => {
           key: 'cleaning_risk',
           title: 'Alerta Risco Limpeza',
           description: 'Aviso 3 dias antes se não houver faxineira atribuída'
-        }
+        },
+        ...MUDANCAS_DE_RESERVA,
+        OPORTUNIDADES_DE_PRECO
       ];
     
     default: // 'outro' ou qualquer outro
