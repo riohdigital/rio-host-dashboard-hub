@@ -26,6 +26,7 @@ export type Database = {
           minutos_desde_ultima_ok: number | null
           passo: string | null
           resultado: string
+          user_id: string | null
         }
         Insert: {
           alertou?: boolean
@@ -38,6 +39,7 @@ export type Database = {
           minutos_desde_ultima_ok?: number | null
           passo?: string | null
           resultado: string
+          user_id?: string | null
         }
         Update: {
           alertou?: boolean
@@ -50,6 +52,7 @@ export type Database = {
           minutos_desde_ultima_ok?: number | null
           passo?: string | null
           resultado?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -64,10 +67,12 @@ export type Database = {
           last_used_at: string | null
           local_storage_encrypted: string | null
           login_lock_until: string | null
+          profile_dir: string
           session_name: string
           session_storage_encrypted: string | null
           updated_at: string | null
           user_agent: string | null
+          user_id: string
         }
         Insert: {
           cookies_encrypted?: string | null
@@ -79,10 +84,12 @@ export type Database = {
           last_used_at?: string | null
           local_storage_encrypted?: string | null
           login_lock_until?: string | null
+          profile_dir: string
           session_name?: string
           session_storage_encrypted?: string | null
           updated_at?: string | null
           user_agent?: string | null
+          user_id: string
         }
         Update: {
           cookies_encrypted?: string | null
@@ -94,10 +101,12 @@ export type Database = {
           last_used_at?: string | null
           local_storage_encrypted?: string | null
           login_lock_until?: string | null
+          profile_dir?: string
           session_name?: string
           session_storage_encrypted?: string | null
           updated_at?: string | null
           user_agent?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -1678,8 +1687,10 @@ export type Database = {
           is_valid: boolean | null
           last_used_at: string | null
           login_lock_until: string | null
+          profile_dir: string | null
           session_name: string | null
           updated_at: string | null
+          user_id: string | null
         }
         Insert: {
           created_at?: string | null
@@ -1689,8 +1700,10 @@ export type Database = {
           is_valid?: boolean | null
           last_used_at?: string | null
           login_lock_until?: string | null
+          profile_dir?: string | null
           session_name?: string | null
           updated_at?: string | null
+          user_id?: string | null
         }
         Update: {
           created_at?: string | null
@@ -1700,8 +1713,10 @@ export type Database = {
           is_valid?: boolean | null
           last_used_at?: string | null
           login_lock_until?: string | null
+          profile_dir?: string | null
           session_name?: string | null
           updated_at?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }

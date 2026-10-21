@@ -41,6 +41,13 @@ const SAUDE_DA_PRECIFICACAO: ToggleConfig = {
   description: 'Aviso quando a precificação automática de um imóvel falha repetidamente ou para de se atualizar'
 };
 
+// Keep-alive das contas nas plataformas: avisa o dono da sessão quando ela cai (ligado por padrão).
+const CONEXAO_COM_PLATAFORMAS: ToggleConfig = {
+  key: 'session_alert',
+  title: 'Conexão com as Plataformas',
+  description: 'Aviso quando a sua conta do Airbnb ou da Booking desconecta e precisa ser conectada de novo em Configurações'
+};
+
 // Toggles específicos por role
 const getTogglesByRole = (role: string): ToggleConfig[] => {
   switch (role) {
@@ -89,7 +96,8 @@ const getTogglesByRole = (role: string): ToggleConfig[] => {
         },
         ...MUDANCAS_DE_RESERVA,
         OPORTUNIDADES_DE_PRECO,
-        SAUDE_DA_PRECIFICACAO
+        SAUDE_DA_PRECIFICACAO,
+        CONEXAO_COM_PLATAFORMAS
       ];
     
     case 'co-anfitriao':
@@ -122,7 +130,8 @@ const getTogglesByRole = (role: string): ToggleConfig[] => {
         },
         ...MUDANCAS_DE_RESERVA,
         OPORTUNIDADES_DE_PRECO,
-        SAUDE_DA_PRECIFICACAO
+        SAUDE_DA_PRECIFICACAO,
+        CONEXAO_COM_PLATAFORMAS
       ];
     
     default: // 'outro' ou qualquer outro

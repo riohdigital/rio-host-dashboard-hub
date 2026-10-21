@@ -13,10 +13,15 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import PlatformLoginModal from './PlatformLoginModal';
 import { fetchN8n } from '@/lib/n8n';
+import { useAuth } from '@/hooks/useAuth';
 
 /**
  * Situação de uma sessão de plataforma, lida da view sem cookies
  * (agent_browser_sessions_status): o dashboard não lê nem grava cookies.
+ *
+ * Multi-inquilino (F7): cada usuário conecta e vê só as PRÓPRIAS contas do Airbnb e da
+ * Booking. A plataforma ainda sem sessão aparece como "Não conectado", com o botão para
+ * conectar; a linha é criada pelo proxy de login no primeiro acesso.
  */
 export interface AgentBrowserSession {
   id: string;
@@ -27,7 +32,12 @@ export interface AgentBrowserSession {
   created_at: string;
   updated_at: string;
   login_lock_until?: string | null;
+  user_id?: string | null;
+  /** Ainda não existe no banco: a plataforma nunca foi conectada por este usuário. */
+  nova?: boolean;
 }
+
+const PLATAFORMAS_CONECTAVEIS = ['airbnb.com.br', 'admin.booking.com'];
 
 const KEEPALIVE_WEBHOOK = 'rioh-host-testar-sessao-ota';
 
@@ -36,6 +46,7 @@ const formatDateTime = (value: string | null) =>
 
 export const OTASessionsCard: React.FC = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [sessions, setSessions] = useState<AgentBrowserSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [testing, setTesting] = useState(false);
@@ -43,17 +54,25 @@ export const OTASessionsCard: React.FC = () => {
   const [selectedSession, setSelectedSession] = useState<AgentBrowserSession | null>(null);
 
   const fetchSessions = async () => {
+    if (!user?.id) return;
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('agent_browser_sessions_status' as any)
+        .from('agent_browser_sessions_status')
         .select('*')
+        .eq('user_id', user.id)
         .order('domain', { ascending: true });
 
       if (error) {
         console.warn('Erro ao carregar sessões de navegador:', error);
-      } else if (data) {
-        setSessions(data as unknown as AgentBrowserSession[]);
+      } else {
+        const minhas = (data as unknown as AgentBrowserSession[]) || [];
+        // Plataforma sem sessão: mostra para conectar (o proxy cria a linha no primeiro login).
+        const faltando = PLATAFORMAS_CONECTAVEIS.filter(d => !minhas.some(s => s.domain === d)).map(d => ({
+          id: `nova-${d}`, domain: d, session_name: 'default', is_valid: false, last_used_at: null,
+          created_at: '', updated_at: '', login_lock_until: null, user_id: user.id, nova: true,
+        }));
+        setSessions([...minhas, ...faltando].sort((a, b) => a.domain.localeCompare(b.domain)));
       }
     } catch (err) {
       console.error('Falha ao consultar agent_browser_sessions:', err);
@@ -64,7 +83,8 @@ export const OTASessionsCard: React.FC = () => {
 
   useEffect(() => {
     fetchSessions();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const handleTestSessions = async () => {
     try {
@@ -77,7 +97,7 @@ export const OTASessionsCard: React.FC = () => {
       const response = await fetchN8n(KEEPALIVE_WEBHOOK, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ trigger: 'dashboard_manual_test' }),
+        body: JSON.stringify({ trigger: 'dashboard_manual_test', user_id: user?.id }),
       });
 
       if (!response.ok) {
@@ -134,14 +154,14 @@ export const OTASessionsCard: React.FC = () => {
             </div>
             <div>
               <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                Sessões das Plataformas (OTA Keepalive)
+                Suas Contas nas Plataformas
                 <Badge variant="outline" className="text-xs font-normal text-muted-foreground border-border/60">
                   <Sparkles className="h-3 w-3 mr-1 text-amber-500" />
                   Keepalive Ativo (12 min)
                 </Badge>
               </CardTitle>
               <CardDescription className="text-sm mt-0.5">
-                O robô de IA mantém heartbeat contínuo para evitar que os logins da Booking.com e Airbnb expirem por inatividade.
+                Conecte a sua conta de anfitrião do Airbnb e da Booking.com. O sistema mantém a conexão viva e a usa para conferir reservas e, na precificação, ler diárias e concorrentes.
               </CardDescription>
             </div>
           </div>
@@ -192,7 +212,11 @@ export const OTASessionsCard: React.FC = () => {
                       </p>
                     </div>
 
-                    {session.is_valid ? (
+                    {session.nova ? (
+                      <Badge variant="outline" className="font-medium text-xs flex items-center gap-1">
+                        Não conectado
+                      </Badge>
+                    ) : session.is_valid ? (
                       <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-medium text-xs flex items-center gap-1 hover:bg-emerald-500/20">
                         <CheckCircle2 className="h-3 w-3" />
                         Autenticado
@@ -212,7 +236,7 @@ export const OTASessionsCard: React.FC = () => {
                     </div>
                     <div className="flex justify-between items-center">
                       <span>Último login:</span>
-                      <span className="text-foreground">{loginEmAndamento ? 'em andamento agora' : formatDateTime(session.updated_at)}</span>
+                      <span className="text-foreground">{loginEmAndamento ? 'em andamento agora' : session.nova ? 'Nunca' : formatDateTime(session.updated_at)}</span>
                     </div>
                   </div>
 

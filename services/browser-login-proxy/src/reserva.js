@@ -17,13 +17,15 @@ import { urlDoBrowserless } from './sessao.js';
 const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export class LeituraDeReserva {
-  constructor({ plataforma, codigo, hotelId, config, urlDoNavegador }) {
+  constructor({ plataforma, pasta, codigo, hotelId, config, urlDoNavegador }) {
     this.plataforma = plataforma;
     this.def = PLATAFORMAS[plataforma];
+    // Pasta do perfil de quem cuida do imóvel (multi-inquilino); sem ela, a pasta antiga.
+    this.pasta = pasta || this.def.perfil;
     this.codigo = String(codigo || '').trim().toUpperCase();
     this.hotelId = hotelId ? String(hotelId).replace(/\D/g, '') : null;
     this.config = config;
-    this.urlDoNavegador = urlDoNavegador || (() => urlDoBrowserless(config, this.def.perfil));
+    this.urlDoNavegador = urlDoNavegador || (() => urlDoBrowserless(config, this.pasta));
     this.pedidos = new Map();
   }
 

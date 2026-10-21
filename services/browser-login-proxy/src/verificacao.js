@@ -14,11 +14,13 @@ const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
 const PASSOS_DE_LOGIN = new Set(['email', 'senha', 'codigo', 'captcha']);
 
 export class Verificacao {
-  constructor({ plataforma, config, urlDoNavegador, permanenciaMs }) {
+  constructor({ plataforma, pasta, config, urlDoNavegador, permanenciaMs }) {
     this.plataforma = plataforma;
     this.def = PLATAFORMAS[plataforma];
     this.config = config;
-    this.urlDoNavegador = urlDoNavegador || (() => urlDoBrowserless(config, this.def.perfil));
+    // Pasta do perfil da sessão verificada (multi-inquilino); sem ela, a pasta antiga da plataforma.
+    this.pasta = pasta || this.def.perfil;
+    this.urlDoNavegador = urlDoNavegador || (() => urlDoBrowserless(config, this.pasta));
     // Uma pessoa não fecha a aba no instante em que ela carrega.
     this.permanenciaMs = permanenciaMs ?? 4000 + Math.floor(Math.random() * 8000);
   }
