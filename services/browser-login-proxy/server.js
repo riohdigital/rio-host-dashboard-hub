@@ -62,7 +62,8 @@ async function lerCorpo(req) {
  * - reserva: dados de uma reserva lidos da página dela (auditoria)
  * - calendario: diárias e disponibilidade do próprio anúncio (precificação, E4)
  * - busca: anúncios no mapa em volta do imóvel, com preço das datas (concorrentes, E5 e E6)
- * O mesmo perfil nunca abre duas vezes: com login ou outra rota em andamento, 409.
+ * O mesmo perfil nunca abre duas vezes: com login ou outra rota em andamento, 409 — ou, se o
+ * pedido aceitar esperar (`esperar_ms`, até 5 min), entra na fila até o perfil liberar.
  * O n8n informa a pasta do perfil (`pasta`, de agent_browser_sessions.profile_dir);
  * sem ela, vale a pasta antiga da plataforma (pedidos de antes da F7).
  */
@@ -78,6 +79,8 @@ async function rotaInterna(req, res, nome, criar) {
   if (!PLATAFORMAS[plataforma]) return json(res, 400, { erro: 'plataforma desconhecida' });
   const pasta = corpo.pasta || PLATAFORMAS[plataforma].perfil;
   if (!pastaValida(pasta, plataforma)) return json(res, 400, { erro: 'pasta de perfil inválida' });
+  const ate = Date.now() + Math.min(Math.max(Number(corpo.esperar_ms) || 0, 0), 300_000);
+  while (ativas.has(pasta) && Date.now() < ate) await new Promise((r) => setTimeout(r, 1000 + Math.random() * 1000));
   if (ativas.has(pasta)) return json(res, 409, { erro: 'ocupado', plataforma });
 
   const tarefa = criar(plataforma, { ...corpo, pasta });
