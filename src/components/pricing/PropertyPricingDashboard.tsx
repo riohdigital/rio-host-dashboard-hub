@@ -1318,7 +1318,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
         properties={properties}
         selectedProperty={selectedProperty}
         selectedPropertyIds={selectedPropertyIds}
-        dateRange={dateRange}
+        regras={regras}
       />
     </TabsContent>
 

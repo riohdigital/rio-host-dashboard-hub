@@ -398,17 +398,24 @@ export type Database = {
           bedrooms: number | null
           created_at: string | null
           current_rating: number | null
+          distance_km: number | null
           external_listing_id: string | null
           has_sea_view: boolean | null
           id: string
+          last_seen_at: string | null
+          latitude: number | null
           listing_url: string
+          longitude: number | null
           max_guests: number | null
           name: string
           neighborhood: string | null
+          origin: string
           platform: string
           property_id: string | null
           property_type: string | null
           reviews_count: number | null
+          similarity_detail: Json | null
+          similarity_score: number | null
           status: string | null
         }
         Insert: {
@@ -417,17 +424,24 @@ export type Database = {
           bedrooms?: number | null
           created_at?: string | null
           current_rating?: number | null
+          distance_km?: number | null
           external_listing_id?: string | null
           has_sea_view?: boolean | null
           id?: string
+          last_seen_at?: string | null
+          latitude?: number | null
           listing_url: string
+          longitude?: number | null
           max_guests?: number | null
           name: string
           neighborhood?: string | null
+          origin?: string
           platform?: string
           property_id?: string | null
           property_type?: string | null
           reviews_count?: number | null
+          similarity_detail?: Json | null
+          similarity_score?: number | null
           status?: string | null
         }
         Update: {
@@ -436,17 +450,24 @@ export type Database = {
           bedrooms?: number | null
           created_at?: string | null
           current_rating?: number | null
+          distance_km?: number | null
           external_listing_id?: string | null
           has_sea_view?: boolean | null
           id?: string
+          last_seen_at?: string | null
+          latitude?: number | null
           listing_url?: string
+          longitude?: number | null
           max_guests?: number | null
           name?: string
           neighborhood?: string | null
+          origin?: string
           platform?: string
           property_id?: string | null
           property_type?: string | null
           reviews_count?: number | null
+          similarity_detail?: Json | null
+          similarity_score?: number | null
           status?: string | null
         }
         Relationships: [
