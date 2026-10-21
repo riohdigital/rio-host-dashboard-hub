@@ -23,11 +23,15 @@ import { NOME_DO_TIPO, ORIGEM_DA_REGRA, percentual } from './ocupacao';
  * cadastro, com o motivo que a própria etapa registrou.
  */
 
-const ETAPAS: { chave: string; nome: string; descricao: string }[] = [
+// Etapa opcional (eventos da cidade) não vira pendência do anfitrião: sem ela, a precificação
+// segue com os feriados oficiais; o bloqueio aparece só como informação.
+const ETAPAS: { chave: string; nome: string; descricao: string; opcional?: boolean }[] = [
   { chave: 'E1_localizacao', nome: 'Localização', descricao: 'Cidade, estado e país a partir do endereço' },
   { chave: 'E2_feriados', nome: 'Feriados oficiais', descricao: 'Feriados nacionais, estaduais e prolongados' },
+  { chave: 'E3_eventos', nome: 'Eventos da cidade', descricao: 'Shows, festivais, esportes e congressos, com fonte', opcional: true },
   { chave: 'E7_regras', nome: 'Regras de preço', descricao: 'Quanto o imóvel sobe em cada tipo de data, aprendido das suas reservas' },
 ];
+const OBRIGATORIAS = ETAPAS.filter(e => !e.opcional);
 
 interface Requisito {
   ok: boolean;
@@ -140,9 +144,9 @@ export const ProntidaoPrecificacao: React.FC<Props> = ({ properties, regras, onA
     const faltando = reqs.filter(r => r.obrigatorio && !r.ok);
     const minhas = etapas.filter(e => e.property_id === p.id);
     const etapa = (chave: string) => minhas.find(e => e.etapa === chave);
-    const bloqueios = ETAPAS.map(e => etapa(e.chave)).filter((e): e is PipelineStage => Boolean(e && (e.status === 'bloqueado' || e.status === 'falhou')));
+    const bloqueios = OBRIGATORIAS.map(e => etapa(e.chave)).filter((e): e is PipelineStage => Boolean(e && (e.status === 'bloqueado' || e.status === 'falhou')));
     const rodando = minhas.some(e => e.status === 'rodando' || e.status === 'pendente');
-    const tudoOk = ETAPAS.every(e => etapa(e.chave)?.status === 'ok');
+    const tudoOk = OBRIGATORIAS.every(e => etapa(e.chave)?.status === 'ok');
     return { p, reqs, faltando, etapa, bloqueios, rodando, tudoOk, ativo: Boolean(ativadoEm(p)) };
   });
 
@@ -262,12 +266,13 @@ export const ProntidaoPrecificacao: React.FC<Props> = ({ properties, regras, onA
                       <li key={e.chave} className="flex items-start gap-2">
                         {st === 'ok' ? <CheckCircle2 className="h-3.5 w-3.5 mt-px text-emerald-600 shrink-0" />
                           : st === 'rodando' || st === 'pendente' ? <Loader2 className="h-3.5 w-3.5 mt-px text-blue-600 animate-spin shrink-0" />
+                          : st === 'bloqueado' && e.opcional ? <Circle className="h-3.5 w-3.5 mt-px text-gray-400 shrink-0" />
                           : st === 'bloqueado' ? <AlertTriangle className="h-3.5 w-3.5 mt-px text-amber-600 shrink-0" />
                           : <XCircle className="h-3.5 w-3.5 mt-px text-red-600 shrink-0" />}
                         <div className="min-w-0">
                           <span className="font-semibold text-gray-700">{e.nome}</span>
                           <span className="text-gray-400"> — {e.descricao}</span>
-                          {st === 'bloqueado' && s?.motivo && <p className="text-amber-800">{s.motivo}</p>}
+                          {st === 'bloqueado' && s?.motivo && <p className={e.opcional ? 'text-gray-500' : 'text-amber-800'}>{s.motivo}</p>}
                           {st === 'falhou' && (
                             <p className="text-red-700">
                               {s?.motivo || 'Falha passageira.'} Nova tentativa automática{s?.proxima_tentativa_em ? ` em ${quando(s.proxima_tentativa_em)}` : ''}.
