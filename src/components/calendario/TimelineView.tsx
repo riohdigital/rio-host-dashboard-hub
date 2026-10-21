@@ -12,6 +12,7 @@ interface TimelineViewProps {
   endDate: Date;
   dayWidth: number;
   onReservationClick: (reservation: CalendarReservation) => void;
+  datasEspeciais?: Map<string, string[]>;
 }
 
 export const TimelineView: React.FC<TimelineViewProps> = ({
@@ -21,6 +22,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   endDate,
   dayWidth,
   onReservationClick,
+  datasEspeciais,
 }) => {
   // Agrupar reservas por propriedade
   const reservationsByProperty = useMemo(() => {
@@ -55,7 +57,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 
   return (
     <div className="border rounded-lg bg-card overflow-hidden">
-      <DateAxis startDate={startDate} endDate={endDate} dayWidth={dayWidth} />
+      <DateAxis startDate={startDate} endDate={endDate} dayWidth={dayWidth} datasEspeciais={datasEspeciais} />
       
       <ScrollArea style={{ height: `${scrollHeight}px` }}>
         <div>

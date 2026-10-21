@@ -34,6 +34,13 @@ const OPORTUNIDADES_DE_PRECO: ToggleConfig = {
   description: 'Feriados e eventos encontrados com o imóvel livre, para antecipar a precificação (as oportunidades continuam na página Precificação)'
 };
 
+// Sentinela da precificação: avisa quando a automação falha de novo e de novo ou para (ligado por padrão).
+const SAUDE_DA_PRECIFICACAO: ToggleConfig = {
+  key: 'pricing_health_alert',
+  title: 'Saúde da Precificação',
+  description: 'Aviso quando a precificação automática de um imóvel falha repetidamente ou para de se atualizar'
+};
+
 // Toggles específicos por role
 const getTogglesByRole = (role: string): ToggleConfig[] => {
   switch (role) {
@@ -81,7 +88,8 @@ const getTogglesByRole = (role: string): ToggleConfig[] => {
           description: 'Notificação imediata de novas reservas confirmadas'
         },
         ...MUDANCAS_DE_RESERVA,
-        OPORTUNIDADES_DE_PRECO
+        OPORTUNIDADES_DE_PRECO,
+        SAUDE_DA_PRECIFICACAO
       ];
     
     case 'co-anfitriao':
@@ -113,7 +121,8 @@ const getTogglesByRole = (role: string): ToggleConfig[] => {
           description: 'Aviso 3 dias antes se não houver faxineira atribuída'
         },
         ...MUDANCAS_DE_RESERVA,
-        OPORTUNIDADES_DE_PRECO
+        OPORTUNIDADES_DE_PRECO,
+        SAUDE_DA_PRECIFICACAO
       ];
     
     default: // 'outro' ou qualquer outro
