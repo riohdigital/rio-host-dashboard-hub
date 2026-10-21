@@ -14,152 +14,153 @@ export type Database = {
   }
   public: {
     Tables: {
-      pricing_alerts: {
+      agent_browser_session_checks: {
         Row: {
+          alertou: boolean
+          checked_at: string
+          detalhe: string | null
+          domain: string
+          duracao_ms: number | null
           id: string
-          property_id: string
-          alert_type: string
-          target_start_date: string
-          target_end_date: string
-          event_id: string | null
-          current_price: number | null
-          suggested_price: number | null
-          suggested_min_nights: number | null
-          estimated_revenue_gain: number | null
-          reason: string
-          urgency: string
-          status: string
-          action_taken: string | null
-          resolved_at: string | null
-          created_at: string
+          minutos_desde_login: number | null
+          minutos_desde_ultima_ok: number | null
+          passo: string | null
+          resultado: string
         }
         Insert: {
+          alertou?: boolean
+          checked_at?: string
+          detalhe?: string | null
+          domain: string
+          duracao_ms?: number | null
           id?: string
-          property_id: string
-          alert_type: string
-          target_start_date: string
-          target_end_date: string
-          event_id?: string | null
-          current_price?: number | null
-          suggested_price?: number | null
-          suggested_min_nights?: number | null
-          estimated_revenue_gain?: number | null
-          reason: string
-          urgency?: string
-          status?: string
-          action_taken?: string | null
-          resolved_at?: string | null
-          created_at?: string
+          minutos_desde_login?: number | null
+          minutos_desde_ultima_ok?: number | null
+          passo?: string | null
+          resultado: string
         }
         Update: {
+          alertou?: boolean
+          checked_at?: string
+          detalhe?: string | null
+          domain?: string
+          duracao_ms?: number | null
           id?: string
-          property_id?: string
-          alert_type?: string
-          target_start_date?: string
-          target_end_date?: string
-          event_id?: string | null
-          current_price?: number | null
-          suggested_price?: number | null
-          suggested_min_nights?: number | null
-          estimated_revenue_gain?: number | null
-          reason?: string
-          urgency?: string
-          status?: string
-          action_taken?: string | null
-          resolved_at?: string | null
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "pricing_alerts_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      local_events: {
-        Row: {
-          id: string
-          name: string
-          city: string
-          neighborhood: string | null
-          start_date: string
-          end_date: string
-          category: string
-          demand_impact: string
-          recommended_min_nights: number | null
-          recommended_price_multiplier: number | null
-          notes: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          name: string
-          city: string
-          neighborhood?: string | null
-          start_date: string
-          end_date: string
-          category: string
-          demand_impact?: string
-          recommended_min_nights?: number | null
-          recommended_price_multiplier?: number | null
-          notes?: string | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          name?: string
-          city?: string
-          neighborhood?: string | null
-          start_date?: string
-          end_date?: string
-          category?: string
-          demand_impact?: string
-          recommended_min_nights?: number | null
-          recommended_price_multiplier?: number | null
-          notes?: string | null
-          created_at?: string
+          minutos_desde_login?: number | null
+          minutos_desde_ultima_ok?: number | null
+          passo?: string | null
+          resultado?: string
         }
         Relationships: []
       }
-      daily_executive_briefings: {
+      agent_browser_sessions: {
         Row: {
+          cookies_encrypted: string | null
+          created_at: string | null
+          domain: string
+          expires_at: string | null
           id: string
-          briefing_date: string
-          checkins_count: number
-          checkouts_count: number
-          pending_alerts_count: number
-          summary_data: Json | null
-          whatsapp_message: string
-          sent_to_number: string
-          sent_at: string
-          status: string
+          is_valid: boolean | null
+          last_used_at: string | null
+          local_storage_encrypted: string | null
+          login_lock_until: string | null
+          session_name: string
+          session_storage_encrypted: string | null
+          updated_at: string | null
+          user_agent: string | null
         }
         Insert: {
+          cookies_encrypted?: string | null
+          created_at?: string | null
+          domain: string
+          expires_at?: string | null
           id?: string
-          briefing_date?: string
-          checkins_count?: number
-          checkouts_count?: number
-          pending_alerts_count?: number
-          summary_data?: Json | null
-          whatsapp_message: string
-          sent_to_number: string
-          sent_at?: string
-          status?: string
+          is_valid?: boolean | null
+          last_used_at?: string | null
+          local_storage_encrypted?: string | null
+          login_lock_until?: string | null
+          session_name?: string
+          session_storage_encrypted?: string | null
+          updated_at?: string | null
+          user_agent?: string | null
         }
         Update: {
+          cookies_encrypted?: string | null
+          created_at?: string | null
+          domain?: string
+          expires_at?: string | null
           id?: string
-          briefing_date?: string
-          checkins_count?: number
-          checkouts_count?: number
-          pending_alerts_count?: number
-          summary_data?: Json | null
-          whatsapp_message?: string
-          sent_to_number?: string
-          sent_at?: string
-          status?: string
+          is_valid?: boolean | null
+          last_used_at?: string | null
+          local_storage_encrypted?: string | null
+          login_lock_until?: string | null
+          session_name?: string
+          session_storage_encrypted?: string | null
+          updated_at?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
+      ai_operation_costs: {
+        Row: {
+          api_key_name: string | null
+          app_name: string | null
+          cost_cache: number | null
+          cost_total: number
+          created_at: string
+          finish_reason: string | null
+          generation_id: string
+          generation_time_ms: number | null
+          id: string
+          metadata: Json | null
+          model: string
+          operation_type: string | null
+          provider_name: string
+          time_to_first_token_ms: number | null
+          tokens_cached: number | null
+          tokens_completion: number | null
+          tokens_prompt: number | null
+          tokens_reasoning: number | null
+        }
+        Insert: {
+          api_key_name?: string | null
+          app_name?: string | null
+          cost_cache?: number | null
+          cost_total: number
+          created_at: string
+          finish_reason?: string | null
+          generation_id: string
+          generation_time_ms?: number | null
+          id?: string
+          metadata?: Json | null
+          model: string
+          operation_type?: string | null
+          provider_name: string
+          time_to_first_token_ms?: number | null
+          tokens_cached?: number | null
+          tokens_completion?: number | null
+          tokens_prompt?: number | null
+          tokens_reasoning?: number | null
+        }
+        Update: {
+          api_key_name?: string | null
+          app_name?: string | null
+          cost_cache?: number | null
+          cost_total?: number
+          created_at?: string
+          finish_reason?: string | null
+          generation_id?: string
+          generation_time_ms?: number | null
+          id?: string
+          metadata?: Json | null
+          model?: string
+          operation_type?: string | null
+          provider_name?: string
+          time_to_first_token_ms?: number | null
+          tokens_cached?: number | null
+          tokens_completion?: number | null
+          tokens_prompt?: number | null
+          tokens_reasoning?: number | null
         }
         Relationships: []
       }
@@ -381,6 +382,160 @@ export type Database = {
         }
         Relationships: []
       }
+      competitor_listings: {
+        Row: {
+          amenities: string[] | null
+          bathrooms: number | null
+          bedrooms: number | null
+          created_at: string | null
+          current_rating: number | null
+          external_listing_id: string | null
+          has_sea_view: boolean | null
+          id: string
+          listing_url: string
+          max_guests: number | null
+          name: string
+          neighborhood: string | null
+          platform: string
+          property_id: string | null
+          property_type: string | null
+          reviews_count: number | null
+          status: string | null
+        }
+        Insert: {
+          amenities?: string[] | null
+          bathrooms?: number | null
+          bedrooms?: number | null
+          created_at?: string | null
+          current_rating?: number | null
+          external_listing_id?: string | null
+          has_sea_view?: boolean | null
+          id?: string
+          listing_url: string
+          max_guests?: number | null
+          name: string
+          neighborhood?: string | null
+          platform?: string
+          property_id?: string | null
+          property_type?: string | null
+          reviews_count?: number | null
+          status?: string | null
+        }
+        Update: {
+          amenities?: string[] | null
+          bathrooms?: number | null
+          bedrooms?: number | null
+          created_at?: string | null
+          current_rating?: number | null
+          external_listing_id?: string | null
+          has_sea_view?: boolean | null
+          id?: string
+          listing_url?: string
+          max_guests?: number | null
+          name?: string
+          neighborhood?: string | null
+          platform?: string
+          property_id?: string | null
+          property_type?: string | null
+          reviews_count?: number | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "competitor_listings_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      competitor_price_snapshots: {
+        Row: {
+          competitor_listing_id: string | null
+          created_at: string | null
+          daily_price: number | null
+          id: string
+          is_available: boolean | null
+          min_nights: number | null
+          raw_payload: Json | null
+          snapshot_date: string
+          target_date: string
+        }
+        Insert: {
+          competitor_listing_id?: string | null
+          created_at?: string | null
+          daily_price?: number | null
+          id?: string
+          is_available?: boolean | null
+          min_nights?: number | null
+          raw_payload?: Json | null
+          snapshot_date?: string
+          target_date: string
+        }
+        Update: {
+          competitor_listing_id?: string | null
+          created_at?: string | null
+          daily_price?: number | null
+          id?: string
+          is_available?: boolean | null
+          min_nights?: number | null
+          raw_payload?: Json | null
+          snapshot_date?: string
+          target_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "competitor_price_snapshots_competitor_listing_id_fkey"
+            columns: ["competitor_listing_id"]
+            isOneToOne: false
+            referencedRelation: "competitor_listings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      daily_executive_briefings: {
+        Row: {
+          briefing_date: string
+          checkins_count: number | null
+          checkouts_count: number | null
+          evolution_message_id: string | null
+          id: string
+          pending_alerts_count: number | null
+          sent_at: string | null
+          sent_to_number: string
+          status: string | null
+          summary_data: Json | null
+          whatsapp_message: string
+        }
+        Insert: {
+          briefing_date?: string
+          checkins_count?: number | null
+          checkouts_count?: number | null
+          evolution_message_id?: string | null
+          id?: string
+          pending_alerts_count?: number | null
+          sent_at?: string | null
+          sent_to_number: string
+          status?: string | null
+          summary_data?: Json | null
+          whatsapp_message: string
+        }
+        Update: {
+          briefing_date?: string
+          checkins_count?: number | null
+          checkouts_count?: number | null
+          evolution_message_id?: string | null
+          id?: string
+          pending_alerts_count?: number | null
+          sent_at?: string | null
+          sent_to_number?: string
+          status?: string | null
+          summary_data?: Json | null
+          whatsapp_message?: string
+        }
+        Relationships: []
+      }
       email_templates: {
         Row: {
           body_html: string
@@ -547,6 +702,75 @@ export type Database = {
         }
         Relationships: []
       }
+      local_events: {
+        Row: {
+          category: string
+          city: string | null
+          country_code: string | null
+          created_at: string | null
+          demand_impact: string
+          end_date: string
+          external_id: string | null
+          id: string
+          is_active: boolean
+          is_confirmed: boolean
+          name: string
+          neighborhood: string | null
+          notes: string | null
+          recommended_min_nights: number | null
+          recommended_price_multiplier: number | null
+          region_code: string | null
+          source: string | null
+          source_url: string | null
+          start_date: string
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string
+          city?: string | null
+          country_code?: string | null
+          created_at?: string | null
+          demand_impact?: string
+          end_date: string
+          external_id?: string | null
+          id?: string
+          is_active?: boolean
+          is_confirmed?: boolean
+          name: string
+          neighborhood?: string | null
+          notes?: string | null
+          recommended_min_nights?: number | null
+          recommended_price_multiplier?: number | null
+          region_code?: string | null
+          source?: string | null
+          source_url?: string | null
+          start_date: string
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string
+          city?: string | null
+          country_code?: string | null
+          created_at?: string | null
+          demand_impact?: string
+          end_date?: string
+          external_id?: string | null
+          id?: string
+          is_active?: boolean
+          is_confirmed?: boolean
+          name?: string
+          neighborhood?: string | null
+          notes?: string | null
+          recommended_min_nights?: number | null
+          recommended_price_multiplier?: number | null
+          region_code?: string | null
+          source?: string | null
+          source_url?: string | null
+          start_date?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       notification_destinations: {
         Row: {
           auth_code: string | null
@@ -597,65 +821,238 @@ export type Database = {
           },
         ]
       }
+      pricing_alerts: {
+        Row: {
+          action_taken: string | null
+          alert_type: string
+          created_at: string | null
+          current_price: number | null
+          estimated_revenue_gain: number | null
+          event_id: string | null
+          id: string
+          property_id: string | null
+          rationale: string | null
+          reason: string
+          resolved_at: string | null
+          status: string | null
+          suggested_min_nights: number | null
+          suggested_price: number | null
+          supporting_data: Json | null
+          target_end_date: string
+          target_start_date: string
+          urgency: string | null
+        }
+        Insert: {
+          action_taken?: string | null
+          alert_type: string
+          created_at?: string | null
+          current_price?: number | null
+          estimated_revenue_gain?: number | null
+          event_id?: string | null
+          id?: string
+          property_id?: string | null
+          rationale?: string | null
+          reason: string
+          resolved_at?: string | null
+          status?: string | null
+          suggested_min_nights?: number | null
+          suggested_price?: number | null
+          supporting_data?: Json | null
+          target_end_date: string
+          target_start_date: string
+          urgency?: string | null
+        }
+        Update: {
+          action_taken?: string | null
+          alert_type?: string
+          created_at?: string | null
+          current_price?: number | null
+          estimated_revenue_gain?: number | null
+          event_id?: string | null
+          id?: string
+          property_id?: string | null
+          rationale?: string | null
+          reason?: string
+          resolved_at?: string | null
+          status?: string | null
+          suggested_min_nights?: number | null
+          suggested_price?: number | null
+          supporting_data?: Json | null
+          target_end_date?: string
+          target_start_date?: string
+          urgency?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pricing_alerts_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "local_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pricing_alerts_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       properties: {
         Row: {
           address: string | null
           airbnb_link: string | null
+          amenities: string[] | null
           base_nightly_price: number | null
+          bathrooms: number | null
+          bedrooms: number | null
           booking_link: string | null
+          city: string | null
           cleaning_fee: number | null
           commission_rate: number | null
+          country_code: string | null
           created_at: string | null
           created_by: string | null
           default_checkin_time: string | null
           default_checkout_time: string | null
+          geo_address: string | null
+          geo_checked_at: string | null
+          geo_source: string | null
+          geo_status: string | null
+          high_demand_events: Json | null
           id: string
+          latitude: number | null
+          longitude: number | null
           max_guests: number | null
           name: string
           nickname: string | null
           notes: string | null
+          pricing_activated_at: string | null
+          pricing_activated_by: string | null
           property_type: string
+          state_code: string | null
+          state_name: string | null
           status: string
         }
         Insert: {
           address?: string | null
           airbnb_link?: string | null
+          amenities?: string[] | null
           base_nightly_price?: number | null
+          bathrooms?: number | null
+          bedrooms?: number | null
           booking_link?: string | null
+          city?: string | null
           cleaning_fee?: number | null
           commission_rate?: number | null
+          country_code?: string | null
           created_at?: string | null
           created_by?: string | null
           default_checkin_time?: string | null
           default_checkout_time?: string | null
+          geo_address?: string | null
+          geo_checked_at?: string | null
+          geo_source?: string | null
+          geo_status?: string | null
+          high_demand_events?: Json | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           max_guests?: number | null
           name: string
           nickname?: string | null
           notes?: string | null
+          pricing_activated_at?: string | null
+          pricing_activated_by?: string | null
           property_type?: string
+          state_code?: string | null
+          state_name?: string | null
           status?: string
         }
         Update: {
           address?: string | null
           airbnb_link?: string | null
+          amenities?: string[] | null
           base_nightly_price?: number | null
+          bathrooms?: number | null
+          bedrooms?: number | null
           booking_link?: string | null
+          city?: string | null
           cleaning_fee?: number | null
           commission_rate?: number | null
+          country_code?: string | null
           created_at?: string | null
           created_by?: string | null
           default_checkin_time?: string | null
           default_checkout_time?: string | null
+          geo_address?: string | null
+          geo_checked_at?: string | null
+          geo_source?: string | null
+          geo_status?: string | null
+          high_demand_events?: Json | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           max_guests?: number | null
           name?: string
           nickname?: string | null
           notes?: string | null
+          pricing_activated_at?: string | null
+          pricing_activated_by?: string | null
           property_type?: string
+          state_code?: string | null
+          state_name?: string | null
           status?: string
         }
         Relationships: []
+      }
+      property_calendar_prices: {
+        Row: {
+          created_at: string | null
+          date: string
+          id: string
+          is_available: boolean | null
+          is_blocked: boolean | null
+          last_scraped_at: string | null
+          min_nights: number | null
+          platform: string
+          price_per_night: number
+          property_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          date: string
+          id?: string
+          is_available?: boolean | null
+          is_blocked?: boolean | null
+          last_scraped_at?: string | null
+          min_nights?: number | null
+          platform?: string
+          price_per_night: number
+          property_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          date?: string
+          id?: string
+          is_available?: boolean | null
+          is_blocked?: boolean | null
+          last_scraped_at?: string | null
+          min_nights?: number | null
+          platform?: string
+          price_per_night?: number
+          property_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_calendar_prices_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       property_insights: {
         Row: {
@@ -742,6 +1139,91 @@ export type Database = {
           },
           {
             foreignKeyName: "property_investments_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_pipeline: {
+        Row: {
+          dados_ate: string | null
+          detalhe: Json | null
+          etapa: string
+          motivo: string | null
+          property_id: string
+          proxima_tentativa_em: string | null
+          status: string
+          tentativas: number
+          ultima_ok_em: string | null
+          updated_at: string
+        }
+        Insert: {
+          dados_ate?: string | null
+          detalhe?: Json | null
+          etapa: string
+          motivo?: string | null
+          property_id: string
+          proxima_tentativa_em?: string | null
+          status?: string
+          tentativas?: number
+          ultima_ok_em?: string | null
+          updated_at?: string
+        }
+        Update: {
+          dados_ate?: string | null
+          detalhe?: Json | null
+          etapa?: string
+          motivo?: string | null
+          property_id?: string
+          proxima_tentativa_em?: string | null
+          status?: string
+          tentativas?: number
+          ultima_ok_em?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_pipeline_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_pricing_rules: {
+        Row: {
+          amostras: number | null
+          detalhe: Json | null
+          fator: number | null
+          origem: string
+          property_id: string
+          tipo_data: string
+          updated_at: string
+        }
+        Insert: {
+          amostras?: number | null
+          detalhe?: Json | null
+          fator?: number | null
+          origem: string
+          property_id: string
+          tipo_data: string
+          updated_at?: string
+        }
+        Update: {
+          amostras?: number | null
+          detalhe?: Json | null
+          fator?: number | null
+          origem?: string
+          property_id?: string
+          tipo_data?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_pricing_rules_property_id_fkey"
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
@@ -841,17 +1323,21 @@ export type Database = {
           guest_phone: string | null
           id: string
           is_communicated: boolean | null
+          is_verified_by_ai: boolean | null
           last_synced_at: string | null
           net_revenue: number | null
           number_of_guests: number | null
           payment_date: string | null
           payment_status: string | null
           platform: string
+          platform_verified_data: Json | null
           property_id: string | null
           receipt_sent: boolean | null
           reservation_code: string
           reservation_status: string | null
           total_revenue: number
+          verification_notes: string | null
+          verified_at: string | null
         }
         Insert: {
           automation_metadata?: Json | null
@@ -878,17 +1364,21 @@ export type Database = {
           guest_phone?: string | null
           id?: string
           is_communicated?: boolean | null
+          is_verified_by_ai?: boolean | null
           last_synced_at?: string | null
           net_revenue?: number | null
           number_of_guests?: number | null
           payment_date?: string | null
           payment_status?: string | null
           platform?: string
+          platform_verified_data?: Json | null
           property_id?: string | null
           receipt_sent?: boolean | null
           reservation_code: string
           reservation_status?: string | null
           total_revenue: number
+          verification_notes?: string | null
+          verified_at?: string | null
         }
         Update: {
           automation_metadata?: Json | null
@@ -915,17 +1405,21 @@ export type Database = {
           guest_phone?: string | null
           id?: string
           is_communicated?: boolean | null
+          is_verified_by_ai?: boolean | null
           last_synced_at?: string | null
           net_revenue?: number | null
           number_of_guests?: number | null
           payment_date?: string | null
           payment_status?: string | null
           platform?: string
+          platform_verified_data?: Json | null
           property_id?: string | null
           receipt_sent?: boolean | null
           reservation_code?: string
           reservation_status?: string | null
           total_revenue?: number
+          verification_notes?: string | null
+          verified_at?: string | null
         }
         Relationships: [
           {
@@ -1175,6 +1669,42 @@ export type Database = {
       }
     }
     Views: {
+      agent_browser_sessions_status: {
+        Row: {
+          created_at: string | null
+          domain: string | null
+          expires_at: string | null
+          id: string | null
+          is_valid: boolean | null
+          last_used_at: string | null
+          login_lock_until: string | null
+          session_name: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          domain?: string | null
+          expires_at?: string | null
+          id?: string | null
+          is_valid?: boolean | null
+          last_used_at?: string | null
+          login_lock_until?: string | null
+          session_name?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          domain?: string | null
+          expires_at?: string | null
+          id?: string | null
+          is_valid?: boolean | null
+          last_used_at?: string | null
+          login_lock_until?: string | null
+          session_name?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       chat_usage_stats: {
         Row: {
           ai_messages: number | null
@@ -1189,6 +1719,26 @@ export type Database = {
           user_messages: number | null
         }
         Relationships: []
+      }
+      property_pricing_rules_vigentes: {
+        Row: {
+          amostras: number | null
+          detalhe: Json | null
+          fator: number | null
+          origem: string | null
+          property_id: string | null
+          tipo_data: string | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_pricing_rules_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Functions: {
@@ -1511,12 +2061,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1540,11 +2090,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1565,11 +2115,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1590,11 +2140,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1607,11 +2157,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }

@@ -10,18 +10,20 @@ import {
   Building2,
   Info
 } from 'lucide-react';
-import { LocalEvent } from '@/types/pricing';
+import { LocalEvent, PricingRule } from '@/types/pricing';
 import { Property } from '@/types/property';
 import { formatLocalDate } from '@/utils/dateUtils';
-import { ReservaParaOcupacao, cidadeDoImovel, situacaoNoEvento } from './ocupacao';
+import { ReservaParaOcupacao, ORIGEM_DA_REGRA, escopoDoEvento, eventoValeParaImovel, percentual, situacaoNoEvento, tipoDeData } from './ocupacao';
 
 interface EventsCalendarTabProps {
-  /** Eventos futuros já filtrados para as cidades dos imóveis da seleção. */
+  /** Eventos futuros já filtrados para onde os imóveis da seleção estão. */
   events: LocalEvent[];
   /** Imóveis da seleção (todos, um ou um subconjunto). */
   properties: Property[];
   selectedProperty: Property | null;
   reservations: ReservaParaOcupacao[];
+  /** Regras de preço vigentes dos imóveis (o quanto cada um sobe por tipo de data). */
+  regras: PricingRule[];
 }
 
 const IMPACTOS = ['Crítico', 'Alto', 'Moderado'];
@@ -30,26 +32,30 @@ export const EventsCalendarTab: React.FC<EventsCalendarTabProps> = ({
   events,
   properties,
   selectedProperty,
-  reservations
+  reservations,
+  regras
 }) => {
   const [filterImpact, setFilterImpact] = useState<string>('all');
   const [filterCity, setFilterCity] = useState<string>('all');
 
-  // Cidades vêm dos próprios eventos (multi-inquilino: nada fixo no código).
-  const cidades = useMemo(() => [...new Set(events.map(e => e.city).filter(Boolean))].sort(), [events]);
-  const selectedCity = selectedProperty ? cidadeDoImovel(selectedProperty.address, cidades) : null;
+  // Lugares vêm dos próprios eventos: cidade, estado ou país (multi-inquilino: nada fixo no código).
+  const cidades = useMemo(() => [...new Set(events.map(e => escopoDoEvento(e)))].sort(), [events]);
+  const selectedCity = selectedProperty?.city || null;
 
   const filteredEvents = events.filter(e => {
     const matchesImpact = filterImpact === 'all' || e.demand_impact === filterImpact;
-    const matchesCity = filterCity === 'all' || e.city === filterCity;
+    const matchesCity = filterCity === 'all' || escopoDoEvento(e) === filterCity;
     return matchesImpact && matchesCity;
   });
 
-  /** Imóveis da seleção na cidade do evento, cada um com a situação nas noites do evento. */
+  /** Imóveis da seleção onde o evento vale, cada um com a situação nas noites do evento. */
   const situacoes = (ev: LocalEvent) =>
     properties
-      .filter(p => !ev.city || cidadeDoImovel(p.address, cidades) === ev.city)
+      .filter(p => eventoValeParaImovel(ev, p))
       .map(p => ({ p, ...situacaoNoEvento(reservations.filter(r => r.property_id === p.id), ev) }));
+
+  const regraDe = (propertyId: string, ev: LocalEvent) =>
+    regras.find(r => r.property_id === propertyId && r.tipo_data === tipoDeData(ev)) || null;
 
   return (
     <div className="space-y-6">
@@ -75,7 +81,7 @@ export const EventsCalendarTab: React.FC<EventsCalendarTabProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-xl border shadow-xs">
         <div className="flex items-center gap-1.5 overflow-x-auto">
           <span className="text-xs font-semibold text-gray-500 flex items-center gap-1 mr-1">
-            <MapPin className="h-3.5 w-3.5 text-gray-400" /> Cidade:
+            <MapPin className="h-3.5 w-3.5 text-gray-400" /> Onde:
           </span>
           {['all', ...cidades].map(cidade => (
             <button
@@ -87,7 +93,7 @@ export const EventsCalendarTab: React.FC<EventsCalendarTabProps> = ({
                   : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'
               }`}
             >
-              {cidade === 'all' ? 'Todas as cidades' : cidade}
+              {cidade === 'all' ? 'Todos' : cidade}
             </button>
           ))}
         </div>
@@ -119,7 +125,7 @@ export const EventsCalendarTab: React.FC<EventsCalendarTabProps> = ({
             <Building2 className="h-4 w-4 text-[#6A6DDF]" />
             <span>
               Exibindo eventos com impacto no imóvel: <strong>{selectedProperty.nickname || selectedProperty.name}</strong>
-              {selectedCity ? ` (${selectedCity})` : ' (cidade não identificada no endereço)'}
+              {selectedCity ? ` (${selectedCity})` : ' (localização ainda não conferida: ative a precificação automática)'}
             </span>
           </div>
           {filterCity !== 'all' && (
@@ -134,10 +140,10 @@ export const EventsCalendarTab: React.FC<EventsCalendarTabProps> = ({
       {filteredEvents.length === 0 ? (
         <div className="py-12 text-center bg-white rounded-xl border p-8 space-y-3">
           <Calendar className="h-10 w-10 text-gray-400 mx-auto" />
-          <h4 className="font-bold text-gray-800 text-base">Nenhum evento nas cidades dos imóveis com estes filtros</h4>
+          <h4 className="font-bold text-gray-800 text-base">Nenhum feriado ou evento onde os imóveis estão, com estes filtros</h4>
           <p className="text-xs text-gray-500 max-w-md mx-auto flex items-start gap-1.5 justify-center">
             <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-            A cidade de cada imóvel é lida do endereço cadastrado em Propriedades.
+            A localização de cada imóvel vem do endereço cadastrado em Propriedades, conferida pela precificação automática.
           </p>
         </div>
       ) : (
@@ -159,7 +165,7 @@ export const EventsCalendarTab: React.FC<EventsCalendarTabProps> = ({
                     <div>
                       <span className="text-[11px] font-semibold text-gray-400 flex items-center gap-1">
                         <MapPin className="h-3 w-3" />
-                        {ev.city} {ev.neighborhood ? `• ${ev.neighborhood}` : ''}
+                        {escopoDoEvento(ev)} {ev.neighborhood ? `• ${ev.neighborhood}` : ''}
                       </span>
                       <h4 className="font-bold text-gray-900 text-sm mt-0.5">{ev.name}</h4>
                       {ev.category && (
@@ -185,7 +191,7 @@ export const EventsCalendarTab: React.FC<EventsCalendarTabProps> = ({
                     )}
                   </div>
 
-                  {/* Datas do Evento e Multiplicador de Diária */}
+                  {/* Datas do evento e fonte comprovada */}
                   <div className="bg-gray-50 p-2.5 rounded-lg border text-xs text-gray-600 flex items-center justify-between">
                     <div>
                       <span className="text-gray-400 text-[10px] block">Período</span>
@@ -194,10 +200,14 @@ export const EventsCalendarTab: React.FC<EventsCalendarTabProps> = ({
                       </span>
                     </div>
                     <div className="text-right">
-                      <span className="text-gray-400 text-[10px] block">Multiplicador do evento</span>
-                      <span className="font-bold text-[#6A6DDF]">
-                        {ev.recommended_price_multiplier ? `${ev.recommended_price_multiplier}x base` : 'Não informado'}
-                      </span>
+                      <span className="text-gray-400 text-[10px] block">Fonte</span>
+                      {ev.source_url ? (
+                        <a href={ev.source_url} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#6A6DDF] hover:underline">
+                          {ev.source === 'nager' ? 'Calendário oficial' : 'Ver fonte'}
+                        </a>
+                      ) : (
+                        <span className="text-gray-500">{ev.source === 'nager' ? 'Calendário oficial' : 'Não informada'}</span>
+                      )}
                     </div>
                   </div>
 
@@ -213,16 +223,26 @@ export const EventsCalendarTab: React.FC<EventsCalendarTabProps> = ({
 
                   {/* Recomendações e Ocupação por Imóvel */}
                   <div className="space-y-1.5 text-xs pt-1">
-                    <div className="flex items-center justify-between text-gray-500">
-                      <span className="text-[11px]">Estadia mínima do evento:</span>
-                      <span className="font-semibold text-gray-700">
-                        {ev.recommended_min_nights ? `${ev.recommended_min_nights} noites` : 'Não informada'}
-                      </span>
-                    </div>
+                    {ev.recommended_min_nights ? (
+                      <div className="flex items-center justify-between text-gray-500">
+                        <span className="text-[11px]">Estadia mínima do evento:</span>
+                        <span className="font-semibold text-gray-700">{ev.recommended_min_nights} noites</span>
+                      </div>
+                    ) : null}
 
                     {imoveis.map(({ p, situacao, noitesLivres, noitesDoEvento }) => (
                       <div key={p.id} className="flex items-center justify-between pt-1 border-t border-gray-100 gap-2">
-                        <span className="text-[11px] text-gray-500 truncate">{p.nickname || p.name}</span>
+                        <span className="text-[11px] text-gray-500 truncate">
+                          {p.nickname || p.name}
+                          {(() => {
+                            const r = regraDe(p.id, ev);
+                            return r ? (
+                              <span className="ml-1 text-[#6A6DDF] font-semibold" title={`Regra: ${ORIGEM_DA_REGRA[r.origem] || r.origem}`}>
+                                {percentual(Number(r.fator))}
+                              </span>
+                            ) : null;
+                          })()}
+                        </span>
                         {situacao === 'reservado' ? (
                           <span className="text-emerald-700 font-bold flex items-center gap-1 text-[11px] shrink-0">
                             <CheckCircle2 className="h-3.5 w-3.5" /> Reservado

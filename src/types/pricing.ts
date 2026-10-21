@@ -17,7 +17,7 @@ export interface PricingAlert {
   estimated_revenue_gain?: number;
   reason: string;
   rationale?: string | null;
-  supporting_data?: Record<string, any> | null;
+  supporting_data?: AlertSupportingData | null;
   urgency: AlertUrgency;
   status: AlertStatus;
   action_taken?: string | null;
@@ -25,19 +25,83 @@ export interface PricingAlert {
   created_at: string;
 }
 
+/** Evidências que o radar grava em cada alerta (todas com origem comprovada). */
+export interface AlertSupportingData {
+  fonte_diaria_atual?: 'calendario_coletado' | 'diaria_base_cadastro' | string;
+  diaria_base?: number;
+  regra_tipo?: string;
+  regra_fator?: number;
+  regra_origem?: 'historico' | 'mercado' | 'manual' | string;
+  regra_amostras?: number;
+  preco_pela_regra?: number;
+  confianca?: 'alta' | 'média' | string;
+  fonte_evento?: string | null;
+  escopo_evento?: string | null;
+  compset_median?: number | null;
+  compset_amostras?: number;
+  noites_periodo?: number;
+  dias_ate_evento?: number;
+  mediana_comum_vendida?: number | null;
+  base_desatualizada?: boolean;
+  noites_lacuna?: number;
+  // Alertas "acima do mercado" (só com concorrentes reais coletados).
+  price_diff_pct?: number;
+  calculation_formula?: string;
+  market_evidence?: string;
+  risk_analysis?: string;
+}
+
 export interface LocalEvent {
   id: string;
   name: string;
-  city: string;
+  /** Escopo do evento: cidade, estado (region_code, ex. BR-RJ) ou país (country_code). */
+  city: string | null;
+  region_code?: string | null;
+  country_code?: string | null;
+  /** Origem comprovada (ex.: 'nager' para feriados oficiais) e endereço da fonte. */
+  source?: string | null;
+  source_url?: string | null;
+  is_active?: boolean;
+  is_confirmed?: boolean;
   neighborhood?: string | null;
   start_date: string;
   end_date: string;
   category: string;
   demand_impact: DemandImpact;
   recommended_min_nights?: number;
-  recommended_price_multiplier?: number;
+  /** Não é usado: o quanto subir vem da regra aprendida de cada imóvel (PricingRule). */
+  recommended_price_multiplier?: number | null;
   notes?: string | null;
   created_at: string;
+}
+
+export type TipoDeData = 'feriado_prolongado' | 'feriado' | 'fim_de_semana' | 'evento_critico' | 'evento_alto';
+
+/** Regra vigente do imóvel (view property_pricing_rules_vigentes): manual > mercado > histórico. */
+export interface PricingRule {
+  property_id: string;
+  tipo_data: TipoDeData | string;
+  fator: number;
+  origem: 'manual' | 'mercado' | 'historico' | string;
+  amostras: number | null;
+  detalhe: Record<string, unknown> | null;
+  updated_at: string | null;
+}
+
+export type EtapaStatus = 'pendente' | 'rodando' | 'ok' | 'bloqueado' | 'falhou';
+
+/** Uma etapa da esteira de precificação de um imóvel (tabela property_pipeline). */
+export interface PipelineStage {
+  property_id: string;
+  etapa: string;
+  status: EtapaStatus | string;
+  motivo: string | null;
+  tentativas: number | null;
+  proxima_tentativa_em: string | null;
+  ultima_ok_em: string | null;
+  dados_ate: string | null;
+  detalhe: Record<string, unknown> | null;
+  updated_at: string | null;
 }
 
 export interface PropertyPricingKPIs {
@@ -81,7 +145,7 @@ export interface CompetitorPriceSnapshot {
   daily_price?: number | null;
   is_available: boolean;
   min_nights?: number;
-  raw_payload?: Record<string, any> | null;
+  raw_payload?: Record<string, unknown> | null;
   created_at: string;
 }
 

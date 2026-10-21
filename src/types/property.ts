@@ -14,16 +14,18 @@ export interface Property {
   max_guests?: number;
   notes?: string;
   amenities?: string[];
-  high_demand_events?: Array<{
-    event_name: string;
-    category?: string;
-    period_description?: string;
-    target_dates?: string;
-    demand_impact?: string;
-    recommended_multiplier?: number;
-    recommended_min_nights?: number;
-    notes?: string;
-  }>;
+  // Localização (E1 da esteira de precificação): encontrada pelo endereço ou digitada pelo usuário.
+  city?: string | null;
+  state_code?: string | null;
+  state_name?: string | null;
+  country_code?: string | null;
+  geo_status?: 'ok' | 'nao_encontrado' | 'manual' | string | null;
+  geo_source?: string | null;
+  geo_address?: string | null;
+  geo_checked_at?: string | null;
+  // Precificação automática: ligada pelo usuário na página Precificação.
+  pricing_activated_at?: string | null;
+  pricing_activated_by?: string | null;
   default_checkin_time?: string;
   default_checkout_time?: string;
   created_at: string;

@@ -25,6 +25,16 @@ export interface EventoLocal {
   demand_impact?: string | null;
   category?: string | null;
   city?: string | null;
+  region_code?: string | null;
+  country_code?: string | null;
+}
+
+/** Localização do imóvel encontrada pela esteira (E1) ou digitada pelo usuário. */
+export interface LocalizacaoDoImovel {
+  city?: string | null;
+  state_code?: string | null;
+  country_code?: string | null;
+  geo_status?: string | null;
 }
 
 const DIA = 86_400_000;
@@ -42,30 +52,66 @@ export function hojeLocal(agora = new Date()): string {
 const normalizar = (s: string) =>
   s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
-/**
- * Cidade do imóvel entre as cidades que têm eventos: a que aparece primeiro no endereço
- * (sem acento e sem espaço). Endereço brasileiro traz a cidade antes do estado, então
- * "Rio das Ostras, Rio de Janeiro" é Rio das Ostras. Mesma regra do radar no n8n.
- * Provisório até o cadastro do imóvel ter um campo de cidade.
- */
-export function cidadeDoImovel(endereco: string | null | undefined, cidades: string[]): string | null {
-  if (!endereco) return null;
-  const e = normalizar(endereco);
-  let melhor: { cidade: string; pos: number; tam: number } | null = null;
-  for (const cidade of cidades) {
-    const c = normalizar(cidade);
-    if (!c) continue;
-    const pos = e.indexOf(c);
-    if (pos < 0) continue;
-    if (!melhor || pos < melhor.pos || (pos === melhor.pos && c.length > melhor.tam)) melhor = { cidade, pos, tam: c.length };
-  }
-  return melhor?.cidade ?? null;
+/** O imóvel tem localização conferida (achada pelo endereço ou digitada pelo usuário)? */
+export function imovelLocalizado(p: LocalizacaoDoImovel): boolean {
+  return (p.geo_status === 'ok' || p.geo_status === 'manual') && Boolean(p.country_code);
 }
 
-/** O evento vale para o imóvel? Sem cidade no evento, vale para todos. */
-export function eventoValeParaImovel(ev: Pick<EventoLocal, 'city'>, endereco: string | null | undefined, cidades: string[]): boolean {
-  if (!ev.city) return true;
-  return cidadeDoImovel(endereco, cidades) === ev.city;
+/**
+ * O evento vale para o imóvel? Pelo escopo do evento (país → estado → cidade) contra a
+ * localização do imóvel. Mesma regra do radar no n8n. Sem localização conferida, nenhum
+ * evento vale: a página pede para completar o cadastro em vez de adivinhar pela cidade.
+ */
+export function eventoValeParaImovel(ev: Pick<EventoLocal, 'city' | 'region_code' | 'country_code'>, p: LocalizacaoDoImovel): boolean {
+  if (!imovelLocalizado(p)) return false;
+  if (!ev.country_code && !ev.city) return false;
+  if (ev.country_code && ev.country_code !== p.country_code) return false;
+  if (ev.region_code && ev.region_code !== p.state_code) return false;
+  if (ev.city && normalizar(ev.city) !== normalizar(p.city || '')) return false;
+  return true;
+}
+
+const nomeDoPais = (codigo: string) => {
+  try {
+    return new Intl.DisplayNames(['pt-BR'], { type: 'region' }).of(codigo) || codigo;
+  } catch {
+    return codigo;
+  }
+};
+
+/** Onde o evento vale, para mostrar: a cidade, o estado ou o país inteiro. */
+export function escopoDoEvento(ev: Pick<EventoLocal, 'city' | 'region_code' | 'country_code'>): string {
+  if (ev.city) return ev.city;
+  if (ev.region_code) return `Estado ${ev.region_code.split('-').pop()}`;
+  if (ev.country_code) return `Todo o país (${nomeDoPais(ev.country_code)})`;
+  return 'Local não informado';
+}
+
+/** Tipo de data do evento, o mesmo que a regra aprendida do imóvel usa. */
+export function tipoDeData(ev: Pick<EventoLocal, 'category' | 'demand_impact'>): string {
+  if (ev.category === 'Feriado prolongado') return 'feriado_prolongado';
+  if (ev.category && ev.category.startsWith('Feriado')) return 'feriado';
+  return ev.demand_impact === 'Crítico' ? 'evento_critico' : 'evento_alto';
+}
+
+export const NOME_DO_TIPO: Record<string, string> = {
+  feriado_prolongado: 'Feriado prolongado',
+  feriado: 'Feriado',
+  fim_de_semana: 'Fim de semana',
+  evento_critico: 'Evento de grande porte',
+  evento_alto: 'Evento',
+};
+
+export const ORIGEM_DA_REGRA: Record<string, string> = {
+  historico: 'seu histórico',
+  mercado: 'concorrentes',
+  manual: 'definida por você',
+};
+
+/** Fator em percentual legível: 1,57 → "+57%". */
+export function percentual(fator: number): string {
+  const p = Math.round((fator - 1) * 100);
+  return `${p > 0 ? '+' : ''}${p}%`;
 }
 
 export function somarDias(data: string, dias: number): string {
@@ -152,14 +198,22 @@ export function situacaoNoEvento(reservas: ReservaParaOcupacao[], ev: EventoLoca
   return { situacao, noitesLivres: o.noitesLivres, noitesDoEvento: o.noitesNaJanela };
 }
 
-/** Eventos ainda por vir (ou em andamento), sem repetir o mesmo nome no mesmo período e na mesma cidade. */
+/**
+ * Eventos ainda por vir (ou em andamento), sem repetir o mesmo nome no mesmo período e no mesmo
+ * lugar. Feriado de um dia que cai dentro de um feriado prolongado do mesmo país some: o
+ * prolongado já cobre essas noites (mesma regra do radar).
+ */
 export function eventosFuturos(eventos: EventoLocal[], hoje: string): EventoLocal[] {
   const vistos = new Set<string>();
+  const prolongados = eventos.filter((e) => e.category === 'Feriado prolongado');
   return eventos
     .filter((e) => (e.end_date || e.start_date) >= hoje)
+    .filter((e) => !(e.category && e.category.startsWith('Feriado') && e.category !== 'Feriado prolongado' &&
+      prolongados.some((l) => (l.country_code ?? null) === (e.country_code ?? null) && e.start_date >= l.start_date && e.start_date <= l.end_date)))
     .sort((a, b) => a.start_date.localeCompare(b.start_date))
     .filter((e) => {
-      const chave = `${e.city ?? ''}|${e.start_date}|${e.end_date}|${e.name.toLowerCase().replace(/\s+prolongado$/, '').trim()}`;
+      const lugar = `${e.city ?? ''}|${e.region_code ?? ''}|${e.country_code ?? ''}`;
+      const chave = `${lugar}|${e.start_date}|${e.end_date}|${e.name.toLowerCase().replace(/\s+prolongado$/, '').trim()}`;
       if (vistos.has(chave)) return false;
       vistos.add(chave);
       return true;
