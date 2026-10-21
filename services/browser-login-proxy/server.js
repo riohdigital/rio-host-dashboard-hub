@@ -17,6 +17,7 @@ import { carregarConfig, origemPermitida, pedidoInterno } from './src/config.js'
 import { PLATAFORMAS, pastaValida } from './src/plataformas.js';
 import { SessaoLogin } from './src/sessao.js';
 import { LeituraDeReserva } from './src/reserva.js';
+import { LeituraDeCalendario } from './src/calendario.js';
 import { Verificacao } from './src/verificacao.js';
 import { criarSupabase } from './src/supabase.js';
 import { codigoDaVersao } from './src/versao.js';
@@ -58,6 +59,7 @@ async function lerCorpo(req) {
  * Rotas internas (só rede da VPS): o n8n usa o perfil salvo do login.
  * - verificar: a plataforma continua conectada? (keep-alive)
  * - reserva: dados de uma reserva lidos da página dela (auditoria)
+ * - calendario: diárias e disponibilidade do próprio anúncio (precificação, E4)
  * O mesmo perfil nunca abre duas vezes: com login ou outra rota em andamento, 409.
  * O n8n informa a pasta do perfil (`pasta`, de agent_browser_sessions.profile_dir);
  * sem ela, vale a pasta antiga da plataforma (pedidos de antes da F7).
@@ -100,9 +102,16 @@ const lerReserva = (req, res) =>
       ? new LeituraDeReserva({ plataforma, pasta: corpo.pasta, codigo: corpo.codigo, hotelId: corpo.hotel_id, config })
       : null);
 
+const lerCalendario = (req, res) =>
+  rotaInterna(req, res, 'leitura_calendario', (plataforma, corpo) =>
+    /^\d{4,20}$/.test(String(corpo.anuncio || '').trim())
+      ? new LeituraDeCalendario({ plataforma, pasta: corpo.pasta, anuncio: corpo.anuncio, config })
+      : null);
+
 const servidor = http.createServer(async (req, res) => {
   if (req.method === 'POST' && req.url === '/interno/verificar') return verificar(req, res);
   if (req.method === 'POST' && req.url === '/interno/reserva') return lerReserva(req, res);
+  if (req.method === 'POST' && req.url === '/interno/calendario') return lerCalendario(req, res);
   if (req.url === '/health') {
     res.writeHead(200, { 'content-type': 'application/json' });
     res.end(JSON.stringify({ ok: true, codigo: VERSAO, sessoes: [...ativas.keys()], browserless: await browserlessNoAr() }));
