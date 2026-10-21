@@ -643,7 +643,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
               <div>
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Acima do Mercado</p>
                 <h3 className="text-2xl font-bold text-purple-600 mt-1">{(kpis.pendingOverpricingCount ?? 0)}</h3>
-                <p className="text-xs text-gray-500 mt-1">Depende de concorrentes reais aprovados</p>
+                <p className="text-xs text-gray-500 mt-1">Datas livres com sua diária mais de 25% acima dos parecidos</p>
               </div>
               <div className="p-2.5 rounded-full bg-purple-50 text-purple-600">
                 <TrendingDown className="h-5 w-5" />
@@ -1087,7 +1087,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
                   <ShieldCheck className="h-10 w-10 text-emerald-500 mx-auto mb-2" />
                   <p className="font-medium text-gray-700">Nenhum alerta de sobrepreço com status "{statusFilter}" no momento.</p>
                   <p className="text-xs text-gray-400 mt-1">
-                    A calibração compara sua diária com a mediana de concorrentes reais aprovados. Ainda não há concorrentes aprovados para estes imóveis.
+                    A calibração compara a diária do seu calendário com a dos concorrentes parecidos nas mesmas noites (datas livres, a partir de 3 dias). Aparece aqui quando a sua ficar mais de 25% acima deles.
                   </p>
                 </div>
               ) : (
