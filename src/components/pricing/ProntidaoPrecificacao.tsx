@@ -31,6 +31,7 @@ const ETAPAS: { chave: string; nome: string; descricao: string; opcional?: boole
   { chave: 'E2_feriados', nome: 'Feriados oficiais', descricao: 'Feriados nacionais, estaduais e prolongados' },
   { chave: 'E3_eventos', nome: 'Eventos da cidade', descricao: 'Shows, festivais, esportes e congressos, com fonte', opcional: true },
   { chave: 'E4_calendario', nome: 'Diárias do anúncio', descricao: 'Preço e disponibilidade de cada noite, lidos do seu calendário no Airbnb', opcional: true },
+  { chave: 'E5_concorrentes', nome: 'Concorrentes', descricao: 'Anúncios parecidos em volta do imóvel e os preços deles nas datas que importam', opcional: true },
   { chave: 'E7_regras', nome: 'Regras de preço', descricao: 'Quanto o imóvel sobe em cada tipo de data, aprendido das suas reservas' },
 ];
 const OBRIGATORIAS = ETAPAS.filter(e => !e.opcional);
