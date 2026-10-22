@@ -44,27 +44,46 @@ export class BuscaNoMapa extends LeituraDeReserva {
     }
   }
 
+  /**
+   * Região com poucos anúncios (resort, cidade pequena): afasta o mapa como uma pessoa faria,
+   * dobrando o raio até achar anúncios suficientes para comparar (ou chegar a 8 km).
+   */
   async airbnb() {
     if (this.plataforma !== 'airbnb') return { status: 'error', motivo: 'busca só no Airbnb por enquanto' };
+    const MIN_ANUNCIOS = 8;
+    let melhor = null;
+    for (let raio = this.raioKm, zoom = 15; raio <= 8.01; raio *= 2, zoom -= 1) {
+      const r = await this.buscarUma(raio, zoom);
+      if (r.status !== 'ok') return melhor || r;
+      if (!melhor || r.anuncios.length > melhor.anuncios.length) melhor = r;
+      if (r.anuncios.length >= MIN_ANUNCIOS) break;
+      // Uma pausa antes de afastar o mapa.
+      await esperar(3000 + Math.floor(Math.random() * 4000));
+    }
+    return melhor;
+  }
+
+  async buscarUma(raioKm, zoom) {
     // Caixa do mapa em volta do imóvel (1° de latitude ≈ 111 km).
-    const dLat = this.raioKm / 111;
-    const dLng = this.raioKm / (111 * Math.max(Math.cos((this.lat * Math.PI) / 180), 0.2));
+    const dLat = raioKm / 111;
+    const dLng = raioKm / (111 * Math.max(Math.cos((this.lat * Math.PI) / 180), 0.2));
     const qs = new URLSearchParams({
       refinement_paths: '/homes', search_type: 'filter_change', search_by_map: 'true',
       checkin: this.checkin, checkout: this.checkout, adults: String(this.hospedes),
       ne_lat: (this.lat + dLat).toFixed(6), ne_lng: (this.lng + dLng).toFixed(6),
       sw_lat: (this.lat - dLat).toFixed(6), sw_lng: (this.lng - dLng).toFixed(6),
-      zoom_level: '15',
+      zoom_level: String(Math.max(zoom, 11)),
     });
+    this.pedidos.clear();
     await this.ir(`https://www.airbnb.com.br/s/homes?${qs}`);
 
     const noites = Math.round((Date.parse(`${this.checkout}T00:00:00Z`) - Date.parse(`${this.checkin}T00:00:00Z`)) / 86400000);
-    const fim = (anuncios, origem) => ({ status: 'ok', plataforma: 'airbnb', origem, checkin: this.checkin, checkout: this.checkout, noites, hospedes: this.hospedes, anuncios });
+    const fim = (anuncios, origem) => ({ status: 'ok', plataforma: 'airbnb', origem, raio_km: Math.round(raioKm * 10) / 10, checkin: this.checkin, checkout: this.checkout, noites, hospedes: this.hospedes, anuncios });
 
     // 1) A busca que a página faz por XHR (quando o mapa se move ou a página pede mais).
     const alvo = (p) => /\/api\/v3\/StaysSearch\b/.test(p.url);
     const requestId = await this.esperarResposta(alvo, 15_000);
-    // Uma pessoa olha o mapa antes de fechar.
+    // Uma pessoa olha o mapa antes de seguir.
     await esperar(2000 + Math.floor(Math.random() * 3000));
     if (requestId) {
       const anuncios = lerBuscaAirbnb(await this.corpo(requestId), noites);
