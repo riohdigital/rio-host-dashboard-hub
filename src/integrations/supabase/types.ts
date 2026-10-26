@@ -1261,6 +1261,42 @@ export type Database = {
           },
         ]
       }
+      receipt_issuer_settings: {
+        Row: {
+          address: string | null
+          created_at: string
+          document: string | null
+          email: string | null
+          footer_note: string | null
+          issuer_name: string
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          document?: string | null
+          email?: string | null
+          footer_note?: string | null
+          issuer_name?: string
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          document?: string | null
+          email?: string | null
+          footer_note?: string | null
+          issuer_name?: string
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       reservation_sync_pending: {
         Row: {
           channel: string
@@ -1351,6 +1387,7 @@ export type Database = {
           guest_email: string | null
           guest_name: string | null
           guest_phone: string | null
+          guest_total_paid: number | null
           id: string
           is_communicated: boolean | null
           is_verified_by_ai: boolean | null
@@ -1392,6 +1429,7 @@ export type Database = {
           guest_email?: string | null
           guest_name?: string | null
           guest_phone?: string | null
+          guest_total_paid?: number | null
           id?: string
           is_communicated?: boolean | null
           is_verified_by_ai?: boolean | null
@@ -1433,6 +1471,7 @@ export type Database = {
           guest_email?: string | null
           guest_name?: string | null
           guest_phone?: string | null
+          guest_total_paid?: number | null
           id?: string
           is_communicated?: boolean | null
           is_verified_by_ai?: boolean | null

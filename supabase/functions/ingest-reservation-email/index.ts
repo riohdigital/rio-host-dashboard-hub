@@ -348,6 +348,7 @@ async function processEmail(
     totalRevenue: parsed.totalRevenue,
     stayTotal: parsed.stayTotal,
     commissionAmount: parsed.commissionAmount,
+    guestTotalPaid: parsed.guestTotalPaid,
     listingName: parsed.listingName,
     bookingHotelId: parsed.bookingHotelId,
     missing: parsed.missing,
@@ -491,6 +492,7 @@ async function processEmail(
     guestPhone: parsed.guestPhone,
     numberOfGuests: parsed.numberOfGuests,
     totalRevenue: parsed.totalRevenue,
+    guestTotalPaid: parsed.guestTotalPaid,
     reservationStatus: parsed.intent === 'cancelled' ? 'Cancelada' : 'Confirmada',
     metadata: {
       email_subject: email.subject,

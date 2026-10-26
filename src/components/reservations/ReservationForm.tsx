@@ -37,6 +37,8 @@ const reservationSchema = z.object({
     checkin_time: z.string().optional(),
     checkout_time: z.string().optional(),
     total_revenue: z.number().min(0, 'Receita total deve ser positiva'),
+    // Quanto o hóspede pagou (Comprovante do Hóspede). Vazio em reserva Direta = Receita Total.
+    guest_total_paid: z.number().min(0, 'Valor deve ser positivo').optional().nullable(),
     base_revenue: z.number().optional(),
     commission_amount: z.number().optional(),
     net_revenue: z.number().optional(),
@@ -305,6 +307,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                 cleaning_payment_status: data.cleaning_payment_status || null,
                 cleaning_notes: data.cleaning_notes || null,
                 cleaning_rating: data.cleaning_rating ?? 0,
+                guest_total_paid: typeof data.guest_total_paid === 'number' && Number.isFinite(data.guest_total_paid) ? data.guest_total_paid : null,
             };
             delete submissionData.cleaning_destination;
 
@@ -538,6 +541,18 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                     <Label htmlFor="total_revenue">Receita Total (R$) *</Label>
                     <Input id="total_revenue" type="number" step="0.01" {...register('total_revenue', { valueAsNumber: true })} placeholder="Ex: 1500.00" />
                     {errors.total_revenue && <span className="text-red-500 text-sm">{errors.total_revenue.message}</span>}
+                </div>
+                <div>
+                    <Label htmlFor="guest_total_paid">Valor Pago pelo Hóspede (R$)</Label>
+                    <Input
+                        id="guest_total_paid"
+                        type="number"
+                        step="0.01"
+                        {...register('guest_total_paid', { setValueAs: (v) => (v === '' || v === null || v === undefined || Number.isNaN(Number(v)) ? null : Number(v)) })}
+                        placeholder={watchedValues.platform === 'Direto' ? 'Vazio = Receita Total' : 'Ex: 1800.00'}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Usado no Comprovante do Hóspede.</p>
+                    {errors.guest_total_paid && <span className="text-red-500 text-sm">{errors.guest_total_paid.message}</span>}
                 </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
