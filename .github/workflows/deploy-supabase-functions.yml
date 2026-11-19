@@ -57,16 +57,19 @@ jobs:
         run: |
           supabase functions deploy sync-channel-reservations \
             --project-ref "$PROJECT_REF" \
-            --no-verify-jwt
+            --no-verify-jwt \
+            --yes
 
       - name: Publicar ingest-reservation-email
         run: |
           supabase functions deploy ingest-reservation-email \
             --project-ref "$PROJECT_REF" \
-            --no-verify-jwt
+            --no-verify-jwt \
+            --yes
 
       - name: Publicar import-platform-statement
         run: |
           supabase functions deploy import-platform-statement \
             --project-ref "$PROJECT_REF" \
-            --no-verify-jwt
+            --no-verify-jwt \
+            --yes
