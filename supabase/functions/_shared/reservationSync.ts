@@ -22,6 +22,8 @@ export interface ReservationCandidate {
   guestPhone?: string | null;
   numberOfGuests?: number | null;
   totalRevenue?: number | null;
+  /** Quanto o hóspede pagou (Comprovante do Hóspede). */
+  guestTotalPaid?: number | null;
   reservationStatus?: string | null;
   metadata?: Record<string, unknown>;
 }
@@ -357,6 +359,7 @@ export async function applyReservation(
       guest_phone: candidate.guestPhone ?? null,
       number_of_guests: candidate.numberOfGuests ?? null,
       total_revenue: candidate.totalRevenue ?? 0,
+      guest_total_paid: candidate.guestTotalPaid ?? null,
       reservation_status: candidate.reservationStatus ?? 'Confirmada',
       payment_status: 'Pendente',
       created_by_source: candidate.externalSource,
@@ -409,6 +412,7 @@ export async function applyReservation(
     ['guest_phone', candidate.guestPhone],
     ['number_of_guests', candidate.numberOfGuests],
     ['total_revenue', candidate.totalRevenue],
+    ['guest_total_paid', candidate.guestTotalPaid],
   ];
 
   for (const [column, value] of fillable) {

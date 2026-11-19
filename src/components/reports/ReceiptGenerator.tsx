@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom/client'; // ADICIONADO: Import necessário
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,9 @@ import { useDateRange } from '@/hooks/dashboard/useDateRange';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import ProfessionalReceiptTemplate from './ProfessionalReceiptTemplate'; // ADICIONADO: Novo template
+import GuestReceiptTemplate from './GuestReceiptTemplate';
+import { buildGuestMonthReceipts, formatMonthLabel, GuestMonthReceipt } from '@/lib/guestReceipts';
+import { useReceiptIssuer } from '@/hooks/useReceiptIssuer';
 
 // CÓDIGO ORIGINAL MANTIDO
 interface Reservation {
@@ -42,8 +45,11 @@ interface Reservation {
   cleaning_fee?: number;
   cleaning_allocation?: string;
   cleaner_name?: string;
+  guest_total_paid?: number | null;
+  reservation_status?: string | null;
+  platform_verified_data?: unknown;
 }
-type ReceiptType = 'reservation' | 'payment';
+type ReceiptType = 'reservation' | 'payment' | 'guest';
 
 // CÓDIGO ORIGINAL MANTIDO
 const ReceiptGenerator = () => {
@@ -51,9 +57,21 @@ const ReceiptGenerator = () => {
   const [loading, setLoading] = useState(true);
   const [receiptType, setReceiptType] = useState<ReceiptType>('reservation');
   const [previewReservation, setPreviewReservation] = useState<Reservation | null>(null);
+  const [previewGuestReceipt, setPreviewGuestReceipt] = useState<GuestMonthReceipt<Reservation> | null>(null);
+  const { issuer } = useReceiptIssuer();
   const { toast } = useToast();
   const { selectedProperties, selectedPeriod, selectedPlatform, customStartDate, customEndDate } = useGlobalFilters();
   const { startDateString, endDateString } = useDateRange(selectedPeriod, customStartDate, customEndDate);
+
+  // Comprovante do Hóspede: um por mês de estadia, só os meses dentro do filtro global.
+  const guestReceipts = useMemo(() => buildGuestMonthReceipts(
+    reservations,
+    selectedPeriod === 'general' ? null : { start: startDateString, end: endDateString },
+  ), [reservations, selectedPeriod, startDateString, endDateString]);
+  const reservationsWithoutGuestValue = useMemo(() => {
+    const comValor = new Set(buildGuestMonthReceipts(reservations).map((r) => r.reservation.id));
+    return reservations.filter((r) => r.reservation_status !== 'Cancelada' && !comValor.has(r.id)).length;
+  }, [reservations]);
 
   // Implementação com duas consultas separadas para evitar problemas de join
   useEffect(() => {
@@ -352,6 +370,81 @@ const ReceiptGenerator = () => {
     }
   };
 
+  // ===== COMPROVANTE DO HÓSPEDE =====================================================
+  // Renderiza um comprovante fora da tela e devolve o canvas para o PDF.
+  const renderGuestReceiptCanvas = async (receipt: GuestMonthReceipt<Reservation>) => {
+    const container = document.createElement('div');
+    container.style.position = 'absolute';
+    container.style.left = '-9999px';
+    container.style.width = '800px';
+    document.body.appendChild(container);
+    const root = ReactDOM.createRoot(container);
+    try {
+      root.render(React.createElement(GuestReceiptTemplate, { receipt, issuer }));
+      await new Promise(resolve => setTimeout(resolve, 600));
+      const element = container.children[0] as HTMLElement;
+      if (!element) throw new Error('Template vazio');
+      await Promise.all(Array.from(element.getElementsByTagName('img')).map(img => (
+        img.complete ? Promise.resolve() : new Promise(resolve => { img.onload = resolve; img.onerror = resolve; })
+      )));
+      return await html2canvas(element, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff' });
+    } finally {
+      root.unmount();
+      document.body.removeChild(container);
+    }
+  };
+
+  const addCanvasPage = (pdf: jsPDF, canvas: HTMLCanvasElement) => {
+    const margins = 10;
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const width = pageWidth - margins * 2;
+    let height = (canvas.height * width) / canvas.width;
+    let finalWidth = width;
+    if (height > pageHeight - margins * 2) {
+      height = pageHeight - margins * 2;
+      finalWidth = (canvas.width * height) / canvas.height;
+    }
+    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', (pageWidth - finalWidth) / 2, margins, finalWidth, height);
+  };
+
+  const guestFileName = (receipt: GuestMonthReceipt<Reservation>) =>
+    `comprovante-hospede-${receipt.reservation.reservation_code}-${receipt.monthKey}.pdf`;
+
+  const generateGuestPDF = async (receipt: GuestMonthReceipt<Reservation>) => {
+    toast({ title: "Gerando PDF...", description: "Aguarde, estamos preparando o comprovante." });
+    try {
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      addCanvasPage(pdf, await renderGuestReceiptCanvas(receipt));
+      pdf.save(guestFileName(receipt));
+      toast({ title: "Sucesso", description: "Comprovante gerado!" });
+    } catch (error) {
+      console.error('Erro ao gerar comprovante do hóspede:', error);
+      toast({ title: "Erro", description: "Não foi possível gerar o comprovante.", variant: "destructive" });
+    }
+  };
+
+  // Todos os comprovantes do filtro num PDF só, um por página.
+  const generateGuestBatchPDF = async () => {
+    if (guestReceipts.length === 0) {
+      toast({ title: "Aviso", description: "Nenhum comprovante de hóspede no período.", variant: "destructive" });
+      return;
+    }
+    toast({ title: "Gerando comprovantes...", description: `${guestReceipts.length} comprovante(s). Aguarde.` });
+    try {
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      for (const [indice, receipt] of guestReceipts.entries()) {
+        if (indice > 0) pdf.addPage();
+        addCanvasPage(pdf, await renderGuestReceiptCanvas(receipt));
+      }
+      pdf.save(guestReceipts.length === 1 ? guestFileName(guestReceipts[0]) : 'comprovantes-hospedes.pdf');
+      toast({ title: "Sucesso", description: `${guestReceipts.length} comprovante(s) gerado(s)!` });
+    } catch (error) {
+      console.error('Erro ao gerar comprovantes de hóspedes:', error);
+      toast({ title: "Erro", description: "Não foi possível gerar os comprovantes.", variant: "destructive" });
+    }
+  };
+
   // CÓDIGO ORIGINAL MANTIDO
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -398,14 +491,42 @@ const ReceiptGenerator = () => {
                   <SelectContent>
                     <SelectItem value="reservation">Recibo de Reserva</SelectItem>
                     <SelectItem value="payment">Recibo de Pagamento</SelectItem>
+                    <SelectItem value="guest">Comprovante do Hóspede</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <p className="text-sm text-muted-foreground pt-7">{reservations.length} reserva(s) disponível(eis)</p>
+              <p className="text-sm text-muted-foreground pt-7">
+                {receiptType === 'guest'
+                  ? `${guestReceipts.length} comprovante(s) mensal(is)${reservationsWithoutGuestValue ? ` · ${reservationsWithoutGuestValue} reserva(s) sem valor pago pelo hóspede` : ''}`
+                  : `${reservations.length} reserva(s) disponível(eis)`}
+              </p>
             </div>
-            <Button onClick={generateBatchPDF} disabled={reservations.length === 0} className="flex items-center gap-2"><Download className="h-4 w-4" />Gerar Todos os Recibos</Button>
+            {receiptType === 'guest'
+              ? <Button onClick={generateGuestBatchPDF} disabled={guestReceipts.length === 0} className="flex items-center gap-2"><Download className="h-4 w-4" />Gerar Todos os Comprovantes</Button>
+              : <Button onClick={generateBatchPDF} disabled={reservations.length === 0} className="flex items-center gap-2"><Download className="h-4 w-4" />Gerar Todos os Recibos</Button>}
           </div>
           <Separator />
+          {receiptType === 'guest' ? (
+          <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+            {guestReceipts.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">Nenhuma reserva com valor pago pelo hóspede no período</div>
+            ) : (
+              guestReceipts.map((receipt) => (
+                <div key={receipt.key} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                  <div className="flex-1 space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap"><Badge>{formatMonthLabel(receipt.monthKey)}</Badge><Badge variant="outline">{receipt.reservation.reservation_code}</Badge><Badge variant="secondary">{receipt.reservation.platform}</Badge></div>
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground pt-1 flex-wrap"><div className="flex items-center gap-1"><User className="h-3 w-3" />{receipt.reservation.guest_name || 'Nome não informado'}</div><div className="flex items-center gap-1"><MapPin className="h-3 w-3" />{receipt.reservation.properties?.name || 'Propriedade não informada'}</div><div className="flex items-center gap-1"><Calendar className="h-3 w-3" />{formatDate(receipt.periodStart)} - {formatDate(receipt.periodEnd)} ({receipt.nightsInMonth} noite(s))</div></div>
+                    <div className="text-lg font-semibold text-primary pt-1">{formatCurrency(receipt.amount)}</div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setPreviewGuestReceipt(receipt)} className="flex items-center gap-1"><Eye className="h-3 w-3" />Prévia</Button>
+                    <Button size="sm" onClick={() => generateGuestPDF(receipt)} className="flex items-center gap-1"><Download className="h-3 w-3" />PDF</Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          ) : (
           <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
             {reservations.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">Nenhuma reserva encontrada</div>
@@ -425,6 +546,20 @@ const ReceiptGenerator = () => {
               ))
             )}
           </div>
+          )}
+
+          {previewGuestReceipt && (
+            <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg shadow-2xl max-w-4xl w-full relative">
+                <Button variant="ghost" size="icon" onClick={() => setPreviewGuestReceipt(null)} className="absolute top-2 right-2 z-10 bg-white/50 hover:bg-white/80 rounded-full h-8 w-8">
+                  <X className="h-5 w-5 text-gray-600"/>
+                </Button>
+                <div className="max-h-[90vh] overflow-y-auto">
+                  <GuestReceiptTemplate receipt={previewGuestReceipt} issuer={issuer} />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ========================================================================================== */}
           {/* ===== INÍCIO DA ALTERAÇÃO 2: NOVA LÓGICA DE PRÉVIA (POPUP) ============================== */}

@@ -68,6 +68,13 @@ export interface ParsedEmailReservation {
    */
   stayTotal: number | null;
   commissionAmount: number | null;
+  /**
+   * Quanto o hóspede pagou pela estadia (lado do hóspede): "Preço total" no
+   * Booking; "TOTAL" do bloco "O HÓSPEDE PAGOU" no Airbnb. Usado no
+   * Comprovante do Hóspede. Nulo em estadia parcelada (acima de 28 noites),
+   * porque cada linha mensal tem só a sua parte.
+   */
+  guestTotalPaid: number | null;
   listingName: string | null;
   /**
    * Identificador numérico da acomodação no Booking.com, presente nos links
@@ -297,6 +304,27 @@ export function extractAirbnbHostPayout(text: string): number | null {
   return recebe === null ? null : Number((recebe + cota).toFixed(2));
 }
 
+/**
+ * Airbnb: quanto o hóspede pagou — o "TOTAL (BRL)" do bloco "O HÓSPEDE
+ * PAGOU", que vem antes do bloco "PAGAMENTO DO ANFITRIÃO".
+ */
+export function extractAirbnbGuestPaid(text: string): number | null {
+  const lines = toLines(text);
+  const inicio = lines.findIndex((linha) => /^o hospede pagou\b/.test(normalizeForMatch(linha)));
+  if (inicio < 0) return null;
+
+  for (let i = inicio + 1; i < Math.min(lines.length, inicio + 30); i++) {
+    const linha = normalizeForMatch(lines[i]);
+    if (/^pagamento do anfitriao\b/.test(linha)) break;
+    if (/^total\b/.test(linha)) {
+      const valor = findMoneyInText(lines[i]) ?? (lines[i + 1] ? findMoneyInText(lines[i + 1]) : null);
+      return valor && valor > 0 ? valor : null;
+    }
+  }
+
+  return null;
+}
+
 function extractCommission(text: string): number | null {
   const value = findLabelledValue(toLines(text), [
     'Comissão', 'Comissao', 'Commission', 'Taxa de serviço', 'Taxa de servico', 'Service fee',
@@ -471,6 +499,7 @@ export function parseReservationEmail(
     totalRevenue: null,
     stayTotal: null,
     commissionAmount: null,
+    guestTotalPaid: null,
     listingName: null,
     bookingHotelId: null,
     missing: [],
@@ -514,6 +543,8 @@ export function parseReservationEmail(
       ? Number((bruto - result.commissionAmount).toFixed(2))
       : null;
     result.stayTotal = result.totalRevenue;
+    // O hóspede paga o valor comissionável; só vale quando a R1 fechou.
+    result.guestTotalPaid = result.totalRevenue !== null ? bruto : null;
   } else {
     result.stayTotal = extractAirbnbHostPayout(fullText);
     const noites = result.checkIn && result.checkOut
@@ -522,6 +553,7 @@ export function parseReservationEmail(
     result.totalRevenue = result.stayTotal !== null && noites !== null && noites <= 28
       ? result.stayTotal
       : null;
+    result.guestTotalPaid = result.totalRevenue !== null ? extractAirbnbGuestPaid(fullText) : null;
   }
   result.listingName = extractListingName(body, platform);
 

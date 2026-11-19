@@ -171,6 +171,8 @@ Deno.test('e-mail de nova reserva do Booking.com em pt-BR', () => {
   // R1 da Booking: valor comissionável − comissão.
   assertEquals(parsed.totalRevenue, 2040);
   assertEquals(parsed.commissionAmount, 360);
+  // Comprovante do Hóspede: o hóspede paga o preço total.
+  assertEquals(parsed.guestTotalPaid, 2400);
   assertEquals(parsed.listingName, 'Casa Azul Centro');
 });
 
@@ -582,6 +584,8 @@ Deno.test('Airbnb: valor da reserva vem do bloco do anfitrião, não do que o h�
   }, { reference: REFERENCE });
 
   assertEquals(curta.totalRevenue, 4084.81);
+  // Comprovante do Hóspede: o que o hóspede pagou vem do bloco dele.
+  assertEquals(curta.guestTotalPaid, 4994.44);
   assertEquals(curta.guestName, 'Lucas Exemplo');
   assertEquals(curta.checkOut, '2026-12-30');
 
@@ -601,6 +605,8 @@ Deno.test('Airbnb: valor da reserva vem do bloco do anfitrião, não do que o h�
   }, { reference: REFERENCE });
   assertEquals(mensal.totalRevenue, null);
   assertEquals(mensal.stayTotal, 10954.57);
+  // Parcelada: o valor do hóspede não vai para uma linha mensal só.
+  assertEquals(mensal.guestTotalPaid, null);
 });
 
 Deno.test('apelido de anúncio: só aprende o que parece nome de anúncio', () => {

@@ -15,6 +15,8 @@ export interface Reservation {
   payment_date?: string;
   total_revenue: number;
   base_revenue?: number;
+  /** Quanto o hóspede pagou (Comprovante do Hóspede). */
+  guest_total_paid?: number | null;
   commission_amount?: number;
   net_revenue?: number;
   payment_status?: string;
