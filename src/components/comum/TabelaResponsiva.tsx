@@ -44,9 +44,12 @@ function TabelaResponsiva<T>({
 
   if (celular) {
     return (
-      <ul className={cn('grid gap-3', className)}>
+      // grid-cols-1 + min-w-0: um texto comprido no cartão não alarga a página
+      <ul className={cn('grid grid-cols-1 gap-3', className)}>
         {itens.map((item) => (
-          <li key={chaveItem(item)}>{cartao(item)}</li>
+          <li key={chaveItem(item)} className="min-w-0">
+            {cartao(item)}
+          </li>
         ))}
       </ul>
     );

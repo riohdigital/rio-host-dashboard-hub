@@ -743,8 +743,8 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
                   <p className="text-xs text-gray-500">Feriados e eventos sem reserva com diária abaixo do preço do evento, e noites órfãs entre reservas</p>
                 </div>
 
-                {/* Filtros de Status */}
-                <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
+                {/* Filtros de Status (no celular, a faixa rola de lado sem passar da tela) */}
+                <div className="no-scrollbar flex max-w-full items-center gap-1 overflow-x-auto rounded-lg bg-gray-100 p-1 [&>button]:shrink-0">
                   <Button
                     variant={statusFilter === 'Pendente' ? 'default' : 'ghost'}
                     size="sm"
@@ -1043,8 +1043,8 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
                   <p className="text-xs text-gray-500">Períodos onde sua diária no calendário está acima da mediana do CompSet. Escolha se deseja calibrar para acelerar reservas ou manter sua tarifa premium.</p>
                 </div>
 
-                {/* Filtros de Status */}
-                <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
+                {/* Filtros de Status (no celular, a faixa rola de lado sem passar da tela) */}
+                <div className="no-scrollbar flex max-w-full items-center gap-1 overflow-x-auto rounded-lg bg-gray-100 p-1 [&>button]:shrink-0">
                   <Button
                     variant={statusFilter === 'Pendente' ? 'default' : 'ghost'}
                     size="sm"

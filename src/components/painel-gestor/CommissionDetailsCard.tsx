@@ -1,7 +1,10 @@
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import RolagemComputador from '@/components/comum/RolagemComputador';
+import VerTodos from '@/components/comum/VerTodos';
+import { useListaCurta } from '@/components/comum/useListaCurta';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CheckCircle, Clock, DollarSign, TrendingUp } from 'lucide-react';
 import { CommissionSummary, CommissionDetail } from '@/types/painel-gestor';
@@ -80,6 +83,21 @@ const CommissionItem = ({ item }: { item: CommissionDetail }) => {
         </span>
       </div>
     </div>
+  );
+};
+
+/** Lista de uma aba: caixa com rolagem no computador; no celular, 5 itens + "Ver todas" */
+const ListaComissoes = ({ itens, vazio }: { itens: CommissionDetail[]; vazio: React.ReactNode }) => {
+  const lista = useListaCurta(itens, 5, { soCompacto: true });
+  return (
+    <RolagemComputador className="h-[280px] pr-3">
+      {itens.length === 0
+        ? vazio
+        : lista.visiveis.map((item) => <CommissionItem key={item.id} item={item} />)}
+      {lista.temMais && (
+        <VerTodos total={lista.total} rotulo={`Ver todas (${lista.total})`} expandido={lista.expandido} aoClicar={lista.alternar} />
+      )}
+    </RolagemComputador>
   );
 };
 
@@ -174,33 +192,27 @@ export const CommissionDetailsCard = ({ data, loading }: CommissionDetailsCardPr
           </TabsList>
           
           <TabsContent value="pending">
-            <ScrollArea className="h-[280px] pr-3">
-              {pendingItems.length === 0 ? (
+            <ListaComissoes
+              itens={pendingItems}
+              vazio={
                 <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
                   <TrendingUp className="h-8 w-8 mb-2 opacity-50" />
                   <span className="text-sm">Nenhuma comissão pendente</span>
                 </div>
-              ) : (
-                pendingItems.map(item => (
-                  <CommissionItem key={item.id} item={item} />
-                ))
-              )}
-            </ScrollArea>
+              }
+            />
           </TabsContent>
-          
+
           <TabsContent value="received">
-            <ScrollArea className="h-[280px] pr-3">
-              {receivedItems.length === 0 ? (
+            <ListaComissoes
+              itens={receivedItems}
+              vazio={
                 <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
                   <CheckCircle className="h-8 w-8 mb-2 opacity-50" />
                   <span className="text-sm">Nenhuma comissão recebida</span>
                 </div>
-              ) : (
-                receivedItems.map(item => (
-                  <CommissionItem key={item.id} item={item} />
-                ))
-              )}
-            </ScrollArea>
+              }
+            />
           </TabsContent>
         </Tabs>
       </CardContent>

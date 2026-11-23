@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import PageHeader from '@/components/comum/PageHeader';
-import { ABAS_ROLAVEIS } from '@/components/comum/classes';
+import AbasRolaveis from '@/components/comum/AbasRolaveis';
 import { useEhCelular } from '@/hooks/useMidia';
 import { Navigate } from 'react-router-dom';
 import { useUserPermissions } from '@/contexts/UserPermissionsContext';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { RefreshCw, Users, Building2, CalendarDays, Info } from 'lucide-react';
@@ -96,35 +96,14 @@ const PagamentosPage = () => {
 
       {/* Tabs */}
       <Tabs defaultValue="faxineiras" className="space-y-4">
-        <TabsList className={ABAS_ROLAVEIS}>
-          <TabsTrigger value="faxineiras" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Faxineiras
-            {!loading && cleanerPayments.length > 0 && (
-              <span className="ml-1 bg-primary/20 text-primary rounded-full px-1.5 py-0.5 text-xs font-medium">
-                {cleanerPayments.length}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="proprietarios" className="flex items-center gap-2">
-            <Building2 className="h-4 w-4" />
-            Proprietários
-            {!loading && ownerPayments.length > 0 && (
-              <span className="ml-1 bg-primary/20 text-primary rounded-full px-1.5 py-0.5 text-xs font-medium">
-                {ownerPayments.length}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="agenda" className="flex items-center gap-2">
-            <CalendarDays className="h-4 w-4" />
-            Agenda
-            {!loading && schedule.length > 0 && (
-              <span className="ml-1 bg-primary/20 text-primary rounded-full px-1.5 py-0.5 text-xs font-medium">
-                {schedule.length}
-              </span>
-            )}
-          </TabsTrigger>
-        </TabsList>
+        <AbasRolaveis
+          rotulo="Pagamentos"
+          itens={[
+            { valor: 'faxineiras', rotulo: 'Faxineiras', icone: Users, contagem: !loading && cleanerPayments.length > 0 ? cleanerPayments.length : undefined },
+            { valor: 'proprietarios', rotulo: 'Proprietários', icone: Building2, contagem: !loading && ownerPayments.length > 0 ? ownerPayments.length : undefined },
+            { valor: 'agenda', rotulo: 'Agenda', icone: CalendarDays, contagem: !loading && schedule.length > 0 ? schedule.length : undefined },
+          ]}
+        />
 
         <TabsContent value="faxineiras">
           <CleanerPaymentsTab

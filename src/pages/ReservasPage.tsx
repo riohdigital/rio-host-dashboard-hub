@@ -8,13 +8,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TableCell, TableRow } from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Edit, Trash2, Plus, Search, AlertTriangle, MessageCircle, Info, MoreVertical, CalendarX } from 'lucide-react';
+import { Edit, Trash2, Plus, Search, AlertTriangle, MessageCircle, Info, MoreVertical, CalendarX, Users } from 'lucide-react';
 import PageHeader from '@/components/comum/PageHeader';
 import TabelaResponsiva, { type Coluna } from '@/components/comum/TabelaResponsiva';
 import JanelaResponsiva from '@/components/comum/JanelaResponsiva';
@@ -22,8 +22,7 @@ import EstadoVazio from '@/components/comum/EstadoVazio';
 import { EsqueletoLista } from '@/components/comum/Esqueleto';
 import { Etiqueta, EtiquetaPlataforma, EtiquetaStatus } from '@/components/comum/Etiquetas';
 import { formatarData, formatarMoeda } from '@/components/comum/formatos';
-import { ABAS_ROLAVEIS } from '@/components/comum/classes';
-import { cn } from '@/lib/utils';
+import AbasRolaveis from '@/components/comum/AbasRolaveis';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import ReservationForm from '@/components/reservations/ReservationForm';
 import StatusSelector from '@/components/reservations/StatusSelector';
@@ -371,7 +370,7 @@ const ReservasPage = () => {
                 <div className="flex items-center gap-2">
                     <span>{r.guest_name || '-'}</span>
                     {r.number_of_guests && (
-                        <Badge variant="outline" className="text-xs bg-info-50 text-info-700 border-info-200">{r.number_of_guests} 👥</Badge>
+                        <Badge variant="outline" className="gap-0.5 text-xs bg-info-50 text-info-700 border-info-200"><Users className="h-3 w-3" aria-hidden="true" />{r.number_of_guests}<span className="sr-only"> hóspedes</span></Badge>
                     )}
                 </div>
             ),
@@ -470,7 +469,7 @@ const ReservasPage = () => {
                     >
                         <div className="flex items-center gap-2">
                             <h3 className="truncate font-display text-base font-bold text-ink">{r.guest_name || 'Hóspede sem nome'}</h3>
-                            {r.number_of_guests ? <span className="shrink-0 text-xs text-gray-500">{r.number_of_guests} 👥</span> : null}
+                            {r.number_of_guests ? <span className="flex shrink-0 items-center gap-0.5 text-xs text-gray-500"><Users className="h-3 w-3" aria-hidden="true" />{r.number_of_guests}<span className="sr-only"> hóspedes</span></span> : null}
                         </div>
                         <p className="mt-0.5 truncate text-sm text-gray-600">
                             {r.properties?.nickname || r.properties?.name} · <span className="font-mono text-xs">{r.reservation_code}</span>
@@ -609,24 +608,28 @@ const ReservasPage = () => {
 
                 <TooltipProvider delayDuration={200}>
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <TabsList className={cn(ABAS_ROLAVEIS, "mb-1")}>
-                        {ABAS.map((aba) => (
-                            <TabsTrigger key={aba.valor} value={aba.valor} className="shrink-0 gap-1.5">
-                                <span className="sm:hidden">{aba.curto}</span>
-                                <span className="hidden sm:inline">{aba.rotulo}</span>
+                    <AbasRolaveis
+                        rotulo="Recortes das reservas"
+                        sangrar
+                        className="mb-1"
+                        itens={ABAS.map((aba) => ({
+                            valor: aba.valor,
+                            rotulo: aba.rotulo,
+                            curto: aba.curto,
+                            contagem: aba.total,
+                            extra: (
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <Info className="hidden h-3.5 w-3.5 text-muted-foreground transition-colors hover:text-foreground sm:block cursor-help" />
+                                        <Info className="h-3.5 w-3.5 text-muted-foreground transition-colors hover:text-foreground cursor-help" />
                                     </TooltipTrigger>
                                     <TooltipContent side="bottom" align="center" className="max-w-lg whitespace-normal" sideOffset={8}>
                                         <p className="text-sm">{aba.ajuda}</p>
                                     </TooltipContent>
                                 </Tooltip>
-                                <span className="rounded-full bg-gray-200/70 px-1.5 font-mono text-xs tabular-nums">{aba.total}</span>
-                            </TabsTrigger>
-                        ))}
-                    </TabsList>
-                    {abaAtual && <p className="mb-3 text-xs text-gray-500 sm:hidden">{abaAtual.ajuda}</p>}
+                            ),
+                        }))}
+                    />
+                    {abaAtual && <p className="mb-3 text-xs text-gray-500 lg:hidden">{abaAtual.ajuda}</p>}
 
                     <TabsContent value={activeTab} className="mt-3 space-y-3">
                         {/* Resumo da aba (no desktop fica no rodapé da tabela) */}

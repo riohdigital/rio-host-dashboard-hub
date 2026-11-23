@@ -248,7 +248,7 @@ useEffect(() => {
   if (!canViewInvestments) {
     return (
       <div className="space-y-8">
-        <div className="flex justify-between items-start">
+        <div className="flex justify-between items-start max-lg:sr-only">
           <div>
             <h1 className="text-3xl font-bold text-gradient-primary">Investimentos & ROI</h1>
             <p className="text-gray-600 mt-2">

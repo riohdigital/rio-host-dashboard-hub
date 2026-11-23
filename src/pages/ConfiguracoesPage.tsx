@@ -29,8 +29,9 @@ const ConfiguracoesPage = () => {
 
   return (
     <div className="space-y-6 lg:space-y-8">
-      <div className="flex flex-col gap-4 border-b border-gray-200 pb-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between lg:border-b lg:border-gray-200 lg:pb-4">
+        {/* Celular: o nome da tela fica só na barra do topo */}
+        <div className="max-lg:sr-only">
           <h1 className="text-2xl font-extrabold text-gradient-primary sm:text-3xl">Configurações</h1>
           <p className="text-gray-600 mt-2">Gerencie suas preferências e configurações do sistema</p>
         </div>

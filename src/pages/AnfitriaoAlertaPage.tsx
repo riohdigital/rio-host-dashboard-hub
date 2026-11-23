@@ -11,7 +11,8 @@ const AnfitriaoAlertaPage = () => {
   return (
     <PermissionGuard permission="anfitriao_alerta_view">
       <div className="space-y-6">
-        <div>
+        {/* Celular: o nome da tela fica só na barra do topo */}
+        <div className="max-lg:sr-only">
           <h1 className="font-display text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">Anfitrião Alerta</h1>
           <p className="text-muted-foreground">
             Configure destinatários para receber alertas sobre suas propriedades

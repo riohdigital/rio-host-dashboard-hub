@@ -139,7 +139,7 @@ const RevenueScheduleTab = ({ schedule, loading }: RevenueScheduleTabProps) => {
                             : 'text-warning-700 border-warning-300 bg-warning-50 text-xs'
                           }
                         >
-                          {entry.status === 'received' ? '✓ Recebido' : 'A Receber'}
+                          {entry.status === 'received' ? 'Recebido' : 'A Receber'}
                         </Badge>
                         <span className="font-bold text-sm">{fmt(entry.amount)}</span>
                       </div>

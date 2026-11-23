@@ -1,6 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import RolagemComputador from '@/components/comum/RolagemComputador';
+import VerTodos from '@/components/comum/VerTodos';
+import { useListaCurta } from '@/components/comum/useListaCurta';
 import { ArrowDownLeft, ArrowUpRight, AlertTriangle, CheckCircle, Clock, Sparkles } from 'lucide-react';
 import { UpcomingEvent } from '@/types/painel-gestor';
 import { format, parseISO, isToday, isTomorrow } from 'date-fns';
@@ -12,6 +14,8 @@ interface UpcomingEventsTimelineProps {
 }
 
 export const UpcomingEventsTimeline = ({ events, loading }: UpcomingEventsTimelineProps) => {
+  // Celular: 3 eventos + "Ver todos" (sem rolagem dentro da página)
+  const lista = useListaCurta(events, 3, { soCompacto: true });
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -84,7 +88,7 @@ export const UpcomingEventsTimeline = ({ events, loading }: UpcomingEventsTimeli
     return (
       <Card className="card-elevated h-full">
         <CardHeader>
-          <CardTitle className="text-lg">📅 Próximos Eventos</CardTitle>
+          <CardTitle className="text-lg">Próximos Eventos</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
@@ -99,14 +103,14 @@ export const UpcomingEventsTimeline = ({ events, loading }: UpcomingEventsTimeli
     <Card className="card-elevated h-full">
       <CardHeader>
         <CardTitle className="text-lg flex items-center gap-2">
-          📅 Próximos Eventos
+          Próximos Eventos
           <Badge variant="secondary" className="text-xs">{events.length}</Badge>
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">
-        <ScrollArea className="h-[400px] px-6">
+        <RolagemComputador className="h-[400px] px-[var(--card-pad)] lg:px-6">
           <div className="space-y-3 pb-4">
-            {events.map((event) => {
+            {lista.visiveis.map((event) => {
               const getEventStyles = () => {
                 switch(event.type) {
                   case 'check-in':
@@ -193,7 +197,8 @@ export const UpcomingEventsTimeline = ({ events, loading }: UpcomingEventsTimeli
               );
             })}
           </div>
-        </ScrollArea>
+          {lista.temMais && <VerTodos total={lista.total} expandido={lista.expandido} aoClicar={lista.alternar} />}
+        </RolagemComputador>
       </CardContent>
     </Card>
   );

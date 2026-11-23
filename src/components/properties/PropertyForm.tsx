@@ -173,14 +173,14 @@ const { error: insertError } = await supabase
     }));
     setImportedData(true);
     toast({
-      title: "✓ Dados importados com sucesso!",
+      title: "Dados importados com sucesso!",
       description: "Revise as informações antes de salvar.",
     });
   };
 
   const handleImportError = (error: string) => {
     toast({
-      title: "✗ Erro na importação",
+      title: "Erro na importação",
       description: error,
       variant: "destructive",
     });

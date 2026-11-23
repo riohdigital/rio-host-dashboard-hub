@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LogOut, MoreHorizontal, SlidersHorizontal } from 'lucide-react';
+import { LogOut, MessageSquare, MoreHorizontal, SlidersHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,14 +15,22 @@ import GlobalFilters from './GlobalFilters';
 import BotaoInstalarApp from '@/components/pwa/BotaoInstalarApp';
 import MarcaRioh from './MarcaRioh';
 import { useResumoFiltros } from './resumoFiltros';
+import { abrirChat, useNaoLidasChat } from '@/components/chat/controleChat';
 import { ICONE_GESTOR, type ItemNavegacao, rotaAtiva, tituloDaRota, useNavegacao, useSair } from './navegacao';
 
-/** Abas fixas da barra inferior; o resto vai para "Mais" */
-const ABAS = ['/dashboard', '/reservas', '/calendario', '/despesas'];
+/**
+ * Abas fixas da barra inferior, nesta ordem, com o Chat IA no meio; o resto
+ * (Despesas, Propriedades…) vai para a gaveta "Mais".
+ */
+const ABAS_ESQUERDA = ['/dashboard', '/reservas'];
+const ABAS_DIREITA = ['/calendario'];
+const ABAS = [...ABAS_ESQUERDA, ...ABAS_DIREITA];
 
 /**
  * Navegação do celular e tablet (abaixo de 1024px): barra superior fina com
- * título e filtros, barra inferior com 4 abas + "Mais" em gaveta.
+ * título e filtros; barra inferior com Dashboard, Reservas, Chat IA (no
+ * centro, em destaque, abre a conversa em tela cheia), Calendário e "Mais"
+ * em gaveta. A faxineira não tem barra inferior.
  */
 const NavegacaoCelular = () => {
   const { itens, itensGestor, mostrarGestor, isCleaner } = useNavegacao();
@@ -31,6 +39,7 @@ const NavegacaoCelular = () => {
   const resumo = useResumoFiltros();
   const [maisAberto, setMaisAberto] = useState(false);
   const [filtrosAberto, setFiltrosAberto] = useState(false);
+  const naoLidas = useNaoLidasChat();
 
   const titulo = tituloDaRota(pathname);
 
@@ -49,7 +58,9 @@ const NavegacaoCelular = () => {
     );
   }
 
-  const abas = ABAS.map((c) => itens.find((i) => i.caminho === c)).filter(Boolean) as ItemNavegacao[];
+  const achar = (lista: string[]) => lista.map((c) => itens.find((i) => i.caminho === c)).filter(Boolean) as ItemNavegacao[];
+  const abasEsquerda = achar(ABAS_ESQUERDA);
+  const abasDireita = achar(ABAS_DIREITA);
   const resto = itens.filter((i) => !ABAS.includes(i.caminho));
   const restoAtivo =
     resto.some((i) => rotaAtiva(pathname, i)) || itensGestor.some((i) => rotaAtiva(pathname, i));
@@ -69,6 +80,33 @@ const NavegacaoCelular = () => {
     >
       <item.icone className="h-5 w-5 shrink-0" aria-hidden="true" />
       {item.nome}
+    </NavLink>
+  );
+
+  const abaDaBarra = (item: ItemNavegacao) => (
+    <NavLink
+      key={item.caminho}
+      to={item.caminho}
+      className={({ isActive }) =>
+        cn(
+          'flex flex-col items-center justify-center gap-1 text-[11px] font-medium',
+          isActive ? 'font-semibold text-ink' : 'text-gray-500',
+        )
+      }
+    >
+      {({ isActive }) => (
+        <>
+          <span
+            className={cn(
+              'grid h-7 w-12 place-items-center rounded-full transition-colors',
+              isActive && 'bg-brand-accent text-brand-accent-foreground',
+            )}
+          >
+            <item.icone className="h-5 w-5" aria-hidden="true" />
+          </span>
+          {item.curto ?? item.nome}
+        </>
+      )}
     </NavLink>
   );
 
@@ -108,32 +146,27 @@ const NavegacaoCelular = () => {
         className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 pb-safe-b backdrop-blur lg:hidden"
       >
         <div className="mx-auto grid h-tabbar max-w-xl grid-cols-5">
-          {abas.map((item) => (
-            <NavLink
-              key={item.caminho}
-              to={item.caminho}
-              className={({ isActive }) =>
-                cn(
-                  'flex flex-col items-center justify-center gap-1 text-[11px] font-medium',
-                  isActive ? 'font-semibold text-ink' : 'text-gray-500',
-                )
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <span
-                    className={cn(
-                      'grid h-7 w-12 place-items-center rounded-full transition-colors',
-                      isActive && 'bg-brand-accent text-brand-accent-foreground',
-                    )}
-                  >
-                    <item.icone className="h-5 w-5" aria-hidden="true" />
-                  </span>
-                  {item.curto ?? item.nome}
-                </>
+          {abasEsquerda.map(abaDaBarra)}
+
+          {/* Chat IA: botão do centro, em destaque */}
+          <button
+            type="button"
+            onClick={abrirChat}
+            aria-label={naoLidas > 0 ? `Abrir Chat IA, ${naoLidas} mensagens não lidas` : 'Abrir Chat IA'}
+            className="group flex flex-col items-center justify-center gap-1 text-[11px] font-semibold text-ink focus-visible:outline-none"
+          >
+            <span className="relative -mt-4 grid h-10 w-[52px] place-items-center rounded-2xl bg-gradient-primary text-white shadow-lg shadow-brand/40 transition-transform group-active:scale-95 group-focus-visible:ring-2 group-focus-visible:ring-brand group-focus-visible:ring-offset-2">
+              <MessageSquare className="h-[22px] w-[22px]" aria-hidden="true" />
+              {naoLidas > 0 && (
+                <span className="absolute -right-1.5 -top-1.5 grid h-5 min-w-5 place-items-center rounded-full bg-danger-600 px-1 font-mono text-[11px] font-semibold text-white" aria-hidden="true">
+                  {naoLidas}
+                </span>
               )}
-            </NavLink>
-          ))}
+            </span>
+            Chat IA
+          </button>
+
+          {abasDireita.map(abaDaBarra)}
           <button
             type="button"
             onClick={() => setMaisAberto(true)}

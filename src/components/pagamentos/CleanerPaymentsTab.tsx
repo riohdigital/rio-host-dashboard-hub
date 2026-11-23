@@ -18,7 +18,7 @@ const fmt = (v: number) =>
 const getStatusBadge = (status: string) => {
   switch (status) {
     case 'Pago':
-      return <Badge className="bg-success-100 text-success-700 border-success-200 text-xs">✓ Pago</Badge>;
+      return <Badge className="bg-success-100 text-success-700 border-success-200 text-xs">Pago</Badge>;
     case 'Próximo Ciclo':
       return <Badge className="bg-info-100 text-info-700 border-info-200 text-xs">Próximo Ciclo</Badge>;
     case 'Pagamento na Data':

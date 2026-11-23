@@ -1,6 +1,8 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, User, MapPin, DollarSign } from 'lucide-react';
+import VerTodos from '@/components/comum/VerTodos';
+import { useListaCurta } from '@/components/comum/useListaCurta';
 
 interface Reservation {
   id: string;
@@ -18,6 +20,8 @@ interface RecentReservationsProps {
 }
 
 const RecentReservations = ({ reservations, loading }: RecentReservationsProps) => {
+  // Celular: 3 reservas + "Ver todas" (sem rolagem dentro da página); computador: caixa com rolagem
+  const lista = useListaCurta(reservations, 3, { soCompacto: true });
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
       case 'confirmada':
@@ -68,11 +72,11 @@ const RecentReservations = ({ reservations, loading }: RecentReservationsProps) 
             <p>Nenhuma reserva encontrada</p>
           </div>
         ) : (
-          /* ETAPA 1: CONTÊINER DE ROLAGEM */
-          /* Este div terá uma altura fixa e ativará a rolagem vertical quando o conteúdo for maior. */
-          <div className="h-96 overflow-y-auto pr-4 custom-scrollbar"> 
+          <>
+          {/* Computador: altura fixa com rolagem; celular: a lista cortada pelo useListaCurta */}
+          <div className="custom-scrollbar lg:h-96 lg:overflow-y-auto lg:pr-4">
             <div className="space-y-4">
-              {reservations.map((reservation) => (
+              {lista.visiveis.map((reservation) => (
                 <div 
                   key={reservation.id} 
                   className="p-4 border border-gray-200 rounded-lg bg-white hover:border-primary/50 hover:shadow-md transition-all duration-200"
@@ -116,6 +120,10 @@ const RecentReservations = ({ reservations, loading }: RecentReservationsProps) 
               ))}
             </div>
           </div>
+          {lista.temMais && (
+            <VerTodos total={lista.total} rotulo={`Ver todas (${lista.total})`} expandido={lista.expandido} aoClicar={lista.alternar} className="mt-3" />
+          )}
+          </>
         )}
       </CardContent>
     </Card>

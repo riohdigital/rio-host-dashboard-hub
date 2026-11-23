@@ -1,13 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { EtiquetaStatus } from '@/components/comum/Etiquetas';
-import { ABAS_ROLAVEIS } from '@/components/comum/classes';
+import AbasRolaveis from '@/components/comum/AbasRolaveis';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Calendar, MapPin, Users, Star, CheckCircle, Hand, Loader2, LogOut, AlertTriangle, DollarSign, Clock } from 'lucide-react';
 import { format, isPast, addHours, differenceInHours, parseISO, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -129,7 +129,7 @@ const FaxineiraDashboard = () => {
     };
 
     const handleMarkAsComplete = (reservationId: string) => {
-        const confirmed = window.confirm("⚠️ Tem certeza que deseja marcar esta faxina como 'Realizada'?\n\nEsta ação moverá o card para o seu histórico e não poderá ser desfeita facilmente.");
+        const confirmed = window.confirm("Tem certeza que deseja marcar esta faxina como 'Realizada'?\n\nEsta ação moverá o card para o seu histórico e não poderá ser desfeita facilmente.");
         if (confirmed) {
             markCompleteMutation.mutate(reservationId);
         }
@@ -166,11 +166,14 @@ const FaxineiraDashboard = () => {
                     <p className="text-muted-foreground">Visualize e gerencie as limpezas designadas para você.</p>
                 </div>
                 <Tabs defaultValue="proximas" className="w-full mt-4">
-                    <TabsList className={ABAS_ROLAVEIS}>
-                        <TabsTrigger value="proximas">Próximas ({upcomingReservations.length})</TabsTrigger>
-                        <TabsTrigger value="oportunidades">Oportunidades ({availableReservations.length})</TabsTrigger>
-                        <TabsTrigger value="historico">Histórico ({pastReservations.length})</TabsTrigger>
-                    </TabsList>
+                    <AbasRolaveis
+                        rotulo="Minhas faxinas"
+                        itens={[
+                            { valor: 'proximas', rotulo: 'Próximas', contagem: upcomingReservations.length },
+                            { valor: 'oportunidades', rotulo: 'Oportunidades', contagem: availableReservations.length },
+                            { valor: 'historico', rotulo: 'Histórico', contagem: pastReservations.length },
+                        ]}
+                    />
                     <TabsContent value="proximas"><UpcomingList reservations={upcomingReservations} onMarkAsComplete={handleMarkAsComplete} /></TabsContent>
                     <TabsContent value="oportunidades"><AvailableCleaningsList reservations={availableReservations} onSignUp={handleSignUpForCleaning} hasActiveCleaning={hasActiveCleaning} /></TabsContent>
                     <TabsContent value="historico"><HistoryList reservations={pastReservations} /></TabsContent>
