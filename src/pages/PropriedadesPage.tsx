@@ -1,5 +1,6 @@
 import React from 'react';
 import PropertiesList from '@/components/properties/PropertiesList';
+import PageHeader from '@/components/comum/PageHeader';
 import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertTriangle } from 'lucide-react';
@@ -36,10 +37,7 @@ const PropriedadesPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="border-b border-gray-200 pb-4">
-        <h1 className="text-3xl font-bold text-gradient-primary">Gestão de Propriedades</h1>
-        <p className="text-gray-600 mt-2">Gerencie suas propriedades de aluguel por temporada</p>
-      </div>
+      <PageHeader titulo="Gestão de Propriedades" descricao="Gerencie suas propriedades de aluguel por temporada" />
       <PropertiesList />
     </div>
   );

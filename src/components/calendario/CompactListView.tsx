@@ -1,4 +1,7 @@
 import { useMemo } from 'react';
+import { corDoCanal } from '@/components/comum/cores';
+import { EtiquetaPlataforma, EtiquetaStatus } from '@/components/comum/Etiquetas';
+import { formatarData, formatarMoeda } from '@/components/comum/formatos';
 import { CalendarReservation } from '@/types/calendar';
 import { Property } from '@/types/property';
 import { format } from 'date-fns';
@@ -88,15 +91,15 @@ export const CompactListView = ({
         return (
           <Card key={property.id} className="overflow-hidden">
             <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <CardTitle className="text-base sm:text-lg">
                   {property.nickname || property.name}
                 </CardTitle>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-muted-foreground">
-                    Taxa de Ocupação:
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground sm:text-sm">
+                    Ocupação
                   </span>
-                  <span className="text-lg font-bold text-primary">
+                  <span className="font-mono text-base font-semibold tabular-nums text-primary sm:text-lg">
                     {occupancy.toFixed(1)}%
                   </span>
                 </div>
@@ -112,77 +115,45 @@ export const CompactListView = ({
                 <div className="space-y-2">
                   {propertyReservations
                     .sort((a, b) => new Date(a.check_in_date).getTime() - new Date(b.check_in_date).getTime())
-                    .map((reservation) => (
-                      <div
-                        key={reservation.id}
-                        onClick={() => onReservationClick(reservation)}
-                        className={cn(
-                          'flex items-center justify-between p-3 rounded-lg border cursor-pointer',
-                          'hover:bg-accent hover:border-primary/50 transition-all',
-                          'group'
-                        )}
-                      >
-                        <div className="flex items-center gap-3 flex-1">
-                          <div className={cn('w-1 h-12 rounded-full', getPlatformColor(reservation.platform))} />
-                          
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-medium text-foreground truncate">
+                    .map((reservation) => {
+                      const canal = corDoCanal(reservation.platform);
+                      return (
+                        <button
+                          type="button"
+                          key={reservation.id}
+                          onClick={() => onReservationClick(reservation)}
+                          className="flex w-full items-stretch gap-3 rounded-xl border p-3 text-left transition-colors hover:border-brand/40 hover:bg-accent"
+                        >
+                          <span className={cn('w-1 shrink-0 rounded-full', canal.ponto)} aria-hidden="true" />
+                          <span className="min-w-0 flex-1">
+                            <span className="flex items-center justify-between gap-2">
+                              <span className="truncate font-medium text-foreground">
                                 {reservation.guest_name || 'Hóspede não informado'}
                               </span>
-                              <Badge variant="outline" className="text-xs">
-                                {reservation.platform}
-                              </Badge>
-                              {reservation.reservation_status && (
-                                <Badge 
-                                  variant={
-                                    reservation.reservation_status === 'Confirmada' ? 'default' :
-                                    reservation.reservation_status === 'Cancelada' ? 'destructive' :
-                                    'secondary'
-                                  }
-                                  className="text-xs"
-                                >
-                                  {reservation.reservation_status}
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <CalendarDays className="h-3 w-3" />
-                                {format(new Date(reservation.check_in_date), 'dd MMM', { locale: ptBR })}
-                                {' → '}
-                                {format(new Date(reservation.check_out_date), 'dd MMM', { locale: ptBR })}
+                              <span className="shrink-0 font-mono text-sm font-semibold tabular-nums text-ink">
+                                {formatarMoeda(reservation.total_revenue)}
                               </span>
-                              {reservation.number_of_guests && (
+                            </span>
+                            <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                              <span className="flex items-center gap-1 font-mono tabular-nums">
+                                <CalendarDays className="h-3 w-3" />
+                                {formatarData(reservation.check_in_date, true)} → {formatarData(reservation.check_out_date, true)}
+                              </span>
+                              {reservation.number_of_guests ? (
                                 <span>
                                   {reservation.number_of_guests} {reservation.number_of_guests === 1 ? 'hóspede' : 'hóspedes'}
                                 </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <div className="text-right">
-                            <div className="flex items-center gap-1 text-lg font-semibold text-primary">
-                              <DollarSign className="h-4 w-4" />
-                              {reservation.total_revenue?.toLocaleString('pt-BR', {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              })}
-                            </div>
-                            {reservation.payment_status && (
-                              <Badge 
-                                variant={reservation.payment_status === 'Pago' ? 'default' : 'secondary'}
-                                className="text-xs mt-1"
-                              >
-                                {reservation.payment_status}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                              ) : null}
+                            </span>
+                            <span className="mt-2 flex flex-wrap items-center gap-1.5">
+                              <EtiquetaPlataforma plataforma={reservation.platform} />
+                              {reservation.reservation_status && <EtiquetaStatus status={reservation.reservation_status} />}
+                              {reservation.payment_status && <EtiquetaStatus status={reservation.payment_status} />}
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })}
                 </div>
               )}
             </CardContent>

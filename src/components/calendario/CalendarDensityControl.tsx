@@ -46,7 +46,7 @@ export const CalendarDensityControl = ({
   };
 
   return (
-    <div className={cn('flex items-center gap-4', className)}>
+    <div className={cn('flex flex-wrap items-center gap-3', className)}>
       {/* Botões de zoom */}
       <div className="flex items-center gap-1 border rounded-lg p-1">
         <Button
@@ -78,7 +78,7 @@ export const CalendarDensityControl = ({
       </div>
 
       {/* Slider */}
-      <div className="flex items-center gap-3 min-w-[200px]">
+      <div className="flex min-w-0 flex-1 basis-48 items-center gap-3">
         <span className="text-xs text-muted-foreground whitespace-nowrap">Densidade:</span>
         <Slider
           value={[dayWidth]}

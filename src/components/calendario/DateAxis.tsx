@@ -15,15 +15,15 @@ export const DateAxis: React.FC<DateAxisProps> = ({ startDate, endDate, dayWidth
   const days = eachDayOfInterval({ start: startDate, end: endDate });
 
   return (
-    <div className="sticky top-0 z-20 bg-background border-b">
+    <div className="sticky top-0 z-20 border-b bg-background">
       <div className="flex">
-        {/* Coluna de propriedades (fixa à esquerda) */}
-        <div className="w-48 flex-shrink-0 border-r bg-muted/50 px-4 py-3">
-          <span className="text-sm font-semibold text-muted-foreground">Propriedades</span>
+        {/* Coluna de imóveis (fixa à esquerda e no topo) */}
+        <div className="sticky left-0 z-30 flex w-[var(--coluna-imovel)] shrink-0 items-center border-r bg-gray-50 px-3 py-3 sm:px-4">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Imóveis</span>
         </div>
 
         {/* Dias */}
-        <div className="flex flex-1 overflow-x-auto relative">
+        <div className="relative flex">
           {days.map((day) => {
             const isTodayDate = isToday(day);
             const isWeekendDate = isWeekend(day);
@@ -50,7 +50,7 @@ export const DateAxis: React.FC<DateAxisProps> = ({ startDate, endDate, dayWidth
                   {format(day, 'EEE', { locale: ptBR })}
                 </span>
                 <span className={cn(
-                  'text-sm font-semibold',
+                  'font-mono text-sm font-semibold',
                   isTodayDate && 'text-primary'
                 )}>
                   {format(day, 'd')}

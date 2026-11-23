@@ -238,9 +238,9 @@ const ExpenseForm = ({ expense, selectedPropertyId, onSuccess, onCancel }: Expen
           />
         )}
         
-        <div className="flex gap-4 justify-end pt-4">
+        <div className="flex flex-col-reverse gap-2 pt-4 sm:flex-row sm:justify-end sm:gap-3">
           <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-          <Button type="submit" disabled={loading} className="bg-brand hover:bg-brand-hover text-white">
+          <Button type="submit" disabled={loading}>
             {loading ? 'Salvando...' : (expense ? 'Atualizar' : 'Salvar')}
           </Button>
         </div>

@@ -66,16 +66,16 @@ export const OccupancyStatsCard: React.FC<OccupancyStatsCardProps> = ({ stats })
                 </div>
               </div>
               <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="sm">
+                <Button variant="ghost" size="sm" aria-label={isOpen ? 'Ocultar detalhes' : 'Ver detalhes'}>
                   {isOpen ? (
                     <>
-                      <ChevronUp className="h-4 w-4 mr-1" />
-                      Ocultar
+                      <ChevronUp className="h-4 w-4 sm:mr-1" />
+                      <span className="hidden sm:inline">Ocultar</span>
                     </>
                   ) : (
                     <>
-                      <ChevronDown className="h-4 w-4 mr-1" />
-                      Detalhes
+                      <ChevronDown className="h-4 w-4 sm:mr-1" />
+                      <span className="hidden sm:inline">Detalhes</span>
                     </>
                   )}
                 </Button>

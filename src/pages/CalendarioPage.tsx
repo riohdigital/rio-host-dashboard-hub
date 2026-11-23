@@ -12,12 +12,15 @@ import { CompactListView } from '@/components/calendario/CompactListView';
 import { CalendarLegend } from '@/components/calendario/CalendarLegend';
 import { OccupancyStatsCard } from '@/components/calendario/OccupancyStatsCard';
 import { CalendarReservation } from '@/types/calendar';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
+import JanelaResponsiva from '@/components/comum/JanelaResponsiva';
+import { EtiquetaPlataforma, EtiquetaStatus } from '@/components/comum/Etiquetas';
+import { formatarData, formatarMoeda } from '@/components/comum/formatos';
+import { useEhCelular } from '@/hooks/useMidia';
+import { CalendarDensityControl } from '@/components/calendario/CalendarDensityControl';
 import ReservationForm from '@/components/reservations/ReservationForm';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Info } from 'lucide-react';
+import { MessageCircle, Pencil } from 'lucide-react';
 import { useEventosDoPeriodo } from '@/hooks/useEventosDoPeriodo';
 import { FeriadosDoPeriodo } from '@/components/calendario/FeriadosDoPeriodo';
 import { eventoValeParaImovel, noites, somarDias } from '@/components/pricing/ocupacao';
@@ -27,6 +30,14 @@ const CalendarioPage = () => {
   const { view, setView, goToNextPeriod, goToPreviousPeriod, goToToday, currentDate } = useCalendarView();
   const [selectedReservation, setSelectedReservation] = useState<CalendarReservation | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const celular = useEhCelular();
+  const [detalheAberto, setDetalheAberto] = useState(false);
+  const [exibicaoAberta, setExibicaoAberta] = useState(false);
+
+  // No celular o calendário abre na Lista compacta
+  useEffect(() => {
+    if (window.matchMedia('(max-width: 767px)').matches) setView('list');
+  }, [setView]);
   const [dayWidth, setDayWidth] = useState(() => {
     // Carregar do localStorage ou usar padrão
     const saved = localStorage.getItem('calendar-day-width');
@@ -57,9 +68,11 @@ const CalendarioPage = () => {
     platform: selectedPlatform,
   });
 
+  // Celular: toque abre a folha de detalhes; desktop: abre a edição direto (como antes)
   const handleReservationClick = (reservation: CalendarReservation) => {
     setSelectedReservation(reservation);
-    setIsEditModalOpen(true);
+    if (celular) setDetalheAberto(true);
+    else setIsEditModalOpen(true);
   };
 
   const handleEditSuccess = () => {
@@ -98,8 +111,10 @@ const CalendarioPage = () => {
     endDate
   );
 
+  const r = selectedReservation;
+
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       <CalendarHeader
         currentDate={currentDate}
         view={view}
@@ -107,14 +122,13 @@ const CalendarioPage = () => {
         onPrevious={goToPreviousPeriod}
         onNext={goToNextPeriod}
         onToday={goToToday}
-        dayWidth={dayWidth}
-        onDayWidthChange={setDayWidth}
+        onAbrirExibicao={() => setExibicaoAberta(true)}
       />
 
       {isLoading ? (
         <div className="space-y-4">
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-96 w-full" />
+          <Skeleton className="h-12 w-full rounded-2xl" />
+          <Skeleton className="h-96 w-full rounded-2xl" />
         </div>
       ) : (
         <>
@@ -123,68 +137,124 @@ const CalendarioPage = () => {
 
           <FeriadosDoPeriodo eventos={eventos} properties={filteredProperties} reservations={reservations} />
 
-          {/* Layout melhorado - Calendário em largura total */}
-          <div className="relative">
-            {view === 'timeline' ? (
-              <TimelineView
-                reservations={reservations}
-                properties={filteredProperties}
-                startDate={startDate}
-                endDate={endDate}
-                dayWidth={dayWidth}
-                onReservationClick={handleReservationClick}
-                datasEspeciais={datasEspeciais}
-              />
-            ) : view === 'grid' ? (
-              <GridView
-                reservations={reservations}
-                properties={filteredProperties}
-                startDate={startDate}
-                endDate={endDate}
-                onReservationClick={handleReservationClick}
-              />
-            ) : view === 'list' ? (
-              <CompactListView
-                reservations={reservations}
-                properties={filteredProperties}
-                startDate={startDate}
-                endDate={endDate}
-                onReservationClick={handleReservationClick}
-              />
-            ) : null}
-
-            {/* Legenda em Sheet colapsável (lado direito) */}
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="fixed right-6 top-24 z-50 shadow-lg"
-                >
-                  <Info className="h-4 w-4 mr-2" />
-                  Legenda
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right">
-                <CalendarLegend />
-              </SheetContent>
-            </Sheet>
-          </div>
+          {view === 'timeline' ? (
+            <TimelineView
+              reservations={reservations}
+              properties={filteredProperties}
+              startDate={startDate}
+              endDate={endDate}
+              dayWidth={dayWidth}
+              onReservationClick={handleReservationClick}
+              datasEspeciais={datasEspeciais}
+            />
+          ) : view === 'grid' ? (
+            <GridView
+              reservations={reservations}
+              properties={filteredProperties}
+              startDate={startDate}
+              endDate={endDate}
+              onReservationClick={handleReservationClick}
+            />
+          ) : view === 'list' ? (
+            <CompactListView
+              reservations={reservations}
+              properties={filteredProperties}
+              startDate={startDate}
+              endDate={endDate}
+              onReservationClick={handleReservationClick}
+            />
+          ) : null}
         </>
       )}
 
-      {/* Modal de edição */}
-      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          {selectedReservation && (
-            <ReservationForm
-              reservation={selectedReservation}
-              onSuccess={handleEditSuccess}
-              onCancel={handleEditCancel}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* Exibição: densidade da linha do tempo e legenda */}
+      <JanelaResponsiva aberta={exibicaoAberta} aoMudar={setExibicaoAberta} titulo="Exibição do calendário" largura="lg">
+        <div className="space-y-6">
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold text-ink">Densidade da linha do tempo</h3>
+            <CalendarDensityControl dayWidth={dayWidth} onDayWidthChange={setDayWidth} />
+          </section>
+          <section>
+            <CalendarLegend />
+          </section>
+        </div>
+      </JanelaResponsiva>
+
+      {/* Celular: folha de detalhes da reserva */}
+      <JanelaResponsiva
+        aberta={detalheAberto && !!r}
+        aoMudar={(a) => { setDetalheAberto(a); if (!a && !isEditModalOpen) setSelectedReservation(null); }}
+        titulo={r?.guest_name || 'Reserva'}
+        descricao={r ? `${r.properties?.nickname || r.properties?.name || ''} · ${r.reservation_code}` : undefined}
+        rodape={
+          <>
+            <Button variant="outline" onClick={() => { setDetalheAberto(false); setSelectedReservation(null); }}>Fechar</Button>
+            <Button onClick={() => { setDetalheAberto(false); setIsEditModalOpen(true); }} className="gap-2">
+              <Pencil className="h-4 w-4" /> Editar reserva
+            </Button>
+          </>
+        }
+      >
+        {r && (
+          <dl className="grid grid-cols-2 gap-3 text-sm">
+            <div className="rounded-2xl bg-surface p-3">
+              <dt className="text-xs text-gray-500">Check-in</dt>
+              <dd className="font-mono font-semibold tabular-nums text-ink">{formatarData(r.check_in_date)}</dd>
+              {r.checkin_time && <dd className="font-mono text-xs text-gray-500">{r.checkin_time.slice(0, 5)}</dd>}
+            </div>
+            <div className="rounded-2xl bg-surface p-3">
+              <dt className="text-xs text-gray-500">Check-out</dt>
+              <dd className="font-mono font-semibold tabular-nums text-ink">{formatarData(r.check_out_date)}</dd>
+              {r.checkout_time && <dd className="font-mono text-xs text-gray-500">{r.checkout_time.slice(0, 5)}</dd>}
+            </div>
+            <div className="rounded-2xl bg-surface p-3">
+              <dt className="text-xs text-gray-500">Valor total</dt>
+              <dd className="font-mono font-semibold tabular-nums text-ink">{formatarMoeda(r.total_revenue)}</dd>
+              <dd className="font-mono text-xs text-success-700">Líquido {formatarMoeda(r.net_revenue)}</dd>
+            </div>
+            <div className="rounded-2xl bg-surface p-3">
+              <dt className="text-xs text-gray-500">Hóspedes</dt>
+              <dd className="font-mono font-semibold tabular-nums text-ink">{r.number_of_guests || '—'}</dd>
+            </div>
+            <div className="col-span-2 flex flex-wrap items-center gap-2">
+              <EtiquetaPlataforma plataforma={r.platform} />
+              <EtiquetaStatus status={r.reservation_status} />
+              <EtiquetaStatus status={r.payment_status || 'Pendente'} />
+            </div>
+            {r.guest_phone && (
+              <div className="col-span-2">
+                <Button
+                  variant="outline"
+                  className="w-full gap-2"
+                  onClick={() => {
+                    const tel = r.guest_phone?.replace(/\D/g, '');
+                    if (tel) window.open(`https://wa.me/55${tel}`, '_blank');
+                  }}
+                >
+                  <MessageCircle className="h-4 w-4 text-success-600" /> WhatsApp do hóspede
+                </Button>
+              </div>
+            )}
+          </dl>
+        )}
+      </JanelaResponsiva>
+
+      {/* Edição */}
+      <JanelaResponsiva
+        aberta={isEditModalOpen && !!selectedReservation}
+        aoMudar={(a) => { if (!a) handleEditCancel(); }}
+        titulo="Editar Reserva"
+        telaCheia
+        largura="xl"
+      >
+        {selectedReservation && (
+          <ReservationForm
+            reservation={selectedReservation}
+            onSuccess={handleEditSuccess}
+            onCancel={handleEditCancel}
+          />
+        )}
+      </JanelaResponsiva>
     </div>
   );
 };

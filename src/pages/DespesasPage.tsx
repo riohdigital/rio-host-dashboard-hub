@@ -1,5 +1,6 @@
 import React from 'react';
 import ExpensesList from '@/components/expenses/ExpensesList';
+import PageHeader from '@/components/comum/PageHeader';
 import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertTriangle } from 'lucide-react';
@@ -38,10 +39,7 @@ const DespesasPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="border-b border-gray-200 pb-4">
-        <h1 className="text-3xl font-bold text-gradient-primary">Gestão de Despesas</h1>
-        <p className="text-gray-600 mt-2">Controle e monitore todas as despesas das suas propriedades</p>
-      </div>
+      <PageHeader titulo="Gestão de Despesas" descricao="Controle e monitore todas as despesas das suas propriedades" />
       <ExpensesList key={`${selectedPeriod}-${[...selectedProperties].sort().join('|')}-${customStartDate?.toISOString()}-${customEndDate?.toISOString()}`} />
     </div>
   );

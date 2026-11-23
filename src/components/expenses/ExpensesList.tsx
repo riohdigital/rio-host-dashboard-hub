@@ -7,7 +7,9 @@ import { usePageVisibility } from '@/hooks/usePageVisibility';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import JanelaResponsiva from "@/components/comum/JanelaResponsiva";
+import { EsqueletoLista } from "@/components/comum/Esqueleto";
+import { formatarMoeda } from "@/components/comum/formatos";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Calendar, DollarSign, Tag, Trash2, Edit, RefreshCw, Layers, Receipt, CheckCircle, Clock, Filter } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -182,33 +184,42 @@ const ExpensesList = () => {
     }
   };
 
-  if (loading) return <div>Carregando...</div>;
+  if (loading) return <EsqueletoLista linhas={5} />;
 
   return (
     <div className="space-y-6">
-      {/* Topo e Card de Reembolsos Pendentes */}
+      {/* Topo: título da lista e "Nova Despesa" (no celular vira botão + fixo) */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gradient-primary">Minhas Despesas</h2>
-          <p className="text-gray-600 mt-1">Gerencie despesas fixas, variáveis e notas fiscais a reembolsar.</p>
+          <h2 className="font-display text-xl font-bold text-ink sm:text-2xl">Minhas Despesas</h2>
+          <p className="text-sm text-gray-600 mt-1">Gerencie despesas fixas, variáveis e notas fiscais a reembolsar.</p>
         </div>
         {hasPermission('expenses_create') && (
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger asChild>
-                  <Button onClick={() => setEditingExpense(null)} className="bg-primary hover:bg-primary/90 text-white">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Nova Despesa
-                  </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                  <DialogHeader>
-                      <DialogTitle>{editingExpense ? 'Editar' : 'Nova'} Despesa</DialogTitle>
-                  </DialogHeader>
-                  <ExpenseForm expense={editingExpense} onSuccess={handleSuccess} onCancel={() => setDialogOpen(false)} />
-              </DialogContent>
-          </Dialog>
+          <>
+            <Button onClick={() => { setEditingExpense(null); setDialogOpen(true); }} className="hidden gap-2 md:inline-flex">
+              <Plus className="h-4 w-4" />
+              Nova Despesa
+            </Button>
+            <button
+              type="button"
+              onClick={() => { setEditingExpense(null); setDialogOpen(true); }}
+              aria-label="Nova despesa"
+              className="fixed bottom-[calc(theme(spacing.tabbar)+5.25rem+env(safe-area-inset-bottom))] right-4 z-30 grid h-14 w-14 place-items-center rounded-full bg-brand text-brand-foreground shadow-lg shadow-brand/30 active:scale-95 md:hidden"
+            >
+              <Plus className="h-6 w-6" />
+            </button>
+          </>
         )}
       </div>
+
+      <JanelaResponsiva
+        aberta={dialogOpen}
+        aoMudar={setDialogOpen}
+        titulo={`${editingExpense ? 'Editar' : 'Nova'} Despesa`}
+        largura="lg"
+      >
+        <ExpenseForm expense={editingExpense} onSuccess={handleSuccess} onCancel={() => setDialogOpen(false)} />
+      </JanelaResponsiva>
 
       {/* Card Destaque: Reembolsos a Pagar */}
       <Card className="border-warning-200 bg-gradient-to-r from-warning-50/70 via-orange-50/40 to-background shadow-sm">
@@ -235,7 +246,7 @@ const ExpensesList = () => {
           <div className="flex items-center gap-4 self-end sm:self-center">
             <div className="text-right">
               <span className="text-xs text-muted-foreground block">Total a Reembolsar</span>
-              <span className="text-xl font-bold text-warning-600">
+              <span className="font-mono text-xl font-semibold tabular-nums text-warning-600">
                 R$ {totalPendingReimbursements.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </span>
             </div>
@@ -259,13 +270,13 @@ const ExpensesList = () => {
           <div className="grid gap-4">
             {groupedExpenses.recurrent.map(group => (
               <Card key={group.recurrence_group_id} className="bg-white hover:shadow-lg transition-shadow cursor-pointer" onClick={() => { setSelectedGroup(group); setDetailModalOpen(true); }}>
-                <CardContent className="p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
+                <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3 sm:gap-4">
                     <div className="p-3 bg-info-100 rounded-lg"><RefreshCw className="h-6 w-6 text-info-600" /></div>
                     <div>
                       <h4 className="font-bold text-gradient-primary">{group.description}</h4>
                       <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
-                        <span className="flex items-center gap-1"><DollarSign className="h-4 w-4" />R$ {group.amount.toFixed(2)}/mês</span>
+                        <span className="flex items-center gap-1 font-mono tabular-nums"><DollarSign className="h-4 w-4" />{formatarMoeda(group.amount)}/mês</span>
                         <span className="flex items-center gap-1"><Layers className="h-4 w-4" />{group.count} ocorrências</span>
                       </div>
                     </div>
@@ -319,8 +330,8 @@ const ExpensesList = () => {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 mt-1">
-                      <span className="flex items-center gap-1"><Calendar className="h-4 w-4" />{new Date(expense.expense_date + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
-                      <span className="flex items-center gap-1"><DollarSign className="h-4 w-4" />R$ {expense.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      <span className="flex items-center gap-1 font-mono tabular-nums"><Calendar className="h-4 w-4" />{new Date(expense.expense_date + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
+                      <span className="flex items-center gap-1 font-mono font-semibold tabular-nums text-ink"><DollarSign className="h-4 w-4" />{formatarMoeda(expense.amount)}</span>
                       <Badge variant="outline" className="text-xs">{expense.category}</Badge>
                       <span className="font-medium text-foreground">{expense.properties?.nickname || expense.properties?.name}</span>
                     </div>
@@ -337,8 +348,8 @@ const ExpensesList = () => {
                         Marcar como Reembolsado
                       </Button>
                     )}
-                    {hasPermission('expenses_edit') && <Button variant="ghost" size="icon" onClick={() => handleEdit(expense)}><Edit className="h-4 w-4" /></Button>}
-                    {hasPermission('expenses_edit') && <Button variant="ghost" size="icon" onClick={() => handleDeleteSingle(expense.id)}><Trash2 className="h-4 w-4 text-danger-500" /></Button>}
+                    {hasPermission('expenses_edit') && <Button variant="ghost" size="icon" onClick={() => handleEdit(expense)} aria-label="Editar despesa"><Edit className="h-4 w-4" /></Button>}
+                    {hasPermission('expenses_edit') && <Button variant="ghost" size="icon" onClick={() => handleDeleteSingle(expense.id)} aria-label="Excluir despesa"><Trash2 className="h-4 w-4 text-danger-500" /></Button>}
                   </div>
                 </CardContent>
               </Card>

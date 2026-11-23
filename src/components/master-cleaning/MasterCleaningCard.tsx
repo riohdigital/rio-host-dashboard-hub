@@ -116,11 +116,11 @@ const MasterCleaningCard = ({
   return (
     <Card className={`w-full ${isUrgent ? 'border-destructive' : 'border-border'}`}>
       <CardHeader className="pb-3">
-        <div className="flex justify-between items-start">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <CardTitle className="text-lg font-semibold text-foreground">
             {reservation.properties?.name || 'Propriedade'}
           </CardTitle>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Badge variant={getStatusVariant(reservation.reservation_status)}>
               {reservation.reservation_status}
             </Badge>
@@ -135,7 +135,7 @@ const MasterCleaningCard = ({
       
       <CardContent className="space-y-4">
         {/* Informações básicas */}
-        <div className="grid grid-cols-2 gap-4 text-sm">
+        <div className="grid grid-cols-1 gap-2 text-sm [&>*]:min-w-0">
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-muted-foreground" />
             <span className="text-muted-foreground">Check-out:</span>

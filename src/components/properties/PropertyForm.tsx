@@ -11,6 +11,10 @@ import { useToast } from '@/hooks/use-toast';
 import { Property } from '@/types/property';
 import { useAuth } from '@/hooks/useAuth';
 import AirbnbImportSection from './AirbnbImportSection';
+import BlocoFormulario from '@/components/comum/BlocoFormulario';
+import JanelaResponsiva from '@/components/comum/JanelaResponsiva';
+import { useEhCelular } from '@/hooks/useMidia';
+import { Download, Home, Link2, NotebookPen, Wallet } from 'lucide-react';
 import { fetchN8n } from '@/lib/n8n';
 
 interface PropertyFormProps {
@@ -39,6 +43,12 @@ const PropertyForm = ({ property, onSuccess, onCancel }: PropertyFormProps) => {
   // Localização usada na precificação: a esteira encontra pelo endereço; o usuário pode corrigir.
   const [local, setLocal] = useState({ city: '', uf: '', country_code: '' });
   const [localEditado, setLocalEditado] = useState(false);
+  const celular = useEhCelular();
+  const [importAberto, setImportAberto] = useState(false);
+  // Blocos recolhidos pela pessoa (todos começam abertos)
+  const [blocosFechados, setBlocosFechados] = useState<string[]>([]);
+  const alternarBloco = (chave: string, aberto: boolean) =>
+    setBlocosFechados((atual) => (aberto ? atual.filter((c) => c !== chave) : [...atual, chave]));
   const [loading, setLoading] = useState(false);
   const [importedData, setImportedData] = useState(false);
   const { toast } = useToast();
@@ -177,13 +187,27 @@ const { error: insertError } = await supabase
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-4">
       {/* Seção de Importação - Apenas em modo de criação */}
-      {!property && (
+      {!property && !celular && (
         <AirbnbImportSection
           onImportSuccess={handleImportSuccess}
           onImportError={handleImportError}
         />
+      )}
+      {/* Celular: importação do Airbnb numa folha, para o formulário começar limpo */}
+      {!property && celular && (
+        <>
+          <Button type="button" variant="outline" onClick={() => setImportAberto(true)} className="h-12 w-full gap-2">
+            <Download className="h-4 w-4" /> Importar dados do Airbnb
+          </Button>
+          <JanelaResponsiva aberta={importAberto} aoMudar={setImportAberto} titulo="Importar do Airbnb">
+            <AirbnbImportSection
+              onImportSuccess={(dados) => { handleImportSuccess(dados); setImportAberto(false); }}
+              onImportError={handleImportError}
+            />
+          </JanelaResponsiva>
+        </>
       )}
 
       {importedData && (
@@ -196,10 +220,12 @@ const { error: insertError } = await supabase
       )}
 
       {/* Seção 1: Informações Principais */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-brand border-b pb-2">
-          Informações Principais
-        </h3>
+      <BlocoFormulario
+        titulo="Informações Principais"
+        icone={Home}
+        aberto={!blocosFechados.includes('info')}
+        aoAlternar={(aberto) => alternarBloco('info', aberto)}
+      >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <Label htmlFor="name">Nome da Propriedade *</Label>
@@ -307,13 +333,15 @@ const { error: insertError } = await supabase
             </Select>
           </div>
         </div>
-      </div>
+      </BlocoFormulario>
 
       {/* Seção 2: Plataformas e Marketing */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-brand border-b pb-2">
-          Plataformas e Marketing
-        </h3>
+      <BlocoFormulario
+        titulo="Plataformas e Marketing"
+        icone={Link2}
+        aberto={!blocosFechados.includes('plataformas')}
+        aoAlternar={(aberto) => alternarBloco('plataformas', aberto)}
+      >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <Label htmlFor="airbnb_link">Link do Anúncio no Airbnb</Label>
@@ -336,13 +364,15 @@ const { error: insertError } = await supabase
             />
           </div>
         </div>
-      </div>
+      </BlocoFormulario>
 
       {/* Seção 3: Configurações Financeiras e Operacionais */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-brand border-b pb-2">
-          Configurações Financeiras e Operacionais
-        </h3>
+      <BlocoFormulario
+        titulo="Configurações Financeiras e Operacionais"
+        icone={Wallet}
+        aberto={!blocosFechados.includes('financeiro')}
+        aoAlternar={(aberto) => alternarBloco('financeiro', aberto)}
+      >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <Label htmlFor="base_nightly_price">Preço Base da Diária (R$)</Label>
@@ -419,13 +449,15 @@ const { error: insertError } = await supabase
             />
           </div>
         </div>
-      </div>
+      </BlocoFormulario>
 
       {/* Seção 4: Anotações */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-brand border-b pb-2">
-          Anotações
-        </h3>
+      <BlocoFormulario
+        titulo="Anotações"
+        icone={NotebookPen}
+        aberto={!blocosFechados.includes('notas')}
+        aoAlternar={(aberto) => alternarBloco('notas', aberto)}
+      >
         <div>
           <Label htmlFor="notes">Anotações Internas</Label>
           <Textarea
@@ -436,10 +468,10 @@ const { error: insertError } = await supabase
             rows={4}
           />
         </div>
-      </div>
+      </BlocoFormulario>
 
       {/* Botões */}
-      <div className="flex justify-end gap-3 pt-4 border-t">
+      <div className="sticky -bottom-4 z-10 -mx-4 -mb-4 flex justify-end gap-3 border-t bg-background px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 sm:-mx-6 sm:px-6 sm:pb-3 [&>button]:flex-1 sm:[&>button]:flex-none">
         <Button
           type="button"
           variant="outline"
@@ -450,7 +482,6 @@ const { error: insertError } = await supabase
         </Button>
         <Button
           type="submit"
-          className="bg-brand hover:bg-brand-hover text-white"
           disabled={loading}
         >
           {loading ? 'Salvando...' : 'Salvar'}

@@ -132,7 +132,7 @@ const AirbnbImportSection = ({ onImportSuccess, onImportError }: AirbnbImportSec
   }
 
   return (
-    <Card className="p-6 mb-6 bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
+    <Card className="p-4 sm:p-6 bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <Download className="h-5 w-5 text-primary" />
@@ -145,7 +145,7 @@ const AirbnbImportSection = ({ onImportSuccess, onImportError }: AirbnbImportSec
           Abra seu painel do Airbnb, entre em <strong>Anúncios</strong>, selecione seu anúncio, copie a URL (www) e cole aqui.
         </p>
 
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <div className="flex-1">
             <Input
               type="url"
