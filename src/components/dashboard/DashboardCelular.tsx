@@ -5,7 +5,7 @@
  * Dicas da IA (recolhido). Usa só os dados e cálculos que o Dashboard já
  * carrega; o computador continua com o desenho de sempre (Dashboard.tsx).
  */
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { LogIn, LogOut } from 'lucide-react';
 import Bloco from '@/components/comum/Bloco';
@@ -23,6 +23,7 @@ import AnnualGrowthChart from './AnnualGrowthChart';
 import RevenueBreakdownCard from './RevenueBreakdownCard';
 import { StrategicInsightsCard } from './StrategicInsightsCard';
 import { explicacaoDoRecebimento } from './canais';
+import FolhaReserva from '@/components/reservations/FolhaReserva';
 
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 const DIAS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
@@ -131,7 +132,12 @@ const DashboardCelular = (p: DashboardCelularProps) => {
 
   const agora = new Date();
   const rotuloHoje = `${DIAS[agora.getDay()]}, ${agora.getDate()} ${MESES[agora.getMonth()]}`;
-  const linkReserva = (codigo?: string | null) => (codigo ? `/reservas?code=${encodeURIComponent(codigo)}` : undefined);
+  /* Tocar numa reserva abre a folha dela aqui mesmo; sem id nem código, vai para a tela de Reservas */
+  const [aberta, setAberta] = useState<{ id?: string | null; codigo?: string | null } | null>(null);
+  const tocarReserva = (r: { id?: string | null; reservation_code?: string | null }) =>
+    r.id || r.reservation_code ? () => setAberta({ id: r.id || null, codigo: r.reservation_code || null }) : undefined;
+  const linkReserva = (r: { id?: string | null; reservation_code?: string | null }) =>
+    r.id || r.reservation_code ? undefined : '/reservas';
   const hora = (h?: string | null) => (h ? ` ${h.slice(0, 5)}` : '');
 
   /* ── Receita por canal ─────────────────────────────── */
@@ -181,7 +187,8 @@ const DashboardCelular = (p: DashboardCelularProps) => {
                 titulo={r.guest_name || 'Hóspede'}
                 subtitulo={`Entrada${hora(r.checkin_time)} · ${nomeImovel(r)}`}
                 etiqueta={ehPago(r.payment_status) ? <Etiqueta tom="success">Pago</Etiqueta> : <Etiqueta tom="warning">A receber</Etiqueta>}
-                para={linkReserva(r.reservation_code)}
+                aoTocar={tocarReserva(r)}
+                para={linkReserva(r)}
               />
             ))}
             {hoje.saidas.map((r) => (
@@ -192,7 +199,8 @@ const DashboardCelular = (p: DashboardCelularProps) => {
                 titulo={r.guest_name || 'Hóspede'}
                 subtitulo={`Saída${hora(r.checkout_time)} · ${nomeImovel(r)}`}
                 etiqueta={!r.cleaner_user_id && r.cleaning_status !== 'Realizada' ? <Etiqueta tom="danger">Sem faxineira</Etiqueta> : undefined}
-                para={linkReserva(r.reservation_code)}
+                aoTocar={tocarReserva(r)}
+                para={linkReserva(r)}
               />
             ))}
           </ListaLinhas>
@@ -268,7 +276,8 @@ const DashboardCelular = (p: DashboardCelularProps) => {
                 valor={formatarMoedaSemCentavos(r.total_revenue)}
                 legenda={ehPago(r.payment_status) ? 'Pago' : 'A receber'}
                 tomLegenda={ehPago(r.payment_status) ? 'success' : 'warning'}
-                para={linkReserva(r.reservation_code)}
+                aoTocar={tocarReserva(r)}
+                para={linkReserva(r)}
               />
             ))}
           </ListaLinhas>
@@ -292,6 +301,13 @@ const DashboardCelular = (p: DashboardCelularProps) => {
           <StrategicInsightsCard semCartao />
         </BlocoRecolhivel>
       )}
+
+      <FolhaReserva
+        aberta={Boolean(aberta)}
+        aoMudar={(v) => { if (!v) setAberta(null); }}
+        id={aberta?.id}
+        codigo={aberta?.codigo}
+      />
     </div>
   );
 };
