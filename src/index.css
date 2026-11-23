@@ -399,6 +399,15 @@
     animation: none;
   }
 
+  /* Esconde a barra de rolagem (abas e faixas que rolam de lado) */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
   /* Barra de rolagem fina das listas do dashboard */
   .custom-scrollbar::-webkit-scrollbar {
     width: 8px;

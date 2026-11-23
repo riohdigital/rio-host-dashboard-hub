@@ -15,7 +15,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Reservation } from '@/types/reservation';
 import { Property } from '@/types/property';
 import { useToast } from '@/hooks/use-toast';
-import { Pencil, Star, Check, X } from 'lucide-react';
+import { Pencil, Star, Check, X, UserRound, CalendarDays, Wallet, Sparkles } from 'lucide-react';
+import BlocoFormulario from '@/components/comum/BlocoFormulario';
 import { Textarea } from '@/components/ui/textarea';
 import { format as formatDate } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -72,6 +73,10 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
     const [properties, setProperties] = useState<Property[]>([]);
     const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
     const [loading, setLoading] = useState(false);
+    // Blocos recolhidos pela pessoa (todos começam abertos)
+    const [blocosFechados, setBlocosFechados] = useState<string[]>([]);
+    const alternarBloco = (chave: string, aberto: boolean) =>
+        setBlocosFechados((atual) => (aberto ? atual.filter((c) => c !== chave) : [...atual, chave]));
     const [numberOfDays, setNumberOfDays] = useState(0);
     const [usePropertyDefaults, setUsePropertyDefaults] = useState(true);
     const [cleaners, setCleaners] = useState<{ user_id: string; full_name: string | null; email: string }[]>([]);
@@ -334,6 +339,8 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
     // CORREÇÃO 3: Adicionada uma função para capturar e logar erros de validação.
     // Isso ajuda a diagnosticar por que o formulário pode não estar enviando.
     const onValidationErrors = (errors: any) => {
+        // Reabre os blocos para a pessoa ver o campo com erro
+        setBlocosFechados([]);
         console.error("LOG: Erros de validação do formulário:", errors);
         toast({
             title: "Campos Inválidos",
@@ -416,7 +423,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
     if (!properties.length && !reservation) return <p>Carregando...</p>;
 
     return (
-        <form onSubmit={handleSubmit(onSubmit, onValidationErrors)} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit, onValidationErrors)} className="space-y-4">
             {/* Seção de duplicação - apenas no modo criação */}
             {!reservation && (
                 <Card className="border-dashed border-primary/30 bg-primary/5">
@@ -481,260 +488,289 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                 </Card>
             )}
 
-            <h3 className="text-lg font-semibold text-info-600 border-b pb-2">Informações da Reserva</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <Label htmlFor="property_id">Propriedade *</Label>
-                    <Select value={watchedValues.property_id || ''} onValueChange={(value) => setValue('property_id', value)}>
-                        <SelectTrigger><SelectValue placeholder="Selecione uma propriedade" /></SelectTrigger>
-                        <SelectContent>
-                            {properties.map((property) => (
-                                <SelectItem key={property.id} value={property.id}>
-                                    {property.nickname || property.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                    {/* A mensagem de erro agora deve aparecer se o campo for obrigatório e não preenchido */}
-                    {errors.property_id && <span className="text-danger-500 text-sm">{errors.property_id.message}</span>}
-                </div>
-                <div>
-                    <Label htmlFor="platform">Plataforma *</Label>
-                    <Select value={watchedValues.platform} onValueChange={(value) => setValue('platform', value)}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="Airbnb">Airbnb</SelectItem>
-                            <SelectItem value="Booking.com">Booking.com</SelectItem>
-                            <SelectItem value="Direto">Direto</SelectItem>
-                            <SelectItem value="Outros">Outros</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    {errors.platform && <span className="text-danger-500 text-sm">{errors.platform.message}</span>}
-                </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <Label htmlFor="reservation_code">Código da Reserva *</Label>
-                    <Input id="reservation_code" {...register('reservation_code')} placeholder="Ex: HMAB123456" />
-                    {errors.reservation_code && <span className="text-danger-500 text-sm">{errors.reservation_code.message}</span>}
-                </div>
-                <div>
-                    <Label htmlFor="guest_name">Nome do Hóspede</Label>
-                    <Input id="guest_name" {...register('guest_name')} placeholder="Nome do hóspede" />
-                </div>
-                <div>
-                    <Label htmlFor="guest_email">E-mail do Hóspede</Label>
-                    <Input id="guest_email" type="email" {...register('guest_email')} placeholder="email@exemplo.com" />
-                    {errors.guest_email && <span className="text-danger-500 text-sm">{errors.guest_email.message}</span>}
-                </div>
-                <div>
-                    <Label htmlFor="guest_phone">Telefone do Hóspede</Label>
-                    <Input id="guest_phone" {...register('guest_phone')} placeholder="(11) 99999-9999" />
-                </div>
-                <div>
-                    <Label htmlFor="number_of_guests">Número de Hóspedes</Label>
-                    <Input id="number_of_guests" type="number" {...register('number_of_guests', { valueAsNumber: true })} placeholder="Ex: 2" />
-                </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <Label htmlFor="total_revenue">Receita Total (R$) *</Label>
-                    <Input id="total_revenue" type="number" step="0.01" {...register('total_revenue', { valueAsNumber: true })} placeholder="Ex: 1500.00" />
-                    {errors.total_revenue && <span className="text-danger-500 text-sm">{errors.total_revenue.message}</span>}
-                </div>
-                <div>
-                    <Label htmlFor="guest_total_paid">Valor Pago pelo Hóspede (R$)</Label>
-                    <Input
-                        id="guest_total_paid"
-                        type="number"
-                        step="0.01"
-                        {...register('guest_total_paid', { setValueAs: (v) => (v === '' || v === null || v === undefined || Number.isNaN(Number(v)) ? null : Number(v)) })}
-                        placeholder={watchedValues.platform === 'Direto' ? 'Vazio = Receita Total' : 'Ex: 1800.00'}
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">Usado no Comprovante do Hóspede.</p>
-                    {errors.guest_total_paid && <span className="text-danger-500 text-sm">{errors.guest_total_paid.message}</span>}
-                </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                    <Label htmlFor="check_in_date">Data de Check-in *</Label>
-                    <Input id="check_in_date" type="date" {...register('check_in_date')} className={errors.check_in_date ? 'border-danger-500' : ''} />
-                    {errors.check_in_date && <span className="text-danger-500 text-sm">{errors.check_in_date.message}</span>}
-                </div>
-                <div>
-                    <Label htmlFor="check_out_date">Data de Check-out *</Label>
-                    <Input id="check_out_date" type="date" {...register('check_out_date')} className={errors.check_out_date ? 'border-danger-500' : ''} />
-                    {errors.check_out_date && <span className="text-danger-500 text-sm">{errors.check_out_date.message}</span>}
-                </div>
-                <div className="flex flex-col justify-center">
-                    <Label className="text-sm text-gray-600 mb-2">Número de Diárias</Label>
-                    <div className="flex items-center justify-center p-2 bg-info-50 rounded-md border border-info-200">
-                        <span className="text-lg font-semibold text-info-600">
-                            {numberOfDays > 0 ? `${numberOfDays} ${numberOfDays === 1 ? 'diária' : 'diárias'}` : '-'}
-                        </span>
-                    </div>
-                </div>
-            </div>
-            <div className="space-y-4">
-                <div className="flex items-center space-x-2">
-                    <Checkbox id="use_property_defaults" checked={usePropertyDefaults} onCheckedChange={(checked) => setUsePropertyDefaults(checked as boolean)} />
-                    <Label htmlFor="use_property_defaults" className="text-sm">Usar horários padrão da propriedade</Label>
-                </div>
+            <BlocoFormulario
+                titulo="Hóspede e reserva"
+                icone={UserRound}
+                resumo={watchedValues.guest_name || undefined}
+                aberto={!blocosFechados.includes('hospede')}
+                aoAlternar={(aberto) => alternarBloco('hospede', aberto)}
+            >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <Label htmlFor="checkin_time">Horário de Check-in</Label>
-                        <Input id="checkin_time" type="time" {...register('checkin_time')} disabled={usePropertyDefaults} className={usePropertyDefaults ? 'bg-gray-100' : ''} />
-                    </div>
-                    <div>
-                        <Label htmlFor="checkout_time">Horário de Check-out</Label>
-                        <Input id="checkout_time" type="time" {...register('checkout_time')} disabled={usePropertyDefaults} className={usePropertyDefaults ? 'bg-gray-100' : ''} />
-                    </div>
-                </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <Label htmlFor="payment_status">Status do Pagamento</Label>
-                    <Select value={watchedValues.payment_status || ''} onValueChange={(value) => setValue('payment_status', value)}>
-                        <SelectTrigger><SelectValue placeholder="Selecione o status" /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="Pendente">Pendente</SelectItem>
-                            <SelectItem value="Pago">Pago</SelectItem>
-                            <SelectItem value="Atrasado">Atrasado</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-                <div>
-                    <Label htmlFor="reservation_status">Status da Reserva *</Label>
-                    <Select value={watchedValues.reservation_status} onValueChange={(value) => setValue('reservation_status', value)}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="Confirmada">Confirmada</SelectItem>
-                            <SelectItem value="Em Andamento">Em Andamento</SelectItem>
-                            <SelectItem value="Finalizada">Finalizada</SelectItem>
-                            <SelectItem value="Cancelada">Cancelada</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    {errors.reservation_status && <span className="text-danger-500 text-sm">{errors.reservation_status.message}</span>}
-                </div>
-            </div>
-            <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-brand-600 border-b pb-2">Serviço de Faxina</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <Label htmlFor="cleaning_destination">Faxineira responsável</Label>
-                        <Select 
-                            value={watchedValues.cleaning_destination || 'none'} 
-                            onValueChange={(value) => { setValue('cleaning_destination', value); }}>
-                            <SelectTrigger><SelectValue placeholder="Selecione o destino da taxa..." /></SelectTrigger>
+                        <Label htmlFor="property_id">Propriedade *</Label>
+                        <Select value={watchedValues.property_id || ''} onValueChange={(value) => setValue('property_id', value)}>
+                            <SelectTrigger><SelectValue placeholder="Selecione uma propriedade" /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="none">A decidir / Nenhuma</SelectItem>
-                                {cleaners.length > 0 && (
-                                    <SelectGroup>
-                                        <SelectLabel>Faxineiras</SelectLabel>
-                                        {cleaners.map((c) => (
-                                            <SelectItem key={c.user_id} value={c.user_id}>
-                                                {c.full_name || c.email}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectGroup>
-                                )}
-                                <SelectGroup>
-                                    <SelectLabel>Outras Opções</SelectLabel>
-                                    <SelectItem value="host">Anfitrião (somar à comissão)</SelectItem>
-                                    <SelectItem value="owner">Proprietário (somar ao líquido)</SelectItem>
-                                </SelectGroup>
-                                <SelectSeparator />
-                                <div
-                                    className="relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 text-info-600 hover:bg-gray-100 font-semibold"
-                                    onClick={() => { setShowCleanerForm(true); }}>
-                                    Novo Cadastro +
-                                </div>
+                                {properties.map((property) => (
+                                    <SelectItem key={property.id} value={property.id}>
+                                        {property.nickname || property.name}
+                                    </SelectItem>
+                                ))}
                             </SelectContent>
                         </Select>
+                        {/* A mensagem de erro agora deve aparecer se o campo for obrigatório e não preenchido */}
+                        {errors.property_id && <span className="text-danger-500 text-sm">{errors.property_id.message}</span>}
                     </div>
                     <div>
-                        <Label htmlFor="cleaning_payment_status">Status do Pagamento da Faxina</Label>
-                        <Select value={watchedValues.cleaning_payment_status || ''} onValueChange={(value) => setValue('cleaning_payment_status', value)}>
-                            <SelectTrigger><SelectValue placeholder="Selecione o status" /></SelectTrigger>
+                        <Label htmlFor="platform">Plataforma *</Label>
+                        <Select value={watchedValues.platform} onValueChange={(value) => setValue('platform', value)}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="Paga">Paga</SelectItem>
-                                <SelectItem value="Pagamento no Próximo Ciclo">Pagamento no Próximo Ciclo</SelectItem>
+                                <SelectItem value="Airbnb">Airbnb</SelectItem>
+                                <SelectItem value="Booking.com">Booking.com</SelectItem>
+                                <SelectItem value="Direto">Direto</SelectItem>
+                                <SelectItem value="Outros">Outros</SelectItem>
                             </SelectContent>
                         </Select>
+                        {errors.platform && <span className="text-danger-500 text-sm">{errors.platform.message}</span>}
                     </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <Label>Nota da Faxina</Label>
-                        <div className="flex items-center gap-1 pt-2">
-                            {[1, 2, 3, 4, 5].map((i) => (
-                                <button type="button" key={i} onClick={() => setValue('cleaning_rating', i)} className="p-1">
-                                    <Star className={(watchedValues.cleaning_rating || 0) >= i ? 'text-warning-500' : 'text-gray-300'} size={18} />
-                                </button>
-                            ))}
-                            <span className="ml-2 text-sm text-gray-600">{watchedValues.cleaning_rating || 0}/5</span>
+                        <Label htmlFor="reservation_code">Código da Reserva *</Label>
+                        <Input id="reservation_code" {...register('reservation_code')} placeholder="Ex: HMAB123456" />
+                        {errors.reservation_code && <span className="text-danger-500 text-sm">{errors.reservation_code.message}</span>}
+                    </div>
+                    <div>
+                        <Label htmlFor="guest_name">Nome do Hóspede</Label>
+                        <Input id="guest_name" {...register('guest_name')} placeholder="Nome do hóspede" />
+                    </div>
+                    <div>
+                        <Label htmlFor="guest_email">E-mail do Hóspede</Label>
+                        <Input id="guest_email" type="email" {...register('guest_email')} placeholder="email@exemplo.com" />
+                        {errors.guest_email && <span className="text-danger-500 text-sm">{errors.guest_email.message}</span>}
+                    </div>
+                    <div>
+                        <Label htmlFor="guest_phone">Telefone do Hóspede</Label>
+                        <Input id="guest_phone" {...register('guest_phone')} placeholder="(11) 99999-9999" />
+                    </div>
+                    <div>
+                        <Label htmlFor="number_of_guests">Número de Hóspedes</Label>
+                        <Input id="number_of_guests" type="number" {...register('number_of_guests', { valueAsNumber: true })} placeholder="Ex: 2" />
+                    </div>
+                </div>
+            </BlocoFormulario>
+            <BlocoFormulario
+                titulo="Datas e status"
+                icone={CalendarDays}
+                resumo={numberOfDays > 0 ? `${numberOfDays} ${numberOfDays === 1 ? 'diária' : 'diárias'}` : undefined}
+                aberto={!blocosFechados.includes('datas')}
+                aoAlternar={(aberto) => alternarBloco('datas', aberto)}
+            >
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <Label htmlFor="check_in_date">Data de Check-in *</Label>
+                        <Input id="check_in_date" type="date" {...register('check_in_date')} className={errors.check_in_date ? 'border-danger-500' : ''} />
+                        {errors.check_in_date && <span className="text-danger-500 text-sm">{errors.check_in_date.message}</span>}
+                    </div>
+                    <div>
+                        <Label htmlFor="check_out_date">Data de Check-out *</Label>
+                        <Input id="check_out_date" type="date" {...register('check_out_date')} className={errors.check_out_date ? 'border-danger-500' : ''} />
+                        {errors.check_out_date && <span className="text-danger-500 text-sm">{errors.check_out_date.message}</span>}
+                    </div>
+                    <div className="flex flex-col justify-center">
+                        <Label className="text-sm text-gray-600 mb-2">Número de Diárias</Label>
+                        <div className="flex items-center justify-center p-2 bg-info-50 rounded-md border border-info-200">
+                            <span className="text-lg font-semibold text-info-600">
+                                {numberOfDays > 0 ? `${numberOfDays} ${numberOfDays === 1 ? 'diária' : 'diárias'}` : '-'}
+                            </span>
                         </div>
                     </div>
                 </div>
-                <div>
-                    <Label htmlFor="cleaning_notes">Observações da Faxina</Label>
-                    <Textarea id="cleaning_notes" {...register('cleaning_notes')} placeholder="Ex.: caprichou na cozinha, faltou pano extra..." />
-                </div>
-            </div>
-            {selectedProperty && watchedValues.total_revenue > 0 && (
                 <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-success-600 border-b pb-2">Detalhamento Financeiro</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Receita Total</CardTitle></CardHeader>
-                            <CardContent>
-                                <p className="text-2xl font-bold text-info-600">R$ {watchedValues.total_revenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">Taxa de Limpeza</CardTitle>
-                                {!editingCleaningFee && (<Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingCleaningFee(true)}><Pencil className="h-4 w-4" /></Button>)}
-                            </CardHeader>
-                            <CardContent>
-                                {editingCleaningFee ? (
-                                    <div className="flex items-center gap-2">
-                                        <Input type="number" step="0.01" className="h-9" placeholder="R$ 0,00" value={manualCleaningFee ?? ''} onChange={(e) => setManualCleaningFee(e.target.value === '' ? undefined : Number(e.target.value))} />
-                                        <Button size="icon" className="h-8 w-8" onClick={() => setEditingCleaningFee(false)}><Check className="h-4 w-4" /></Button>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setManualCleaningFee(undefined); setEditingCleaningFee(false); }}><X className="h-4 w-4" /></Button>
-                                    </div>
-                                ) : ( <p className="text-2xl font-bold">R$ {watchedValues.cleaning_fee?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}</p> )}
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">Comissão ({(selectedProperty?.commission_rate || 0) * 100}%)</CardTitle>
-                                {!editingCommission && (<Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingCommission(true)}><Pencil className="h-4 w-4" /></Button>)}
-                            </CardHeader>
-                            <CardContent>
-                                {editingCommission ? (
-                                    <div className="flex items-center gap-2">
-                                        <Input type="number" step="0.01" className="h-9" placeholder="R$ 0,00" value={manualCommission ?? ''} onChange={(e) => setManualCommission(e.target.value === '' ? undefined : Number(e.target.value))} />
-                                        <Button size="icon" className="h-8 w-8" onClick={() => setEditingCommission(false)}><Check className="h-4 w-4" /></Button>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setManualCommission(undefined); setEditingCommission(false); }}><X className="h-4 w-4" /></Button>
-                                    </div>
-                                ) : ( <p className="text-2xl font-bold text-orange-600">R$ {watchedValues.commission_amount?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}</p> )}
+                    <div className="flex items-center space-x-2">
+                        <Checkbox id="use_property_defaults" checked={usePropertyDefaults} onCheckedChange={(checked) => setUsePropertyDefaults(checked as boolean)} />
+                        <Label htmlFor="use_property_defaults" className="text-sm">Usar horários padrão da propriedade</Label>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <Label htmlFor="checkin_time">Horário de Check-in</Label>
+                            <Input id="checkin_time" type="time" {...register('checkin_time')} disabled={usePropertyDefaults} className={usePropertyDefaults ? 'bg-gray-100' : ''} />
+                        </div>
+                        <div>
+                            <Label htmlFor="checkout_time">Horário de Check-out</Label>
+                            <Input id="checkout_time" type="time" {...register('checkout_time')} disabled={usePropertyDefaults} className={usePropertyDefaults ? 'bg-gray-100' : ''} />
+                        </div>
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <Label htmlFor="payment_status">Status do Pagamento</Label>
+                        <Select value={watchedValues.payment_status || ''} onValueChange={(value) => setValue('payment_status', value)}>
+                            <SelectTrigger><SelectValue placeholder="Selecione o status" /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Pendente">Pendente</SelectItem>
+                                <SelectItem value="Pago">Pago</SelectItem>
+                                <SelectItem value="Atrasado">Atrasado</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div>
+                        <Label htmlFor="reservation_status">Status da Reserva *</Label>
+                        <Select value={watchedValues.reservation_status} onValueChange={(value) => setValue('reservation_status', value)}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Confirmada">Confirmada</SelectItem>
+                                <SelectItem value="Em Andamento">Em Andamento</SelectItem>
+                                <SelectItem value="Finalizada">Finalizada</SelectItem>
+                                <SelectItem value="Cancelada">Cancelada</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        {errors.reservation_status && <span className="text-danger-500 text-sm">{errors.reservation_status.message}</span>}
+                    </div>
+                </div>
+            </BlocoFormulario>
+            <BlocoFormulario
+                titulo="Valores"
+                icone={Wallet}
+                resumo={watchedValues.total_revenue > 0 ? `R$ ${watchedValues.total_revenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : undefined}
+                aberto={!blocosFechados.includes('valores')}
+                aoAlternar={(aberto) => alternarBloco('valores', aberto)}
+            >
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <Label htmlFor="total_revenue">Receita Total (R$) *</Label>
+                        <Input id="total_revenue" type="number" step="0.01" {...register('total_revenue', { valueAsNumber: true })} placeholder="Ex: 1500.00" />
+                        {errors.total_revenue && <span className="text-danger-500 text-sm">{errors.total_revenue.message}</span>}
+                    </div>
+                    <div>
+                        <Label htmlFor="guest_total_paid">Valor Pago pelo Hóspede (R$)</Label>
+                        <Input
+                            id="guest_total_paid"
+                            type="number"
+                            step="0.01"
+                            {...register('guest_total_paid', { setValueAs: (v) => (v === '' || v === null || v === undefined || Number.isNaN(Number(v)) ? null : Number(v)) })}
+                            placeholder={watchedValues.platform === 'Direto' ? 'Vazio = Receita Total' : 'Ex: 1800.00'}
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Usado no Comprovante do Hóspede.</p>
+                        {errors.guest_total_paid && <span className="text-danger-500 text-sm">{errors.guest_total_paid.message}</span>}
+                    </div>
+                </div>
+                {selectedProperty && watchedValues.total_revenue > 0 && (
+                    <div className="space-y-4">
+                        <h4 className="text-sm font-semibold text-gray-600">Detalhamento financeiro</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Receita Total</CardTitle></CardHeader>
+                                <CardContent>
+                                    <p className="text-2xl font-bold text-info-600">R$ {watchedValues.total_revenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-sm font-medium">Taxa de Limpeza</CardTitle>
+                                    {!editingCleaningFee && (<Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingCleaningFee(true)}><Pencil className="h-4 w-4" /></Button>)}
+                                </CardHeader>
+                                <CardContent>
+                                    {editingCleaningFee ? (
+                                        <div className="flex items-center gap-2">
+                                            <Input type="number" step="0.01" className="h-9" placeholder="R$ 0,00" value={manualCleaningFee ?? ''} onChange={(e) => setManualCleaningFee(e.target.value === '' ? undefined : Number(e.target.value))} />
+                                            <Button size="icon" className="h-8 w-8" onClick={() => setEditingCleaningFee(false)}><Check className="h-4 w-4" /></Button>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setManualCleaningFee(undefined); setEditingCleaningFee(false); }}><X className="h-4 w-4" /></Button>
+                                        </div>
+                                    ) : ( <p className="text-2xl font-bold">R$ {watchedValues.cleaning_fee?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}</p> )}
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-sm font-medium">Comissão ({(selectedProperty?.commission_rate || 0) * 100}%)</CardTitle>
+                                    {!editingCommission && (<Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingCommission(true)}><Pencil className="h-4 w-4" /></Button>)}
+                                </CardHeader>
+                                <CardContent>
+                                    {editingCommission ? (
+                                        <div className="flex items-center gap-2">
+                                            <Input type="number" step="0.01" className="h-9" placeholder="R$ 0,00" value={manualCommission ?? ''} onChange={(e) => setManualCommission(e.target.value === '' ? undefined : Number(e.target.value))} />
+                                            <Button size="icon" className="h-8 w-8" onClick={() => setEditingCommission(false)}><Check className="h-4 w-4" /></Button>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setManualCommission(undefined); setEditingCommission(false); }}><X className="h-4 w-4" /></Button>
+                                        </div>
+                                    ) : ( <p className="text-2xl font-bold text-orange-600">R$ {watchedValues.commission_amount?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}</p> )}
+                                </CardContent>
+                            </Card>
+                        </div>
+                        <Card className="bg-success-50 border-success-200">
+                            <CardContent className="pt-6">
+                                <div className="text-center">
+                                    <p className="text-sm text-gray-600">Valor Líquido para o Proprietário</p>
+                                    <p className="text-2xl font-bold text-success-600">R$ {watchedValues.net_revenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                                </div>
                             </CardContent>
                         </Card>
                     </div>
-                    <Card className="bg-success-50 border-success-200">
-                        <CardContent className="pt-6">
-                            <div className="text-center">
-                                <p className="text-sm text-gray-600">Valor Líquido para o Proprietário</p>
-                                <p className="text-2xl font-bold text-success-600">R$ {watchedValues.net_revenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                )}
+            </BlocoFormulario>
+            <BlocoFormulario
+                titulo="Faxina"
+                icone={Sparkles}
+                resumo={undefined}
+                aberto={!blocosFechados.includes('faxina')}
+                aoAlternar={(aberto) => alternarBloco('faxina', aberto)}
+            >
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <Label htmlFor="cleaning_destination">Faxineira responsável</Label>
+                            <Select 
+                                value={watchedValues.cleaning_destination || 'none'} 
+                                onValueChange={(value) => { setValue('cleaning_destination', value); }}>
+                                <SelectTrigger><SelectValue placeholder="Selecione o destino da taxa..." /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">A decidir / Nenhuma</SelectItem>
+                                    {cleaners.length > 0 && (
+                                        <SelectGroup>
+                                            <SelectLabel>Faxineiras</SelectLabel>
+                                            {cleaners.map((c) => (
+                                                <SelectItem key={c.user_id} value={c.user_id}>
+                                                    {c.full_name || c.email}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectGroup>
+                                    )}
+                                    <SelectGroup>
+                                        <SelectLabel>Outras Opções</SelectLabel>
+                                        <SelectItem value="host">Anfitrião (somar à comissão)</SelectItem>
+                                        <SelectItem value="owner">Proprietário (somar ao líquido)</SelectItem>
+                                    </SelectGroup>
+                                    <SelectSeparator />
+                                    <div
+                                        className="relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 text-info-600 hover:bg-gray-100 font-semibold"
+                                        onClick={() => { setShowCleanerForm(true); }}>
+                                        Novo Cadastro +
+                                    </div>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <Label htmlFor="cleaning_payment_status">Status do Pagamento da Faxina</Label>
+                            <Select value={watchedValues.cleaning_payment_status || ''} onValueChange={(value) => setValue('cleaning_payment_status', value)}>
+                                <SelectTrigger><SelectValue placeholder="Selecione o status" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Paga">Paga</SelectItem>
+                                    <SelectItem value="Pagamento no Próximo Ciclo">Pagamento no Próximo Ciclo</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <Label>Nota da Faxina</Label>
+                            <div className="flex items-center gap-1 pt-2">
+                                {[1, 2, 3, 4, 5].map((i) => (
+                                    <button type="button" key={i} onClick={() => setValue('cleaning_rating', i)} className="p-1">
+                                        <Star className={(watchedValues.cleaning_rating || 0) >= i ? 'text-warning-500' : 'text-gray-300'} size={18} />
+                                    </button>
+                                ))}
+                                <span className="ml-2 text-sm text-gray-600">{watchedValues.cleaning_rating || 0}/5</span>
                             </div>
-                        </CardContent>
-                    </Card>
-                </div>
-            )}
-            <div className="flex justify-end gap-3 pt-4 border-t">
+                        </div>
+                    </div>
+                    <div>
+                        <Label htmlFor="cleaning_notes">Observações da Faxina</Label>
+                        <Textarea id="cleaning_notes" {...register('cleaning_notes')} placeholder="Ex.: caprichou na cozinha, faltou pano extra..." />
+                    </div>
+            </BlocoFormulario>
+            {/* Botões sempre à mão: colados embaixo na tela cheia do celular */}
+            <div className="sticky -bottom-4 z-10 -mx-4 -mb-4 flex justify-end gap-3 border-t bg-background px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 sm:-mx-6 sm:px-6 sm:pb-3 [&>button]:flex-1 sm:[&>button]:flex-none">
                 <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>Cancelar</Button>
-                <Button type="submit" className="bg-info-600 hover:bg-info-700 text-white" disabled={loading}>
+                <Button type="submit" disabled={loading}>
                     {loading ? 'Salvando...' : 'Salvar'}
                 </Button>
             </div>
