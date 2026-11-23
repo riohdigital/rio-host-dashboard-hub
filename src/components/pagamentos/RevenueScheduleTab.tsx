@@ -5,6 +5,10 @@ import { CalendarDays, TrendingUp } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { ScheduleDay } from '@/hooks/painel-gestor/usePaymentsDashboard';
+import GrupoLista from '@/components/comum/GrupoLista';
+import LinhaLista from '@/components/comum/LinhaLista';
+import { formatarMoedaSemCentavos } from '@/components/comum/formatos';
+import { useEhCompacto } from '@/hooks/useMidia';
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
@@ -26,6 +30,7 @@ interface RevenueScheduleTabProps {
 }
 
 const RevenueScheduleTab = ({ schedule, loading }: RevenueScheduleTabProps) => {
+  const compacto = useEhCompacto();
   if (loading) {
     return (
       <div className="space-y-6">
@@ -58,6 +63,50 @@ const RevenueScheduleTab = ({ schedule, loading }: RevenueScheduleTabProps) => {
   const pendingTotal = grandTotal - receivedTotal;
 
   let runningTotal = 0;
+
+  // Celular (plano T9): totais numa linha e um grupo por dia, com linhas de 64px
+  if (compacto) {
+    return (
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
+        <dl className="grid grid-cols-3 gap-2.5 rounded-2xl border bg-card p-3.5 shadow-sm">
+          {[
+            { rotulo: 'Total', valor: fmt(grandTotal), classe: 'text-gray-900' },
+            { rotulo: 'Recebido', valor: fmt(receivedTotal), classe: 'text-success-700' },
+            { rotulo: 'A receber', valor: fmt(pendingTotal), classe: 'text-warning-700' },
+          ].map((c) => (
+            <div key={c.rotulo} className="min-w-0">
+              <dt className="truncate text-xs text-gray-500">{c.rotulo}</dt>
+              <dd className={`truncate font-mono text-[13px] font-semibold tabular-nums ${c.classe}`}>{c.valor}</dd>
+            </div>
+          ))}
+        </dl>
+        {schedule.map((day) => {
+          runningTotal += day.dailyTotal;
+          const d = format(parseISO(day.date), "EEEE, d 'de' MMM", { locale: ptBR });
+          const dia = <span className="normal-case">{d.charAt(0).toUpperCase() + d.slice(1)}</span>;
+          return (
+            <GrupoLista
+              key={day.date}
+              titulo={dia}
+              resumo={`${formatarMoedaSemCentavos(day.dailyTotal)} · acum. ${formatarMoedaSemCentavos(runningTotal)}`}
+            >
+              {day.entries.map((entry, idx) => (
+                <LinhaLista
+                  key={`${entry.reservationId}-${idx}`}
+                  canal={entry.platform}
+                  titulo={entry.propertyNickname || entry.propertyName}
+                  subtitulo={[entry.guestName, entry.type === 'owner' ? 'proprietário' : null].filter(Boolean).join(' · ') || undefined}
+                  valor={fmt(entry.amount)}
+                  legenda={entry.status === 'received' ? 'Recebido' : 'A receber'}
+                  tomLegenda={entry.status === 'received' ? 'success' : 'warning'}
+                />
+              ))}
+            </GrupoLista>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-1">

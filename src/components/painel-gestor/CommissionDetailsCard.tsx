@@ -6,6 +6,10 @@ import RolagemComputador from '@/components/comum/RolagemComputador';
 import VerTodos from '@/components/comum/VerTodos';
 import { useListaCurta } from '@/components/comum/useListaCurta';
 import { Skeleton } from '@/components/ui/skeleton';
+import LinhaLista from '@/components/comum/LinhaLista';
+import AbasRolaveis from '@/components/comum/AbasRolaveis';
+import { ListaLinhas } from '@/components/comum/GrupoLista';
+import { useEhCompacto } from '@/hooks/useMidia';
 import { CheckCircle, Clock, DollarSign, TrendingUp } from 'lucide-react';
 import { CommissionSummary, CommissionDetail } from '@/types/painel-gestor';
 import { format, parseISO } from 'date-fns';
@@ -50,6 +54,18 @@ const getPaymentInfo = (platform: string) => {
   }
 };
 
+/** Celular: uma linha de 64px (canal, imóvel, hóspede · pagamento, valor e regra) */
+const LinhaComissao = ({ item }: { item: CommissionDetail }) => (
+  <LinhaLista
+    canal={item.platform}
+    titulo={item.propertyNickname || item.propertyName}
+    subtitulo={`${item.guestName} · pag. ${item.paymentDate ? format(parseISO(item.paymentDate), 'dd/MM', { locale: ptBR }) : '-'}`}
+    valor={formatCurrency(item.commissionAmount)}
+    legenda={getPaymentInfo(item.platform)}
+    tomLegenda={item.status === 'received' ? 'success' : 'warning'}
+  />
+);
+
 const CommissionItem = ({ item }: { item: CommissionDetail }) => {
   // Para Airbnb/Direto mostra check-in (pois é a data de referência do pagamento)
   // Para Booking mostra checkout (pois é a data de referência do pagamento)
@@ -89,11 +105,18 @@ const CommissionItem = ({ item }: { item: CommissionDetail }) => {
 /** Lista de uma aba: caixa com rolagem no computador; no celular, 5 itens + "Ver todas" */
 const ListaComissoes = ({ itens, vazio }: { itens: CommissionDetail[]; vazio: React.ReactNode }) => {
   const lista = useListaCurta(itens, 5, { soCompacto: true });
+  const compacto = useEhCompacto();
   return (
     <RolagemComputador className="h-[280px] pr-3">
-      {itens.length === 0
-        ? vazio
-        : lista.visiveis.map((item) => <CommissionItem key={item.id} item={item} />)}
+      {itens.length === 0 ? (
+        vazio
+      ) : compacto ? (
+        <ListaLinhas>
+          {lista.visiveis.map((item) => <LinhaComissao key={item.id} item={item} />)}
+        </ListaLinhas>
+      ) : (
+        lista.visiveis.map((item) => <CommissionItem key={item.id} item={item} />)
+      )}
       {lista.temMais && (
         <VerTodos total={lista.total} rotulo={`Ver todas (${lista.total})`} expandido={lista.expandido} aoClicar={lista.alternar} />
       )}
@@ -101,20 +124,12 @@ const ListaComissoes = ({ itens, vazio }: { itens: CommissionDetail[]; vazio: Re
   );
 };
 
-export const CommissionDetailsCard = ({ data, loading }: CommissionDetailsCardProps) => {
-  if (loading) {
-    return (
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-6 w-48" />
-        </CardHeader>
-        <CardContent>
-          <Skeleton className="h-32 w-full" />
-        </CardContent>
-      </Card>
-    );
-  }
-
+/**
+ * As abas "A receber" e "Recebidas" com a lista de comissões. Usadas no
+ * cartão do computador e, no celular, dentro do bloco Comissões ("Ver lista").
+ */
+export const AbasComissoes = ({ data }: { data: CommissionSummary }) => {
+  const compacto = useEhCompacto();
   // Função de ordenação: Booking por checkout, Airbnb/Direto por data de pagamento
   const sortByRelevantDate = (a: CommissionDetail, b: CommissionDetail) => {
     // Para Booking.com, ordenar por checkout (data de referência do pagamento)
@@ -141,6 +156,69 @@ export const CommissionDetailsCard = ({ data, loading }: CommissionDetailsCardPr
   const pendingItems = data.details
     .filter(d => d.status === 'pending')
     .sort(sortByRelevantDate);
+
+  return (
+    <Tabs defaultValue="pending" className="w-full">
+      {compacto ? (
+        <AbasRolaveis
+          rotulo="Comissões"
+          className="mb-1"
+          itens={[
+            { valor: 'pending', rotulo: 'A receber', contagem: pendingItems.length },
+            { valor: 'received', rotulo: 'Recebidas', contagem: receivedItems.length },
+          ]}
+        />
+      ) : (
+        <TabsList className="grid w-full grid-cols-2 mb-3">
+          <TabsTrigger value="pending" className="text-xs">
+            A Receber ({pendingItems.length})
+          </TabsTrigger>
+          <TabsTrigger value="received" className="text-xs">
+            Recebidas ({receivedItems.length})
+          </TabsTrigger>
+        </TabsList>
+      )}
+
+      <TabsContent value="pending">
+        <ListaComissoes
+          itens={pendingItems}
+          vazio={
+            <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
+              <TrendingUp className="h-8 w-8 mb-2 opacity-50" />
+              <span className="text-sm">Nenhuma comissão pendente</span>
+            </div>
+          }
+        />
+      </TabsContent>
+
+      <TabsContent value="received">
+        <ListaComissoes
+          itens={receivedItems}
+          vazio={
+            <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
+              <CheckCircle className="h-8 w-8 mb-2 opacity-50" />
+              <span className="text-sm">Nenhuma comissão recebida</span>
+            </div>
+          }
+        />
+      </TabsContent>
+    </Tabs>
+  );
+};
+
+export const CommissionDetailsCard = ({ data, loading }: CommissionDetailsCardProps) => {
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-6 w-48" />
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-32 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -180,41 +258,7 @@ export const CommissionDetailsCard = ({ data, loading }: CommissionDetailsCardPr
           </div>
         </div>
 
-        {/* Tabs */}
-        <Tabs defaultValue="pending" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-3">
-            <TabsTrigger value="pending" className="text-xs">
-              A Receber ({pendingItems.length})
-            </TabsTrigger>
-            <TabsTrigger value="received" className="text-xs">
-              Recebidas ({receivedItems.length})
-            </TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="pending">
-            <ListaComissoes
-              itens={pendingItems}
-              vazio={
-                <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
-                  <TrendingUp className="h-8 w-8 mb-2 opacity-50" />
-                  <span className="text-sm">Nenhuma comissão pendente</span>
-                </div>
-              }
-            />
-          </TabsContent>
-
-          <TabsContent value="received">
-            <ListaComissoes
-              itens={receivedItems}
-              vazio={
-                <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
-                  <CheckCircle className="h-8 w-8 mb-2 opacity-50" />
-                  <span className="text-sm">Nenhuma comissão recebida</span>
-                </div>
-              }
-            />
-          </TabsContent>
-        </Tabs>
+        <AbasComissoes data={data} />
       </CardContent>
     </Card>
   );

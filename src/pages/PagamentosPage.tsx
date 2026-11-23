@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import PageHeader from '@/components/comum/PageHeader';
 import AbasRolaveis from '@/components/comum/AbasRolaveis';
-import { useEhCelular } from '@/hooks/useMidia';
+import { useEhCelular, useEhCompacto } from '@/hooks/useMidia';
+import FaixaResumo from '@/components/comum/FaixaResumo';
+import BlocoRecolhivel from '@/components/comum/BlocoRecolhivel';
+import { formatarMoeda, formatarMoedaSemCentavos } from '@/components/comum/formatos';
 import { Navigate } from 'react-router-dom';
 import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
@@ -29,6 +32,7 @@ const PagamentosPage = () => {
   const [propertySelectOpen, setPropertySelectOpen] = useState(false);
   const { properties } = useProperties();
   const celular = useEhCelular();
+  const compacto = useEhCompacto();
 
   const {
     cleanerPayments,
@@ -50,6 +54,97 @@ const PagamentosPage = () => {
 
   const hasPropertyFilter = selectedProperties.length > 0 && !selectedProperties.includes('todas');
   const showGuidanceBanner = !hasPropertyFilter;
+
+  const abas = (
+    <Tabs defaultValue="faxineiras" className="space-y-4 max-lg:space-y-3">
+      <AbasRolaveis
+        rotulo="Pagamentos"
+        itens={[
+          { valor: 'faxineiras', rotulo: 'Faxineiras', icone: Users, contagem: !loading && cleanerPayments.length > 0 ? cleanerPayments.length : undefined },
+          { valor: 'proprietarios', rotulo: 'Proprietários', icone: Building2, contagem: !loading && ownerPayments.length > 0 ? ownerPayments.length : undefined },
+          { valor: 'agenda', rotulo: 'Agenda', icone: CalendarDays, contagem: !loading && schedule.length > 0 ? schedule.length : undefined },
+        ]}
+      />
+
+      <TabsContent value="faxineiras">
+        <CleanerPaymentsTab
+          cleanerPayments={cleanerPayments}
+          loading={loading}
+          hasFilter={hasPropertyFilter}
+        />
+      </TabsContent>
+
+      <TabsContent value="proprietarios">
+        <OwnerPaymentsTab
+          ownerPayments={ownerPayments}
+          loading={loading}
+          hasFilter={hasPropertyFilter}
+        />
+      </TabsContent>
+
+      <TabsContent value="agenda">
+        <RevenueScheduleTab schedule={schedule} loading={loading} />
+      </TabsContent>
+    </Tabs>
+  );
+
+  // Celular (plano T9): mês em largura total, faixa com os totais das faxinas do
+  // mês, balanço recolhido e as três abas dividindo a largura
+  if (compacto) {
+    const comFaxinas = cleanerPayments.filter((c) => c.hasCleaningsThisMonth);
+    const totalMes = comFaxinas.reduce((s, c) => s + c.total, 0);
+    const proxCiclo = comFaxinas.reduce((s, c) => s + c.totalNextCycle, 0);
+    const qtdFaxinas = comFaxinas.reduce((s, c) => s + c.cleanings.length, 0);
+    return (
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
+        <PageHeader titulo="Gestão de Pagamentos" descricao="Balanço financeiro mensal — faxineiras, proprietários e agenda de recebimentos" />
+        <MonthYearSelector month={month} year={year} onChange={handleMonthChange} />
+        <PropertyMultiSelect
+          properties={properties}
+          selectedProperties={selectedProperties}
+          onSelectionChange={setSelectedProperties}
+          isOpen={propertySelectOpen}
+          onToggle={() => setPropertySelectOpen((o) => !o)}
+          fullWidth
+        />
+        {showGuidanceBanner && (
+          <p className="-mt-1 px-1 text-xs text-gray-500">
+            Escolha um ou mais imóveis para ver o balanço do mês e todas as faxineiras vinculadas.
+          </p>
+        )}
+        <FaixaResumo
+          rotulo={proxCiclo > 0 ? `Total do mês · ${qtdFaxinas} ${qtdFaxinas === 1 ? 'faxina' : 'faxinas'}` : 'Total do mês'}
+          valor={loading ? '—' : formatarMoedaSemCentavos(totalMes)}
+          ajuda="Faxinas com saída neste mês, somando todas as faxineiras: o que já foi pago, o que está pendente e o que fica para o próximo ciclo."
+          apoio={[
+            { rotulo: 'Pago', valor: formatarMoedaSemCentavos(kpis.totalCleaningsPaid), tom: 'success' },
+            { rotulo: 'Pendente', valor: formatarMoedaSemCentavos(kpis.totalCleaningsPending), tom: 'warning' },
+            ...(proxCiclo > 0 ? [{ rotulo: 'Próx. ciclo', valor: formatarMoedaSemCentavos(proxCiclo), tom: 'info' as const }] : []),
+            ...(proxCiclo > 0 ? [] : [{ rotulo: 'Faxinas', valor: qtdFaxinas }]),
+          ]}
+        />
+        {hasPropertyFilter && (
+          <BlocoRecolhivel titulo="Balanço do mês" resumo={`Saldo ${formatarMoeda(kpis.netBalance)} · comissão − faxinas − repasse`}>
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
+              {[
+                { rotulo: 'Comissão recebida', valor: kpis.totalCommissionReceived, classe: 'text-success-700' },
+                { rotulo: 'Comissão a receber', valor: kpis.totalCommissionPending, classe: 'text-warning-700' },
+                { rotulo: 'Faxinas pagas', valor: kpis.totalCleaningsPaid, classe: 'text-gray-900' },
+                { rotulo: 'Repasse a proprietários', valor: kpis.totalOwnerTransfer, classe: 'text-gray-900' },
+                { rotulo: 'Saldo do mês', valor: kpis.netBalance, classe: kpis.netBalance >= 0 ? 'text-brand-700' : 'text-danger-600' },
+              ].map((c) => (
+                <div key={c.rotulo} className="min-w-0">
+                  <dt className="truncate text-xs text-gray-500">{c.rotulo}</dt>
+                  <dd className={`truncate font-mono text-sm font-semibold tabular-nums ${c.classe}`}>{formatarMoeda(c.valor)}</dd>
+                </div>
+              ))}
+            </dl>
+          </BlocoRecolhivel>
+        )}
+        {abas}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -95,36 +190,7 @@ const PagamentosPage = () => {
       )}
 
       {/* Tabs */}
-      <Tabs defaultValue="faxineiras" className="space-y-4">
-        <AbasRolaveis
-          rotulo="Pagamentos"
-          itens={[
-            { valor: 'faxineiras', rotulo: 'Faxineiras', icone: Users, contagem: !loading && cleanerPayments.length > 0 ? cleanerPayments.length : undefined },
-            { valor: 'proprietarios', rotulo: 'Proprietários', icone: Building2, contagem: !loading && ownerPayments.length > 0 ? ownerPayments.length : undefined },
-            { valor: 'agenda', rotulo: 'Agenda', icone: CalendarDays, contagem: !loading && schedule.length > 0 ? schedule.length : undefined },
-          ]}
-        />
-
-        <TabsContent value="faxineiras">
-          <CleanerPaymentsTab
-            cleanerPayments={cleanerPayments}
-            loading={loading}
-            hasFilter={hasPropertyFilter}
-          />
-        </TabsContent>
-
-        <TabsContent value="proprietarios">
-          <OwnerPaymentsTab
-            ownerPayments={ownerPayments}
-            loading={loading}
-            hasFilter={hasPropertyFilter}
-          />
-        </TabsContent>
-
-        <TabsContent value="agenda">
-          <RevenueScheduleTab schedule={schedule} loading={loading} />
-        </TabsContent>
-      </Tabs>
+      {abas}
     </div>
   );
 };
