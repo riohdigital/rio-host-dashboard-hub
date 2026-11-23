@@ -27,6 +27,8 @@ import NotFound from "./pages/NotFound";
 import LandingPage from "./pages/LandingPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import { AIChat } from "@/components/chat/AIChat";
+import AvisoAtualizacao from "@/components/pwa/AvisoAtualizacao";
+import SemConexao from "@/components/pwa/SemConexao";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -100,6 +102,8 @@ const App = () => {
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <AvisoAtualizacao />
+        <SemConexao />
         <AuthProvider>
           <BrowserRouter>
             <AppRoutes />
