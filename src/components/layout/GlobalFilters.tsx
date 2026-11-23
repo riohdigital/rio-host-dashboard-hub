@@ -11,8 +11,16 @@ import PropertyMultiSelect from '@/components/dashboard/PropertyMultiSelect';
 import { DatePicker } from '@/components/ui/date-picker';
 import { CalendarDays } from 'lucide-react';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
-const GlobalFilters = () => {
+interface GlobalFiltersProps {
+  /** lateral: compacto, no menu do desktop; gaveta: campos grandes, no celular */
+  variante?: 'lateral' | 'gaveta';
+}
+
+const GlobalFilters = ({ variante = 'lateral' }: GlobalFiltersProps) => {
+  const grande = variante === 'gaveta';
+  const campo = grande ? 'h-11 text-sm' : 'h-8 text-xs';
   const { 
     selectedProperties, 
     selectedPeriod, 
@@ -130,21 +138,21 @@ const GlobalFilters = () => {
   if (propertiesLoading || permissionsLoading) {
     return (
       <div className="px-4 py-2 space-y-3">
-        <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">Filtros</div>
+        {!grande && <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">Filtros</div>}
         <div className="space-y-2">
-          <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
-          <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+          <div className={cn(campo, 'bg-gray-200 rounded-lg animate-pulse')}></div>
+          <div className={cn(campo, 'bg-gray-200 rounded-lg animate-pulse')}></div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="px-4 py-2 space-y-3">
-      <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">Filtros</div>
-      <div className="space-y-2">
+    <div className={cn('px-4 py-2', grande ? 'space-y-4' : 'space-y-3')}>
+      {!grande && <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">Filtros</div>}
+      <div className={grande ? 'space-y-3' : 'space-y-2'}>
         <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-          <SelectTrigger className="h-8 text-xs">
+          <SelectTrigger className={campo}>
             <SelectValue>
               {selectedPeriod === 'custom' && customStartDate && customEndDate 
                 ? getCustomPeriodLabel()
@@ -193,7 +201,7 @@ const GlobalFilters = () => {
                     setCustomEndDate(new Date(year, month + 1, 0));
                   }}
                 >
-                  <SelectTrigger className="h-8 text-xs flex-1">
+                  <SelectTrigger className={cn(campo, 'flex-1')}>
                     <SelectValue placeholder="Mês" />
                   </SelectTrigger>
                   <SelectContent>
@@ -219,7 +227,7 @@ const GlobalFilters = () => {
                     setCustomEndDate(new Date(year, month + 1, 0));
                   }}
                 >
-                  <SelectTrigger className="h-8 text-xs w-[80px]">
+                  <SelectTrigger className={cn(campo, grande ? 'w-[104px]' : 'w-[80px]')}>
                     <SelectValue placeholder="Ano" />
                   </SelectTrigger>
                   <SelectContent>
@@ -267,11 +275,12 @@ const GlobalFilters = () => {
           onSelectionChange={setSelectedProperties} 
           isOpen={propertySelectOpen} 
           onToggle={() => setPropertySelectOpen(!propertySelectOpen)}
-          compact={true}
+          compact={!grande}
+          fullWidth={grande}
         />
 
         <Select value={selectedPlatform} onValueChange={setSelectedPlatform}>
-          <SelectTrigger className="h-8 text-xs">
+          <SelectTrigger className={campo}>
             <SelectValue placeholder="Plataforma" />
           </SelectTrigger>
           <SelectContent>

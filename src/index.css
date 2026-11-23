@@ -40,7 +40,10 @@
     --input: 214.3 31.8% 91.4%;
     --ring: var(--brand);
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
+
+    /* Respiro interno dos cartões: menor no celular */
+    --card-pad: 1rem;
 
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: var(--ink);
@@ -118,8 +121,42 @@
     @apply border-border;
   }
 
+  @media (min-width: 640px) {
+    :root {
+      --card-pad: 1.5rem;
+    }
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  h1, h2, h3 {
+    @apply font-display tracking-tight;
+  }
+
+  /* Celular: campos com 16px evitam o zoom automático do iPhone ao focar */
+  @media (max-width: 767px) {
+    input:not([type='checkbox']):not([type='radio']):not([type='range']),
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
+  }
+
+  /* Quem pediu menos movimento no sistema não vê animações nem transições longas */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 

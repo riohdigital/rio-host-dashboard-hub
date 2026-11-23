@@ -1,17 +1,34 @@
-
 import React from 'react';
 import Sidebar from './Sidebar';
+import NavegacaoCelular from './NavegacaoCelular';
+import { useUserRole } from '@/hooks/useUserRole';
+import { cn } from '@/lib/utils';
 
 interface MainLayoutProps {
   children: React.ReactNode;
 }
 
+/**
+ * Casca das telas logadas.
+ * - A partir de 1024px: menu lateral fixo.
+ * - Abaixo: barra superior fina + barra inferior com abas (faxineira só tem o topo).
+ */
 const MainLayout = ({ children }: MainLayoutProps) => {
+  const { isCleaner } = useUserRole();
+
   return (
-    <div className="min-h-screen bg-surface">
+    <div className="min-h-screen min-h-dvh bg-surface">
       <Sidebar />
-      <div className="ml-64">
-        <main className="p-8">
+      <NavegacaoCelular />
+      <div className="lg:pl-64">
+        <main
+          className={cn(
+            'mx-auto w-full min-w-0 max-w-[1600px] px-4 pt-4 sm:px-6 sm:pt-6 lg:p-8',
+            // Espaço para a barra inferior do celular
+            isCleaner ? 'pb-[calc(1.5rem+env(safe-area-inset-bottom))]' : 'pb-[calc(theme(spacing.tabbar)+1.5rem+env(safe-area-inset-bottom))]',
+            'lg:pb-8',
+          )}
+        >
           {children}
         </main>
       </div>
