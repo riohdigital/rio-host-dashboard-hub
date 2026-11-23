@@ -76,7 +76,7 @@ const RevenueScheduleTab = ({ schedule, loading }: RevenueScheduleTabProps) => {
 
       {/* Timeline */}
       <div className="relative">
-        <div className="absolute left-[92px] top-0 bottom-0 w-0.5 bg-border" />
+        <div className="absolute bottom-0 left-[92px] top-0 hidden w-0.5 bg-border sm:block" />
 
         {schedule.map(day => {
           runningTotal += day.dailyTotal;
@@ -89,7 +89,7 @@ const RevenueScheduleTab = ({ schedule, loading }: RevenueScheduleTabProps) => {
           return (
             <div key={day.date} className="flex gap-4 mb-6">
               {/* Date marker */}
-              <div className="flex-shrink-0 w-[80px] text-right">
+              <div className="w-14 flex-shrink-0 text-right sm:w-[80px]">
                 <div className={`inline-flex flex-col items-center rounded-lg px-2 py-1.5 text-center
                   ${isPast ? 'bg-success-50 border border-success-200' : 'bg-warning-50 border border-warning-200'}`}>
                   <span className="text-xs font-medium text-muted-foreground capitalize">{dayOfWeek}</span>
@@ -101,13 +101,13 @@ const RevenueScheduleTab = ({ schedule, loading }: RevenueScheduleTabProps) => {
               </div>
 
               {/* Dot */}
-              <div className="flex-shrink-0 flex items-start pt-3">
+              <div className="hidden flex-shrink-0 items-start pt-3 sm:flex">
                 <div className={`h-3 w-3 rounded-full border-2 bg-background z-10 
                   ${isPast ? 'border-success-500' : 'border-warning-400'}`} />
               </div>
 
               {/* Entries */}
-              <div className="flex-1 space-y-2">
+              <div className="min-w-0 flex-1 space-y-2">
                 {day.entries.map((entry, idx) => (
                   <div
                     key={`${entry.reservationId}-${idx}`}

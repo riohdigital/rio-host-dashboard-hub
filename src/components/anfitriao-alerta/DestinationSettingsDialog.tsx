@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { FOLHA_NO_CELULAR } from '@/components/comum/classes';
+import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { NotificationDestination } from '@/hooks/useNotificationDestinations';
@@ -13,7 +15,7 @@ interface DestinationSettingsDialogProps {
 const DestinationSettingsDialog = ({ destination, onClose }: DestinationSettingsDialogProps) => {
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className={cn("sm:max-w-[600px]", FOLHA_NO_CELULAR)}>
         <DialogHeader>
           <DialogTitle>Configurações - {destination.destination_name}</DialogTitle>
         </DialogHeader>

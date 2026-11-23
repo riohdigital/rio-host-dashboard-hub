@@ -23,7 +23,7 @@ const DestinationsList = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-xl font-semibold text-foreground">Destinatários de Alertas</h2>
         {canCreate && (
           <Button onClick={() => setShowForm(true)} className="gap-2">

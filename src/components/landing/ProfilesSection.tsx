@@ -104,16 +104,16 @@ const ProfilesSection = () => {
           transition={{ duration: 0.6 }}
           className="text-center mb-12"
         >
-          <h2 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-primary bg-clip-text text-transparent">
+          <h2 className="mb-4 bg-gradient-primary bg-clip-text font-display text-3xl font-extrabold tracking-tight text-transparent sm:text-4xl md:text-5xl">
             Soluções para Cada Perfil
           </h2>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          <p className="mx-auto max-w-2xl text-base text-muted-foreground sm:text-xl">
             Funcionalidades específicas para atender as necessidades de cada usuário
           </p>
         </motion.div>
 
         <Tabs value={activeProfile} onValueChange={setActiveProfile} className="max-w-5xl mx-auto">
-          <TabsList className="grid w-full grid-cols-3 mb-8">
+          <TabsList className="mb-8 grid h-auto w-full grid-cols-1 gap-1 rounded-2xl p-1 sm:grid-cols-3">
             {profiles.map((profile) => (
               <TabsTrigger
                 key={profile.id}
@@ -121,7 +121,7 @@ const ProfilesSection = () => {
                 className="flex items-center gap-2 data-[state=active]:bg-gradient-primary data-[state=active]:text-white"
               >
                 <profile.icon className="h-4 w-4" />
-                <span className="hidden sm:inline">{profile.title}</span>
+                <span>{profile.title}</span>
               </TabsTrigger>
             ))}
           </TabsList>
@@ -139,7 +139,7 @@ const ProfilesSection = () => {
                   className={`absolute inset-0 bg-gradient-to-r ${profile.color} opacity-5 rounded-3xl blur-3xl`}
                 />
                 
-                <div className="relative bg-card/50 backdrop-blur-sm border border-border/50 rounded-3xl p-8">
+                <div className="relative rounded-3xl border border-border/50 bg-card/50 p-5 backdrop-blur-sm sm:p-8">
                   <div className="flex items-center gap-3 mb-6">
                     <div className={`p-3 rounded-xl bg-gradient-to-r ${profile.color}`}>
                       <profile.icon className="h-6 w-6 text-white" />
@@ -147,7 +147,7 @@ const ProfilesSection = () => {
                     <h3 className="text-2xl font-bold">{profile.title}</h3>
                   </div>
 
-                  <div className="grid md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
                     {profile.features.map((feature, index) => (
                       <motion.div
                         key={index}

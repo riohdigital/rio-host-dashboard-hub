@@ -1,4 +1,5 @@
 import { useUserPermissions } from '@/contexts/UserPermissionsContext';
+import PageHeader from '@/components/comum/PageHeader';
 import { Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
@@ -35,18 +36,16 @@ const PainelGestorPage = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gradient-primary">🎯 Painel do Gestor</h1>
-          <p className="text-muted-foreground">
-            Acompanhe suas comissões e performance operacional
-          </p>
-        </div>
-        <Button variant="outline" onClick={refetch} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-          Atualizar
-        </Button>
-      </div>
+      <PageHeader
+        titulo="Painel do Gestor"
+        descricao="Acompanhe suas comissões e performance operacional"
+        acao={
+          <Button variant="outline" onClick={refetch} disabled={loading} className="gap-2">
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Atualizar
+          </Button>
+        }
+      />
 
       {/* KPI Cards */}
       <CommissionKPICards kpis={kpis} loading={loading} />

@@ -1,10 +1,12 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { Badge } from "@/components/ui/badge";
-import { Download, FileText, DollarSign, Calendar, TrendingUp, PieChart } from "lucide-react";
+import { Download, FileText, DollarSign, Calendar, TrendingUp, PieChart, Share2, Check } from "lucide-react";
+import PageHeader from "@/components/comum/PageHeader";
+import { cn } from "@/lib/utils";
 import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
 import { useDateRange } from '@/hooks/dashboard/useDateRange';
 import { useUserPermissions } from '@/contexts/UserPermissionsContext';
@@ -29,6 +31,20 @@ const RelatoriosPage: React.FC = () => {
   const [selectedProperty, setSelectedProperty] = useState<string>('all');
   const [localPlatform, setLocalPlatform] = useState<string>('all');
   const [currentReport, setCurrentReport] = useState<ReportData | null>(null);
+  const [exportando, setExportando] = useState(false);
+  // Prévia: o modelo tem 794px (A4); em telas menores ele é reduzido para caber
+  const caixaPreviaRef = useRef<HTMLDivElement>(null);
+  const [escalaPrevia, setEscalaPrevia] = useState(1);
+  useEffect(() => {
+    const el = caixaPreviaRef.current;
+    if (!el) return;
+    const medir = () => setEscalaPrevia(Math.min(1, el.clientWidth / 794));
+    medir();
+    const ro = new ResizeObserver(medir);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [currentReport]);
+  const podeCompartilhar = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
 
   // Atualizar automaticamente a prévia quando período, propriedades ou plataforma globais mudarem
   useEffect(() => {
@@ -93,7 +109,7 @@ const RelatoriosPage: React.FC = () => {
     }
   };
 
-  const handleExportPDF = async () => {
+  const handleExportPDF = async (compartilhar = false) => {
     if (!currentReport) {
       toast({
         title: "Erro",
@@ -104,17 +120,25 @@ const RelatoriosPage: React.FC = () => {
     }
 
     try {
-      await exportToPDF('report-preview', `relatorio-${currentReport.type}-${new Date().toISOString().split('T')[0]}`);
-      toast({
-        title: "Sucesso",
-        description: "Relatório exportado em PDF com sucesso!"
-      });
+      // A prévia reduzida volta ao tamanho real durante a captura: o PDF fica igual ao de sempre
+      setExportando(true);
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      await exportToPDF('report-preview', `relatorio-${currentReport.type}-${new Date().toISOString().split('T')[0]}`, { compartilhar });
+      if (!compartilhar) {
+        toast({
+          title: "Sucesso",
+          description: "Relatório exportado em PDF com sucesso!"
+        });
+      }
     } catch (error) {
+      if ((error as Error)?.name === 'AbortError') return;
       toast({
         title: "Erro",
         description: "Falha ao exportar PDF. Tente novamente.",
         variant: "destructive"
       });
+    } finally {
+      setExportando(false);
     }
   };
 
@@ -146,14 +170,7 @@ const RelatoriosPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold">Relatórios</h1>
-            <p className="text-muted-foreground">
-              Gere relatórios detalhados sobre suas propriedades e reservas
-            </p>
-          </div>
-        </div>
+        <PageHeader titulo="Relatórios" descricao="Gere relatórios detalhados sobre suas propriedades e reservas" />
 
       {/* Filtros */}
       <Card>
@@ -165,34 +182,39 @@ const RelatoriosPage: React.FC = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* Tipo de Relatório */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Tipo de Relatório</label>
-              <Select value={reportType} onValueChange={(value) => setReportType(value as any)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  {reportTypes.map((type) => {
-                    const Icon = type.icon;
-                    return (
-                      <SelectItem key={type.value} value={type.value}>
-                        <div className="flex items-center gap-2">
-                          <Icon className="h-4 w-4" />
-                          {type.label}
-                        </div>
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
+            {/* Tipo de Relatório: lista para tocar */}
+            <div className="space-y-2 md:col-span-2 lg:col-span-3">
+              <span className="text-sm font-medium">Tipo de Relatório</span>
+              <div role="radiogroup" aria-label="Tipo de relatório" className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {reportTypes.map((type) => {
+                  const Icon = type.icon;
+                  const ativo = reportType === type.value;
+                  return (
+                    <button
+                      key={type.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={ativo}
+                      onClick={() => setReportType(type.value as typeof reportType)}
+                      className={cn(
+                        'flex min-h-12 items-center gap-3 rounded-xl border px-3 text-left text-sm transition-colors',
+                        ativo ? 'border-brand bg-brand-50 font-semibold text-brand-800' : 'bg-background hover:bg-surface',
+                      )}
+                    >
+                      <Icon className={cn('h-4 w-4 shrink-0', ativo ? 'text-brand' : 'text-gray-500')} />
+                      <span className="flex-1">{type.label}</span>
+                      {ativo && <Check className="h-4 w-4 text-brand" />}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Plataforma */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Plataforma</label>
               <Select value={localPlatform} onValueChange={setLocalPlatform}>
-                <SelectTrigger>
+                <SelectTrigger className="h-11 md:h-10">
                   <SelectValue placeholder="Todas as plataformas" />
                 </SelectTrigger>
                 <SelectContent>
@@ -208,38 +230,34 @@ const RelatoriosPage: React.FC = () => {
 
           {/* Período Atual */}
           <div className="flex items-center gap-2">
-            <Badge variant="secondary">
-              Período Selecionado: {startDateString} até {endDateString}
+            <Badge variant="secondary" className="font-mono font-normal">
+              Período: {startDateString} até {endDateString}
             </Badge>
           </div>
         </CardContent>
       </Card>
 
       {/* Ações */}
-      <div className="flex gap-4">
-        <Button 
-          onClick={handleGenerateReport} 
-          className="gap-2"
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-3">
+        <Button
+          onClick={handleGenerateReport}
+          className="col-span-2 gap-2 sm:col-span-1"
           disabled={reportLoading || propertiesLoading}
         >
           <FileText className="h-4 w-4" />
-          {reportLoading ? 'Gerando...' : 'Prévia'}
+          {reportLoading ? 'Gerando...' : 'Gerar prévia'}
         </Button>
-        <Button 
-          variant="outline" 
-          onClick={handleExportPDF} 
-          className="gap-2"
-          disabled={!currentReport}
-        >
+        <Button variant="outline" onClick={() => handleExportPDF(false)} className="gap-2" disabled={!currentReport || exportando}>
           <Download className="h-4 w-4" />
-          PDF
+          Baixar PDF
         </Button>
-        <Button 
-          variant="outline" 
-          onClick={handleExportExcel} 
-          className="gap-2"
-          disabled={!currentReport}
-        >
+        {podeCompartilhar ? (
+          <Button variant="outline" onClick={() => handleExportPDF(true)} className="gap-2" disabled={!currentReport || exportando}>
+            <Share2 className="h-4 w-4" />
+            Compartilhar
+          </Button>
+        ) : null}
+        <Button variant="outline" onClick={handleExportExcel} className={cn('gap-2', !podeCompartilhar && 'col-span-1')} disabled={!currentReport}>
           <Download className="h-4 w-4" />
           Excel
         </Button>
@@ -252,8 +270,13 @@ const RelatoriosPage: React.FC = () => {
             <CardTitle>Prévia do Relatório</CardTitle>
           </CardHeader>
           <CardContent>
-            <div id="report-preview">
-              <EnhancedReportTemplate report={currentReport} />
+            <div ref={caixaPreviaRef} className="w-full overflow-hidden">
+              {/* zoom reduz a prévia no celular; na exportação volta ao tamanho real */}
+              <div style={!exportando && escalaPrevia < 1 ? { width: 794, zoom: escalaPrevia } : undefined}>
+                <div id="report-preview">
+                  <EnhancedReportTemplate report={currentReport} />
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>

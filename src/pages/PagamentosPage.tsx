@@ -1,4 +1,7 @@
 import React, { useState } from 'react';
+import PageHeader from '@/components/comum/PageHeader';
+import { ABAS_ROLAVEIS } from '@/components/comum/classes';
+import { useEhCelular } from '@/hooks/useMidia';
 import { Navigate } from 'react-router-dom';
 import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -25,6 +28,7 @@ const PagamentosPage = () => {
   const [selectedProperties, setSelectedProperties] = useState<string[]>(['todas']);
   const [propertySelectOpen, setPropertySelectOpen] = useState(false);
   const { properties } = useProperties();
+  const celular = useEhCelular();
 
   const {
     cleanerPayments,
@@ -50,29 +54,26 @@ const PagamentosPage = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gradient-primary">💰 Gestão de Pagamentos</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Balanço financeiro mensal — faxineiras, proprietários e agenda de recebimentos
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        titulo="Gestão de Pagamentos"
+        descricao="Balanço financeiro mensal — faxineiras, proprietários e agenda de recebimentos"
+      />
 
       {/* Filter Bar */}
-      <div className="flex flex-wrap items-center gap-3 bg-muted/30 rounded-lg px-4 py-3">
-        <div className="flex items-center gap-2 flex-1 flex-wrap">
-          <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Filtrar por:</span>
+      <div className="flex flex-col gap-3 rounded-2xl border bg-card p-3 sm:flex-row sm:flex-wrap sm:items-center sm:px-4">
+        <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+          <span className="hidden whitespace-nowrap text-sm font-medium text-muted-foreground sm:inline">Filtrar por:</span>
           <PropertyMultiSelect
             properties={properties}
             selectedProperties={selectedProperties}
             onSelectionChange={setSelectedProperties}
             isOpen={propertySelectOpen}
             onToggle={() => setPropertySelectOpen(o => !o)}
+            fullWidth={celular}
           />
           <MonthYearSelector month={month} year={year} onChange={handleMonthChange} />
         </div>
-        <Button variant="outline" size="sm" onClick={refetch} disabled={loading}>
+        <Button variant="outline" size="sm" onClick={refetch} disabled={loading} className="h-10 sm:h-9">
           <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
           Atualizar
         </Button>
@@ -95,7 +96,7 @@ const PagamentosPage = () => {
 
       {/* Tabs */}
       <Tabs defaultValue="faxineiras" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3 max-w-lg">
+        <TabsList className={ABAS_ROLAVEIS}>
           <TabsTrigger value="faxineiras" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             Faxineiras

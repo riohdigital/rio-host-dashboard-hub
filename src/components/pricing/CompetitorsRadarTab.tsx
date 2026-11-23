@@ -176,11 +176,11 @@ export const CompetitorsRadarTab: React.FC<Props> = ({ propertyId, properties, s
       </div>
 
       {selectedProperty && (minhaNoite || mercado) && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 [&>*]:min-w-0">
           <Card className="bg-gradient-to-br from-brand-50/50 to-white border-brand-100 shadow-xs">
             <CardContent className="p-4">
               <span className="text-xs font-medium text-gray-500">Sua noite comum</span>
-              <div className="text-2xl font-bold text-gray-900 mt-1">{reais(minhaNoite)}</div>
+              <div className="mt-1 font-mono text-xl font-semibold tabular-nums text-gray-900 sm:text-2xl">{reais(minhaNoite)}</div>
               <span className="text-[11px] text-gray-400">Mediana de terça a quinta no seu calendário (próximos 60 dias)</span>
             </CardContent>
           </Card>
@@ -236,7 +236,7 @@ export const CompetitorsRadarTab: React.FC<Props> = ({ propertyId, properties, s
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3 [&>*]:min-w-0">
           {concorrentes.map(c => {
             const lista = precos[c.id] || [];
             const porTipo = new Map<string, number[]>();
@@ -263,7 +263,7 @@ export const CompetitorsRadarTab: React.FC<Props> = ({ propertyId, properties, s
                     </a>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-1 bg-gray-50 p-2 rounded-lg text-xs text-gray-600 border border-gray-100">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-gray-100 bg-gray-50 p-2 text-xs text-gray-600">
                     <span className="flex items-center gap-1"><MapPin className="h-3 w-3 text-gray-400" />{c.distance_km !== null ? `${Number(c.distance_km).toLocaleString('pt-BR')} km` : '—'}</span>
                     <span className="flex items-center gap-1"><Bed className="h-3 w-3 text-gray-400" />{c.bedrooms === null ? '—' : c.bedrooms === 0 ? 'Estúdio' : `${c.bedrooms} qto`}</span>
                     <span className="flex items-center gap-1 text-warning-600 font-semibold">
@@ -279,7 +279,7 @@ export const CompetitorsRadarTab: React.FC<Props> = ({ propertyId, properties, s
                       [...porTipo.entries()].map(([tipo, valores]) => (
                         <div key={tipo} className="flex items-center justify-between">
                           <span className="text-gray-500">{ROTULO[tipo] || tipo}</span>
-                          <span className="font-semibold text-gray-800">{reais(mediana(valores))}/noite</span>
+                          <span className="font-mono font-semibold tabular-nums text-gray-800">{reais(mediana(valores))}/noite</span>
                         </div>
                       ))
                     )}

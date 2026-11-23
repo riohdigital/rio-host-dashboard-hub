@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { cn } from '@/lib/utils';
+import MarcaIA from '@/components/comum/MarcaIA';
+import { ABAS_ROLAVEIS } from '@/components/comum/classes';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -601,17 +604,17 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
       <ProntidaoPrecificacao properties={activeSelectedProperties} regras={regras} onAtualizado={fetchData} />
 
       {/* Grid de KPIs Rápidos */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
         {/* Alertas Críticos */}
         <Card className="border-l-4 border-l-danger-500 shadow-xs hover:shadow-md transition-shadow">
-          <CardContent className="p-5">
-            <div className="flex justify-between items-start">
+          <CardContent className="p-3.5 sm:p-5">
+            <div className="flex justify-between items-start gap-2">
               <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Urgência Crítica</p>
-                <h3 className="text-2xl font-bold text-danger-600 mt-1">{kpis.criticalAlertsCount}</h3>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 sm:text-xs">Urgência Crítica</p>
+                <h3 className="mt-1 break-words font-mono text-xl font-semibold tabular-nums text-danger-600 sm:text-2xl">{kpis.criticalAlertsCount}</h3>
                 <p className="text-xs text-gray-500 mt-1">Impacto crítico na diária e receita</p>
               </div>
-              <div className="p-2.5 rounded-full bg-danger-50 text-danger-600 animate-pulse">
+              <div className="hidden shrink-0 rounded-full bg-danger-50 p-2.5 text-danger-600 sm:block">
                 <Flame className="h-5 w-5" />
               </div>
             </div>
@@ -620,16 +623,16 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
 
         {/* Ganho Estimado em Aberto (Abaixo do Mercado) */}
         <Card className="border-l-4 border-l-success-500 shadow-xs hover:shadow-md transition-shadow">
-          <CardContent className="p-5">
-            <div className="flex justify-between items-start">
+          <CardContent className="p-3.5 sm:p-5">
+            <div className="flex justify-between items-start gap-2">
               <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Ganho em Aberto</p>
-                <h3 className="text-2xl font-bold text-success-600 mt-1">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 sm:text-xs">Ganho em Aberto</p>
+                <h3 className="mt-1 break-words font-mono text-xl font-semibold tabular-nums text-success-600 sm:text-2xl">
                   +R$ {kpis.estimatedRevenueGain.toLocaleString('pt-BR')}
                 </h3>
                 <p className="text-xs text-gray-500 mt-1">{(kpis.pendingUnderpricingCount ?? 0)} oportunidade(s) em feriados, eventos e noites órfãs</p>
               </div>
-              <div className="p-2.5 rounded-full bg-success-50 text-success-600">
+              <div className="hidden shrink-0 rounded-full p-2.5 bg-success-50 text-success-600 sm:block">
                 <TrendingUp className="h-5 w-5" />
               </div>
             </div>
@@ -638,14 +641,14 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
 
         {/* Tarifas Acima do Mercado (Calibração) */}
         <Card className="border-l-4 border-l-brand-500 shadow-xs hover:shadow-md transition-shadow">
-          <CardContent className="p-5">
-            <div className="flex justify-between items-start">
+          <CardContent className="p-3.5 sm:p-5">
+            <div className="flex justify-between items-start gap-2">
               <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Acima do Mercado</p>
-                <h3 className="text-2xl font-bold text-brand-600 mt-1">{(kpis.pendingOverpricingCount ?? 0)}</h3>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 sm:text-xs">Acima do Mercado</p>
+                <h3 className="mt-1 break-words font-mono text-xl font-semibold tabular-nums text-brand-600 sm:text-2xl">{(kpis.pendingOverpricingCount ?? 0)}</h3>
                 <p className="text-xs text-gray-500 mt-1">Datas livres com sua diária mais de 25% acima dos parecidos</p>
               </div>
-              <div className="p-2.5 rounded-full bg-brand-50 text-brand-600">
+              <div className="hidden shrink-0 rounded-full p-2.5 bg-brand-50 text-brand-600 sm:block">
                 <TrendingDown className="h-5 w-5" />
               </div>
             </div>
@@ -654,14 +657,14 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
 
         {/* Eventos Mapeados */}
         <Card className="border-l-4 border-l-brand shadow-xs hover:shadow-md transition-shadow">
-          <CardContent className="p-5">
-            <div className="flex justify-between items-start">
+          <CardContent className="p-3.5 sm:p-5">
+            <div className="flex justify-between items-start gap-2">
               <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Eventos na Região</p>
-                <h3 className="text-2xl font-bold text-brand mt-1">{kpis.upcomingEventsCount}</h3>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 sm:text-xs">Eventos na Região</p>
+                <h3 className="mt-1 break-words font-mono text-xl font-semibold tabular-nums text-brand sm:text-2xl">{kpis.upcomingEventsCount}</h3>
                 <p className="text-xs text-gray-500 mt-1">Feriados e eventos onde os imóveis estão, a partir de hoje</p>
               </div>
-              <div className="p-2.5 rounded-full bg-brand/10 text-brand">
+              <div className="hidden shrink-0 rounded-full p-2.5 bg-brand/10 text-brand sm:block">
                 <Calendar className="h-5 w-5" />
               </div>
             </div>
@@ -671,7 +674,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
 
       {/* Navegação por Abas de Inteligência de Precificação */}
       <Tabs defaultValue="underpricing" className="w-full space-y-6">
-        <TabsList className="bg-white border p-1 rounded-xl shadow-xs inline-flex h-11 w-full sm:w-auto gap-1">
+        <TabsList className={cn(ABAS_ROLAVEIS, "gap-1 rounded-xl border bg-white p-1 shadow-xs sm:w-fit sm:max-w-full")}>
           <TabsTrigger
             value="underpricing"
             className="data-[state=active]:bg-success-600 data-[state=active]:text-white gap-2 text-xs font-semibold px-3 py-2 rounded-lg transition-all"
@@ -722,7 +725,8 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
             className="data-[state=active]:bg-brand data-[state=active]:text-white gap-2 text-xs font-semibold px-3 py-2 rounded-lg transition-all"
           >
             <ShieldCheck className="h-4 w-4" />
-            <span>Auditoria IA</span>
+            <span>Auditoria</span>
+            <MarcaIA />
           </TabsTrigger>
         </TabsList>
 
@@ -928,7 +932,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
                               </div>
 
                               {/* Caixa Comparativa de Valores */}
-                              <div className="flex items-center gap-4 bg-gray-50 p-3 rounded-lg border text-xs">
+                              <div className="grid grid-cols-2 gap-3 rounded-xl border bg-gray-50 p-3 text-xs sm:flex sm:items-center sm:gap-4">
                                 <div>
                                   <div className="flex items-center gap-1.5 mb-0.5">
                                     <span className="text-gray-600 font-medium">Tarifa Atual</span>
@@ -948,28 +952,28 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
                                       </Badge>
                                     )}
                                   </div>
-                                  <span className="font-semibold text-gray-800 text-sm">
+                                  <span className="font-mono text-sm font-semibold tabular-nums text-gray-800">
                                     {reais(alert.current_price)}/noite
                                   </span>
                                 </div>
 
-                                <ArrowRight className="h-4 w-4 text-gray-400 mt-2" />
+                                <ArrowRight className="mt-2 hidden h-4 w-4 text-gray-400 sm:block" />
 
                                 <div>
-                                  <span className="text-gray-600 font-medium block">Tarifa Sugerida</span>
-                                  <span className="font-bold text-brand text-sm">
+                                  <span className="flex items-center gap-1.5 font-medium text-gray-600">Tarifa Sugerida <MarcaIA /></span>
+                                  <span className="font-mono text-sm font-semibold tabular-nums text-brand">
                                     {reais(alert.suggested_price)}/noite
                                   </span>
                                 </div>
 
-                                <div className="border-l pl-4">
+                                <div className="sm:border-l sm:pl-4">
                                   <span className="text-gray-600 font-medium block">Estadia Mínima</span>
                                   <span className="font-semibold text-gray-700 text-sm">
                                     {alert.suggested_min_nights || 1} noites
                                   </span>
                                 </div>
 
-                                <div className="border-l pl-4 ml-auto text-right">
+                                <div className="text-right sm:ml-auto sm:border-l sm:pl-4">
                                   <span className="text-success-700 font-semibold block">Ganho Estimado</span>
                                   <span className="font-bold text-success-600 text-sm">
                                     +{reais(alert.estimated_revenue_gain || 0)}
@@ -979,7 +983,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
                             </div>
 
                             {/* Botões de Ação */}
-                            <div className="flex md:flex-col gap-2 min-w-[130px] justify-end">
+                            <div className="flex w-full flex-wrap justify-end gap-2 md:w-auto md:min-w-[130px] md:flex-col [&>button]:flex-1 md:[&>button]:flex-none">
                               {alert.status === 'Pendente' ? (
                                 <>
                                   <Button
@@ -1212,7 +1216,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
                               </div>
 
                               {/* Caixa Comparativa de Valores */}
-                              <div className="flex items-center gap-4 bg-gray-50 p-3 rounded-lg border text-xs">
+                              <div className="grid grid-cols-2 gap-3 rounded-xl border bg-gray-50 p-3 text-xs sm:flex sm:items-center sm:gap-4">
                                 <div>
                                   <div className="flex items-center gap-1.5 mb-0.5">
                                     <span className="text-gray-600 font-medium">Sua Diária Atual</span>
@@ -1223,28 +1227,28 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
                                       Seu Calendário
                                     </Badge>
                                   </div>
-                                  <span className="font-bold text-gray-900 text-sm">
+                                  <span className="font-mono text-sm font-semibold tabular-nums text-gray-900">
                                     {reais(alert.current_price)}/noite
                                   </span>
                                 </div>
 
-                                <ArrowRight className="h-4 w-4 text-gray-400 mt-2" />
+                                <ArrowRight className="mt-2 hidden h-4 w-4 text-gray-400 sm:block" />
 
                                 <div>
-                                  <span className="text-gray-600 font-medium block">Mediana CompSet (Sugerida)</span>
-                                  <span className="font-bold text-brand text-sm">
+                                  <span className="flex flex-wrap items-center gap-1.5 font-medium text-gray-600">Mediana CompSet (Sugerida) <MarcaIA /></span>
+                                  <span className="font-mono text-sm font-semibold tabular-nums text-brand">
                                     {reais(alert.suggested_price)}/noite
                                   </span>
                                 </div>
 
-                                <div className="border-l pl-4">
+                                <div className="sm:border-l sm:pl-4">
                                   <span className="text-gray-600 font-medium block">Estadia Mínima</span>
                                   <span className="font-semibold text-gray-700 text-sm">
                                     {alert.suggested_min_nights || 1} noites
                                   </span>
                                 </div>
 
-                                <div className="border-l pl-4 ml-auto text-right">
+                                <div className="text-right sm:ml-auto sm:border-l sm:pl-4">
                                   <span className="text-brand-700 font-medium block">Posicionamento</span>
                                   <span className="font-bold text-brand-700 text-sm">
                                     Tarifa Premium (+{diffPct}%)
@@ -1254,7 +1258,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
                             </div>
 
                             {/* Botões de Ação para Overpricing */}
-                            <div className="flex md:flex-col gap-2 min-w-[170px] justify-end">
+                            <div className="flex w-full flex-wrap justify-end gap-2 md:w-auto md:min-w-[170px] md:flex-col [&>button]:flex-1 md:[&>button]:flex-none">
                               {alert.status === 'Pendente' ? (
                                 <>
                                   <Button

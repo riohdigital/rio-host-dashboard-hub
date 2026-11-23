@@ -105,10 +105,10 @@ const PropertyInvestmentDetailPage = () => {
 
   return (
     <>
-      <div className="space-y-8">
+      <div className="space-y-6 sm:space-y-8">
         {/* Header */}
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4">
             <Button
               variant="outline"
               size="sm"
@@ -118,7 +118,7 @@ const PropertyInvestmentDetailPage = () => {
               Voltar
             </Button>
             <div>
-              <h1 className="text-3xl font-bold text-gradient-primary">
+              <h1 className="text-2xl font-extrabold text-gradient-primary sm:text-3xl">
                 {property.name}
                 {property.nickname && (
                   <span className="text-xl text-gray-500 ml-2">({property.nickname})</span>
@@ -153,7 +153,7 @@ const PropertyInvestmentDetailPage = () => {
 
         {/* KPIs Específicos da Propriedade */}
         {propertyROI && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-6 [&>*]:min-w-0">
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-gray-600">
@@ -163,7 +163,7 @@ const PropertyInvestmentDetailPage = () => {
               <CardContent>
                 <div className="flex items-center gap-2">
                   <DollarSign className="h-5 w-5 text-danger-500" />
-                  <span className="text-2xl font-bold text-danger-600">
+                  <span className="break-words font-mono text-lg font-semibold tabular-nums sm:text-xl text-danger-600">
                     {formatCurrency(propertyROI.total_investment)}
                   </span>
                 </div>
@@ -179,7 +179,7 @@ const PropertyInvestmentDetailPage = () => {
               <CardContent>
                 <div className="flex items-center gap-2">
                   <TrendingUp className="h-5 w-5 text-success-500" />
-                  <span className="text-2xl font-bold text-success-600">
+                  <span className="break-words font-mono text-lg font-semibold tabular-nums sm:text-xl text-success-600">
                     {formatCurrency(propertyROI.net_revenue)}
                   </span>
                 </div>
@@ -195,7 +195,7 @@ const PropertyInvestmentDetailPage = () => {
               <CardContent>
                 <div className="flex items-center gap-2">
                   <BarChart3 className="h-5 w-5 text-info-500" />
-                  <span className={`text-2xl font-bold ${
+                  <span className={`break-words font-mono text-lg font-semibold tabular-nums sm:text-xl ${
                     propertyROI.roi_percentage >= 0 ? 'text-success-600' : 'text-danger-600'
                   }`}>
                     {propertyROI.roi_percentage.toFixed(1)}%
@@ -213,7 +213,7 @@ const PropertyInvestmentDetailPage = () => {
               <CardContent>
                 <div className="flex items-center gap-2">
                   <Calendar className="h-5 w-5 text-brand-500" />
-                  <span className="text-2xl font-bold text-brand-600">
+                  <span className="break-words font-mono text-lg font-semibold tabular-nums sm:text-xl text-brand-600">
                     {formatPaybackTime(propertyROI.payback_months)}
                   </span>
                 </div>

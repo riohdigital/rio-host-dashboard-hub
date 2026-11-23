@@ -482,7 +482,7 @@ const ReceiptGenerator = () => {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Tipo de Recibo:</label>
@@ -502,8 +502,8 @@ const ReceiptGenerator = () => {
               </p>
             </div>
             {receiptType === 'guest'
-              ? <Button onClick={generateGuestBatchPDF} disabled={guestReceipts.length === 0} className="flex items-center gap-2"><Download className="h-4 w-4" />Gerar Todos os Comprovantes</Button>
-              : <Button onClick={generateBatchPDF} disabled={reservations.length === 0} className="flex items-center gap-2"><Download className="h-4 w-4" />Gerar Todos os Recibos</Button>}
+              ? <Button onClick={generateGuestBatchPDF} disabled={guestReceipts.length === 0} className="flex w-full items-center gap-2 whitespace-normal sm:w-auto"><Download className="h-4 w-4" />Gerar Todos os Comprovantes</Button>
+              : <Button onClick={generateBatchPDF} disabled={reservations.length === 0} className="flex w-full items-center gap-2 whitespace-normal sm:w-auto"><Download className="h-4 w-4" />Gerar Todos os Recibos</Button>}
           </div>
           <Separator />
           {receiptType === 'guest' ? (
@@ -512,13 +512,13 @@ const ReceiptGenerator = () => {
               <div className="text-center py-8 text-muted-foreground">Nenhuma reserva com valor pago pelo hóspede no período</div>
             ) : (
               guestReceipts.map((receipt) => (
-                <div key={receipt.key} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                  <div className="flex-1 space-y-1">
+                <div key={receipt.key} className="flex flex-col gap-3 rounded-xl border p-4 transition-colors hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex items-center gap-2 flex-wrap"><Badge>{formatMonthLabel(receipt.monthKey)}</Badge><Badge variant="outline">{receipt.reservation.reservation_code}</Badge><Badge variant="secondary">{receipt.reservation.platform}</Badge></div>
                     <div className="flex items-center gap-4 text-sm text-muted-foreground pt-1 flex-wrap"><div className="flex items-center gap-1"><User className="h-3 w-3" />{receipt.reservation.guest_name || 'Nome não informado'}</div><div className="flex items-center gap-1"><MapPin className="h-3 w-3" />{receipt.reservation.properties?.name || 'Propriedade não informada'}</div><div className="flex items-center gap-1"><Calendar className="h-3 w-3" />{formatDate(receipt.periodStart)} - {formatDate(receipt.periodEnd)} ({receipt.nightsInMonth} noite(s))</div></div>
-                    <div className="text-lg font-semibold text-primary pt-1">{formatCurrency(receipt.amount)}</div>
+                    <div className="pt-1 font-mono text-lg font-semibold tabular-nums text-primary">{formatCurrency(receipt.amount)}</div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 [&>button]:flex-1 sm:[&>button]:flex-none">
                     <Button variant="outline" size="sm" onClick={() => setPreviewGuestReceipt(receipt)} className="flex items-center gap-1"><Eye className="h-3 w-3" />Prévia</Button>
                     <Button size="sm" onClick={() => generateGuestPDF(receipt)} className="flex items-center gap-1"><Download className="h-3 w-3" />PDF</Button>
                   </div>
@@ -532,13 +532,13 @@ const ReceiptGenerator = () => {
               <div className="text-center py-8 text-muted-foreground">Nenhuma reserva encontrada</div>
             ) : (
               reservations.map((reservation) => (
-                <div key={reservation.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                  <div className="flex-1 space-y-1">
+                <div key={reservation.id} className="flex flex-col gap-3 rounded-xl border p-4 transition-colors hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex items-center gap-2 flex-wrap"><Badge variant="outline">{reservation.reservation_code}</Badge><Badge variant={reservation.platform === 'Airbnb' ? 'default' : 'secondary'}>{reservation.platform}</Badge>{reservation.payment_status && (<Badge variant={reservation.payment_status === 'Pago' ? 'secondary' : 'destructive'}>{reservation.payment_status}</Badge>)}</div>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground pt-1"><div className="flex items-center gap-1"><User className="h-3 w-3" />{reservation.guest_name || 'Nome não informado'}</div><div className="flex items-center gap-1"><MapPin className="h-3 w-3" />{reservation.properties?.name || 'Propriedade não informada'}</div><div className="flex items-center gap-1"><Calendar className="h-3 w-3" />{formatDate(reservation.check_in_date)} - {formatDate(reservation.check_out_date)}</div></div>
-                    <div className="text-lg font-semibold text-primary pt-1">{formatCurrency(calculateOwnerValue(reservation))}</div>
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground pt-1 flex-wrap"><div className="flex items-center gap-1"><User className="h-3 w-3" />{reservation.guest_name || 'Nome não informado'}</div><div className="flex items-center gap-1"><MapPin className="h-3 w-3" />{reservation.properties?.name || 'Propriedade não informada'}</div><div className="flex items-center gap-1"><Calendar className="h-3 w-3" />{formatDate(reservation.check_in_date)} - {formatDate(reservation.check_out_date)}</div></div>
+                    <div className="pt-1 font-mono text-lg font-semibold tabular-nums text-primary">{formatCurrency(calculateOwnerValue(reservation))}</div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 [&>button]:flex-1 sm:[&>button]:flex-none">
                     <Button variant="outline" size="sm" onClick={() => setPreviewReservation(reservation)} className="flex items-center gap-1"><Eye className="h-3 w-3" />Prévia</Button>
                     <Button size="sm" onClick={() => generatePDF(reservation)} className="flex items-center gap-1"><Download className="h-3 w-3" />PDF</Button>
                   </div>

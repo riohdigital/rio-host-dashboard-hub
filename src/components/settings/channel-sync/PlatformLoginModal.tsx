@@ -286,7 +286,7 @@ export const PlatformLoginModal: React.FC<PlatformLoginModalProps> = ({ open, on
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[96vw] max-w-[1180px] p-0 gap-0 overflow-hidden border-border/60 bg-background">
+      <DialogContent className="w-[96vw] max-w-[1180px] p-0 gap-0 overflow-hidden border-border/60 bg-background max-sm:inset-0 max-sm:h-dvh max-sm:w-full max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-none max-sm:border-0 max-sm:overflow-y-auto">
         {/* Cabeçalho */}
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-border/60">
           <div className="flex items-center gap-3 min-w-0">

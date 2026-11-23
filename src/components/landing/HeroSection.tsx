@@ -43,7 +43,7 @@ const HeroSection = ({ onGetStarted, isLoggedIn }: HeroSectionProps) => {
             <img 
               src="/LOGO RIOH HOST.png" 
               alt="Rioh Host" 
-              className="h-24 w-auto drop-shadow-2xl"
+              className="h-16 w-auto drop-shadow-2xl sm:h-24"
             />
           </motion.div>
 
@@ -52,7 +52,7 @@ const HeroSection = ({ onGetStarted, isLoggedIn }: HeroSectionProps) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.6 }}
-            className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-primary bg-clip-text text-transparent"
+            className="mb-6 bg-gradient-primary bg-clip-text font-display text-4xl font-extrabold tracking-tight text-transparent sm:text-5xl md:text-7xl"
           >
             Gestão Inteligente para
             <span className="block mt-2">Propriedades de Temporada</span>
@@ -109,7 +109,7 @@ const HeroSection = ({ onGetStarted, isLoggedIn }: HeroSectionProps) => {
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1, duration: 0.6 }}
-            className="grid grid-cols-3 gap-8 max-w-2xl mx-auto mb-12"
+            className="mx-auto mb-12 grid max-w-2xl grid-cols-1 gap-6 min-[420px]:grid-cols-3 sm:gap-8"
           >
             <div className="text-center">
               <div className="text-3xl font-bold text-primary">90%</div>

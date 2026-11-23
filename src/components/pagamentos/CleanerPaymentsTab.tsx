@@ -112,21 +112,21 @@ const CleanerCard = ({ cleaner }: CleanerCardProps) => {
                 <CheckCircle className="h-3 w-3 text-success-500" />
                 Pago
               </div>
-              <div className="font-semibold text-sm text-success-600">{fmt(cleaner.totalPaid)}</div>
+              <div className="font-mono text-sm font-semibold tabular-nums text-success-600">{fmt(cleaner.totalPaid)}</div>
             </div>
             <div className="text-center border-x">
               <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground mb-1">
                 <Clock className="h-3 w-3 text-warning-500" />
                 Pendente
               </div>
-              <div className="font-semibold text-sm text-warning-600">{fmt(cleaner.totalPending)}</div>
+              <div className="font-mono text-sm font-semibold tabular-nums text-warning-600">{fmt(cleaner.totalPending)}</div>
             </div>
             <div className="text-center">
               <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground mb-1">
                 <RefreshCw className="h-3 w-3 text-info-500" />
                 Próx. Ciclo
               </div>
-              <div className="font-semibold text-sm text-info-600">{fmt(cleaner.totalNextCycle)}</div>
+              <div className="font-mono text-sm font-semibold tabular-nums text-info-600">{fmt(cleaner.totalNextCycle)}</div>
             </div>
           </div>
         )}
@@ -377,17 +377,17 @@ const CleanerPaymentsTab = ({ cleanerPayments, loading, hasFilter }: CleanerPaym
 
       {/* Filter bar */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[180px] max-w-xs">
+        <div className="relative w-full sm:min-w-[180px] sm:max-w-xs sm:flex-1">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
             placeholder="Buscar faxineira..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="pl-8 h-8 text-sm"
+            className="h-11 pl-8 text-sm sm:h-8"
           />
         </div>
         <Select value={selectedCleaner} onValueChange={setSelectedCleaner}>
-          <SelectTrigger className="h-8 text-sm w-[200px]">
+          <SelectTrigger className="h-11 w-full text-sm sm:h-8 sm:w-[200px]">
             <SelectValue placeholder="Todas as faxineiras" />
           </SelectTrigger>
           <SelectContent>
@@ -410,13 +410,13 @@ const CleanerPaymentsTab = ({ cleanerPayments, loading, hasFilter }: CleanerPaym
       </div>
 
       {/* Summary bar */}
-      <div className="flex items-center justify-between bg-muted/30 rounded-lg px-4 py-3">
+      <div className="flex flex-col gap-2 rounded-xl bg-muted/30 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <span className="text-sm font-medium text-muted-foreground">
           {filtered.length} faxineira{filtered.length !== 1 ? 's' : ''} vinculada{filtered.length !== 1 ? 's' : ''} •{' '}
           {withCleanings.length} com faxinas neste mês •{' '}
           {filtered.reduce((s, c) => s + c.cleanings.length, 0)} faxinas
         </span>
-        <div className="flex items-center gap-4 text-sm">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-sm tabular-nums">
           <span className="text-success-600 font-medium">Pago: {fmt(totalPaid)}</span>
           <span className="text-warning-600 font-medium">Pendente: {fmt(totalPending)}</span>
           <span className="font-bold">Total: {fmt(grandTotal)}</span>
