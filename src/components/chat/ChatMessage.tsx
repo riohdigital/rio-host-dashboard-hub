@@ -33,9 +33,9 @@ export const ChatMessage = ({ message, onReact }: ChatMessageProps) => {
     if (!message.category) return null;
 
     const categoryConfig: Record<string, { label: string; color: string }> = {
-      financeiro: { label: 'Financeiro', color: 'bg-green-500/10 text-green-500' },
-      reservas: { label: 'Reservas', color: 'bg-blue-500/10 text-blue-500' },
-      limpeza: { label: 'Limpeza', color: 'bg-purple-500/10 text-purple-500' },
+      financeiro: { label: 'Financeiro', color: 'bg-success-500/10 text-success-500' },
+      reservas: { label: 'Reservas', color: 'bg-info-500/10 text-info-500' },
+      limpeza: { label: 'Limpeza', color: 'bg-brand-500/10 text-brand-500' },
       geral: { label: 'Geral', color: 'bg-gray-500/10 text-gray-500' },
     };
 
@@ -169,7 +169,7 @@ export const ChatMessage = ({ message, onReact }: ChatMessageProps) => {
                 size="icon"
                 className={cn(
                   'h-6 w-6',
-                  message.reaction === 'thumbs_up' && 'text-green-500'
+                  message.reaction === 'thumbs_up' && 'text-success-500'
                 )}
                 onClick={() => onReact(message.id, 'thumbs_up')}
               >
@@ -180,7 +180,7 @@ export const ChatMessage = ({ message, onReact }: ChatMessageProps) => {
                 size="icon"
                 className={cn(
                   'h-6 w-6',
-                  message.reaction === 'thumbs_down' && 'text-red-500'
+                  message.reaction === 'thumbs_down' && 'text-danger-500'
                 )}
                 onClick={() => onReact(message.id, 'thumbs_down')}
               >

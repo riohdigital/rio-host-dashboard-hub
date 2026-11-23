@@ -30,7 +30,7 @@ const PermissionGuard: React.FC<PermissionGuardProps> = ({
       fallback || (
         <Card className="max-w-md mx-auto mt-10">
           <CardContent className="p-6 text-center">
-            <AlertTriangle className="mx-auto h-12 w-12 text-yellow-500 mb-4" />
+            <AlertTriangle className="mx-auto h-12 w-12 text-warning-500 mb-4" />
             <h2 className="text-xl font-semibold text-foreground mb-2">Acesso Negado</h2>
             <p className="text-muted-foreground">
               Você não possui permissão para acessar esta funcionalidade.

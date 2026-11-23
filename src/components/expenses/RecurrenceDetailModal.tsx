@@ -15,7 +15,7 @@ const RecurrenceDetailModal = ({ isOpen, onClose, group, onEditGroup, onDeleteAl
 
   const getStatusBadge = (status: string) => {
     if (status === 'Pago') {
-      return <Badge className="bg-green-100 text-green-800">Pago</Badge>;
+      return <Badge className="bg-success-100 text-success-800">Pago</Badge>;
     }
     return <Badge variant="secondary">Pendente</Badge>;
   };
@@ -46,13 +46,13 @@ const RecurrenceDetailModal = ({ isOpen, onClose, group, onEditGroup, onDeleteAl
                     {getStatusBadge(exp.payment_status)}
                     {exp.payment_status !== 'Pago' && hasPermission('expenses_edit') && (
                       <Button variant="outline" size="sm" onClick={() => onMarkAsPaid(exp.id)}>
-                        <CheckCircle className="h-4 w-4 text-green-600 mr-2" />
+                        <CheckCircle className="h-4 w-4 text-success-600 mr-2" />
                         Pagar
                       </Button>
                     )}
                     {hasPermission('expenses_edit') && (
                       <Button variant="ghost" size="icon" onClick={() => onDeleteSingle(exp.id)}>
-                        <Trash2 className="h-4 w-4 text-red-500" />
+                        <Trash2 className="h-4 w-4 text-danger-500" />
                       </Button>
                     )}
                   </div>

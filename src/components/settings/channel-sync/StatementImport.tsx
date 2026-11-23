@@ -186,13 +186,13 @@ const StatementImport: React.FC<StatementImportProps> = ({ properties, onImporte
 
     switch (resultado.action) {
       case 'created':
-        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Cria</Badge>;
+        return <Badge className="bg-success-100 text-success-800 hover:bg-success-100">Cria</Badge>;
       case 'updated':
-        return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Completa</Badge>;
+        return <Badge className="bg-info-100 text-info-800 hover:bg-info-100">Completa</Badge>;
       case 'skipped':
         return <Badge variant="secondary">Sem mudança</Badge>;
       case 'pending':
-        return <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Conferir</Badge>;
+        return <Badge className="bg-warning-100 text-warning-800 hover:bg-warning-100">Conferir</Badge>;
       default:
         return <Badge variant="outline">Fora</Badge>;
     }
@@ -275,7 +275,7 @@ const StatementImport: React.FC<StatementImportProps> = ({ properties, onImporte
                 </thead>
                 <tbody className="divide-y">
                   {arquivo.rows.map((linha) => (
-                    <tr key={linha.reservationCode} className={linha.warning ? 'bg-amber-50' : ''}>
+                    <tr key={linha.reservationCode} className={linha.warning ? 'bg-warning-50' : ''}>
                       <td className="px-3 py-2 font-mono text-xs">{linha.reservationCode}</td>
                       <td className="px-3 py-2">{linha.guestName ?? '—'}</td>
                       <td className="px-3 py-2 whitespace-nowrap">
@@ -310,7 +310,7 @@ const StatementImport: React.FC<StatementImportProps> = ({ properties, onImporte
             )}
 
             {anunciosSemImovel.length > 0 && (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 space-y-3">
+              <div className="rounded-lg border border-warning-200 bg-warning-50 p-4 space-y-3">
                 <div>
                   <p className="text-sm font-medium">
                     Não sei a qual imóvel pertencem estes anúncios
@@ -361,7 +361,7 @@ const StatementImport: React.FC<StatementImportProps> = ({ properties, onImporte
               <Button
                 onClick={importar}
                 disabled={ocupado || !previa || (precisaEscolherImovel && !propertyId)}
-                className="bg-[#6A6DDF] hover:bg-[#5A5BCF]"
+                className="bg-brand hover:bg-brand-hover"
               >
                 {importou ? 'Importar de novo' : 'Importar'}
                 {previa ? ` ${previa.totals.created + previa.totals.updated} reserva(s)` : ''}

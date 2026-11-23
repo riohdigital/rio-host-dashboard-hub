@@ -211,17 +211,17 @@ const ExpensesList = () => {
       </div>
 
       {/* Card Destaque: Reembolsos a Pagar */}
-      <Card className="border-amber-200 bg-gradient-to-r from-amber-50/70 via-orange-50/40 to-background shadow-sm">
+      <Card className="border-warning-200 bg-gradient-to-r from-warning-50/70 via-orange-50/40 to-background shadow-sm">
         <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-amber-100 text-amber-700 rounded-xl">
+            <div className="p-3 bg-warning-100 text-warning-700 rounded-xl">
               <Receipt className="h-6 w-6" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-semibold text-gray-900">Reembolsos a Pagar</h3>
                 {pendingReimbursements.length > 0 && (
-                  <Badge className="bg-amber-500 hover:bg-amber-600 text-white text-xs">
+                  <Badge className="bg-warning-500 hover:bg-warning-600 text-white text-xs">
                     {pendingReimbursements.length} pendente{pendingReimbursements.length > 1 ? 's' : ''}
                   </Badge>
                 )}
@@ -235,7 +235,7 @@ const ExpensesList = () => {
           <div className="flex items-center gap-4 self-end sm:self-center">
             <div className="text-right">
               <span className="text-xs text-muted-foreground block">Total a Reembolsar</span>
-              <span className="text-xl font-bold text-amber-600">
+              <span className="text-xl font-bold text-warning-600">
                 R$ {totalPendingReimbursements.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </span>
             </div>
@@ -244,7 +244,7 @@ const ExpensesList = () => {
               variant={filterOnlyPendingReimbursements ? "default" : "outline"}
               size="sm"
               onClick={() => setFilterOnlyPendingReimbursements(!filterOnlyPendingReimbursements)}
-              className={filterOnlyPendingReimbursements ? "bg-amber-600 hover:bg-amber-700 text-white text-xs" : "border-amber-300 text-amber-800 hover:bg-amber-50 text-xs"}
+              className={filterOnlyPendingReimbursements ? "bg-warning-600 hover:bg-warning-700 text-white text-xs" : "border-warning-300 text-warning-800 hover:bg-warning-50 text-xs"}
             >
               <Filter className="h-3.5 w-3.5 mr-1" />
               {filterOnlyPendingReimbursements ? "Ver Todas" : "Filtrar Reembolsos"}
@@ -261,7 +261,7 @@ const ExpensesList = () => {
               <Card key={group.recurrence_group_id} className="bg-white hover:shadow-lg transition-shadow cursor-pointer" onClick={() => { setSelectedGroup(group); setDetailModalOpen(true); }}>
                 <CardContent className="p-4 flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="p-3 bg-blue-100 rounded-lg"><RefreshCw className="h-6 w-6 text-blue-600" /></div>
+                    <div className="p-3 bg-info-100 rounded-lg"><RefreshCw className="h-6 w-6 text-info-600" /></div>
                     <div>
                       <h4 className="font-bold text-gradient-primary">{group.description}</h4>
                       <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
@@ -296,23 +296,23 @@ const ExpensesList = () => {
               (isReimbursement && expense.payment_status !== 'Pago');
 
             return (
-              <Card key={expense.id} className={`bg-white hover:shadow-md transition-shadow ${isPending ? 'border-amber-300 ring-1 ring-amber-200' : ''}`}>
+              <Card key={expense.id} className={`bg-white hover:shadow-md transition-shadow ${isPending ? 'border-warning-300 ring-1 ring-warning-200' : ''}`}>
                 <CardContent className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <h4 className="font-semibold text-gray-800">{expense.description}</h4>
                       {isPending ? (
-                        <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-xs flex items-center gap-1">
-                          <Clock className="h-3 w-3 text-amber-600" />
+                        <Badge className="bg-warning-100 text-warning-800 border-warning-300 text-xs flex items-center gap-1">
+                          <Clock className="h-3 w-3 text-warning-600" />
                           Reembolso Pendente
                         </Badge>
                       ) : isReimbursement ? (
-                        <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-xs flex items-center gap-1">
-                          <CheckCircle className="h-3 w-3 text-emerald-600" />
+                        <Badge className="bg-success-100 text-success-800 border-success-300 text-xs flex items-center gap-1">
+                          <CheckCircle className="h-3 w-3 text-success-600" />
                           Reembolsado
                         </Badge>
                       ) : expense.payment_status === 'Pago' ? (
-                        <Badge variant="outline" className="text-xs text-muted-foreground border-emerald-200 bg-emerald-50/50">
+                        <Badge variant="outline" className="text-xs text-muted-foreground border-success-200 bg-success-50/50">
                           Pago
                         </Badge>
                       ) : null}
@@ -330,7 +330,7 @@ const ExpensesList = () => {
                     {isPending && (
                       <Button
                         size="sm"
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs flex items-center gap-1 shadow-sm"
+                        className="bg-success-600 hover:bg-success-700 text-white text-xs flex items-center gap-1 shadow-sm"
                         onClick={() => handleMarkAsPaid(expense.id)}
                       >
                         <CheckCircle className="h-3.5 w-3.5" />
@@ -338,7 +338,7 @@ const ExpensesList = () => {
                       </Button>
                     )}
                     {hasPermission('expenses_edit') && <Button variant="ghost" size="icon" onClick={() => handleEdit(expense)}><Edit className="h-4 w-4" /></Button>}
-                    {hasPermission('expenses_edit') && <Button variant="ghost" size="icon" onClick={() => handleDeleteSingle(expense.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>}
+                    {hasPermission('expenses_edit') && <Button variant="ghost" size="icon" onClick={() => handleDeleteSingle(expense.id)}><Trash2 className="h-4 w-4 text-danger-500" /></Button>}
                   </div>
                 </CardContent>
               </Card>

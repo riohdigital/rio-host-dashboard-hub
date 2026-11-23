@@ -8,7 +8,7 @@ interface MainLayoutProps {
 
 const MainLayout = ({ children }: MainLayoutProps) => {
   return (
-    <div className="min-h-screen bg-[#F8F9FA]">
+    <div className="min-h-screen bg-surface">
       <Sidebar />
       <div className="ml-64">
         <main className="p-8">

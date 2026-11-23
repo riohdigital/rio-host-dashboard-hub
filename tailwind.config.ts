@@ -1,6 +1,17 @@
 
 import type { Config } from "tailwindcss";
 
+// Cores vêm de src/styles/tokens.css (canais HSL). Aqui só ligamos cada
+// token a um nome de classe, com suporte a opacidade (bg-brand/10).
+const token = (nome: string) => `hsl(var(--${nome}) / <alpha-value>)`;
+const TONS = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950] as const;
+const escala = (nome: string, extras: Record<string, string> = {}) => ({
+	DEFAULT: token(nome),
+	foreground: token(`${nome}-foreground`),
+	...Object.fromEntries(TONS.map((t) => [t, token(`${nome}-${t}`)])),
+	...extras,
+});
+
 export default {
 	darkMode: ["class"],
 	content: [
@@ -20,6 +31,33 @@ export default {
 		},
 		extend: {
 			colors: {
+				brand: escala('brand', {
+					hover: token('brand-hover'),
+					accent: token('brand-accent'),
+					'accent-foreground': token('brand-accent-foreground'),
+				}),
+				success: escala('success'),
+				warning: escala('warning'),
+				danger: escala('danger'),
+				info: escala('info'),
+				gray: Object.fromEntries(TONS.map((t) => [t, token(`gray-${t}`)])),
+				surface: token('surface'),
+				ink: token('ink'),
+				airbnb: token('airbnb'),
+				booking: { DEFAULT: token('booking'), light: token('booking-light') },
+				direct: token('direct'),
+				vrbo: token('vrbo'),
+				expedia: token('expedia'),
+				chart: {
+					1: token('chart-1'),
+					2: token('chart-2'),
+					3: token('chart-3'),
+					4: token('chart-4'),
+					5: token('chart-5'),
+					6: token('chart-6'),
+					grid: token('chart-grid'),
+					axis: token('chart-axis'),
+				},
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
 				ring: 'hsl(var(--ring))',

@@ -180,7 +180,7 @@ const SourceDialog: React.FC<SourceDialogProps> = ({
             <Switch id="sync-active" checked={isActive} onCheckedChange={setIsActive} />
           </div>
 
-          {formError && <p className="text-sm text-red-600">{formError}</p>}
+          {formError && <p className="text-sm text-danger-600">{formError}</p>}
         </div>
 
         <DialogFooter>

@@ -56,20 +56,20 @@ const AuthPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
+    <div className="min-h-screen flex items-center justify-center bg-surface">
       <Card className="w-full max-w-md bg-white">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-[#6A6DDF]">
+          <CardTitle className="text-2xl font-bold text-brand">
             Dashboard Rioh Host Rentals
           </CardTitle>
-          <p className="text-[#374151]">
+          <p className="text-ink">
             {isLogin ? 'Entre em sua conta' : 'Crie sua conta'}
           </p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleAuth} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-[#374151] mb-2">
+              <label className="block text-sm font-medium text-ink mb-2">
                 Email
               </label>
               <Input
@@ -81,7 +81,7 @@ const AuthPage = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-[#374151] mb-2">
+              <label className="block text-sm font-medium text-ink mb-2">
                 Senha
               </label>
               <div className="relative">
@@ -95,7 +95,7 @@ const AuthPage = () => {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-[#6A6DDF] hover:text-[#5A5CCF] transition-colors"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-brand hover:text-brand-hover transition-colors"
                 >
                   {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
@@ -104,7 +104,7 @@ const AuthPage = () => {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#6A6DDF] hover:bg-[#5A5CCF] text-white"
+              className="w-full bg-brand hover:bg-brand-hover text-white"
             >
               {loading ? 'Carregando...' : (isLogin ? 'Entrar' : 'Criar Conta')}
             </Button>
@@ -113,7 +113,7 @@ const AuthPage = () => {
             <button
               type="button"
               onClick={() => setIsLogin(!isLogin)}
-              className="text-[#6A6DDF] hover:underline"
+              className="text-brand hover:underline"
             >
               {isLogin ? 'Não tem conta? Criar conta' : 'Já tem conta? Entrar'}
             </button>

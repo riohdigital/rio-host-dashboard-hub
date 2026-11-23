@@ -191,8 +191,8 @@ const FaxineiraDashboard = () => {
                          <div className="flex justify-end"><Button>Alterar Senha</Button></div>
                     </CardContent>
                  </Card>
-                 <Card className="mt-6 border-red-500">
-                    <CardHeader><CardTitle className="text-red-700">Zona de Perigo</CardTitle></CardHeader>
+                 <Card className="mt-6 border-danger-500">
+                    <CardHeader><CardTitle className="text-danger-700">Zona de Perigo</CardTitle></CardHeader>
                     <CardContent>
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                             <div><h3 className="font-semibold">Excluir sua conta</h3><p className="text-sm text-muted-foreground">Esta ação é permanente e removerá todos os seus dados. <br /> Para criar um novo cadastro, você precisará contatar um administrador.</p></div>
@@ -236,7 +236,7 @@ const MeusGanhosPage = ({ historicalData }: { historicalData: ReservationWithDet
                 </Select>
             </div>
             <div className="grid md:grid-cols-2 gap-6">
-                <Card className="border-green-500 bg-green-50"><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium text-green-800">Recebido neste Ciclo (Pago)</CardTitle><DollarSign className="h-4 w-4 text-green-700" /></CardHeader><CardContent><div className="text-2xl font-bold text-green-700">R$ {monthData.pago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div><p className="text-xs text-green-600">Valores de faxinas (ex: Airbnb) já recebidos.</p></CardContent></Card>
+                <Card className="border-success-500 bg-success-50"><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium text-success-800">Recebido neste Ciclo (Pago)</CardTitle><DollarSign className="h-4 w-4 text-success-700" /></CardHeader><CardContent><div className="text-2xl font-bold text-success-700">R$ {monthData.pago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div><p className="text-xs text-success-600">Valores de faxinas (ex: Airbnb) já recebidos.</p></CardContent></Card>
                 <Card className="border-orange-500 bg-orange-50"><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium text-orange-800">A receber no Próximo Ciclo</CardTitle><Clock className="h-4 w-4 text-orange-700" /></CardHeader><CardContent><div className="text-2xl font-bold text-orange-700">R$ {monthData.proximoCiclo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div><p className="text-xs text-orange-600">Valores (ex: Booking) que serão pagos até o 5º dia útil do próximo mês.</p></CardContent></Card>
             </div>
         </div>
@@ -270,7 +270,7 @@ const UpcomingCard = ({ reservation, children }: { reservation: ReservationWithD
         return { startLabel, startValue, endLabel, endValue };
     }, [reservation.check_out_date, reservation.checkout_time, reservation.next_check_in_date, reservation.next_checkin_time]);
     
-    const urgencyClasses = { overdue: 'border-2 border-red-500 bg-red-50', critical: 'border-2 border-red-500 bg-red-50', warning: 'border-2 border-yellow-500 bg-yellow-50', normal: '' };
+    const urgencyClasses = { overdue: 'border-2 border-danger-500 bg-danger-50', critical: 'border-2 border-danger-500 bg-danger-50', warning: 'border-2 border-warning-500 bg-warning-50', normal: '' };
 
     return (
         <Card className={`hover:shadow-md transition-shadow ${urgencyClasses[reservation.urgency?.level || 'normal']}`}>
@@ -286,7 +286,7 @@ const UpcomingCard = ({ reservation, children }: { reservation: ReservationWithD
                     </div>
                 </div>
                {reservation.urgency?.level !== 'normal' && (
-                   <div className={`flex items-center gap-2 font-bold text-sm p-2 rounded-md ${reservation.urgency?.level === 'warning' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-700'}`}>
+                   <div className={`flex items-center gap-2 font-bold text-sm p-2 rounded-md ${reservation.urgency?.level === 'warning' ? 'bg-warning-100 text-warning-800' : 'bg-danger-100 text-danger-700'}`}>
                        <AlertTriangle className="h-4 w-4" />
                        <span>{reservation.urgency.message}</span>
                    </div>
@@ -327,8 +327,8 @@ const HistoryCard = ({ reservation }: { reservation: ReservationWithDetails }) =
             <CardContent>
                 <div className="grid md:grid-cols-2 gap-x-4 gap-y-2 text-sm pt-4">
                     <p><span className="font-medium">Data da Faxina:</span> {format(parseISO(reservation.check_out_date), "dd/MM/yyyy")}</p>
-                    <p><span className="font-medium">Sua Taxa:</span> <span className="text-green-600 font-semibold">R$ {parseFloat(String(reservation.cleaning_fee || 0)).toFixed(2)}</span></p>
-                    {reservation.cleaning_rating > 0 && (<p className="flex items-center"><Star className="h-4 w-4 mr-1.5 text-yellow-500" />Sua Avaliação: {reservation.cleaning_rating}/5</p>)}
+                    <p><span className="font-medium">Sua Taxa:</span> <span className="text-success-600 font-semibold">R$ {parseFloat(String(reservation.cleaning_fee || 0)).toFixed(2)}</span></p>
+                    {reservation.cleaning_rating > 0 && (<p className="flex items-center"><Star className="h-4 w-4 mr-1.5 text-warning-500" />Sua Avaliação: {reservation.cleaning_rating}/5</p>)}
                 </div>
             </CardContent>
         </Card>
@@ -347,8 +347,8 @@ const UpcomingList = ({ reservations, onMarkAsComplete }: { reservations: Reserv
                         <div className="grid md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
                             {reservation.guest_name && (<p><span className="font-medium">Hóspede Anterior:</span> {reservation.guest_name}</p>)}
                             {reservation.number_of_guests && (<p className="flex items-center"><Users className="h-4 w-4 mr-1.5" />{reservation.number_of_guests} Hóspedes</p>)}
-                            {reservation.cleaning_fee && (<p><span className="font-medium">Sua Taxa:</span> <span className="text-green-600 font-semibold">R$ {parseFloat(String(reservation.cleaning_fee)).toFixed(2)}</span></p>)}
-                            {reservation.cleaning_rating > 0 && (<p className="flex items-center"><Star className="h-4 w-4 mr-1.5 text-yellow-500" />Sua Avaliação: {reservation.cleaning_rating}/5</p>)}
+                            {reservation.cleaning_fee && (<p><span className="font-medium">Sua Taxa:</span> <span className="text-success-600 font-semibold">R$ {parseFloat(String(reservation.cleaning_fee)).toFixed(2)}</span></p>)}
+                            {reservation.cleaning_rating > 0 && (<p className="flex items-center"><Star className="h-4 w-4 mr-1.5 text-warning-500" />Sua Avaliação: {reservation.cleaning_rating}/5</p>)}
                         </div>
                         {reservation.cleaning_notes && (<div className="pt-2 border-t"><p className="text-sm"><span className="font-medium">Observações:</span> <span className="text-muted-foreground">{reservation.cleaning_notes}</span></p></div>)}
                         {reservation.cleaning_status !== 'Realizada' && (
@@ -371,7 +371,7 @@ const UpcomingList = ({ reservations, onMarkAsComplete }: { reservations: Reserv
 };
 
 const AvailableCleaningsList = ({ reservations, onSignUp, hasActiveCleaning }: { reservations: ReservationWithDetails[], onSignUp: (id: string) => void, hasActiveCleaning: boolean }) => {
-    if (reservations.length === 0) { return <Card className="mt-4"><CardContent className="pt-6 text-center text-muted-foreground"><CheckCircle className="mx-auto h-12 w-12 mb-4 opacity-50 text-green-500" /><p>Nenhuma oportunidade no momento</p><p className="text-sm">Não há faxinas disponíveis nas suas propriedades para as próximas duas semanas.</p></CardContent></Card>; }
+    if (reservations.length === 0) { return <Card className="mt-4"><CardContent className="pt-6 text-center text-muted-foreground"><CheckCircle className="mx-auto h-12 w-12 mb-4 opacity-50 text-success-500" /><p>Nenhuma oportunidade no momento</p><p className="text-sm">Não há faxinas disponíveis nas suas propriedades para as próximas duas semanas.</p></CardContent></Card>; }
     return (
         <div className="grid gap-4 mt-4">
             {reservations.map(reservation => {
@@ -381,7 +381,7 @@ const AvailableCleaningsList = ({ reservations, onSignUp, hasActiveCleaning }: {
                          <div className="flex justify-between items-center bg-white p-3 rounded-lg">
                             <div>
                                 <p className="text-sm font-medium">Sua Taxa</p>
-                                <p className="text-lg font-bold text-green-600">R$ {parseFloat(String(reservation.cleaning_fee || 0)).toFixed(2)}</p>
+                                <p className="text-lg font-bold text-success-600">R$ {parseFloat(String(reservation.cleaning_fee || 0)).toFixed(2)}</p>
                             </div>
                             <TooltipProvider>
                                 <Tooltip>

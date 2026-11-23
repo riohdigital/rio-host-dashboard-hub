@@ -41,21 +41,21 @@ export const UpcomingEventsTimeline = ({ events, loading }: UpcomingEventsTimeli
     switch (status) {
       case 'Realizada':
         return (
-          <Badge className="bg-green-100 text-green-700 text-xs">
+          <Badge className="bg-success-100 text-success-700 text-xs">
             <CheckCircle className="h-3 w-3 mr-1" />
             Concluída
           </Badge>
         );
       case 'Em Andamento':
         return (
-          <Badge className="bg-blue-100 text-blue-700 text-xs">
+          <Badge className="bg-info-100 text-info-700 text-xs">
             <Clock className="h-3 w-3 mr-1" />
             Em Andamento
           </Badge>
         );
       default:
         return (
-          <Badge className="bg-amber-100 text-amber-700 text-xs">
+          <Badge className="bg-warning-100 text-warning-700 text-xs">
             <Clock className="h-3 w-3 mr-1" />
             Pendente
           </Badge>
@@ -110,11 +110,11 @@ export const UpcomingEventsTimeline = ({ events, loading }: UpcomingEventsTimeli
               const getEventStyles = () => {
                 switch(event.type) {
                   case 'check-in':
-                    return { border: 'border-green-200', bg: 'bg-green-50/50', hover: 'hover:bg-green-50', iconBg: 'bg-green-100 text-green-600' };
+                    return { border: 'border-success-200', bg: 'bg-success-50/50', hover: 'hover:bg-success-50', iconBg: 'bg-success-100 text-success-600' };
                   case 'check-out':
-                    return { border: 'border-blue-200', bg: 'bg-blue-50/50', hover: 'hover:bg-blue-50', iconBg: 'bg-blue-100 text-blue-600' };
+                    return { border: 'border-info-200', bg: 'bg-info-50/50', hover: 'hover:bg-info-50', iconBg: 'bg-info-100 text-info-600' };
                   case 'cleaning':
-                    return { border: 'border-purple-200', bg: 'bg-purple-50/50', hover: 'hover:bg-purple-50', iconBg: 'bg-purple-100 text-purple-600' };
+                    return { border: 'border-brand-200', bg: 'bg-brand-50/50', hover: 'hover:bg-brand-50', iconBg: 'bg-brand-100 text-brand-600' };
                 }
               };
 
@@ -169,7 +169,7 @@ export const UpcomingEventsTimeline = ({ events, loading }: UpcomingEventsTimeli
                   </div>
                   {event.type !== 'cleaning' && (
                   <div className="text-right">
-                    <p className="text-sm font-medium text-green-600">
+                    <p className="text-sm font-medium text-success-600">
                       {formatCurrency(event.commission)}
                     </p>
                     <p className="text-xs text-muted-foreground">

@@ -56,13 +56,13 @@ const CleaningStats = ({ allCleanings, availableCleanings }: CleaningStatsProps)
       title: 'Concluídas',
       value: completedCleanings.length,
       icon: CheckCircle,
-      color: 'text-green-600'
+      color: 'text-success-600'
     },
     {
       title: 'Disponíveis',
       value: availableCleanings.length,
       icon: Users,
-      color: 'text-blue-600'
+      color: 'text-info-600'
     }
   ];
 

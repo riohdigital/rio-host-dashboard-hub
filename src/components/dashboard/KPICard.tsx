@@ -17,7 +17,7 @@ const KPICard = ({ title, value, isPositive = true, icon }: KPICardProps) => {
           {title}
         </CardTitle>
         {icon && (
-          <div className="text-[#6A6DDF]">
+          <div className="text-brand">
             {icon}
           </div>
         )}

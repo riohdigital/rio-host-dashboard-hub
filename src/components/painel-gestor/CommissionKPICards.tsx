@@ -22,32 +22,32 @@ export const CommissionKPICards = ({ kpis, loading }: CommissionKPICardsProps) =
       title: 'Comissão Total',
       value: formatCurrency(kpis.totalCommission),
       icon: DollarSign,
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
+      color: 'text-success-600',
+      bgColor: 'bg-success-50',
       description: 'No período selecionado'
     },
     {
       title: 'Comissão Média',
       value: formatCurrency(kpis.avgCommission),
       icon: TrendingUp,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-50',
+      color: 'text-info-600',
+      bgColor: 'bg-info-50',
       description: 'Por reserva'
     },
     {
       title: 'Total de Reservas',
       value: kpis.totalReservations.toString(),
       icon: Calendar,
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-50',
+      color: 'text-brand-600',
+      bgColor: 'bg-brand-50',
       description: 'Confirmadas no período'
     },
     {
       title: 'Receita Gerada',
       value: formatCurrency(kpis.totalRevenue),
       icon: Sparkles,
-      color: 'text-amber-600',
-      bgColor: 'bg-amber-50',
+      color: 'text-warning-600',
+      bgColor: 'bg-warning-50',
       description: 'Total gerenciado'
     },
     {
@@ -62,8 +62,8 @@ export const CommissionKPICards = ({ kpis, loading }: CommissionKPICardsProps) =
       title: 'Faxinas Pendentes',
       value: kpis.pendingCleanings.toString(),
       icon: AlertTriangle,
-      color: kpis.pendingCleanings > 0 ? 'text-red-600' : 'text-green-600',
-      bgColor: kpis.pendingCleanings > 0 ? 'bg-red-50' : 'bg-green-50',
+      color: kpis.pendingCleanings > 0 ? 'text-danger-600' : 'text-success-600',
+      bgColor: kpis.pendingCleanings > 0 ? 'bg-danger-50' : 'bg-success-50',
       description: kpis.pendingCleanings > 0 ? 'Requerem atenção' : 'Tudo em dia!'
     }
   ];

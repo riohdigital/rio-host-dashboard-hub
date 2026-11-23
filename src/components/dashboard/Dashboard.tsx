@@ -60,10 +60,10 @@ const Dashboard = () => {
   
   const isLoading = financialLoading || operationalLoading || annualGrowthLoading;
   
-  const COLORS = ['#6A6DDF', '#F472B6', '#F59E0B', '#10B981', '#EF4444', '#06B6D4'];
+  const COLORS = ['hsl(var(--brand))', 'hsl(var(--brand-accent))', 'hsl(var(--warning))', 'hsl(var(--success))', 'hsl(var(--danger))', 'hsl(var(--chart-5))'];
 
   return (
-    <div className="p-6 space-y-8 bg-[#F8F9FA]">
+    <div className="p-6 space-y-8 bg-surface">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gradient-primary">Dashboard Analítico</h1>
       </div>

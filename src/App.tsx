@@ -42,8 +42,8 @@ const AppRoutes = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
-        <div className="text-[#6A6DDF] text-lg font-medium animate-pulse">Carregando...</div>
+      <div className="min-h-screen flex items-center justify-center bg-surface">
+        <div className="text-brand text-lg font-medium animate-pulse">Carregando...</div>
       </div>
     );
   }

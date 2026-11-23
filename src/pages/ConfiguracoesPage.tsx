@@ -40,7 +40,7 @@ const ConfiguracoesPage = () => {
                 variant={activeSection === section.id ? "default" : "ghost"}
                 className={`w-full justify-start ${
                   activeSection === section.id 
-                    ? 'bg-[#6A6DDF] hover:bg-[#5A5BCF] text-white' 
+                    ? 'bg-brand hover:bg-brand-hover text-white' 
                     : 'hover:bg-gray-100'
                 }`}
                 onClick={() => setActiveSection(section.id)}

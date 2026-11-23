@@ -13,12 +13,12 @@ const ProfessionalReceiptTemplate = ({ reservation, receiptType = 'reservation' 
 
   // Definições visuais baseadas no tipo de recibo
   const isPayment = receiptType === 'payment';
-  const headerColor = isPayment ? 'bg-green-700' : 'bg-blue-800';
+  const headerColor = isPayment ? 'bg-success-700' : 'bg-info-800';
   const docTitle = isPayment ? 'Recibo de Pagamento' : 'Confirmação de Reserva';
   const DocIcon = isPayment ? CreditCard : FileText;
   const institutionalMessage = isPayment 
-    ? { icon: <CheckCircle className="h-5 w-5 text-green-600 mr-2" />, text: 'O valor referente à reserva foi repassado com sucesso à sua conta cadastrada.', title: 'Pagamento Recebido e Efetuado' }
-    : { icon: <CheckCircle className="h-5 w-5 text-blue-600 mr-2" />, text: 'O imóvel estará ocupado no período informado. Certifique-se de que ele esteja pronto para receber os hóspedes.', title: 'Estadia Confirmada com Sucesso' };
+    ? { icon: <CheckCircle className="h-5 w-5 text-success-600 mr-2" />, text: 'O valor referente à reserva foi repassado com sucesso à sua conta cadastrada.', title: 'Pagamento Recebido e Efetuado' }
+    : { icon: <CheckCircle className="h-5 w-5 text-info-600 mr-2" />, text: 'O imóvel estará ocupado no período informado. Certifique-se de que ele esteja pronto para receber os hóspedes.', title: 'Estadia Confirmada com Sucesso' };
 
   // Cálculos de dados usando funções seguras
   const checkIn = parseDate(reservation.check_in_date);
@@ -66,15 +66,15 @@ const ProfessionalReceiptTemplate = ({ reservation, receiptType = 'reservation' 
             </div>
             <div className="text-right pl-4">
               <p className="text-gray-700 text-md">Valor do Proprietário:</p>
-              <p className="text-3xl font-bold text-green-600">{formatCurrency(ownerValue)}</p>
+              <p className="text-3xl font-bold text-success-600">{formatCurrency(ownerValue)}</p>
               {isPayment && (
                 <div className="text-xs text-gray-500 mt-2 p-2 bg-gray-50 rounded border-l-2 border-gray-200">
                   <div className="flex justify-between"><span>Total Recebido:</span><span className="font-medium">{formatCurrency(reservation.total_revenue)}</span></div>
-                  <div className="flex justify-between"><span>Comissão:</span><span className="text-red-600">-{formatCurrency(commission)}</span></div>
+                  <div className="flex justify-between"><span>Comissão:</span><span className="text-danger-600">-{formatCurrency(commission)}</span></div>
                   {shouldShowCleaningLine && cleaningFeeValue > 0 && (
-                    <div className="flex justify-between"><span>Faxina{isPayment && reservation.cleaner_name ? ` (${reservation.cleaner_name})` : ''}:</span><span className="text-red-600">-{formatCurrency(cleaningFeeValue)}</span></div>
+                    <div className="flex justify-between"><span>Faxina{isPayment && reservation.cleaner_name ? ` (${reservation.cleaner_name})` : ''}:</span><span className="text-danger-600">-{formatCurrency(cleaningFeeValue)}</span></div>
                   )}
-                  <div className="flex justify-between border-t border-gray-300 pt-1 mt-1 font-medium"><span>Valor do Proprietário:</span><span className="text-green-600">{formatCurrency(ownerValue)}</span></div>
+                  <div className="flex justify-between border-t border-gray-300 pt-1 mt-1 font-medium"><span>Valor do Proprietário:</span><span className="text-success-600">{formatCurrency(ownerValue)}</span></div>
                 </div>
               )}
             </div>
@@ -90,7 +90,7 @@ const ProfessionalReceiptTemplate = ({ reservation, receiptType = 'reservation' 
             <div className="flex items-start"><Calendar className="h-5 w-5 mr-3 mt-1 text-gray-500" /><div><strong>Check-out</strong><p className="text-gray-700">{formatDateWithTime(reservation.check_out_date, reservation.checkout_time)}</p></div></div>
           </div>
         </section>
-        <section className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+        <section className="bg-info-50 border border-info-200 rounded-lg p-4 text-center">
             <div className="flex items-center justify-center">{institutionalMessage.icon}<h4 className="font-bold text-lg text-gray-800">{institutionalMessage.title}</h4></div>
             <p className="text-gray-700 mt-2">{institutionalMessage.text}</p>
         </section>

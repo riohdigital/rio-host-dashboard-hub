@@ -27,9 +27,9 @@ const RecurrenceSettings = ({
   if (!isVisible) return null;
 
   return (
-    <Card className="border-[#6A6DDF] border-2">
+    <Card className="border-brand border-2">
       <CardHeader>
-        <CardTitle className="text-[#6A6DDF] text-lg">Configurações de Recorrência</CardTitle>
+        <CardTitle className="text-brand text-lg">Configurações de Recorrência</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -77,8 +77,8 @@ const RecurrenceSettings = ({
           </div>
         </div>
 
-        <div className="bg-blue-50 p-3 rounded-lg">
-          <p className="text-sm text-blue-800">
+        <div className="bg-info-50 p-3 rounded-lg">
+          <p className="text-sm text-info-800">
             <strong>Pré-visualização:</strong> Será criada uma despesa{' '}
             {recurrenceType === 'monthly' ? 'todo mês' : 
              recurrenceType === 'quarterly' ? 'a cada 3 meses' : 

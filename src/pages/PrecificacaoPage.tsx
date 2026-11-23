@@ -59,7 +59,7 @@ const PrecificacaoPage: React.FC = () => {
 
   if (!canAccess) {
     return (
-      <div className="p-6 space-y-6 bg-[#F8F9FA] min-h-screen">
+      <div className="p-6 space-y-6 bg-surface min-h-screen">
         <div className="border-b border-gray-200 pb-4">
           <h1 className="text-3xl font-bold text-gradient-primary">Precificação & Yield</h1>
           <p className="text-gray-600 mt-2">Inteligência de mercado e rentabilidade de tarifas</p>
@@ -98,12 +98,12 @@ const PrecificacaoPage: React.FC = () => {
   };
 
   return (
-    <div className="p-6 space-y-6 bg-[#F8F9FA] min-h-screen">
+    <div className="p-6 space-y-6 bg-surface min-h-screen">
       {/* Header com Título e Badges Informativos do Filtro Global */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-4">
         <div>
           <h1 className="text-3xl font-bold text-gradient-primary flex items-center gap-2.5">
-            <Sparkles className="h-7 w-7 text-[#6A6DDF]" />
+            <Sparkles className="h-7 w-7 text-brand" />
             Precificação & Yield Estratégico
           </h1>
           <p className="text-gray-600 mt-1 text-sm">
@@ -116,21 +116,21 @@ const PrecificacaoPage: React.FC = () => {
           {/* Badge do Imóvel Selecionado */}
           {isAllSelected ? (
             <Badge variant="outline" className="bg-white border-gray-200 text-gray-700 py-1.5 px-3 flex items-center gap-1.5 shadow-2xs text-xs font-medium">
-              <Layers className="h-3.5 w-3.5 text-[#6A6DDF]" />
+              <Layers className="h-3.5 w-3.5 text-brand" />
               <span>Visão Geral ({analisados.length} Imóveis)</span>
             </Badge>
           ) : isSingleProperty && selectedProperty ? (
-            <Badge variant="outline" className="bg-white border-emerald-200 text-gray-800 py-1.5 px-3 flex items-center gap-2 shadow-2xs text-xs font-semibold">
-              <span className={`w-2 h-2 rounded-full ${selectedProperty.status === 'Ativo' ? 'bg-emerald-500' : 'bg-gray-400'}`} />
-              <Home className="h-3.5 w-3.5 text-[#6A6DDF]" />
+            <Badge variant="outline" className="bg-white border-success-200 text-gray-800 py-1.5 px-3 flex items-center gap-2 shadow-2xs text-xs font-semibold">
+              <span className={`w-2 h-2 rounded-full ${selectedProperty.status === 'Ativo' ? 'bg-success-500' : 'bg-gray-400'}`} />
+              <Home className="h-3.5 w-3.5 text-brand" />
               <span>{selectedProperty.name}</span>
               {selectedProperty.nickname && (
                 <span className="text-gray-500 font-normal">({selectedProperty.nickname})</span>
               )}
             </Badge>
           ) : (
-            <Badge variant="outline" className="bg-white border-indigo-200 text-gray-800 py-1.5 px-3 flex items-center gap-1.5 shadow-2xs text-xs font-medium">
-              <Home className="h-3.5 w-3.5 text-[#6A6DDF]" />
+            <Badge variant="outline" className="bg-white border-brand-200 text-gray-800 py-1.5 px-3 flex items-center gap-1.5 shadow-2xs text-xs font-medium">
+              <Home className="h-3.5 w-3.5 text-brand" />
               <span>{selectedProperties.length} Imóveis Selecionados</span>
             </Badge>
           )}
@@ -142,8 +142,8 @@ const PrecificacaoPage: React.FC = () => {
           )}
 
           {/* Badge do Período Ativo */}
-          <Badge variant="outline" className="bg-[#6A6DDF]/5 border-[#6A6DDF]/20 text-[#6A6DDF] py-1.5 px-3 flex items-center gap-1.5 shadow-2xs text-xs font-medium">
-            <Calendar className="h-3.5 w-3.5 text-[#6A6DDF]" />
+          <Badge variant="outline" className="bg-brand/5 border-brand/20 text-brand py-1.5 px-3 flex items-center gap-1.5 shadow-2xs text-xs font-medium">
+            <Calendar className="h-3.5 w-3.5 text-brand" />
             <span>{getPeriodBadgeLabel()}</span>
           </Badge>
         </div>

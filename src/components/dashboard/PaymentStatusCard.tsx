@@ -23,20 +23,20 @@ const PaymentStatusCard = ({ paidCount, pendingCount }: PaymentStatusCardProps) 
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="grid grid-cols-2 gap-4">
-          <div className="bg-gradient-to-r from-green-50 to-green-100 p-4 rounded-lg border border-green-200">
+          <div className="bg-gradient-to-r from-success-50 to-success-100 p-4 rounded-lg border border-success-200">
             <div className="flex items-center gap-2 mb-2">
-              <CheckCircle2 className="h-5 w-5 text-green-600" />
-              <span className="text-sm font-medium text-green-800">Reservas Pagas</span>
+              <CheckCircle2 className="h-5 w-5 text-success-600" />
+              <span className="text-sm font-medium text-success-800">Reservas Pagas</span>
             </div>
-            <div className="text-3xl font-bold text-green-700">{paidCount}</div>
+            <div className="text-3xl font-bold text-success-700">{paidCount}</div>
           </div>
           
-          <div className="bg-gradient-to-r from-yellow-50 to-yellow-100 p-4 rounded-lg border border-yellow-200">
+          <div className="bg-gradient-to-r from-warning-50 to-warning-100 p-4 rounded-lg border border-warning-200">
             <div className="flex items-center gap-2 mb-2">
-              <Clock className="h-5 w-5 text-yellow-600" />
-              <span className="text-sm font-medium text-yellow-800">Pagamentos Pendentes</span>
+              <Clock className="h-5 w-5 text-warning-600" />
+              <span className="text-sm font-medium text-warning-800">Pagamentos Pendentes</span>
             </div>
-            <div className="text-3xl font-bold text-yellow-700">{pendingCount}</div>
+            <div className="text-3xl font-bold text-warning-700">{pendingCount}</div>
           </div>
         </div>
 

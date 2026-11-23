@@ -33,9 +33,9 @@ const formatDateTime = (value: string | null) =>
 const statusBadge = (status: string | null) => {
   switch (status) {
     case 'success':
-      return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Sincronizado</Badge>;
+      return <Badge className="bg-success-100 text-success-800 hover:bg-success-100">Sincronizado</Badge>;
     case 'partial':
-      return <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Parcial</Badge>;
+      return <Badge className="bg-warning-100 text-warning-800 hover:bg-warning-100">Parcial</Badge>;
     case 'error':
       return <Badge variant="destructive">Erro</Badge>;
     case 'skipped':
@@ -189,7 +189,7 @@ const ChannelSyncSection: React.FC = () => {
             </Button>
             <Button
               onClick={() => { setEditing(null); setDialogOpen(true); }}
-              className="bg-[#6A6DDF] hover:bg-[#5A5BCF]"
+              className="bg-brand hover:bg-brand-hover"
             >
               <Plus className="h-4 w-4 mr-2" />
               Conectar
@@ -256,7 +256,7 @@ const ChannelSyncSection: React.FC = () => {
                       onClick={() => setDeleteTarget(source)}
                       title="Remover"
                     >
-                      <Trash2 className="h-4 w-4 text-red-500" />
+                      <Trash2 className="h-4 w-4 text-danger-500" />
                     </Button>
                   </div>
                 </div>
@@ -286,7 +286,7 @@ const ChannelSyncSection: React.FC = () => {
             está no guia do projeto.
           </p>
           <a
-            className="inline-flex items-center gap-1 text-[#6A6DDF] hover:underline"
+            className="inline-flex items-center gap-1 text-brand hover:underline"
             href="https://github.com/riohdigital/rio-host-dashboard-hub/blob/main/docs/SINCRONIZACAO-AUTOMATICA.md"
             target="_blank"
             rel="noopener noreferrer"
@@ -306,7 +306,7 @@ const ChannelSyncSection: React.FC = () => {
             <AlertTriangle className="h-5 w-5" />
             Precisam da sua conferência
             {pending.length > 0 && (
-              <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">
+              <Badge className="bg-warning-100 text-warning-800 hover:bg-warning-100">
                 {pending.length}
               </Badge>
             )}
@@ -319,7 +319,7 @@ const ChannelSyncSection: React.FC = () => {
         <CardContent>
           {pending.length === 0 ? (
             <div className="flex items-center gap-2 text-sm text-gray-500 py-4">
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <CheckCircle2 className="h-4 w-4 text-success-600" />
               Nada pendente no momento.
             </div>
           ) : (
@@ -368,7 +368,7 @@ const ChannelSyncSection: React.FC = () => {
                           size="sm"
                           disabled={!escolhas[item.id]}
                           onClick={() => handleAssign(item.id)}
-                          className="bg-[#6A6DDF] hover:bg-[#5A5BCF]"
+                          className="bg-brand hover:bg-brand-hover"
                         >
                           Vincular
                         </Button>

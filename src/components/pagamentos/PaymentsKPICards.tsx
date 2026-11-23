@@ -50,7 +50,7 @@ const PaymentsKPICards = ({ kpis, loading }: PaymentsKPICardsProps) => {
         value={fmt(kpis.totalCommissionReceived)}
         sub={`A receber: ${fmt(kpis.totalCommissionPending)}`}
         icon={<TrendingUp className="h-5 w-5" />}
-        colorClass="bg-gradient-to-br from-emerald-500 to-emerald-600"
+        colorClass="bg-gradient-to-br from-success-500 to-success-600"
         loading={loading}
       />
       <KPICard
@@ -58,7 +58,7 @@ const PaymentsKPICards = ({ kpis, loading }: PaymentsKPICardsProps) => {
         value={fmt(kpis.totalCleaningsPaid)}
         sub={`Pendente: ${fmt(kpis.totalCleaningsPending)}`}
         icon={<Wrench className="h-5 w-5" />}
-        colorClass="bg-gradient-to-br from-blue-500 to-blue-600"
+        colorClass="bg-gradient-to-br from-info-500 to-info-600"
         loading={loading}
       />
       <KPICard
@@ -66,7 +66,7 @@ const PaymentsKPICards = ({ kpis, loading }: PaymentsKPICardsProps) => {
         value={fmt(kpis.totalOwnerTransfer)}
         sub="Líquido após investimentos"
         icon={<DollarSign className="h-5 w-5" />}
-        colorClass="bg-gradient-to-br from-amber-500 to-orange-500"
+        colorClass="bg-gradient-to-br from-warning-500 to-orange-500"
         loading={loading}
       />
       <KPICard
@@ -75,8 +75,8 @@ const PaymentsKPICards = ({ kpis, loading }: PaymentsKPICardsProps) => {
         sub="Comissão - Faxinas - Repasse"
         icon={<Wallet className="h-5 w-5" />}
         colorClass={kpis.netBalance >= 0
-          ? 'bg-gradient-to-br from-purple-600 to-purple-700'
-          : 'bg-gradient-to-br from-red-500 to-red-600'
+          ? 'bg-gradient-to-br from-brand-600 to-brand-700'
+          : 'bg-gradient-to-br from-danger-500 to-danger-600'
         }
         loading={loading}
       />

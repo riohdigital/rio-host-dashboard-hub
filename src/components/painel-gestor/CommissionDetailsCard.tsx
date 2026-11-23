@@ -22,9 +22,9 @@ const formatCurrency = (value: number) => {
 
 const getPlatformBadge = (platform: string) => {
   const platformConfig: Record<string, { bg: string; text: string }> = {
-    'Airbnb': { bg: 'bg-rose-100 dark:bg-rose-900/30', text: 'text-rose-700 dark:text-rose-300' },
-    'Booking.com': { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-700 dark:text-blue-300' },
-    'Direto': { bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-700 dark:text-emerald-300' }
+    'Airbnb': { bg: 'bg-danger-100 dark:bg-danger-900/30', text: 'text-danger-700 dark:text-danger-300' },
+    'Booking.com': { bg: 'bg-info-100 dark:bg-info-900/30', text: 'text-info-700 dark:text-info-300' },
+    'Direto': { bg: 'bg-success-100 dark:bg-success-900/30', text: 'text-success-700 dark:text-success-300' }
   };
   
   const config = platformConfig[platform] || platformConfig['Direto'];
@@ -75,7 +75,7 @@ const CommissionItem = ({ item }: { item: CommissionDetail }) => {
         </div>
       </div>
       <div className="text-right ml-3">
-        <span className={`font-semibold text-sm ${item.status === 'received' ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
+        <span className={`font-semibold text-sm ${item.status === 'received' ? 'text-success-600 dark:text-success-400' : 'text-warning-600 dark:text-warning-400'}`}>
           {formatCurrency(item.commissionAmount)}
         </span>
       </div>
@@ -135,28 +135,28 @@ export const CommissionDetailsCard = ({ data, loading }: CommissionDetailsCardPr
       <CardContent>
         {/* Summary Cards */}
         <div className="grid grid-cols-2 gap-4 mb-4">
-          <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-3">
+          <div className="bg-success-50 dark:bg-success-900/20 rounded-lg p-3">
             <div className="flex items-center gap-2 mb-1">
-              <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              <span className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">Recebidas</span>
+              <CheckCircle className="h-4 w-4 text-success-600 dark:text-success-400" />
+              <span className="text-xs text-success-700 dark:text-success-300 font-medium">Recebidas</span>
             </div>
-            <div className="text-lg font-bold text-emerald-700 dark:text-emerald-300">
+            <div className="text-lg font-bold text-success-700 dark:text-success-300">
               {formatCurrency(data.totalReceived)}
             </div>
-            <div className="text-xs text-emerald-600/70 dark:text-emerald-400/70">
+            <div className="text-xs text-success-600/70 dark:text-success-400/70">
               {data.receivedCount} {data.receivedCount === 1 ? 'comissão' : 'comissões'}
             </div>
           </div>
           
-          <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-3">
+          <div className="bg-warning-50 dark:bg-warning-900/20 rounded-lg p-3">
             <div className="flex items-center gap-2 mb-1">
-              <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-              <span className="text-xs text-amber-700 dark:text-amber-300 font-medium">A Receber</span>
+              <Clock className="h-4 w-4 text-warning-600 dark:text-warning-400" />
+              <span className="text-xs text-warning-700 dark:text-warning-300 font-medium">A Receber</span>
             </div>
-            <div className="text-lg font-bold text-amber-700 dark:text-amber-300">
+            <div className="text-lg font-bold text-warning-700 dark:text-warning-300">
               {formatCurrency(data.totalPending)}
             </div>
-            <div className="text-xs text-amber-600/70 dark:text-amber-400/70">
+            <div className="text-xs text-warning-600/70 dark:text-warning-400/70">
               {data.pendingCount} {data.pendingCount === 1 ? 'comissão' : 'comissões'}
             </div>
           </div>

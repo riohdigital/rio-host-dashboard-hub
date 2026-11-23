@@ -125,15 +125,15 @@ const CashflowCard = ({ data }: { data: CashflowData }) => {
   const formatTooltip = (value: number) => [formatCurrency(value), ''];
 
   const receivedData = [
-    { name: 'Airbnb', value: data.airbnbReceived, color: '#10B981' },
-    { name: 'Booking', value: data.bookingReceived, color: '#059669' },
-    { name: 'Direto', value: data.diretoReceived, color: '#0891B2' }
+    { name: 'Airbnb', value: data.airbnbReceived, color: 'hsl(var(--success))' },
+    { name: 'Booking', value: data.bookingReceived, color: 'hsl(var(--success-600))' },
+    { name: 'Direto', value: data.diretoReceived, color: 'hsl(var(--info-600))' }
   ].filter(item => item.value > 0);
 
   const receivableData = [
-    { name: 'Airbnb', value: data.airbnbReceivable, color: '#F59E0B' },
-    { name: 'Booking', value: data.bookingReceivable, color: '#D97706' },
-    { name: 'Direto', value: data.diretoReceivable, color: '#0284C7' }
+    { name: 'Airbnb', value: data.airbnbReceivable, color: 'hsl(var(--warning))' },
+    { name: 'Booking', value: data.bookingReceivable, color: 'hsl(var(--warning-600))' },
+    { name: 'Direto', value: data.diretoReceivable, color: 'hsl(var(--info-700))' }
   ].filter(item => item.value > 0);
 
   return (
@@ -148,27 +148,27 @@ const CashflowCard = ({ data }: { data: CashflowData }) => {
         
         {/* Resumo Visual */}
         <div className="grid grid-cols-2 gap-4">
-          <div className="bg-gradient-to-r from-green-50 to-green-100 p-3 rounded-lg border border-green-200">
+          <div className="bg-gradient-to-r from-success-50 to-success-100 p-3 rounded-lg border border-success-200">
             <div className="flex items-center gap-2 mb-1">
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
-              <span className="text-xs font-medium text-green-800">Recebido</span>
+              <CheckCircle2 className="h-4 w-4 text-success-600" />
+              <span className="text-xs font-medium text-success-800">Recebido</span>
             </div>
-            <div className="text-lg font-bold text-green-700">{formatCurrency(totalReceived)}</div>
+            <div className="text-lg font-bold text-success-700">{formatCurrency(totalReceived)}</div>
             <div className="flex items-center gap-1 mt-1">
-              <TrendingUp className="h-3 w-3 text-green-600" />
-              <span className="text-xs text-green-600">Entrada confirmada</span>
+              <TrendingUp className="h-3 w-3 text-success-600" />
+              <span className="text-xs text-success-600">Entrada confirmada</span>
             </div>
           </div>
           
-          <div className="bg-gradient-to-r from-yellow-50 to-yellow-100 p-3 rounded-lg border border-yellow-200">
+          <div className="bg-gradient-to-r from-warning-50 to-warning-100 p-3 rounded-lg border border-warning-200">
             <div className="flex items-center gap-2 mb-1">
-              <Clock className="h-4 w-4 text-yellow-600" />
-              <span className="text-xs font-medium text-yellow-800">A Receber</span>
+              <Clock className="h-4 w-4 text-warning-600" />
+              <span className="text-xs font-medium text-warning-800">A Receber</span>
             </div>
-            <div className="text-lg font-bold text-yellow-700">{formatCurrency(totalReceivable)}</div>
+            <div className="text-lg font-bold text-warning-700">{formatCurrency(totalReceivable)}</div>
             <div className="flex items-center gap-1 mt-1">
-              <TrendingDown className="h-3 w-3 text-yellow-600" />
-              <span className="text-xs text-yellow-600">Entrada prevista</span>
+              <TrendingDown className="h-3 w-3 text-warning-600" />
+              <span className="text-xs text-warning-600">Entrada prevista</span>
             </div>
           </div>
         </div>
@@ -178,21 +178,21 @@ const CashflowCard = ({ data }: { data: CashflowData }) => {
           {receivedData.length > 0 && (
             <div>
               <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                <CheckCircle2 className="h-4 w-4 text-success-500" />
                 Valores Recebidos
               </h4>
               <div className="h-20">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={receivedData} layout="horizontal">
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--chart-grid))" />
                     <XAxis type="number" hide />
                     <YAxis dataKey="name" type="category" width={60} tick={{ fontSize: 12 }} />
                     <Tooltip 
                       formatter={formatTooltip}
-                      labelStyle={{ color: '#374151' }}
+                      labelStyle={{ color: 'hsl(var(--ink))' }}
                       contentStyle={{ 
                         backgroundColor: 'white', 
-                        border: '1px solid #e5e7eb',
+                        border: '1px solid hsl(var(--gray-200))',
                         borderRadius: '6px',
                         fontSize: '12px'
                       }}
@@ -211,21 +211,21 @@ const CashflowCard = ({ data }: { data: CashflowData }) => {
           {receivableData.length > 0 && (
             <div>
               <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                <Clock className="h-4 w-4 text-yellow-500" />
+                <Clock className="h-4 w-4 text-warning-500" />
                 Valores a Receber
               </h4>
               <div className="h-20">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={receivableData} layout="horizontal">
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--chart-grid))" />
                     <XAxis type="number" hide />
                     <YAxis dataKey="name" type="category" width={60} tick={{ fontSize: 12 }} />
                     <Tooltip 
                       formatter={formatTooltip}
-                      labelStyle={{ color: '#374151' }}
+                      labelStyle={{ color: 'hsl(var(--ink))' }}
                       contentStyle={{ 
                         backgroundColor: 'white', 
-                        border: '1px solid #e5e7eb',
+                        border: '1px solid hsl(var(--gray-200))',
                         borderRadius: '6px',
                         fontSize: '12px'
                       }}

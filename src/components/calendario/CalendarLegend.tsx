@@ -29,11 +29,11 @@ export const CalendarLegend: React.FC = () => {
               <h4 className="font-medium mb-2 text-muted-foreground">Status das Reservas</h4>
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded bg-blue-100 dark:bg-blue-900/20 border border-blue-300 dark:border-blue-700" />
+                  <div className="w-4 h-4 rounded bg-info-100 dark:bg-info-900/20 border border-info-300 dark:border-info-700" />
                   <span className="text-xs">Confirmada</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded bg-green-100 dark:bg-green-900/20 border border-green-300 dark:border-green-700" />
+                  <div className="w-4 h-4 rounded bg-success-100 dark:bg-success-900/20 border border-success-300 dark:border-success-700" />
                   <span className="text-xs">Em Andamento</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -41,7 +41,7 @@ export const CalendarLegend: React.FC = () => {
                   <span className="text-xs">Finalizada</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-700" />
+                  <div className="w-4 h-4 rounded bg-danger-100 dark:bg-danger-900/20 border border-danger-300 dark:border-danger-700" />
                   <span className="text-xs">Cancelada</span>
                 </div>
               </div>
@@ -52,7 +52,7 @@ export const CalendarLegend: React.FC = () => {
               <h4 className="font-medium mb-2 text-muted-foreground">Status de Pagamento</h4>
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded bg-muted border-2 border-yellow-500" />
+                  <div className="w-4 h-4 rounded bg-muted border-2 border-warning-500" />
                   <span className="text-xs">Pago</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -71,7 +71,7 @@ export const CalendarLegend: React.FC = () => {
                   <span className="text-xs">Airbnb</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-blue-500" />
+                  <div className="w-3 h-3 rounded-full bg-info-500" />
                   <span className="text-xs">Booking</span>
                 </div>
                 <div className="flex items-center gap-2">

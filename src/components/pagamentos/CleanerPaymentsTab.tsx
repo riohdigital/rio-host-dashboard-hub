@@ -18,23 +18,23 @@ const fmt = (v: number) =>
 const getStatusBadge = (status: string) => {
   switch (status) {
     case 'Pago':
-      return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-xs">✓ Pago</Badge>;
+      return <Badge className="bg-success-100 text-success-700 border-success-200 text-xs">✓ Pago</Badge>;
     case 'Próximo Ciclo':
-      return <Badge className="bg-blue-100 text-blue-700 border-blue-200 text-xs">Próximo Ciclo</Badge>;
+      return <Badge className="bg-info-100 text-info-700 border-info-200 text-xs">Próximo Ciclo</Badge>;
     case 'Pagamento na Data':
-      return <Badge className="bg-purple-100 text-purple-700 border-purple-200 text-xs">Na Data</Badge>;
+      return <Badge className="bg-brand-100 text-brand-700 border-brand-200 text-xs">Na Data</Badge>;
     case 'D+1':
       return <Badge className="bg-cyan-100 text-cyan-700 border-cyan-200 text-xs">D+1</Badge>;
     default:
-      return <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-xs">Pendente</Badge>;
+      return <Badge className="bg-warning-100 text-warning-700 border-warning-200 text-xs">Pendente</Badge>;
   }
 };
 
 const getPlatformColor = (platform: string) => {
   switch (platform) {
-    case 'Airbnb': return 'text-rose-600';
-    case 'Booking.com': return 'text-blue-600';
-    default: return 'text-emerald-600';
+    case 'Airbnb': return 'text-danger-600';
+    case 'Booking.com': return 'text-info-600';
+    default: return 'text-success-600';
   }
 };
 
@@ -58,7 +58,7 @@ const CleanerCard = ({ cleaner }: CleanerCardProps) => {
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[#6A6DDF] to-[#F472B6] flex items-center justify-center text-white font-bold text-sm">
+            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-brand to-brand-accent flex items-center justify-center text-white font-bold text-sm">
               {initials}
             </div>
             <div>
@@ -109,24 +109,24 @@ const CleanerCard = ({ cleaner }: CleanerCardProps) => {
           <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t">
             <div className="text-center">
               <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground mb-1">
-                <CheckCircle className="h-3 w-3 text-emerald-500" />
+                <CheckCircle className="h-3 w-3 text-success-500" />
                 Pago
               </div>
-              <div className="font-semibold text-sm text-emerald-600">{fmt(cleaner.totalPaid)}</div>
+              <div className="font-semibold text-sm text-success-600">{fmt(cleaner.totalPaid)}</div>
             </div>
             <div className="text-center border-x">
               <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground mb-1">
-                <Clock className="h-3 w-3 text-amber-500" />
+                <Clock className="h-3 w-3 text-warning-500" />
                 Pendente
               </div>
-              <div className="font-semibold text-sm text-amber-600">{fmt(cleaner.totalPending)}</div>
+              <div className="font-semibold text-sm text-warning-600">{fmt(cleaner.totalPending)}</div>
             </div>
             <div className="text-center">
               <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground mb-1">
-                <RefreshCw className="h-3 w-3 text-blue-500" />
+                <RefreshCw className="h-3 w-3 text-info-500" />
                 Próx. Ciclo
               </div>
-              <div className="font-semibold text-sm text-blue-600">{fmt(cleaner.totalNextCycle)}</div>
+              <div className="font-semibold text-sm text-info-600">{fmt(cleaner.totalNextCycle)}</div>
             </div>
           </div>
         )}
@@ -308,37 +308,37 @@ const CleanerPaymentsTab = ({ cleanerPayments, loading, hasFilter }: CleanerPaym
     <div className="space-y-4">
       {/* Banner de Reembolsos de Materiais / Faxineiras */}
       {pendingExpenses.length > 0 && (
-        <Card className="border-amber-200 bg-amber-50/60 shadow-sm">
+        <Card className="border-warning-200 bg-warning-50/60 shadow-sm">
           <CardContent className="p-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-amber-100 text-amber-800 rounded-lg">
+                <div className="p-2.5 bg-warning-100 text-warning-800 rounded-lg">
                   <Receipt className="h-5 w-5" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h4 className="font-semibold text-amber-900 text-sm">
+                    <h4 className="font-semibold text-warning-900 text-sm">
                       Reembolsos de Materiais de Limpeza Pendentes
                     </h4>
-                    <Badge className="bg-amber-500 text-white text-xs">
+                    <Badge className="bg-warning-500 text-white text-xs">
                       {pendingExpenses.length} comprovante{pendingExpenses.length > 1 ? 's' : ''}
                     </Badge>
                   </div>
-                  <p className="text-xs text-amber-700 mt-0.5">
+                  <p className="text-xs text-warning-700 mt-0.5">
                     Compras realizadas pela equipe de limpeza aguardando reembolso do gestor
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-3 self-end sm:self-center">
-                <span className="font-bold text-base text-amber-800">
+                <span className="font-bold text-base text-warning-800">
                   {fmt(totalPendingExpenses)}
                 </span>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setShowReimbursementsList(!showReimbursementsList)}
-                  className="border-amber-300 text-amber-900 hover:bg-amber-100 text-xs h-8"
+                  className="border-warning-300 text-warning-900 hover:bg-warning-100 text-xs h-8"
                 >
                   {showReimbursementsList ? "Ocultar Notas" : "Ver Notas Fiscais"}
                 </Button>
@@ -346,9 +346,9 @@ const CleanerPaymentsTab = ({ cleanerPayments, loading, hasFilter }: CleanerPaym
             </div>
 
             {showReimbursementsList && (
-              <div className="mt-3 pt-3 border-t border-amber-200 space-y-2">
+              <div className="mt-3 pt-3 border-t border-warning-200 space-y-2">
                 {pendingExpenses.map(item => (
-                  <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between bg-white/80 p-2.5 rounded-md border border-amber-100 gap-2 text-xs">
+                  <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between bg-white/80 p-2.5 rounded-md border border-warning-100 gap-2 text-xs">
                     <div>
                       <span className="font-semibold text-gray-800">{item.description}</span>
                       <div className="flex items-center gap-3 text-muted-foreground mt-0.5">
@@ -357,10 +357,10 @@ const CleanerPaymentsTab = ({ cleanerPayments, loading, hasFilter }: CleanerPaym
                       </div>
                     </div>
                     <div className="flex items-center gap-3 self-end sm:self-center">
-                      <span className="font-bold text-amber-700">{fmt(Number(item.amount) || 0)}</span>
+                      <span className="font-bold text-warning-700">{fmt(Number(item.amount) || 0)}</span>
                       <Button
                         size="sm"
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-7 px-2.5 flex items-center gap-1"
+                        className="bg-success-600 hover:bg-success-700 text-white text-xs h-7 px-2.5 flex items-center gap-1"
                         onClick={() => handleMarkAsReimbursed(item.id)}
                       >
                         <CheckCircle className="h-3 w-3" />
@@ -417,8 +417,8 @@ const CleanerPaymentsTab = ({ cleanerPayments, loading, hasFilter }: CleanerPaym
           {filtered.reduce((s, c) => s + c.cleanings.length, 0)} faxinas
         </span>
         <div className="flex items-center gap-4 text-sm">
-          <span className="text-emerald-600 font-medium">Pago: {fmt(totalPaid)}</span>
-          <span className="text-amber-600 font-medium">Pendente: {fmt(totalPending)}</span>
+          <span className="text-success-600 font-medium">Pago: {fmt(totalPaid)}</span>
+          <span className="text-warning-600 font-medium">Pendente: {fmt(totalPending)}</span>
           <span className="font-bold">Total: {fmt(grandTotal)}</span>
         </div>
       </div>

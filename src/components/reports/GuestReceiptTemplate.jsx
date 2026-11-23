@@ -24,7 +24,7 @@ const GuestReceiptTemplate = ({ receipt, issuer }) => {
 
   return (
     <div className="bg-white p-8 font-sans max-w-4xl mx-auto shadow-lg rounded-lg border border-gray-200">
-      <header className="p-4 text-white rounded-t-lg bg-blue-800 flex justify-between items-center">
+      <header className="p-4 text-white rounded-t-lg bg-info-800 flex justify-between items-center">
         {mostrarLogo
           ? <img src={logoUrl} alt={emissor} className="h-10" crossOrigin="anonymous" />
           : <p className="text-xl font-bold">{emissor}</p>}
@@ -43,7 +43,7 @@ const GuestReceiptTemplate = ({ receipt, issuer }) => {
           </div>
           <div className="text-right pl-4">
             <p className="text-gray-700 text-md">Valor pago no mês:</p>
-            <p className="text-3xl font-bold text-blue-800">{formatCurrency(receipt.amount)}</p>
+            <p className="text-3xl font-bold text-info-800">{formatCurrency(receipt.amount)}</p>
             {receipt.spansMonths && (
               <p className="text-xs text-gray-500 mt-1">
                 {receipt.nightsInMonth} de {receipt.totalNights} noites · total da estadia {formatCurrency(receipt.stayTotal)}
@@ -62,9 +62,9 @@ const GuestReceiptTemplate = ({ receipt, issuer }) => {
           )}
         </section>
 
-        <section className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+        <section className="bg-info-50 border border-info-200 rounded-lg p-4 text-center">
           <div className="flex items-center justify-center">
-            <CheckCircle className="h-5 w-5 text-blue-600 mr-2" />
+            <CheckCircle className="h-5 w-5 text-info-600 mr-2" />
             <h4 className="font-bold text-lg text-gray-800">{pago ? 'Pagamento recebido' : 'Valor referente ao período'}</h4>
           </div>
           <p className="text-gray-700 mt-2">

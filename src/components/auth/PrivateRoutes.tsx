@@ -13,8 +13,8 @@ const PrivateRoutes = () => {
   // Se o role já foi carregado, nunca desmonte a página em atualizações em segundo plano!
   if (permissionsLoading && !role) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#6A6DDF]" />
+      <div className="min-h-screen flex items-center justify-center bg-surface">
+        <Loader2 className="h-8 w-8 animate-spin text-brand" />
       </div>
     );
   }
@@ -23,7 +23,7 @@ const PrivateRoutes = () => {
   //    esperamos ou mostramos uma mensagem. Isso evita o redirecionamento prematuro.
   if (!role) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
+      <div className="min-h-screen flex items-center justify-center bg-surface">
         <div className="text-muted-foreground">Verificando perfil do usuário...</div>
       </div>
     );

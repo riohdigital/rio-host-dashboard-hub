@@ -15,8 +15,8 @@ const PaymentSummaryCard = ({ totalPaidCount, totalPendingCount }: PaymentSummar
   const pendingPercentage = total > 0 ? (totalPendingCount / total) * 100 : 0;
 
   const chartData = [
-    { name: 'Pagas', value: totalPaidCount, color: '#10B981' },
-    { name: 'Pendentes', value: totalPendingCount, color: '#F59E0B' }
+    { name: 'Pagas', value: totalPaidCount, color: 'hsl(var(--success))' },
+    { name: 'Pendentes', value: totalPendingCount, color: 'hsl(var(--warning))' }
   ];
 
   const formatTooltip = (value: number, name: string) => [
@@ -36,18 +36,18 @@ const PaymentSummaryCard = ({ totalPaidCount, totalPendingCount }: PaymentSummar
         <div className="grid grid-cols-2 gap-4">
           <div className="text-center">
             <div className="flex items-center justify-center gap-2 mb-1">
-              <CheckCircle2 className="h-4 w-4 text-green-500" />
+              <CheckCircle2 className="h-4 w-4 text-success-500" />
               <span className="text-sm text-gray-600">Pagas</span>
             </div>
-            <div className="text-2xl font-bold text-green-600">{totalPaidCount}</div>
+            <div className="text-2xl font-bold text-success-600">{totalPaidCount}</div>
             <div className="text-xs text-gray-500">{paidPercentage.toFixed(1)}%</div>
           </div>
           <div className="text-center">
             <div className="flex items-center justify-center gap-2 mb-1">
-              <Clock className="h-4 w-4 text-yellow-500" />
+              <Clock className="h-4 w-4 text-warning-500" />
               <span className="text-sm text-gray-600">Pendentes</span>
             </div>
-            <div className="text-2xl font-bold text-yellow-600">{totalPendingCount}</div>
+            <div className="text-2xl font-bold text-warning-600">{totalPendingCount}</div>
             <div className="text-xs text-gray-500">{pendingPercentage.toFixed(1)}%</div>
           </div>
         </div>

@@ -18,17 +18,17 @@ interface DayCellProps {
 const getPlatformColor = (platform: string) => {
   switch (platform.toLowerCase()) {
     case 'airbnb': return 'bg-pink-500';
-    case 'booking': return 'bg-blue-500';
+    case 'booking': return 'bg-info-500';
     default: return 'bg-gray-500';
   }
 };
 
 const getStatusColor = (status: string) => {
   switch (status) {
-    case 'Confirmada': return 'bg-blue-100 text-blue-900 dark:bg-blue-900/20 dark:text-blue-300';
-    case 'Em Andamento': return 'bg-green-100 text-green-900 dark:bg-green-900/20 dark:text-green-300';
+    case 'Confirmada': return 'bg-info-100 text-info-900 dark:bg-info-900/20 dark:text-info-300';
+    case 'Em Andamento': return 'bg-success-100 text-success-900 dark:bg-success-900/20 dark:text-success-300';
     case 'Finalizada': return 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400';
-    case 'Cancelada': return 'bg-red-100 text-red-900 dark:bg-red-900/20 dark:text-red-300';
+    case 'Cancelada': return 'bg-danger-100 text-danger-900 dark:bg-danger-900/20 dark:text-danger-300';
     default: return 'bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-300';
   }
 };

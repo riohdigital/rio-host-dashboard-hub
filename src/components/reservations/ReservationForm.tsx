@@ -481,7 +481,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                 </Card>
             )}
 
-            <h3 className="text-lg font-semibold text-blue-600 border-b pb-2">Informações da Reserva</h3>
+            <h3 className="text-lg font-semibold text-info-600 border-b pb-2">Informações da Reserva</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <Label htmlFor="property_id">Propriedade *</Label>
@@ -496,7 +496,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                         </SelectContent>
                     </Select>
                     {/* A mensagem de erro agora deve aparecer se o campo for obrigatório e não preenchido */}
-                    {errors.property_id && <span className="text-red-500 text-sm">{errors.property_id.message}</span>}
+                    {errors.property_id && <span className="text-danger-500 text-sm">{errors.property_id.message}</span>}
                 </div>
                 <div>
                     <Label htmlFor="platform">Plataforma *</Label>
@@ -509,14 +509,14 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                             <SelectItem value="Outros">Outros</SelectItem>
                         </SelectContent>
                     </Select>
-                    {errors.platform && <span className="text-red-500 text-sm">{errors.platform.message}</span>}
+                    {errors.platform && <span className="text-danger-500 text-sm">{errors.platform.message}</span>}
                 </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <Label htmlFor="reservation_code">Código da Reserva *</Label>
                     <Input id="reservation_code" {...register('reservation_code')} placeholder="Ex: HMAB123456" />
-                    {errors.reservation_code && <span className="text-red-500 text-sm">{errors.reservation_code.message}</span>}
+                    {errors.reservation_code && <span className="text-danger-500 text-sm">{errors.reservation_code.message}</span>}
                 </div>
                 <div>
                     <Label htmlFor="guest_name">Nome do Hóspede</Label>
@@ -525,7 +525,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                 <div>
                     <Label htmlFor="guest_email">E-mail do Hóspede</Label>
                     <Input id="guest_email" type="email" {...register('guest_email')} placeholder="email@exemplo.com" />
-                    {errors.guest_email && <span className="text-red-500 text-sm">{errors.guest_email.message}</span>}
+                    {errors.guest_email && <span className="text-danger-500 text-sm">{errors.guest_email.message}</span>}
                 </div>
                 <div>
                     <Label htmlFor="guest_phone">Telefone do Hóspede</Label>
@@ -540,7 +540,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                 <div>
                     <Label htmlFor="total_revenue">Receita Total (R$) *</Label>
                     <Input id="total_revenue" type="number" step="0.01" {...register('total_revenue', { valueAsNumber: true })} placeholder="Ex: 1500.00" />
-                    {errors.total_revenue && <span className="text-red-500 text-sm">{errors.total_revenue.message}</span>}
+                    {errors.total_revenue && <span className="text-danger-500 text-sm">{errors.total_revenue.message}</span>}
                 </div>
                 <div>
                     <Label htmlFor="guest_total_paid">Valor Pago pelo Hóspede (R$)</Label>
@@ -552,24 +552,24 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                         placeholder={watchedValues.platform === 'Direto' ? 'Vazio = Receita Total' : 'Ex: 1800.00'}
                     />
                     <p className="text-xs text-muted-foreground mt-1">Usado no Comprovante do Hóspede.</p>
-                    {errors.guest_total_paid && <span className="text-red-500 text-sm">{errors.guest_total_paid.message}</span>}
+                    {errors.guest_total_paid && <span className="text-danger-500 text-sm">{errors.guest_total_paid.message}</span>}
                 </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                     <Label htmlFor="check_in_date">Data de Check-in *</Label>
-                    <Input id="check_in_date" type="date" {...register('check_in_date')} className={errors.check_in_date ? 'border-red-500' : ''} />
-                    {errors.check_in_date && <span className="text-red-500 text-sm">{errors.check_in_date.message}</span>}
+                    <Input id="check_in_date" type="date" {...register('check_in_date')} className={errors.check_in_date ? 'border-danger-500' : ''} />
+                    {errors.check_in_date && <span className="text-danger-500 text-sm">{errors.check_in_date.message}</span>}
                 </div>
                 <div>
                     <Label htmlFor="check_out_date">Data de Check-out *</Label>
-                    <Input id="check_out_date" type="date" {...register('check_out_date')} className={errors.check_out_date ? 'border-red-500' : ''} />
-                    {errors.check_out_date && <span className="text-red-500 text-sm">{errors.check_out_date.message}</span>}
+                    <Input id="check_out_date" type="date" {...register('check_out_date')} className={errors.check_out_date ? 'border-danger-500' : ''} />
+                    {errors.check_out_date && <span className="text-danger-500 text-sm">{errors.check_out_date.message}</span>}
                 </div>
                 <div className="flex flex-col justify-center">
                     <Label className="text-sm text-gray-600 mb-2">Número de Diárias</Label>
-                    <div className="flex items-center justify-center p-2 bg-blue-50 rounded-md border border-blue-200">
-                        <span className="text-lg font-semibold text-blue-600">
+                    <div className="flex items-center justify-center p-2 bg-info-50 rounded-md border border-info-200">
+                        <span className="text-lg font-semibold text-info-600">
                             {numberOfDays > 0 ? `${numberOfDays} ${numberOfDays === 1 ? 'diária' : 'diárias'}` : '-'}
                         </span>
                     </div>
@@ -614,11 +614,11 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                             <SelectItem value="Cancelada">Cancelada</SelectItem>
                         </SelectContent>
                     </Select>
-                    {errors.reservation_status && <span className="text-red-500 text-sm">{errors.reservation_status.message}</span>}
+                    {errors.reservation_status && <span className="text-danger-500 text-sm">{errors.reservation_status.message}</span>}
                 </div>
             </div>
             <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-purple-600 border-b pb-2">Serviço de Faxina</h3>
+                <h3 className="text-lg font-semibold text-brand-600 border-b pb-2">Serviço de Faxina</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <Label htmlFor="cleaning_destination">Faxineira responsável</Label>
@@ -645,7 +645,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                                 </SelectGroup>
                                 <SelectSeparator />
                                 <div
-                                    className="relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 text-blue-600 hover:bg-gray-100 font-semibold"
+                                    className="relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 text-info-600 hover:bg-gray-100 font-semibold"
                                     onClick={() => { setShowCleanerForm(true); }}>
                                     Novo Cadastro +
                                 </div>
@@ -669,7 +669,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                         <div className="flex items-center gap-1 pt-2">
                             {[1, 2, 3, 4, 5].map((i) => (
                                 <button type="button" key={i} onClick={() => setValue('cleaning_rating', i)} className="p-1">
-                                    <Star className={(watchedValues.cleaning_rating || 0) >= i ? 'text-yellow-500' : 'text-gray-300'} size={18} />
+                                    <Star className={(watchedValues.cleaning_rating || 0) >= i ? 'text-warning-500' : 'text-gray-300'} size={18} />
                                 </button>
                             ))}
                             <span className="ml-2 text-sm text-gray-600">{watchedValues.cleaning_rating || 0}/5</span>
@@ -683,12 +683,12 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
             </div>
             {selectedProperty && watchedValues.total_revenue > 0 && (
                 <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-green-600 border-b pb-2">Detalhamento Financeiro</h3>
+                    <h3 className="text-lg font-semibold text-success-600 border-b pb-2">Detalhamento Financeiro</h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <Card>
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Receita Total</CardTitle></CardHeader>
                             <CardContent>
-                                <p className="text-2xl font-bold text-blue-600">R$ {watchedValues.total_revenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                                <p className="text-2xl font-bold text-info-600">R$ {watchedValues.total_revenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                             </CardContent>
                         </Card>
                         <Card>
@@ -722,11 +722,11 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                             </CardContent>
                         </Card>
                     </div>
-                    <Card className="bg-green-50 border-green-200">
+                    <Card className="bg-success-50 border-success-200">
                         <CardContent className="pt-6">
                             <div className="text-center">
                                 <p className="text-sm text-gray-600">Valor Líquido para o Proprietário</p>
-                                <p className="text-2xl font-bold text-green-600">R$ {watchedValues.net_revenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                                <p className="text-2xl font-bold text-success-600">R$ {watchedValues.net_revenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                             </div>
                         </CardContent>
                     </Card>
@@ -734,7 +734,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
             )}
             <div className="flex justify-end gap-3 pt-4 border-t">
                 <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>Cancelar</Button>
-                <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white" disabled={loading}>
+                <Button type="submit" className="bg-info-600 hover:bg-info-700 text-white" disabled={loading}>
                     {loading ? 'Salvando...' : 'Salvar'}
                 </Button>
             </div>

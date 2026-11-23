@@ -19,16 +19,16 @@ interface ReservationBlockProps {
 
 const getStatusColor = (status: string) => {
   const statusColors: Record<string, string> = {
-    'Confirmada': 'bg-blue-500 text-white',
-    'Em Andamento': 'bg-green-500 text-white',
+    'Confirmada': 'bg-info-500 text-white',
+    'Em Andamento': 'bg-success-500 text-white',
     'Finalizada': 'bg-gray-500 text-white',
-    'Cancelada': 'bg-red-500 text-white',
+    'Cancelada': 'bg-danger-500 text-white',
   };
   return statusColors[status] || 'bg-gray-400 text-white';
 };
 
 const getPaymentBorder = (status?: string) => {
-  if (status === 'Pago') return 'border-2 border-yellow-400';
+  if (status === 'Pago') return 'border-2 border-warning-400';
   if (status === 'Pendente') return 'border-2 border-dashed border-orange-400';
   return '';
 };
@@ -36,7 +36,7 @@ const getPaymentBorder = (status?: string) => {
 const getPlatformColor = (platform: string) => {
   switch (platform.toLowerCase()) {
     case 'airbnb': return 'bg-pink-500 text-white';
-    case 'booking': return 'bg-blue-600 text-white';
+    case 'booking': return 'bg-info-600 text-white';
     default: return 'bg-gray-600 text-white';
   }
 };
@@ -76,7 +76,7 @@ export const ReservationBlock = React.memo<ReservationBlockProps>(({
               'flex items-center px-2 text-xs font-medium',
               statusColor,
               paymentBorder,
-              hasConflict && 'border-2 border-red-600 bg-red-50 dark:bg-red-900/20 animate-pulse'
+              hasConflict && 'border-2 border-danger-600 bg-danger-50 dark:bg-danger-900/20 animate-pulse'
             )}
             style={{
               left: `${position.left}px`,
@@ -86,7 +86,7 @@ export const ReservationBlock = React.memo<ReservationBlockProps>(({
           >
             <span className="truncate flex-1">{reservation.reservation_code}</span>
             {hasConflict && (
-              <AlertTriangle className="h-3 w-3 text-red-600 ml-1 flex-shrink-0" />
+              <AlertTriangle className="h-3 w-3 text-danger-600 ml-1 flex-shrink-0" />
             )}
             <Badge
               variant="outline"
@@ -99,7 +99,7 @@ export const ReservationBlock = React.memo<ReservationBlockProps>(({
         <TooltipContent className="max-w-sm p-3">
           <div className="space-y-2">
             {hasConflict && (
-              <div className="flex items-center gap-2 text-red-600 font-semibold text-xs mb-2 pb-2 border-b border-red-200">
+              <div className="flex items-center gap-2 text-danger-600 font-semibold text-xs mb-2 pb-2 border-b border-danger-200">
                 <AlertTriangle className="h-4 w-4" />
                 <span>Conflito detectado!</span>
               </div>

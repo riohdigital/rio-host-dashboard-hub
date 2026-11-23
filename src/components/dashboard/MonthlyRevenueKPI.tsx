@@ -16,7 +16,7 @@ const MonthlyRevenueKPI = ({ totalRevenue, selectedPeriod, subtitle }: MonthlyRe
         <CardTitle className="text-sm font-medium text-gradient-primary">
           {subtitle || 'Receita Total'}
         </CardTitle>
-        <div className="text-[#6A6DDF]">
+        <div className="text-brand">
           <DollarSign className="h-4 w-4" />
         </div>
       </CardHeader>

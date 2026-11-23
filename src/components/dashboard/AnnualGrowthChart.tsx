@@ -98,12 +98,12 @@ const AnnualGrowthChart = ({ monthlyData, yearlyData, loading }: AnnualGrowthCha
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle className="text-gradient-primary flex items-center gap-2">
-            {totalGrowthInfo.value >= 0 ? <TrendingUp className="h-5 w-5 text-green-500" /> : <TrendingDown className="h-5 w-5 text-red-500" />}
+            {totalGrowthInfo.value >= 0 ? <TrendingUp className="h-5 w-5 text-success-500" /> : <TrendingDown className="h-5 w-5 text-danger-500" />}
             Crescimento Anual
           </CardTitle>
           <div className="flex items-center gap-4 mt-2">
             {/* O valor principal agora mostra "100%" */}
-            <span className={`text-2xl font-bold ${totalGrowthInfo.value >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <span className={`text-2xl font-bold ${totalGrowthInfo.value >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
               {totalGrowthInfo.text}
             </span>
             {/* O subtítulo agora mostra o texto contextual completo */}
@@ -130,8 +130,8 @@ const AnnualGrowthChart = ({ monthlyData, yearlyData, loading }: AnnualGrowthCha
               <XAxis dataKey="month" />
               <YAxis />
               <Tooltip formatter={(value, name) => [`R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, name === 'current' ? `${currentYear}` : `${previousYear}`]} labelFormatter={(label) => `Mês: ${label}`} />
-              <Line type="monotone" dataKey="previous" stroke="#94A3B8" strokeWidth={2} dot={{ fill: '#94A3B8', strokeWidth: 2 }} name={`${previousYear}`} />
-              <Line type="monotone" dataKey="current" stroke="#6A6DDF" strokeWidth={3} dot={{ fill: '#6A6DDF', strokeWidth: 2 }} name={`${currentYear}`} />
+              <Line type="monotone" dataKey="previous" stroke="hsl(var(--gray-400))" strokeWidth={2} dot={{ fill: 'hsl(var(--gray-400))', strokeWidth: 2 }} name={`${previousYear}`} />
+              <Line type="monotone" dataKey="current" stroke="hsl(var(--brand))" strokeWidth={3} dot={{ fill: 'hsl(var(--brand))', strokeWidth: 2 }} name={`${currentYear}`} />
             </LineChart>
           </ResponsiveContainer>
         ) : (
@@ -141,7 +141,7 @@ const AnnualGrowthChart = ({ monthlyData, yearlyData, loading }: AnnualGrowthCha
               <XAxis dataKey="year" />
               <YAxis />
               <Tooltip formatter={(value) => [`R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Receita']} />
-              <Bar dataKey="revenue" fill="#10B981" />
+              <Bar dataKey="revenue" fill="hsl(var(--success))" />
             </BarChart>
           </ResponsiveContainer>
         )}

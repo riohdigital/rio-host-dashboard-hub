@@ -20,7 +20,7 @@ const BatchReceiptTemplate = ({ reservations, receiptType = 'reservation', dateR
 
   // Definições visuais baseadas no tipo de recibo
   const isPayment = receiptType === 'payment';
-  const headerColor = isPayment ? 'bg-green-700' : 'bg-blue-800';
+  const headerColor = isPayment ? 'bg-success-700' : 'bg-info-800';
   const docTitle = isPayment ? 'RECIBO CONSOLIDADO DE PAGAMENTOS' : 'RECIBO CONSOLIDADO DE RESERVAS';
   const DocIcon = isPayment ? CreditCard : FileText;
 
@@ -81,7 +81,7 @@ const BatchReceiptTemplate = ({ reservations, receiptType = 'reservation', dateR
       <header className="text-center py-8 bg-white border-b-2 border-gray-200">
         {/* Logo e Título Principal */}
         <div className="mb-6">
-          <h1 className="text-4xl font-bold text-blue-800 mb-2" style={{ letterSpacing: '2px' }}>
+          <h1 className="text-4xl font-bold text-info-800 mb-2" style={{ letterSpacing: '2px' }}>
             Rioh Host
           </h1>
           <div className={`inline-block px-6 py-2 text-white text-lg font-bold rounded-lg ${headerColor}`} style={{ letterSpacing: '1px' }}>
@@ -126,7 +126,7 @@ const BatchReceiptTemplate = ({ reservations, receiptType = 'reservation', dateR
               {/* Nome da Propriedade */}
               <div className="mb-4">
                 <h2 className="text-xl font-bold text-gray-900 flex items-center">
-                  <MapPin className="w-5 h-5 mr-2 text-blue-600" />
+                  <MapPin className="w-5 h-5 mr-2 text-info-600" />
                   {propertyData.property?.name || 'Propriedade Não Identificada'}
                 </h2>
                 <p className="text-gray-600 text-sm">
@@ -145,7 +145,7 @@ const BatchReceiptTemplate = ({ reservations, receiptType = 'reservation', dateR
                     <div key={reservation.id} className="bg-white p-3 rounded border text-sm">
                       <div className="flex justify-between items-center">
                         <div className="flex items-center space-x-4">
-                          <span className="font-mono font-medium text-blue-600">
+                          <span className="font-mono font-medium text-info-600">
                             {reservation.reservation_code}
                           </span>
                           <span className="flex items-center text-gray-600">
@@ -156,7 +156,7 @@ const BatchReceiptTemplate = ({ reservations, receiptType = 'reservation', dateR
                             {formatDate(reservation.check_in_date)} a {formatDate(reservation.check_out_date)}
                           </span>
                         </div>
-                        <div className="flex items-center text-green-600 font-medium">
+                        <div className="flex items-center text-success-600 font-medium">
                           <DollarSign className="w-3 h-3 mr-1" />
                           {formatCurrency(reservation.total_revenue || 0)}
                         </div>
@@ -169,7 +169,7 @@ const BatchReceiptTemplate = ({ reservations, receiptType = 'reservation', dateR
               {/* Resumo Financeiro da Propriedade */}
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                  <DollarSign className="w-5 h-5 mr-2 text-green-600" />
+                  <DollarSign className="w-5 h-5 mr-2 text-success-600" />
                   Resumo Financeiro - {propertyData.property?.name}
                 </h3>
                 {isPayment ? (
@@ -180,23 +180,23 @@ const BatchReceiptTemplate = ({ reservations, receiptType = 'reservation', dateR
                     </div>
                     <div className="flex justify-between">
                       <span>Comissão:</span>
-                      <span className="text-red-600">-{formatCurrency(propertyTotals.totalCommission)}</span>
+                      <span className="text-danger-600">-{formatCurrency(propertyTotals.totalCommission)}</span>
                     </div>
                     {propertyTotals.totalCleaning > 0 && (
                       <div className="flex justify-between">
                         <span>Faxina:</span>
-                        <span className="text-red-600">-{formatCurrency(propertyTotals.totalCleaning)}</span>
+                        <span className="text-danger-600">-{formatCurrency(propertyTotals.totalCleaning)}</span>
                       </div>
                     )}
                     <div className="flex justify-between border-t border-gray-300 pt-2 mt-2 font-medium">
                       <span>Valor do Proprietário:</span>
-                      <span className="text-green-600 text-lg font-bold">{formatCurrency(propertyTotals.totalOwner)}</span>
+                      <span className="text-success-600 text-lg font-bold">{formatCurrency(propertyTotals.totalOwner)}</span>
                     </div>
                   </div>
                 ) : (
                   <div className="text-center">
                     <p className="text-gray-700 text-md">Valor Total do Proprietário:</p>
-                    <p className="text-3xl font-bold text-green-600">{formatCurrency(propertyTotals.totalOwner)}</p>
+                    <p className="text-3xl font-bold text-success-600">{formatCurrency(propertyTotals.totalOwner)}</p>
                   </div>
                 )}
               </div>
@@ -207,36 +207,36 @@ const BatchReceiptTemplate = ({ reservations, receiptType = 'reservation', dateR
 
         {/* Resumo Geral */}
         {Object.keys(groupedByProperty).length > 1 && (
-          <section className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center mt-6">
+          <section className="bg-info-50 border border-info-200 rounded-lg p-4 text-center mt-6">
             <div className="flex items-center justify-center mb-3">
-              <CheckCircle className="h-5 w-5 text-blue-600 mr-2" />
+              <CheckCircle className="h-5 w-5 text-info-600 mr-2" />
               <h4 className="font-bold text-lg text-gray-800">📊 RESUMO GERAL</h4>
             </div>
             {isPayment ? (
-              <div className="text-xs text-gray-700 space-y-2 bg-blue-50 rounded border-l-2 border-blue-300 p-3">
+              <div className="text-xs text-gray-700 space-y-2 bg-info-50 rounded border-l-2 border-info-300 p-3">
                 <div className="flex justify-between">
                   <span>Total Geral Recebido:</span>
                   <span className="font-medium">{formatCurrency(generalTotals.totalRevenue)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Total Comissões:</span>
-                  <span className="text-red-600">-{formatCurrency(generalTotals.totalCommission)}</span>
+                  <span className="text-danger-600">-{formatCurrency(generalTotals.totalCommission)}</span>
                 </div>
                 {generalTotals.totalCleaning > 0 && (
                   <div className="flex justify-between">
                     <span>Total Faxinas:</span>
-                    <span className="text-red-600">-{formatCurrency(generalTotals.totalCleaning)}</span>
+                    <span className="text-danger-600">-{formatCurrency(generalTotals.totalCleaning)}</span>
                   </div>
                 )}
-                <div className="flex justify-between border-t border-blue-400 pt-2 mt-2 font-medium">
+                <div className="flex justify-between border-t border-info-400 pt-2 mt-2 font-medium">
                   <span>Total Proprietários:</span>
-                  <span className="text-green-600 text-xl font-bold">{formatCurrency(generalTotals.totalOwner)}</span>
+                  <span className="text-success-600 text-xl font-bold">{formatCurrency(generalTotals.totalOwner)}</span>
                 </div>
               </div>
             ) : (
               <div className="text-center">
                 <p className="text-gray-700 text-md">Valor Total Geral dos Proprietários:</p>
-                <p className="text-3xl font-bold text-green-600">{formatCurrency(generalTotals.totalOwner)}</p>
+                <p className="text-3xl font-bold text-success-600">{formatCurrency(generalTotals.totalOwner)}</p>
               </div>
             )}
           </section>

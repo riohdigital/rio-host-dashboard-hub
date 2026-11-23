@@ -74,7 +74,7 @@ export const AIChat = () => {
       {isOpen && (
         <Card
           className={cn(
-            'w-[400px] h-[600px] flex flex-col shadow-2xl shadow-purple-500/20 rounded-2xl',
+            'w-[400px] h-[600px] flex flex-col shadow-2xl shadow-brand-500/20 rounded-2xl',
             'animate-slide-in-right'
           )}
         >

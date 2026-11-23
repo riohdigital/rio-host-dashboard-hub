@@ -20,22 +20,22 @@ const UpcomingReservations = ({ events, loading }: { events: PeriodEvent[], load
     tomorrow.setDate(today.getDate() + 1);
     
     if (date.getTime() === today.getTime()) {
-      return { text: 'Hoje', color: 'text-red-600', bgColor: 'bg-red-50 border-red-200' };
+      return { text: 'Hoje', color: 'text-danger-600', bgColor: 'bg-danger-50 border-danger-200' };
     } else if (date.getTime() === tomorrow.getTime()) {
       return { text: 'Amanhã', color: 'text-orange-600', bgColor: 'bg-orange-50 border-orange-200' };
     } else {
       return { 
         text: date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }), 
-        color: 'text-blue-600',
-        bgColor: 'bg-blue-50 border-blue-200'
+        color: 'text-info-600',
+        bgColor: 'bg-info-50 border-info-200'
       };
     }
   };
 
   const getEventIcon = (type: 'checkin' | 'checkout') => {
     return type === 'checkin' ? 
-      <Calendar className="h-4 w-4 text-green-600" /> : 
-      <Clock className="h-4 w-4 text-blue-600" />;
+      <Calendar className="h-4 w-4 text-success-600" /> : 
+      <Clock className="h-4 w-4 text-info-600" />;
   };
 
   const getEventTypeText = (type: 'checkin' | 'checkout') => {
@@ -43,7 +43,7 @@ const UpcomingReservations = ({ events, loading }: { events: PeriodEvent[], load
   };
 
   const getEventTypeColor = (type: 'checkin' | 'checkout') => {
-    return type === 'checkin' ? 'text-green-600' : 'text-blue-600';
+    return type === 'checkin' ? 'text-success-600' : 'text-info-600';
   };
   
   const getStatusVariant = (status: string) => {
@@ -56,8 +56,8 @@ const UpcomingReservations = ({ events, loading }: { events: PeriodEvent[], load
 
   const getStatusIcon = (status: string) => {
     switch (status?.toLowerCase()) {
-      case 'pago': return <CheckCircle2 className="h-3 w-3 text-green-600" />;
-      case 'pendente': return <AlertCircle className="h-3 w-3 text-yellow-600" />;
+      case 'pago': return <CheckCircle2 className="h-3 w-3 text-success-600" />;
+      case 'pendente': return <AlertCircle className="h-3 w-3 text-warning-600" />;
       default: return <Clock className="h-3 w-3" />;
     }
   };
@@ -123,23 +123,6 @@ const UpcomingReservations = ({ events, loading }: { events: PeriodEvent[], load
           </div>
         )}
       </CardContent>
-      {/* Estilos para a barra de rolagem customizada */}
-      <style>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 8px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background-color: #A5B4FC; /* Tom mais claro do púrpura */
-          border-radius: 10px;
-          border: 2px solid #FFFFFF; /* Cor de fundo do card */
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background-color: #6A6DDF; /* Cor púrpura principal no hover */
-        }
-      `}</style>
     </Card>
   );
 };
