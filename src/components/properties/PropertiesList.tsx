@@ -3,9 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import JanelaResponsiva from "@/components/comum/JanelaResponsiva";
 import { Badge } from "@/components/ui/badge";
-import { Plus, MapPin, Users, DollarSign, Link2, Trash2, Edit } from 'lucide-react';
+import { Plus, MapPin, Users, DollarSign, Link2, Trash2, Edit, Home } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useUserPermissions } from '@/contexts/UserPermissionsContext';
@@ -150,37 +150,27 @@ const PropertiesList = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gradient-primary">Minhas Propriedades</h2>
+          <h2 className="font-display text-xl font-bold text-ink sm:text-2xl">Minhas Propriedades</h2>
           <p className="text-gray-600 mt-1">Gerencie suas propriedades de aluguel por temporada</p>
         </div>
         
         {hasPermission('properties_create') && (
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button 
-                className="bg-brand hover:bg-brand-hover text-white"
-                onClick={() => setEditingProperty(null)}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Nova Propriedade
-              </Button>
-            </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="text-gradient-primary">
-                {editingProperty ? 'Editar Propriedade' : 'Nova Propriedade'}
-              </DialogTitle>
-            </DialogHeader>
-            <PropertyForm
-              property={editingProperty}
-              onSuccess={handleSuccess}
-              onCancel={handleCancel}
-            />
-          </DialogContent>
-        </Dialog>
+          <Button onClick={() => { setEditingProperty(null); setDialogOpen(true); }} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Nova Propriedade
+          </Button>
         )}
+        <JanelaResponsiva
+          aberta={dialogOpen}
+          aoMudar={(a) => { if (!a) handleCancel(); else setDialogOpen(true); }}
+          titulo={editingProperty ? 'Editar Propriedade' : 'Nova Propriedade'}
+          telaCheia
+          largura="xl"
+        >
+          <PropertyForm property={editingProperty} onSuccess={handleSuccess} onCancel={handleCancel} />
+        </JanelaResponsiva>
       </div>
 
       {properties.length === 0 ? (
@@ -201,15 +191,25 @@ const PropertiesList = () => {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 sm:gap-6">
           {properties.map((property) => (
-            <Card key={property.id} className="bg-white hover:shadow-md transition-shadow">
+            <Card key={property.id} className="overflow-hidden bg-white transition-shadow hover:shadow-md">
+              {/* Capa: o cadastro não tem foto; mostra o tipo do imóvel sobre o gradiente da marca */}
+              <div className="relative flex h-24 items-end bg-gradient-primary p-4 text-white">
+                <Home className="absolute right-4 top-4 h-10 w-10 opacity-25" aria-hidden="true" />
+                <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-semibold backdrop-blur-sm">
+                  {property.property_type || 'Imóvel'}
+                </span>
+              </div>
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <CardTitle className="text-lg text-gradient-primary mb-2">
+                    <CardTitle className="mb-1 text-lg text-ink">
                       {property.nickname || property.name}
                     </CardTitle>
+                    {property.nickname && property.name !== property.nickname && (
+                      <p className="mb-2 line-clamp-1 text-xs text-gray-500">{property.name}</p>
+                    )}
                     <Badge className={getStatusColor(property.status)}>
                       {property.status}
                     </Badge>
@@ -219,8 +219,9 @@ const PropertiesList = () => {
                       (canAccessProperty(property.id) === 'read_only' && hasPermission('properties_edit'))) && (
                       <Button
                         variant="outline"
-                        size="sm"
+                        size="icon"
                         onClick={() => handleEdit(property)}
+                        aria-label="Editar propriedade"
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -228,7 +229,8 @@ const PropertiesList = () => {
                     {(canAccessProperty(property.id) === 'full' && hasPermission('properties_delete')) && (
                       <Button
                         variant="outline"
-                        size="sm"
+                        size="icon"
+                        aria-label="Excluir propriedade"
                         onClick={() => handleDelete(property.id)}
                         className="text-danger-600 hover:text-danger-700 hover:border-danger-300"
                       >
@@ -254,7 +256,7 @@ const PropertiesList = () => {
                   {property.base_nightly_price && (
                     <div className="flex items-center text-gray-600">
                       <DollarSign className="h-4 w-4 mr-2" />
-                      <span className="text-gradient-accent font-medium">
+                      <span className="font-mono font-semibold tabular-nums text-success-700">
                         R$ {property.base_nightly_price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} / noite
                       </span>
                     </div>

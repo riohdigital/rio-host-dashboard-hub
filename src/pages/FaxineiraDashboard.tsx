@@ -1,4 +1,6 @@
 import React, { useState, useMemo } from 'react';
+import { EtiquetaStatus } from '@/components/comum/Etiquetas';
+import { ABAS_ROLAVEIS } from '@/components/comum/classes';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -134,27 +136,37 @@ const FaxineiraDashboard = () => {
     };
 
     if (isLoadingAssigned || isLoadingAvailable) {
-        return <div className="p-6 flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+        return <div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
     }
 
     return (
-        <div className="p-4 md:p-6 space-y-6">
-            <header className="flex justify-between items-center pb-4 border-b">
-                <nav className="flex items-center gap-4">
-                    <Button variant={activeTab === 'dashboard' ? 'secondary' : 'ghost'} onClick={() => setActiveTab('dashboard')}>Dashboard</Button>
-                    <Button variant={activeTab === 'ganhos' ? 'secondary' : 'ghost'} onClick={() => setActiveTab('ganhos')}>Meus Ganhos</Button>
-                    <Button variant={activeTab === 'configuracao' ? 'secondary' : 'ghost'} onClick={() => setActiveTab('configuracao')}>Configuração</Button>
+        <div className="space-y-6">
+            <header className="flex items-center justify-between gap-3">
+                {/* Seções da faxineira: pílulas que rolam de lado no celular */}
+                <nav className="no-scrollbar -mx-1 flex flex-1 gap-1 overflow-x-auto rounded-full bg-muted p-1 sm:flex-none">
+                    {([['dashboard', 'Faxinas'], ['ganhos', 'Meus Ganhos'], ['configuracao', 'Minha conta']] as const).map(([valor, rotulo]) => (
+                        <button
+                            key={valor}
+                            type="button"
+                            onClick={() => setActiveTab(valor)}
+                            aria-current={activeTab === valor ? 'page' : undefined}
+                            className={`min-h-10 flex-1 shrink-0 whitespace-nowrap rounded-full px-4 text-sm font-semibold transition-colors sm:flex-none ${activeTab === valor ? 'bg-background text-ink shadow-sm' : 'text-gray-600'}`}
+                        >
+                            {rotulo}
+                        </button>
+                    ))}
                 </nav>
-                <Button variant="outline" size="sm" onClick={signOut}><LogOut className="h-4 w-4 mr-2" />Sair</Button>
+                {/* No celular o Sair fica na barra de cima */}
+                <Button variant="outline" size="sm" onClick={signOut} className="hidden lg:inline-flex"><LogOut className="h-4 w-4 mr-2" />Sair</Button>
             </header>
             
             <div style={{ display: activeTab === 'dashboard' ? 'block' : 'none' }}>
                 <div>
-                    <h1 className="text-2xl font-bold text-foreground">Minhas Faxinas</h1>
+                    <h1 className="font-display text-2xl font-extrabold text-ink">Minhas Faxinas</h1>
                     <p className="text-muted-foreground">Visualize e gerencie as limpezas designadas para você.</p>
                 </div>
                 <Tabs defaultValue="proximas" className="w-full mt-4">
-                    <TabsList className="grid w-full grid-cols-3">
+                    <TabsList className={ABAS_ROLAVEIS}>
                         <TabsTrigger value="proximas">Próximas ({upcomingReservations.length})</TabsTrigger>
                         <TabsTrigger value="oportunidades">Oportunidades ({availableReservations.length})</TabsTrigger>
                         <TabsTrigger value="historico">Histórico ({pastReservations.length})</TabsTrigger>
@@ -170,7 +182,7 @@ const FaxineiraDashboard = () => {
             </div>
             
             <div style={{ display: activeTab === 'configuracao' ? 'block' : 'none' }}>
-                 <h1 className="text-2xl font-bold text-foreground">Configuração da Conta</h1>
+                 <h1 className="font-display text-2xl font-extrabold text-ink">Configuração da Conta</h1>
                  <p className="text-muted-foreground mb-6">Altere seus dados pessoais e de segurança.</p>
                  <Card>
                     <CardHeader><CardTitle>Dados Pessoais</CardTitle></CardHeader>
@@ -224,10 +236,10 @@ const MeusGanhosPage = ({ historicalData }: { historicalData: ReservationWithDet
 
     return (
         <div>
-            <div className="flex justify-between items-center mb-6">
-                 <div><h1 className="text-2xl font-bold text-foreground">Meus Ganhos</h1><p className="text-muted-foreground">Acompanhe seus recebimentos por ciclo.</p></div>
+            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                 <div><h1 className="font-display text-2xl font-extrabold text-ink">Meus Ganhos</h1><p className="text-muted-foreground">Acompanhe seus recebimentos por ciclo.</p></div>
                 <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                    <SelectTrigger className="w-[180px]"><SelectValue placeholder="Selecione o Mês" /></SelectTrigger>
+                    <SelectTrigger className="h-11 w-full capitalize sm:w-[200px]"><SelectValue placeholder="Selecione o Mês" /></SelectTrigger>
                     <SelectContent>
                         {availableMonths.map(month => (
                              <SelectItem key={month} value={month}>{format(parseISO(`${month}-02`), 'MMMM / yyyy', { locale: ptBR })}</SelectItem>
@@ -235,9 +247,9 @@ const MeusGanhosPage = ({ historicalData }: { historicalData: ReservationWithDet
                     </SelectContent>
                 </Select>
             </div>
-            <div className="grid md:grid-cols-2 gap-6">
-                <Card className="border-success-500 bg-success-50"><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium text-success-800">Recebido neste Ciclo (Pago)</CardTitle><DollarSign className="h-4 w-4 text-success-700" /></CardHeader><CardContent><div className="text-2xl font-bold text-success-700">R$ {monthData.pago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div><p className="text-xs text-success-600">Valores de faxinas (ex: Airbnb) já recebidos.</p></CardContent></Card>
-                <Card className="border-orange-500 bg-orange-50"><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium text-orange-800">A receber no Próximo Ciclo</CardTitle><Clock className="h-4 w-4 text-orange-700" /></CardHeader><CardContent><div className="text-2xl font-bold text-orange-700">R$ {monthData.proximoCiclo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div><p className="text-xs text-orange-600">Valores (ex: Booking) que serão pagos até o 5º dia útil do próximo mês.</p></CardContent></Card>
+            <div className="grid gap-4 md:grid-cols-2 md:gap-6">
+                <Card className="border-success-500 bg-success-50"><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium text-success-800">Recebido neste Ciclo (Pago)</CardTitle><DollarSign className="h-4 w-4 text-success-700" /></CardHeader><CardContent><div className="font-mono text-2xl font-semibold tabular-nums text-success-700">R$ {monthData.pago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div><p className="text-xs text-success-600">Valores de faxinas (ex: Airbnb) já recebidos.</p></CardContent></Card>
+                <Card className="border-orange-500 bg-orange-50"><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium text-orange-800">A receber no Próximo Ciclo</CardTitle><Clock className="h-4 w-4 text-orange-700" /></CardHeader><CardContent><div className="font-mono text-2xl font-semibold tabular-nums text-orange-700">R$ {monthData.proximoCiclo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div><p className="text-xs text-orange-600">Valores (ex: Booking) que serão pagos até o 5º dia útil do próximo mês.</p></CardContent></Card>
             </div>
         </div>
     );
@@ -254,7 +266,7 @@ const UpcomingCard = ({ reservation, children }: { reservation: ReservationWithD
         const hasCheckoutPassed = isPast(checkoutDateTime);
         let startLabel = "INÍCIO DA JANELA (SAÍDA)";
         let startValue = format(checkoutDateTime, "dd/MM 'às' HH:mm", { locale: ptBR });
-        let endLabel = "FIM DA JANELA";
+        const endLabel = "FIM DA JANELA";
         let endValue = "Prazo de 48h para concluir";
         if (reservation.next_check_in_date && reservation.next_checkin_time) {
             const nextCheckinDateTime = parseISO(`${reservation.next_check_in_date}T${reservation.next_checkin_time}`);
@@ -278,11 +290,24 @@ const UpcomingCard = ({ reservation, children }: { reservation: ReservationWithD
                 <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-2">
                     <div>
                         <CardTitle className="text-lg">{reservation.properties?.name || 'Propriedade'}</CardTitle>
-                        <p className="text-sm text-muted-foreground flex items-center mt-1"><MapPin className="h-4 w-4 mr-1.5 flex-shrink-0" />{reservation.properties?.address || 'Endereço não informado'}</p>
+                        {reservation.properties?.address ? (
+                            <a
+                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(reservation.properties.address)}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="mt-1.5 flex min-h-11 items-center gap-2 rounded-xl bg-brand-50 px-3 py-2 text-[15px] font-medium text-brand-800"
+                            >
+                                <MapPin className="h-5 w-5 flex-shrink-0 text-brand" />
+                                <span className="flex-1">{reservation.properties.address}</span>
+                                <span className="text-xs font-semibold text-brand">Mapa</span>
+                            </a>
+                        ) : (
+                            <p className="text-sm text-muted-foreground flex items-center mt-1"><MapPin className="h-4 w-4 mr-1.5 flex-shrink-0" />Endereço não informado</p>
+                        )}
                     </div>
                     <div className="flex gap-2 flex-shrink-0">
-                        <Badge variant={getStatusVariant(reservation.reservation_status)}>{reservation.reservation_status}</Badge>
-                        <Badge variant={reservation.cleaning_payment_status === 'Paga' ? 'default' : 'destructive'}>{reservation.cleaning_payment_status}</Badge>
+                        <EtiquetaStatus status={reservation.reservation_status} />
+                        <EtiquetaStatus status={reservation.cleaning_payment_status} />
                     </div>
                 </div>
                {reservation.urgency?.level !== 'normal' && (
@@ -293,14 +318,15 @@ const UpcomingCard = ({ reservation, children }: { reservation: ReservationWithD
                )}
             </CardHeader>
             <CardContent className="space-y-4">
-                <div className="bg-muted p-3 rounded-lg flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <div className="text-center sm:text-left">
-                        <p className="text-sm font-medium text-muted-foreground">{workWindowInfo.startLabel}</p>
-                        <p className="text-xl font-bold text-primary">{workWindowInfo.startValue}</p>
+                {/* Horário em destaque */}
+                <div className="grid gap-3 rounded-2xl bg-surface p-3 sm:grid-cols-2">
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{workWindowInfo.startLabel}</p>
+                        <p className="font-mono text-2xl font-semibold tabular-nums text-brand-700">{workWindowInfo.startValue}</p>
                     </div>
-                    <div className="text-center sm:text-left">
-                        <p className="text-sm font-medium text-muted-foreground">{workWindowInfo.endLabel}</p>
-                        <p className="text-lg font-semibold">{workWindowInfo.endValue}</p>
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{workWindowInfo.endLabel}</p>
+                        <p className="text-base font-semibold text-ink">{workWindowInfo.endValue}</p>
                     </div>
                 </div>
                 {children}
@@ -319,15 +345,15 @@ const HistoryCard = ({ reservation }: { reservation: ReservationWithDetails }) =
                         <p className="text-sm text-muted-foreground flex items-center mt-1"><MapPin className="h-4 w-4 mr-1.5 flex-shrink-0" />{reservation.properties?.address || 'Endereço não informado'}</p>
                     </div>
                     <div className="flex gap-2 flex-shrink-0">
-                        <Badge variant={getStatusVariant(reservation.reservation_status)}>{reservation.reservation_status}</Badge>
-                        <Badge variant={reservation.cleaning_payment_status === 'Paga' ? 'default' : 'destructive'}>{reservation.cleaning_payment_status}</Badge>
+                        <EtiquetaStatus status={reservation.reservation_status} />
+                        <EtiquetaStatus status={reservation.cleaning_payment_status} />
                     </div>
                 </div>
             </CardHeader>
             <CardContent>
                 <div className="grid md:grid-cols-2 gap-x-4 gap-y-2 text-sm pt-4">
                     <p><span className="font-medium">Data da Faxina:</span> {format(parseISO(reservation.check_out_date), "dd/MM/yyyy")}</p>
-                    <p><span className="font-medium">Sua Taxa:</span> <span className="text-success-600 font-semibold">R$ {parseFloat(String(reservation.cleaning_fee || 0)).toFixed(2)}</span></p>
+                    <p><span className="font-medium">Sua Taxa:</span> <span className="font-mono text-success-600 font-semibold tabular-nums">R$ {parseFloat(String(reservation.cleaning_fee || 0)).toFixed(2)}</span></p>
                     {reservation.cleaning_rating > 0 && (<p className="flex items-center"><Star className="h-4 w-4 mr-1.5 text-warning-500" />Sua Avaliação: {reservation.cleaning_rating}/5</p>)}
                 </div>
             </CardContent>
@@ -347,16 +373,17 @@ const UpcomingList = ({ reservations, onMarkAsComplete }: { reservations: Reserv
                         <div className="grid md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
                             {reservation.guest_name && (<p><span className="font-medium">Hóspede Anterior:</span> {reservation.guest_name}</p>)}
                             {reservation.number_of_guests && (<p className="flex items-center"><Users className="h-4 w-4 mr-1.5" />{reservation.number_of_guests} Hóspedes</p>)}
-                            {reservation.cleaning_fee && (<p><span className="font-medium">Sua Taxa:</span> <span className="text-success-600 font-semibold">R$ {parseFloat(String(reservation.cleaning_fee)).toFixed(2)}</span></p>)}
+                            {reservation.cleaning_fee && (<p><span className="font-medium">Sua Taxa:</span> <span className="font-mono text-success-600 font-semibold tabular-nums">R$ {parseFloat(String(reservation.cleaning_fee)).toFixed(2)}</span></p>)}
                             {reservation.cleaning_rating > 0 && (<p className="flex items-center"><Star className="h-4 w-4 mr-1.5 text-warning-500" />Sua Avaliação: {reservation.cleaning_rating}/5</p>)}
                         </div>
                         {reservation.cleaning_notes && (<div className="pt-2 border-t"><p className="text-sm"><span className="font-medium">Observações:</span> <span className="text-muted-foreground">{reservation.cleaning_notes}</span></p></div>)}
                         {reservation.cleaning_status !== 'Realizada' && (
-                            <div className="pt-4 border-t flex justify-end">
+                            <div className="pt-4 border-t flex flex-col items-stretch gap-2 sm:flex-row sm:justify-end">
+                                {!canMarkAsComplete && <p className="text-xs text-muted-foreground sm:hidden">Libera depois do check-out do hóspede.</p>}
                                 <TooltipProvider>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
-                                            <span tabIndex={0}><Button onClick={() => onMarkAsComplete(reservation.id)} disabled={!canMarkAsComplete}><CheckCircle className="h-4 w-4 mr-2" />Marcar como Concluída</Button></span>
+                                            <span tabIndex={0} className="block"><Button size="lg" className="w-full sm:h-10 sm:w-auto" onClick={() => onMarkAsComplete(reservation.id)} disabled={!canMarkAsComplete}><CheckCircle className="h-4 w-4 mr-2" />Marcar como Concluída</Button></span>
                                         </TooltipTrigger>
                                         {!canMarkAsComplete && (<TooltipContent><p>Só é possível concluir após a data e hora de checkout do hóspede.</p></TooltipContent>)}
                                     </Tooltip>
@@ -378,16 +405,16 @@ const AvailableCleaningsList = ({ reservations, onSignUp, hasActiveCleaning }: {
                 const canSignUp = !hasActiveCleaning || reservation.urgency?.level === 'critical' || reservation.urgency?.level === 'overdue';
                 return (
                     <UpcomingCard key={reservation.id} reservation={reservation}>
-                         <div className="flex justify-between items-center bg-white p-3 rounded-lg">
+                         <div className="flex flex-col gap-3 rounded-2xl bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <p className="text-sm font-medium">Sua Taxa</p>
-                                <p className="text-lg font-bold text-success-600">R$ {parseFloat(String(reservation.cleaning_fee || 0)).toFixed(2)}</p>
+                                <p className="font-mono text-xl font-semibold tabular-nums text-success-600">R$ {parseFloat(String(reservation.cleaning_fee || 0)).toFixed(2)}</p>
                             </div>
                             <TooltipProvider>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <span tabIndex={0}>
-                                            <Button onClick={() => onSignUp(reservation.id)} disabled={!canSignUp}><Hand className="h-4 w-4 mr-2" />Assinar Faxina</Button>
+                                        <span tabIndex={0} className="block">
+                                            <Button size="lg" className="w-full sm:h-10 sm:w-auto" onClick={() => onSignUp(reservation.id)} disabled={!canSignUp}><Hand className="h-4 w-4 mr-2" />Assinar Faxina</Button>
                                         </span>
                                     </TooltipTrigger>
                                     {!canSignUp && (<TooltipContent><p>Você já possui uma faxina em andamento. Conclua-a para assinar novas oportunidades.</p></TooltipContent>)}
@@ -420,7 +447,7 @@ const HistoryList = ({ reservations }: { reservations: ReservationWithDetails[] 
         <div className="space-y-4 mt-4">
             <div className="flex justify-end">
                  <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                    <SelectTrigger className="w-[180px]"><SelectValue placeholder="Filtrar por Mês" /></SelectTrigger>
+                    <SelectTrigger className="h-11 w-full capitalize sm:w-[200px]"><SelectValue placeholder="Filtrar por Mês" /></SelectTrigger>
                     <SelectContent>
                          <SelectItem value="all">Todos os Meses</SelectItem>
                          {availableMonths.map(month => (

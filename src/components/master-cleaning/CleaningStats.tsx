@@ -69,20 +69,20 @@ const CleaningStats = ({ allCleanings, availableCleanings }: CleaningStatsProps)
   return (
     <div className="space-y-6">
       {/* Cards de estatísticas gerais */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
         {stats.map((stat, index) => (
           <Card key={index}>
-            <CardContent className="p-6">
+            <CardContent className="p-3.5 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">
                     {stat.title}
                   </p>
-                  <p className="text-2xl font-bold text-foreground">
+                  <p className="font-mono text-2xl font-semibold tabular-nums text-foreground">
                     {stat.value}
                   </p>
                 </div>
-                <stat.icon className={`h-8 w-8 ${stat.color}`} />
+                <stat.icon className={`h-6 w-6 shrink-0 sm:h-8 sm:w-8 ${stat.color}`} />
               </div>
             </CardContent>
           </Card>
@@ -100,14 +100,14 @@ const CleaningStats = ({ allCleanings, availableCleanings }: CleaningStatsProps)
           <CardContent>
             <div className="space-y-4">
               {Object.entries(cleanerStats).map(([cleanerId, stats]) => (
-                <div key={cleanerId} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                <div key={cleanerId} className="flex flex-col gap-2 rounded-xl bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-3">
                     <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
                       <Users className="h-4 w-4 text-primary" />
                     </div>
                     <span className="font-medium text-foreground">{stats.name}</span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Badge variant="outline">Total: {stats.total}</Badge>
                     <Badge variant="secondary">Pendentes: {stats.pending}</Badge>
                     <Badge variant="default">Concluídas: {stats.completed}</Badge>

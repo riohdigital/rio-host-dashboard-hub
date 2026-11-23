@@ -48,7 +48,7 @@ export const DayCell: React.FC<DayCellProps> = ({
   return (
     <div
       className={cn(
-        'min-h-[120px] p-2 transition-colors hover:bg-accent/50',
+        'min-h-[72px] min-w-0 overflow-hidden p-1 transition-colors hover:bg-accent/50 sm:min-h-[120px] sm:p-2',
         !isCurrentMonth && 'opacity-40',
         isToday(date) && 'bg-accent/30'
       )}
@@ -75,7 +75,7 @@ export const DayCell: React.FC<DayCellProps> = ({
                 <TooltipTrigger asChild>
                   <div
                     className={cn(
-                      'text-xs px-1.5 py-0.5 rounded cursor-pointer truncate transition-all hover:shadow-md',
+                      'rounded px-1 py-0.5 text-[10px] cursor-pointer truncate transition-all hover:shadow-md sm:px-1.5 sm:text-xs',
                       getStatusColor(reservation.reservation_status || 'Confirmada')
                     )}
                     onClick={(e) => {

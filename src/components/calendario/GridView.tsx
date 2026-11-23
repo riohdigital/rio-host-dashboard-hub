@@ -43,13 +43,13 @@ export const GridView: React.FC<GridViewProps> = ({
   };
 
   return (
-    <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
+    <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
       {/* Header com dias da semana */}
       <div className="grid grid-cols-7 border-b bg-muted/50">
         {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((day) => (
           <div
             key={day}
-            className="p-3 text-center text-sm font-semibold text-muted-foreground"
+            className="p-2 text-center text-xs font-semibold text-muted-foreground sm:p-3 sm:text-sm"
           >
             {day}
           </div>
@@ -59,7 +59,7 @@ export const GridView: React.FC<GridViewProps> = ({
       {/* Grid de dias */}
       <div className="divide-y">
         {weeks.map((week, weekIndex) => (
-          <div key={weekIndex} className="grid grid-cols-7 divide-x">
+          <div key={weekIndex} className="grid grid-cols-7 divide-x [&>*]:min-w-0">
             {week.map((day) => {
               const dayReservations = getReservationsForDay(day);
               const isCurrentMonth = isSameMonth(day, startDate);
