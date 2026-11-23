@@ -1,9 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Edit, Trash2, Power, PowerOff, Mail, User, Briefcase, Users } from 'lucide-react';
 import { EmailTemplate } from '@/types/email';
+import { useEhCompacto } from '@/hooks/useMidia';
+import LinhaLista from '@/components/comum/LinhaLista';
+import FolhaDetalhes from '@/components/comum/FolhaDetalhes';
+import { Etiqueta } from '@/components/comum/Etiquetas';
 
 interface EmailTemplateCardProps {
   template: EmailTemplate;
@@ -13,6 +17,9 @@ interface EmailTemplateCardProps {
 }
 
 const EmailTemplateCard = ({ template, onEdit, onToggleStatus, onDelete }: EmailTemplateCardProps) => {
+  // Celular: uma linha; tocar abre a folha com Editar, Ativar/Desativar e Excluir (longe de editar)
+  const compacto = useEhCompacto();
+  const [folha, setFolha] = useState(false);
   const getTypeIcon = (type: string) => {
     switch (type) {
       case 'guest':
@@ -57,6 +64,53 @@ const EmailTemplateCard = ({ template, onEdit, onToggleStatus, onDelete }: Email
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
+
+  if (compacto) {
+    const status = <Etiqueta tom={template.is_active ? 'success' : 'neutro'}>{template.is_active ? 'Ativo' : 'Inativo'}</Etiqueta>;
+    return (
+      <>
+        <LinhaLista
+          icone={Mail}
+          tomIcone={template.is_active ? 'brand' : 'neutro'}
+          titulo={template.template_name}
+          subtitulo={`${getTypeLabel(template.template_type)} · ${template.subject}`}
+          etiqueta={status}
+          aoTocar={() => setFolha(true)}
+        />
+        <FolhaDetalhes
+          aberta={folha}
+          aoMudar={setFolha}
+          titulo={template.template_name}
+          etiqueta={status}
+          subtitulo={`${getTypeLabel(template.template_type)} · criado em ${new Date(template.created_at).toLocaleDateString('pt-BR')}`}
+        >
+          <div>
+            <p className="text-xs text-gray-500">Assunto</p>
+            <p className="text-sm text-gray-900">{template.subject}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="outline" className="min-h-11 gap-2" onClick={() => { setFolha(false); onEdit(template); }}>
+              <Edit className="h-4 w-4" />
+              Editar
+            </Button>
+            <Button variant="outline" className="min-h-11 gap-2" onClick={() => { setFolha(false); onToggleStatus(template); }}>
+              {template.is_active ? <PowerOff className="h-4 w-4" /> : <Power className="h-4 w-4" />}
+              {template.is_active ? 'Desativar' : 'Ativar'}
+            </Button>
+          </div>
+          {/* A confirmação do excluir é a da própria lista */}
+          <Button
+            variant="ghost"
+            className="min-h-11 w-full text-danger-600 hover:bg-danger-50 hover:text-danger-700"
+            onClick={() => { setFolha(false); onDelete(template); }}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Excluir template
+          </Button>
+        </FolhaDetalhes>
+      </>
+    );
+  }
 
   return (
     <Card className={`transition-all hover:shadow-md ${!template.is_active ? 'opacity-60' : ''}`}>

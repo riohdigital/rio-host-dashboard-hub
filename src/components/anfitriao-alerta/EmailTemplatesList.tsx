@@ -7,6 +7,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import EmailTemplateCard from './EmailTemplateCard';
 import EmailTemplateForm from './EmailTemplateForm';
+import { useEhCompacto } from '@/hooks/useMidia';
+import Bloco from '@/components/comum/Bloco';
+import AjudaInfo from '@/components/comum/AjudaInfo';
+import { ListaLinhas } from '@/components/comum/GrupoLista';
 
 const EmailTemplatesList = () => {
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
@@ -14,6 +18,7 @@ const EmailTemplatesList = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
   const { toast } = useToast();
+  const compacto = useEhCompacto();
 
   useEffect(() => {
     fetchTemplates();
@@ -115,13 +120,14 @@ const EmailTemplatesList = () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+        {/* Celular: o título fica no bloco da lista e a explicação atrás do "i" */}
+        <div className="max-lg:sr-only">
           <h2 className="text-xl font-semibold">Templates de E-mail</h2>
           <p className="text-sm text-muted-foreground">
             Gerencie os templates de e-mail para comunicação automatizada
           </p>
         </div>
-        <Button onClick={() => setShowForm(true)} className="flex items-center gap-2">
+        <Button onClick={() => setShowForm(true)} className="flex items-center gap-2 max-lg:min-h-11">
           <Plus className="h-4 w-4" />
           Novo Template
         </Button>
@@ -158,6 +164,32 @@ const EmailTemplatesList = () => {
             </Button>
           </CardContent>
         </Card>
+      ) : compacto ? (
+        <Bloco
+          titulo="Templates de e-mail"
+          extra={
+            <>
+              {templates.length}
+              <AjudaInfo titulo="Templates de e-mail">Os modelos de e-mail usados na comunicação automática com hóspedes, proprietários e equipe.</AjudaInfo>
+            </>
+          }
+          compacto
+        >
+          <ListaLinhas>
+            {templates.map((template) => (
+              <EmailTemplateCard
+                key={template.id}
+                template={template}
+                onEdit={(template) => {
+                  setEditingTemplate(template);
+                  setShowForm(true);
+                }}
+                onToggleStatus={toggleTemplateStatus}
+                onDelete={deleteTemplate}
+              />
+            ))}
+          </ListaLinhas>
+        </Bloco>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {templates.map((template) => (

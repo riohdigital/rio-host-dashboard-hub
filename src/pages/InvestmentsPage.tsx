@@ -21,6 +21,10 @@ import { Property } from '@/types/property';
 import { Reservation } from '@/types/reservation';
 import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import FaixaResumo from '@/components/comum/FaixaResumo';
+import { formatarMoedaSemCentavos } from '@/components/comum/formatos';
+import { useEhCompacto } from '@/hooks/useMidia';
+import { HistoricoInvestimentosCelular, PorImovelCelular, percentualROI } from '@/components/investments/InvestimentosCelular';
 
 const InvestmentsPage = () => {
   const [properties, setProperties] = useState<Property[]>([]);
@@ -34,6 +38,8 @@ const InvestmentsPage = () => {
   const { selectedProperties, selectedPeriod, customStartDate, customEndDate } = useGlobalFilters();
   const { startDateString, endDateString } = useDateRange(selectedPeriod, customStartDate, customEndDate);
   const { isVisible, shouldRefetch } = usePageVisibility();
+  // Celular (abaixo de 1024px): desenho da T10 do plano; o computador não muda
+  const compacto = useEhCompacto();
 
   // Carregar propriedades
   useEffect(() => {
@@ -266,6 +272,51 @@ useEffect(() => {
     );
   }
 
+  const formulario = (
+    <JanelaResponsiva aberta={formOpen} aoMudar={setFormOpen} titulo="Adicionar Investimento" largura="lg">
+      <InvestmentForm
+        properties={properties}
+        onSubmit={handleCreateInvestment}
+        loading={propertiesLoading}
+      />
+    </JanelaResponsiva>
+  );
+
+  if (compacto) {
+    return (
+      <div className="space-y-3">
+        <h1 className="sr-only">Investimentos & ROI</h1>
+        {formulario}
+        <FaixaResumo
+          rotulo="ROI médio"
+          valor={percentualROI(averageROI)}
+          tomValor={averageROI >= 0 ? 'neutro' : 'danger'}
+          ajuda={`Média do ROI dos imóveis com investimento. Receita líquida = receita bruta do período (${formatarMoedaSemCentavos(totalGrossRevenue)}) menos o investido.`}
+          acao={canCreateInvestments ? (
+            <Button onClick={() => setFormOpen(true)} className="min-h-11 gap-1.5 rounded-full px-4">
+              <Plus className="h-[18px] w-[18px]" aria-hidden="true" />
+              Novo
+            </Button>
+          ) : undefined}
+          apoio={[
+            { rotulo: 'Investido', valor: formatarMoedaSemCentavos(totalInvestment) },
+            { rotulo: 'Receita líq.', valor: formatarMoedaSemCentavos(totalNetRevenue), tom: totalNetRevenue >= 0 ? 'success' : 'danger' },
+            { rotulo: 'Lucrativos', valor: `${profitableProperties} de ${filteredROIData.length}` },
+          ]}
+        />
+        <PorImovelCelular roiData={filteredROIData} podeGerenciar={canCreateInvestments} />
+        <HistoricoInvestimentosCelular
+          recolhido
+          investments={filteredInvestments}
+          onDelete={handleDeleteInvestment}
+          podeExcluir={canCreateInvestments}
+          mostrarImovel={selectedProperties.includes('todas')}
+          loading={investmentsLoading}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 sm:space-y-8">
         <PageHeader
@@ -279,13 +330,7 @@ useEffect(() => {
           ) : undefined}
         />
 
-        <JanelaResponsiva aberta={formOpen} aoMudar={setFormOpen} titulo="Adicionar Investimento" largura="lg">
-          <InvestmentForm
-            properties={properties}
-            onSubmit={handleCreateInvestment}
-            loading={propertiesLoading}
-          />
-        </JanelaResponsiva>
+        {formulario}
 
         {/* Resumo: ROI em destaque */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-4 2xl:grid-cols-5">

@@ -100,9 +100,9 @@ const PrecificacaoPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header com Título e Badges Informativos do Filtro Global */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-4">
-        {/* Celular: o nome da tela fica só na barra do topo */}
-        <div className="max-lg:sr-only">
+      {/* Celular: o nome da tela e os filtros ficam só na barra do topo */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-4 max-lg:sr-only">
+        <div>
           <h1 className="flex items-center gap-2.5 text-2xl font-extrabold text-gradient-primary sm:text-3xl">
             <Sparkles className="h-7 w-7 text-brand" />
             Precificação & Yield Estratégico
@@ -163,6 +163,7 @@ const PrecificacaoPage: React.FC = () => {
           selectedPeriod
         }}
         onRefresh={fetchProperties}
+        foraDaAnalise={foraDaAnalise.map(p => p.nickname || p.name)}
       />
     </div>
   );

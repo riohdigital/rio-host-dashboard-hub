@@ -41,6 +41,12 @@ import {
 } from './ocupacao';
 import ProntidaoPrecificacao from './ProntidaoPrecificacao';
 import { fetchN8n } from '@/lib/n8n';
+import { useEhCompacto } from '@/hooks/useMidia';
+import AbasRolaveis from '@/components/comum/AbasRolaveis';
+import BlocoRecolhivel from '@/components/comum/BlocoRecolhivel';
+import VerTodos from '@/components/comum/VerTodos';
+import { Etiqueta } from '@/components/comum/Etiquetas';
+import { CartaoSugestao, FiltroSugestoes, IndicadoresPrecificacao, periodoCurto } from './PrecificacaoCelular';
 
 interface PropertyPricingDashboardProps {
   propertyId: string;
@@ -54,6 +60,8 @@ interface PropertyPricingDashboardProps {
     selectedPeriod: string;
   };
   onRefresh?: () => void;
+  /** Imóveis sem diária base (fora da análise), para o aviso do celular */
+  foraDaAnalise?: string[];
 }
 
 const reais = (v: number | string | null | undefined) =>
@@ -64,7 +72,8 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
   selectedPropertyIds,
   properties,
   dateRange,
-  onRefresh
+  onRefresh,
+  foraDaAnalise = [],
 }) => {
   const { toast } = useToast();
   const [alerts, setAlerts] = useState<PricingAlert[]>([]);
@@ -75,6 +84,10 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
   const [statusFilter, setStatusFilter] = useState<'all' | 'Pendente' | 'Aprovado' | 'Rejeitado'>('Pendente');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
   const [isRadarRunning, setIsRadarRunning] = useState(false);
+  // Celular (abaixo de 1024px): o desenho da T8 do plano; o computador não muda.
+  const compacto = useEhCompacto();
+  const [aba, setAba] = useState('underpricing');
+  const [verTodasSugestoes, setVerTodasSugestoes] = useState(false);
 
   // Property selecionada
   const selectedProperty = useMemo(() => {
@@ -401,6 +414,51 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
     }
   };
 
+  // Quanto a diária sobe em cada tipo de data, por imóvel (regras aprendidas das reservas).
+  // No celular, sem as caixinhas coloridas: linhas com fio, dentro do bloco recolhido.
+  const renderRegrasAprendidas = (celular = false) => (
+    <>
+          {activeSelectedProperties.map(p => {
+            const minhas = regras.filter(r => r.property_id === p.id);
+            if (!selectedProperty && minhas.length === 0) return null;
+            return (
+              <div key={p.id} className={celular ? 'space-y-1.5 py-2.5 text-xs' : 'p-2.5 rounded-lg border bg-warning-50/40 border-warning-200/60 space-y-1.5 text-xs'}>
+                {!selectedProperty && <div className="font-semibold text-gray-700">{p.nickname || p.name}</div>}
+                {minhas.length === 0 ? (
+                  <p className="text-[11px] text-gray-500">
+                    {p.pricing_activated_at
+                      ? 'Ainda sem reservas suficientes para aprender (mínimo de 15 noites comuns e 4 noites em cada tipo de data).'
+                      : 'Ative a precificação automática para o sistema aprender com as reservas deste imóvel.'}
+                  </p>
+                ) : (
+                  minhas
+                    .sort((a, b) => Number(b.fator) - Number(a.fator))
+                    .map(r => {
+                      const d = (r.detalhe || {}) as { mediana_tipo?: number; mediana_comum?: number };
+                      return (
+                        <div key={r.tipo_data} className="flex items-center justify-between gap-2">
+                          <span className="text-gray-700">{NOME_DO_TIPO[r.tipo_data] || r.tipo_data}</span>
+                          <span className="text-right">
+                            <span className={`font-bold ${Number(r.fator) > 1.03 ? 'text-warning-700' : 'text-gray-500'}`}>{percentual(Number(r.fator))}</span>
+                            <span className="block text-[10px] text-gray-400">
+                              {d.mediana_tipo && d.mediana_comum
+                                ? `${reais(Math.round(d.mediana_tipo))} vs ${reais(Math.round(d.mediana_comum))} • ${r.amostras ?? 0} noites`
+                                : ORIGEM_DA_REGRA[r.origem] || r.origem}
+                            </span>
+                          </span>
+                        </div>
+                      );
+                    })
+                )}
+              </div>
+            );
+          })}
+          {!selectedProperty && regras.length === 0 && (
+            <p className="text-xs text-gray-400 py-3 text-center">Nenhum imóvel da seleção tem regras aprendidas ainda.</p>
+          )}
+    </>
+  );
+
   // Helper para renderizar a coluna lateral com Eventos e Altas Demandas
   const renderEventsSidebar = () => (
     <div className="space-y-4">
@@ -512,48 +570,237 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
           </CardDescription>
         </CardHeader>
         <CardContent className="p-4 pt-1 space-y-2">
-          {activeSelectedProperties.map(p => {
-            const minhas = regras.filter(r => r.property_id === p.id);
-            if (!selectedProperty && minhas.length === 0) return null;
-            return (
-              <div key={p.id} className="p-2.5 rounded-lg border bg-warning-50/40 border-warning-200/60 space-y-1.5 text-xs">
-                {!selectedProperty && <div className="font-semibold text-gray-700">{p.nickname || p.name}</div>}
-                {minhas.length === 0 ? (
-                  <p className="text-[11px] text-gray-500">
-                    {p.pricing_activated_at
-                      ? 'Ainda sem reservas suficientes para aprender (mínimo de 15 noites comuns e 4 noites em cada tipo de data).'
-                      : 'Ative a precificação automática para o sistema aprender com as reservas deste imóvel.'}
-                  </p>
-                ) : (
-                  minhas
-                    .sort((a, b) => Number(b.fator) - Number(a.fator))
-                    .map(r => {
-                      const d = (r.detalhe || {}) as { mediana_tipo?: number; mediana_comum?: number };
-                      return (
-                        <div key={r.tipo_data} className="flex items-center justify-between gap-2">
-                          <span className="text-gray-700">{NOME_DO_TIPO[r.tipo_data] || r.tipo_data}</span>
-                          <span className="text-right">
-                            <span className={`font-bold ${Number(r.fator) > 1.03 ? 'text-warning-700' : 'text-gray-500'}`}>{percentual(Number(r.fator))}</span>
-                            <span className="block text-[10px] text-gray-400">
-                              {d.mediana_tipo && d.mediana_comum
-                                ? `${reais(Math.round(d.mediana_tipo))} vs ${reais(Math.round(d.mediana_comum))} • ${r.amostras ?? 0} noites`
-                                : ORIGEM_DA_REGRA[r.origem] || r.origem}
-                            </span>
-                          </span>
-                        </div>
-                      );
-                    })
-                )}
-              </div>
-            );
-          })}
-          {!selectedProperty && regras.length === 0 && (
-            <p className="text-xs text-gray-400 py-3 text-center">Nenhum imóvel da seleção tem regras aprendidas ainda.</p>
-          )}
+          {renderRegrasAprendidas()}
         </CardContent>
       </Card>
     </div>
   );
+
+  /* ── Celular (T8 do plano) ─────────────────────────────── */
+
+  const nomeDoImovel = (alert: PricingAlert) => {
+    const propJoined = (alert as PricingAlert & { properties?: Property | null }).properties;
+    const prop = propJoined || properties.find(p => p.id === alert.property_id);
+    return prop ? (prop.nickname || prop.name) : (alert.property_name || 'Imóvel');
+  };
+
+  /** O que abre o cartão: o evento, o nome entre colchetes do motivo ou o tipo da sugestão. */
+  const tituloDaSugestao = (alert: PricingAlert) => {
+    const ev = alert.event_id ? events.find(e => e.id === alert.event_id) : null;
+    if (ev?.name) return ev.name;
+    const doMotivo = alert.reason?.match(/^\s*\[([^\]]+)\]/)?.[1];
+    if (doMotivo) return doMotivo;
+    if (alert.alert_type === 'orphan_night') return 'Noite órfã';
+    if (alert.alert_type === 'overpricing_event') return 'Acima do mercado';
+    return NOME_DO_TIPO[alert.supporting_data?.regra_tipo || ''] || 'Feriado ou evento';
+  };
+
+  /** A explicação completa (o que o computador mostra no cartão) vai para o "i". */
+  const explicacaoDaSugestao = (alert: PricingAlert, diffPct?: number) => {
+    const d = alert.supporting_data;
+    return (
+      <div className="space-y-2 text-[13px]">
+        <p className="font-medium text-gray-800">{alert.reason}</p>
+        {alert.rationale && <p>{alert.rationale}</p>}
+        <ul className="space-y-1 text-xs text-gray-600">
+          <li>Urgência {alert.urgency}{d?.confianca ? ` · confiança ${d.confianca}` : ''}</li>
+          <li>Estadia mínima: {alert.suggested_min_nights || 1} noites</li>
+          {alert.alert_type !== 'overpricing_event' && (
+            <li>Diária atual: {d?.fonte_diaria_atual === 'calendario_coletado' ? 'lida do calendário do anúncio' : 'diária base do cadastro'}</li>
+          )}
+          {d?.regra_fator ? (
+            <li>
+              Regra do imóvel: {percentual(Number(d.regra_fator))}, aprendida de {ORIGEM_DA_REGRA[d.regra_origem || ''] || d.regra_origem}
+              {d.regra_amostras ? ` (${d.regra_amostras} noites)` : ''}
+              {d.compset_amostras ? `; ${d.compset_amostras} diárias de concorrentes` : ''}
+            </li>
+          ) : null}
+          {d?.base_desatualizada ? (
+            <li className="text-warning-800">
+              Confira a diária base: ela está longe do que o imóvel vende em noite comum
+              {d.mediana_comum_vendida ? ` (${reais(Math.round(d.mediana_comum_vendida))})` : ''}.
+            </li>
+          ) : null}
+          {diffPct !== undefined && <li>Sua diária está {diffPct}% acima da mediana dos concorrentes</li>}
+          {d?.calculation_formula && <li className="font-mono">{d.calculation_formula}</li>}
+          {d?.market_evidence && <li>Comprovação de mercado: {d.market_evidence}</li>}
+          {d?.risk_analysis && <li className="text-warning-800">Risco de vacância: {d.risk_analysis}</li>}
+        </ul>
+      </div>
+    );
+  };
+
+  const cartaoDaSugestao = (alert: PricingAlert) => {
+    const acima = alert.alert_type === 'overpricing_event';
+    const pendente = alert.status === 'Pendente';
+    const aprovado = alert.status === 'Aprovado';
+    const diffPct = acima
+      ? alert.supporting_data?.price_diff_pct ?? (
+        alert.current_price && alert.suggested_price && alert.suggested_price > 0
+          ? Math.round(((alert.current_price - alert.suggested_price) / alert.suggested_price) * 100)
+          : 0
+      )
+      : undefined;
+    const lacuna = alert.alert_type === 'orphan_night' ? alert.supporting_data?.noites_lacuna : undefined;
+    const sugeridaMaior = Number(alert.suggested_price) >= Number(alert.current_price);
+
+    return (
+      <CartaoSugestao
+        key={alert.id}
+        titulo={tituloDaSugestao(alert)}
+        subtitulo={[
+          nomeDoImovel(alert),
+          periodoCurto(alert.target_start_date, alert.target_end_date),
+          lacuna ? `${lacuna} ${lacuna === 1 ? 'noite' : 'noites'} entre reservas` : null,
+        ].filter(Boolean).join(' · ')}
+        etiqueta={pendente && alert.urgency === 'Crítica' ? <Etiqueta tom="danger">Crítica</Etiqueta> : undefined}
+        valores={acima ? [
+          { rotulo: 'Diária atual', valor: reais(alert.current_price) },
+          { rotulo: 'Mercado', valor: reais(alert.suggested_price), tom: 'brand' },
+          { rotulo: 'Acima', valor: `+${diffPct}%`, tom: 'warning' },
+        ] : [
+          { rotulo: 'Diária atual', valor: reais(alert.current_price) },
+          { rotulo: 'Sugerida', valor: reais(alert.suggested_price), tom: sugeridaMaior ? 'success' : 'warning' },
+          { rotulo: 'Ganho', valor: `+${reais(alert.estimated_revenue_gain || 0)}`, tom: 'success' },
+        ]}
+        explicacao={explicacaoDaSugestao(alert, diffPct)}
+        ocupado={isUpdatingStatus === alert.id}
+        apagado={alert.status === 'Rejeitado'}
+        acoes={!pendente ? undefined : acima ? [
+          { rotulo: 'Calibrar', aoTocar: () => handleApproveAlert(alert, 'adjust_to_market') },
+          { rotulo: 'Manter', aoTocar: () => handleApproveAlert(alert, 'keep_premium') },
+          { rotulo: 'Rejeitar', aoTocar: () => handleRejectAlert(alert) },
+        ] : [
+          { rotulo: 'Aprovar', aoTocar: () => handleApproveAlert(alert, 'standard_raise') },
+          { rotulo: 'Rejeitar', aoTocar: () => handleRejectAlert(alert) },
+        ]}
+        desfecho={alert.action_taken || alert.status}
+        tomDesfecho={aprovado ? 'success' : 'neutro'}
+      />
+    );
+  };
+
+  /** A lista de uma aba (Oportunidades ou Calibração) no celular: 5 por vez + "Ver todas". */
+  const sugestoesNoCelular = (lista: PricingAlert[], pendentes: number, vazio: string) => {
+    const visiveis = verTodasSugestoes ? lista : lista.slice(0, 5);
+    return (
+      <div className="space-y-3">
+        <FiltroSugestoes
+          valor={statusFilter}
+          aoMudar={(v) => { setStatusFilter(v); setVerTodasSugestoes(false); }}
+          pendentes={pendentes}
+          total={lista.length}
+          aoSincronizar={handleRunRadarManually}
+          sincronizando={isRadarRunning}
+          desabilitado={loading}
+        />
+        {loading ? (
+          <div className="flex min-h-24 items-center justify-center gap-2 rounded-2xl border bg-card text-sm text-gray-500">
+            <RefreshCw className="h-4 w-4 animate-spin text-brand" aria-hidden="true" />
+            Carregando sugestões…
+          </div>
+        ) : lista.length === 0 ? (
+          <div className="rounded-2xl border bg-card p-4 text-center text-sm text-gray-600">
+            <ShieldCheck className="mx-auto mb-1.5 h-6 w-6 text-success-500" aria-hidden="true" />
+            {vazio}
+          </div>
+        ) : (
+          <>
+            {visiveis.map(cartaoDaSugestao)}
+            {lista.length > 5 && (
+              <VerTodos
+                semFio
+                total={lista.length}
+                rotulo={`Ver todas (${lista.length})`}
+                expandido={verTodasSugestoes}
+                aoClicar={() => setVerTodasSugestoes(v => !v)}
+                className="rounded-2xl border bg-card"
+              />
+            )}
+          </>
+        )}
+        <BlocoRecolhivel titulo="Como a diária é calculada" resumo="Regras aprendidas de cada imóvel">
+          <div className="divide-y divide-gray-100">{renderRegrasAprendidas(true)}</div>
+        </BlocoRecolhivel>
+      </div>
+    );
+  };
+
+  const nomeDoStatus = statusFilter === 'Pendente' ? 'pendente' : statusFilter === 'Aprovado' ? 'aprovada' : statusFilter === 'Rejeitado' ? 'rejeitada' : '';
+
+  if (compacto) {
+    return (
+      <div className="space-y-3">
+        <IndicadoresPrecificacao
+          itens={[
+            { rotulo: 'Urgência crítica', valor: kpis.criticalAlertsCount, tom: kpis.criticalAlertsCount > 0 ? 'danger' : 'neutro', ajuda: 'Sugestões pendentes com impacto crítico na diária e na receita.' },
+            { rotulo: 'Ganho em aberto', valor: `+${reais(kpis.estimatedRevenueGain)}`, tom: 'success', ajuda: `${kpis.pendingUnderpricingCount ?? 0} oportunidade(s) pendentes em feriados, eventos e noites órfãs.` },
+            { rotulo: 'Acima do mercado', valor: kpis.pendingOverpricingCount ?? 0, ajuda: 'Datas livres com a sua diária mais de 25% acima dos anúncios parecidos.' },
+            { rotulo: 'Eventos na região', valor: kpis.upcomingEventsCount, tom: 'brand', ajuda: 'Feriados e eventos onde os imóveis estão, a partir de hoje.' },
+          ]}
+        />
+
+        <ProntidaoPrecificacao modo="linha" properties={activeSelectedProperties} regras={regras} onAtualizado={fetchData} />
+        {foraDaAnalise.length > 0 && (
+          <p className="truncate px-1 text-xs text-gray-500">Fora da análise, sem diária base: {foraDaAnalise.join(', ')}</p>
+        )}
+
+        <Tabs value={aba} onValueChange={(v) => { setAba(v); setVerTodasSugestoes(false); }} className="w-full space-y-3">
+          <AbasRolaveis
+            sangrar
+            rotulo="Seções da precificação"
+            itens={[
+              { valor: 'underpricing', rotulo: 'Oportunidades', contagem: kpis.pendingUnderpricingCount || undefined },
+              { valor: 'overpricing', rotulo: 'Calibração', contagem: kpis.pendingOverpricingCount || undefined },
+              { valor: 'competitors', rotulo: 'Concorrentes' },
+              { valor: 'events', rotulo: 'Eventos', contagem: relevantEvents.length },
+              { valor: 'audit', rotulo: 'Auditoria' },
+            ]}
+          />
+          <TabsContent value="underpricing" className="mt-0">
+            {sugestoesNoCelular(
+              underpricingAlerts,
+              alerts.filter(a => a.alert_type !== 'overpricing_event' && a.status === 'Pendente').length,
+              `Nenhuma oportunidade ${nomeDoStatus} no momento.`,
+            )}
+          </TabsContent>
+          <TabsContent value="overpricing" className="mt-0">
+            {sugestoesNoCelular(
+              overpricingAlerts,
+              alerts.filter(a => a.alert_type === 'overpricing_event' && a.status === 'Pendente').length,
+              `Nenhuma diária ${nomeDoStatus} acima do mercado. A calibração aparece quando a sua diária fica mais de 25% acima dos concorrentes parecidos nas mesmas noites.`,
+            )}
+          </TabsContent>
+          <TabsContent value="competitors" className="mt-0">
+            <CompetitorsRadarTab
+              propertyId={propertyId}
+              properties={properties}
+              selectedProperty={selectedProperty}
+              selectedPropertyIds={selectedPropertyIds}
+              regras={regras}
+            />
+          </TabsContent>
+          <TabsContent value="events" className="mt-0">
+            <EventsCalendarTab
+              events={relevantEvents}
+              properties={activeSelectedProperties}
+              selectedProperty={selectedProperty}
+              reservations={reservations}
+              regras={regras}
+            />
+          </TabsContent>
+          <TabsContent value="audit" className="mt-0">
+            <ReservationsAuditTab
+              propertyId={propertyId}
+              selectedProperty={selectedProperty}
+              selectedPropertyIds={selectedPropertyIds}
+              dateRange={dateRange}
+            />
+          </TabsContent>
+        </Tabs>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-24">

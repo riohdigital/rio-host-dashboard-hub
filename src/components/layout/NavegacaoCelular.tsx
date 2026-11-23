@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { LogOut, MessageSquare, MoreHorizontal, SlidersHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -16,6 +16,7 @@ import BotaoInstalarApp from '@/components/pwa/BotaoInstalarApp';
 import MarcaRioh from './MarcaRioh';
 import { useResumoFiltros } from './resumoFiltros';
 import { abrirChat, useNaoLidasChat } from '@/components/chat/controleChat';
+import { aoPedirFiltros } from './controleFiltros';
 import { ICONE_GESTOR, type ItemNavegacao, rotaAtiva, tituloDaRota, useNavegacao, useSair } from './navegacao';
 
 /**
@@ -39,6 +40,8 @@ const NavegacaoCelular = () => {
   const resumo = useResumoFiltros();
   const [maisAberto, setMaisAberto] = useState(false);
   const [filtrosAberto, setFiltrosAberto] = useState(false);
+  // Telas podem pedir a gaveta de filtros (ex.: Imóvel e Período em Relatórios)
+  useEffect(() => aoPedirFiltros(() => setFiltrosAberto(true)), []);
   const naoLidas = useNaoLidasChat();
 
   const titulo = tituloDaRota(pathname);

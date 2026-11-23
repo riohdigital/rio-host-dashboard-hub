@@ -68,7 +68,8 @@ const ConfiguracoesPage = () => {
               <ChevronLeft className="h-4 w-4" />
               Configurações
             </Button>
-            <h2 className="font-display text-xl font-bold text-ink">{secaoAtual?.label}</h2>
+            {/* A seção já traz o próprio título: este fica só para leitor de tela (1 título por tela) */}
+            <h2 className="sr-only">{secaoAtual?.label}</h2>
             <ActiveComponent />
           </div>
         )}

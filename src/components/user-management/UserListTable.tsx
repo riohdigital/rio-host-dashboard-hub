@@ -1,9 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Edit, Trash2, UserCheck, UserX } from 'lucide-react';
+import { Edit, Trash2, UserCheck, UserRound, UserX } from 'lucide-react';
 import type { UserProfile } from '@/types/user-management';
+import { useEhCelular } from '@/hooks/useMidia';
+import LinhaLista from '@/components/comum/LinhaLista';
+import { ListaLinhas } from '@/components/comum/GrupoLista';
+import FolhaDetalhes from '@/components/comum/FolhaDetalhes';
+import { Etiqueta } from '@/components/comum/Etiquetas';
 
 interface UserListTableProps {
   users: UserProfile[];
@@ -20,6 +25,9 @@ const UserListTable: React.FC<UserListTableProps> = ({
   onDeleteUser,
   loading = false
 }) => {
+  // Celular: a tabela (6 colunas) passava da tela; vira linhas que abrem uma folha
+  const celular = useEhCelular();
+  const [aberto, setAberto] = useState<UserProfile | null>(null);
   const getRoleBadgeVariant = (role: string) => {
     switch (role) {
       case 'master': return 'default';
@@ -47,6 +55,74 @@ const UserListTable: React.FC<UserListTableProps> = ({
           <div key={i} className="h-16 bg-muted animate-pulse rounded" />
         ))}
       </div>
+    );
+  }
+
+  if (celular) {
+    const fechar = () => setAberto(null);
+    return (
+      <>
+        {users.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">Nenhum usuário encontrado</p>
+        ) : (
+          <ListaLinhas>
+            {users.map((user) => (
+              <LinhaLista
+                key={user.id}
+                icone={UserRound}
+                tomIcone={user.is_active ? 'brand' : 'neutro'}
+                titulo={user.full_name || 'Nome não informado'}
+                subtitulo={user.email}
+                etiqueta={<Etiqueta tom={user.role === 'master' ? 'brand' : 'neutro'}>{getRoleLabel(user.role)}</Etiqueta>}
+                className={user.is_active ? undefined : 'opacity-70'}
+                aoTocar={() => setAberto(user)}
+              />
+            ))}
+          </ListaLinhas>
+        )}
+        <FolhaDetalhes
+          aberta={!!aberto}
+          aoMudar={(v) => !v && fechar()}
+          titulo={aberto?.full_name || 'Nome não informado'}
+          etiqueta={aberto ? <Etiqueta tom={aberto.is_active ? 'success' : 'neutro'}>{aberto.is_active ? 'Ativo' : 'Inativo'}</Etiqueta> : undefined}
+          subtitulo={aberto?.email}
+        >
+          {aberto && (
+            <>
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                <div>
+                  <dt className="text-xs text-gray-500">Papel</dt>
+                  <dd className="text-gray-900">{getRoleLabel(aberto.role)}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-gray-500">Criado em</dt>
+                  <dd className="font-mono tabular-nums text-gray-900">{new Date(aberto.created_at).toLocaleDateString('pt-BR')}</dd>
+                </div>
+              </dl>
+              <div className="grid grid-cols-2 gap-2">
+                <Button variant="outline" className="min-h-11 gap-2" onClick={() => { const u = aberto; fechar(); onEditUser(u); }}>
+                  <Edit className="h-4 w-4" />
+                  Editar
+                </Button>
+                <Button variant="outline" className="min-h-11 gap-2" onClick={() => { const u = aberto; fechar(); onToggleUserStatus(u); }}>
+                  {aberto.is_active ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
+                  {aberto.is_active ? 'Desativar' : 'Ativar'}
+                </Button>
+              </div>
+              {/* Excluir longe de editar; a confirmação é a da própria seção */}
+              {aberto.role !== 'master' && (
+                <Button
+                  variant="ghost"
+                  className="min-h-11 w-full text-danger-600 hover:bg-danger-50 hover:text-danger-700"
+                  onClick={() => { const u = aberto; fechar(); onDeleteUser(u); }}
+                >
+                  Excluir usuário
+                </Button>
+              )}
+            </>
+          )}
+        </FolhaDetalhes>
+      </>
     );
   }
 

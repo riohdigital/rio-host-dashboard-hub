@@ -168,7 +168,7 @@ const ChannelSyncSection: React.FC = () => {
 
       {/* ---------------- Calendários iCal ---------------- */}
       <Card>
-        <CardHeader className="flex flex-row items-start justify-between space-y-0">
+        <CardHeader className="flex flex-row items-start justify-between space-y-0 max-sm:flex-col max-sm:gap-3">
           <div>
             <CardTitle className="flex items-center gap-2">
               <CalendarClock className="h-5 w-5" />
@@ -178,7 +178,7 @@ const ChannelSyncSection: React.FC = () => {
               Um link por anúncio. O sistema lê os feeds e cria as reservas sem intervenção.
             </CardDescription>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 max-sm:w-full max-sm:flex-col">
             <Button
               variant="outline"
               onClick={() => handleSync()}

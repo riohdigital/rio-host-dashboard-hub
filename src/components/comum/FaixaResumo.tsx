@@ -8,6 +8,8 @@
  *     apoio={[{ rotulo: 'Receita', valor: 'R$ 125.490' }, { rotulo: 'Despesas', valor: 'R$ 5.025', tom: 'danger' }]} />
  *
  * Os valores chegam já formatados (formatarMoeda/formatarMoedaSemCentavos).
+ *
+ * `acao`: um botão à direita do destaque (ex.: "+ Novo"), no lugar da tendência.
  */
 import React from 'react';
 import { cn } from '@/lib/utils';
@@ -36,10 +38,12 @@ interface FaixaResumoProps {
   ajuda?: React.ReactNode;
   /** Conteúdo livre abaixo dos apoios (ex.: uma BarraProgresso) */
   children?: React.ReactNode;
+  /** Botão à direita do número principal (ex.: "+ Novo") */
+  acao?: React.ReactNode;
   className?: string;
 }
 
-const FaixaResumo = ({ rotulo, valor, tomValor = 'neutro', apoio = [], tendencia, ajuda, children, className }: FaixaResumoProps) => (
+const FaixaResumo = ({ rotulo, valor, tomValor = 'neutro', apoio = [], tendencia, ajuda, children, acao, className }: FaixaResumoProps) => (
   <section className={cn('min-w-0 rounded-2xl border bg-card p-3.5 shadow-sm', className)}>
     <div className="flex items-end justify-between gap-3">
       <div className="min-w-0">
@@ -52,6 +56,7 @@ const FaixaResumo = ({ rotulo, valor, tomValor = 'neutro', apoio = [], tendencia
         </p>
       </div>
       {tendencia && tendencia.length > 1 && <MiniTendencia valores={tendencia} className="mb-1.5" />}
+      {acao && <div className="mb-0.5 shrink-0">{acao}</div>}
     </div>
 
     {apoio.length > 0 && (

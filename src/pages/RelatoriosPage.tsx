@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { Badge } from "@/components/ui/badge";
-import { Download, FileText, DollarSign, Calendar, TrendingUp, PieChart, Share2, Check } from "lucide-react";
+import { Download, FileText, DollarSign, Calendar, TrendingUp, PieChart, Share2, Check, ChevronRight } from "lucide-react";
 import PageHeader from "@/components/comum/PageHeader";
 import { cn } from "@/lib/utils";
 import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
@@ -17,9 +17,16 @@ import { usePDFExport } from '@/hooks/reports/usePDFExport';
 import { EnhancedReportTemplate } from '@/components/reports/EnhancedReportTemplate';
 import ReceiptGenerator from '@/components/reports/ReceiptGenerator';
 import CleanerPaymentsReport from '@/components/reports/CleanerPaymentsReport';
+import { useEhCompacto } from '@/hooks/useMidia';
+import { useResumoFiltros } from '@/components/layout/resumoFiltros';
+import { abrirFiltros } from '@/components/layout/controleFiltros';
+import { formatarData } from '@/components/comum/formatos';
 
 const RelatoriosPage: React.FC = () => {
-  const { selectedPeriod, selectedProperties, selectedPlatform, customStartDate: globalCustomStartDate, customEndDate: globalCustomEndDate } = useGlobalFilters();
+  const { selectedPeriod, selectedProperties, selectedPlatform, customStartDate: globalCustomStartDate, customEndDate: globalCustomEndDate, setSelectedPeriod } = useGlobalFilters();
+  // Celular (abaixo de 1024px): o formulário da T11 do plano; o computador não muda
+  const compacto = useEhCompacto();
+  const resumoFiltros = useResumoFiltros();
   const { startDateString, endDateString } = useDateRange(selectedPeriod, globalCustomStartDate, globalCustomEndDate);
   const { permissions, isMaster } = useUserPermissions();
   const { toast } = useToast();
@@ -79,6 +86,15 @@ const RelatoriosPage: React.FC = () => {
     { value: 'expenses', label: 'Despesas vs Receitas', icon: FileText },
     { value: 'checkins', label: 'Check-ins/Check-outs', icon: Calendar },
   ];
+
+  // Imóvel do filtro global (o campo Imóvel abre a gaveta de filtros)
+  const nomeDosImoveis = (() => {
+    if (selectedProperties.length === 1 && selectedProperties[0] !== 'todas') {
+      const p = properties.find((x) => x.id === selectedProperties[0]);
+      if (p) return p.nickname || p.name;
+    }
+    return resumoFiltros.imoveis;
+  })();
 
   const handleGenerateReport = async () => {
     try {
@@ -172,6 +188,120 @@ const RelatoriosPage: React.FC = () => {
     <div className="space-y-6">
         <PageHeader titulo="Relatórios" descricao="Gere relatórios detalhados sobre suas propriedades e reservas" />
 
+      {compacto ? (
+        <>
+          {/* Celular: tipo, imóvel, período e canal + Gerar cabem na primeira tela */}
+          <section className="grid min-w-0 gap-3 rounded-2xl border bg-card p-3.5 shadow-sm">
+            <div className="grid gap-1.5">
+              <label htmlFor="rel-tipo" className="text-xs text-gray-500">Tipo de relatório</label>
+              <Select value={reportType} onValueChange={(v) => setReportType(v as typeof reportType)}>
+                <SelectTrigger id="rel-tipo" className="h-11 rounded-xl text-base">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {reportTypes.map((t) => (
+                    <SelectItem key={t.value} value={t.value} className="min-h-11">{t.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-1.5">
+              <span className="text-xs text-gray-500" id="rel-imovel">Imóvel</span>
+              <button
+                type="button"
+                aria-labelledby="rel-imovel"
+                onClick={abrirFiltros}
+                className="flex h-11 min-w-0 items-center justify-between gap-2 rounded-xl border border-input bg-background px-3 text-left text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              >
+                <span className="truncate">{nomeDosImoveis}</span>
+                <ChevronRight className="h-[18px] w-[18px] shrink-0 text-gray-500" aria-hidden="true" />
+              </button>
+            </div>
+
+            <div className="grid gap-1.5">
+              <span className="text-xs text-gray-500" id="rel-periodo">Período</span>
+              <div role="radiogroup" aria-labelledby="rel-periodo" className="grid grid-cols-3 rounded-full bg-gray-100 p-[3px]">
+                {([
+                  ['current_month', 'Mês'],
+                  ['current_year', 'Ano'],
+                  ['outro', 'Outro'],
+                ] as const).map(([valor, rotulo]) => {
+                  const ativo = valor === 'outro'
+                    ? selectedPeriod !== 'current_month' && selectedPeriod !== 'current_year'
+                    : selectedPeriod === valor;
+                  return (
+                    <button
+                      key={valor}
+                      type="button"
+                      role="radio"
+                      aria-checked={ativo}
+                      onClick={() => (valor === 'outro' ? abrirFiltros() : setSelectedPeriod(valor))}
+                      className={cn(
+                        'min-h-9 rounded-full px-2 text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+                        ativo ? 'bg-card text-gray-900 shadow-sm' : 'text-gray-500',
+                      )}
+                    >
+                      {rotulo}
+                    </button>
+                  );
+                })}
+              </div>
+              <span className="font-mono text-xs tabular-nums text-gray-500">
+                {resumoFiltros.periodo} · {formatarData(startDateString)} a {formatarData(endDateString)}
+              </span>
+            </div>
+
+            <div className="grid gap-1.5">
+              <label htmlFor="rel-canal" className="text-xs text-gray-500">Canal</label>
+              <Select value={localPlatform} onValueChange={setLocalPlatform}>
+                <SelectTrigger id="rel-canal" className="h-11 rounded-xl text-base">
+                  <SelectValue placeholder="Todos os canais" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="min-h-11">Todos os canais</SelectItem>
+                  <SelectItem value="Airbnb" className="min-h-11">Airbnb</SelectItem>
+                  <SelectItem value="Booking" className="min-h-11">Booking.com</SelectItem>
+                  <SelectItem value="Direto" className="min-h-11">Direto</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button
+              onClick={handleGenerateReport}
+              className="min-h-11 w-full gap-2 rounded-full"
+              disabled={reportLoading || propertiesLoading}
+            >
+              <FileText className="h-4 w-4" />
+              {reportLoading ? 'Gerando...' : 'Gerar relatório'}
+            </Button>
+          </section>
+
+          {currentReport ? (
+            <div className={cn('grid gap-2', podeCompartilhar ? 'grid-cols-3' : 'grid-cols-2')}>
+              <Button variant="outline" onClick={() => handleExportPDF(false)} className="min-h-11 gap-1.5 px-2" disabled={exportando}>
+                <Download className="h-4 w-4" />
+                PDF
+              </Button>
+              {podeCompartilhar && (
+                <Button variant="outline" onClick={() => handleExportPDF(true)} className="min-h-11 gap-1.5 px-2" disabled={exportando}>
+                  <Share2 className="h-4 w-4" />
+                  Compartilhar
+                </Button>
+              )}
+              <Button variant="outline" onClick={handleExportExcel} className="min-h-11 gap-1.5 px-2">
+                <Download className="h-4 w-4" />
+                Excel
+              </Button>
+            </div>
+          ) : (
+            <p className="px-2 text-center text-xs text-gray-500">
+              A prévia abre aqui, na largura da tela, com Baixar PDF e Compartilhar.
+            </p>
+          )}
+        </>
+      ) : (
+        <>
       {/* Filtros */}
       <Card>
         <CardHeader>
@@ -262,6 +392,8 @@ const RelatoriosPage: React.FC = () => {
           Excel
         </Button>
       </div>
+        </>
+      )}
 
       {/* Prévia do Relatório */}
       {currentReport && (
@@ -282,7 +414,7 @@ const RelatoriosPage: React.FC = () => {
         </Card>
       )}
 
-      {!currentReport && (
+      {!currentReport && !compacto && (
         <Card>
           <CardHeader>
             <CardTitle>Prévia do Relatório</CardTitle>

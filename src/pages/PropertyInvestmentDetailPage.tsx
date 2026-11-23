@@ -11,6 +11,12 @@ import { useROICalculations } from '@/hooks/investments/useROICalculations';
 import { supabase } from '@/integrations/supabase/client';
 import { Property } from '@/types/property';
 import { PropertyROI } from '@/types/investment';
+import JanelaResponsiva from '@/components/comum/JanelaResponsiva';
+import FaixaResumo from '@/components/comum/FaixaResumo';
+import { formatarMoedaSemCentavos } from '@/components/comum/formatos';
+import { useEhCompacto } from '@/hooks/useMidia';
+import { HistoricoInvestimentosCelular, percentualROI } from '@/components/investments/InvestimentosCelular';
+import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 
 const PropertyInvestmentDetailPage = () => {
   const { propertyId } = useParams<{ propertyId: string }>();
@@ -18,6 +24,9 @@ const PropertyInvestmentDetailPage = () => {
   const [property, setProperty] = useState<Property | null>(null);
   const [propertyLoading, setPropertyLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
+  // Celular (abaixo de 1024px): faixa de resumo + histórico em linhas; o computador não muda
+  const compacto = useEhCompacto();
+  const { hasPermission } = useUserPermissions();
 
   const { investments, loading: investmentsLoading, createInvestment, deleteInvestment } = usePropertyInvestments(propertyId);
   const { roiData, loading: roiLoading, refetch: refetchROI } = useROICalculations();
@@ -100,6 +109,61 @@ const PropertyInvestmentDetailPage = () => {
           </Button>
         </div>
       </>
+    );
+  }
+
+  if (compacto) {
+    return (
+      <div className="space-y-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate('/investimentos')}
+            aria-label="Voltar para Investimentos"
+            className="-ml-2 h-11 w-11 shrink-0"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="min-w-0 truncate font-display text-base font-bold text-gray-900">
+            {property.nickname || property.name}
+          </h1>
+        </div>
+
+        <JanelaResponsiva aberta={formOpen} aoMudar={setFormOpen} titulo={`Adicionar investimento · ${property.nickname || property.name}`} largura="lg">
+          <InvestmentForm
+            properties={[property]}
+            onSubmit={handleCreateInvestment}
+            loading={false}
+            defaultPropertyId={propertyId}
+          />
+        </JanelaResponsiva>
+
+        <FaixaResumo
+          rotulo="ROI"
+          valor={propertyROI ? percentualROI(propertyROI.roi_percentage) : '—'}
+          tomValor={propertyROI && propertyROI.roi_percentage < 0 ? 'danger' : 'neutro'}
+          acao={
+            <Button onClick={() => setFormOpen(true)} className="min-h-11 gap-1.5 rounded-full px-4">
+              <Plus className="h-[18px] w-[18px]" aria-hidden="true" />
+              Novo
+            </Button>
+          }
+          apoio={propertyROI ? [
+            { rotulo: 'Investido', valor: formatarMoedaSemCentavos(propertyROI.total_investment) },
+            { rotulo: 'Receita líq.', valor: formatarMoedaSemCentavos(propertyROI.net_revenue), tom: propertyROI.net_revenue >= 0 ? 'success' : 'danger' },
+            { rotulo: 'Payback', valor: formatPaybackTime(propertyROI.payback_months) },
+          ] : []}
+        />
+
+        <HistoricoInvestimentosCelular
+          investments={investments}
+          onDelete={handleDeleteInvestment}
+          podeExcluir={hasPermission('investments_create')}
+          mostrarImovel={false}
+          loading={investmentsLoading}
+        />
+      </div>
     );
   }
 
