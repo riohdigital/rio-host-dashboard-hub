@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
@@ -13,19 +13,21 @@ import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Edit, Trash2, Plus, Search, AlertTriangle, MessageCircle, Info, MoreVertical, CalendarX, Users } from 'lucide-react';
+import { Edit, Trash2, Plus, Search, AlertTriangle, MessageCircle, Info, CalendarX, Users } from 'lucide-react';
 import PageHeader from '@/components/comum/PageHeader';
 import TabelaResponsiva, { type Coluna } from '@/components/comum/TabelaResponsiva';
 import JanelaResponsiva from '@/components/comum/JanelaResponsiva';
 import EstadoVazio from '@/components/comum/EstadoVazio';
 import { EsqueletoLista } from '@/components/comum/Esqueleto';
 import { Etiqueta, EtiquetaPlataforma, EtiquetaStatus } from '@/components/comum/Etiquetas';
-import { formatarData, formatarMoeda } from '@/components/comum/formatos';
+import { formatarMoeda } from '@/components/comum/formatos';
 import AbasRolaveis from '@/components/comum/AbasRolaveis';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import ReservationForm from '@/components/reservations/ReservationForm';
 import StatusSelector from '@/components/reservations/StatusSelector';
+import ReservasCelular from '@/components/reservations/ReservasCelular';
+import FolhaReserva, { type ReservaDaFolha } from '@/components/reservations/FolhaReserva';
+import { useEhCompacto } from '@/hooks/useMidia';
 import { supabase } from '@/integrations/supabase/client';
 import { Reservation } from '@/types/reservation';
 import { Property } from '@/types/property';
@@ -131,6 +133,11 @@ const ReservasPage = () => {
     const [selectedPaymentStatus, setSelectedPaymentStatus] = useState('all');
     const [activeTab, setActiveTab] = useState(urlSearchCode ? 'active' : 'cashflow');
     const [excluindoId, setExcluindoId] = useState<string | null>(null);
+    // Celular: a reserva aberta na folha de detalhes (D5)
+    const [folhaId, setFolhaId] = useState<string | null>(null);
+    const [folhaAberta, setFolhaAberta] = useState(false);
+    const codigoJaAberto = useRef<string | null>(null);
+    const compacto = useEhCompacto();
     const { toast } = useToast();
     const { hasPermission, getAccessibleProperties, loading: permissionsLoading } = useUserPermissions();
     const { selectedProperties, selectedPeriod, selectedPlatform, customStartDate, customEndDate } = useGlobalFilters();
@@ -166,6 +173,19 @@ const ReservasPage = () => {
     const reservations = data?.reservations || [];
     const properties = data?.properties || [];
     const cleanerMap = data?.cleanerMap || new Map<string, string>();
+
+    // ?code=… (vem do Dashboard): no celular, abre a folha dessa reserva direto
+    useEffect(() => {
+        if (!compacto || !urlSearchCode || !data || codigoJaAberto.current === urlSearchCode) return;
+        const alvo = urlSearchCode.trim().toLowerCase();
+        const lista = data.reservations as Array<{ id: string; reservation_code?: string | null }>;
+        const achada = lista.find((r) => (r.reservation_code || '').toLowerCase() === alvo) ?? (lista.length === 1 ? lista[0] : null);
+        codigoJaAberto.current = urlSearchCode;
+        if (achada) {
+            setFolhaId(achada.id);
+            setFolhaAberta(true);
+        }
+    }, [compacto, urlSearchCode, data]);
 
     const handleDelete = async (reservationId: string): Promise<void> => {
         try {
@@ -456,109 +476,58 @@ const ReservasPage = () => {
         }] : []),
     ];
 
-    const cartaoReserva = (r: any) => {
-        const noites = calculateNights(r.check_in_date, r.check_out_date);
-        return (
-            <article className="rounded-2xl border bg-card p-4 shadow-sm">
-                <div className="flex items-start gap-3">
-                    <button
-                        type="button"
-                        className="min-w-0 flex-1 text-left"
-                        onClick={canEditReservations ? () => handleEdit(r) : undefined}
-                        disabled={!canEditReservations}
-                    >
-                        <div className="flex items-center gap-2">
-                            <h3 className="truncate font-display text-base font-bold text-ink">{r.guest_name || 'Hóspede sem nome'}</h3>
-                            {r.number_of_guests ? <span className="flex shrink-0 items-center gap-0.5 text-xs text-gray-500"><Users className="h-3 w-3" aria-hidden="true" />{r.number_of_guests}<span className="sr-only"> hóspedes</span></span> : null}
-                        </div>
-                        <p className="mt-0.5 truncate text-sm text-gray-600">
-                            {r.properties?.nickname || r.properties?.name} · <span className="font-mono text-xs">{r.reservation_code}</span>
-                        </p>
-                    </button>
-                    <EtiquetaPlataforma plataforma={r.platform} className="mt-0.5 shrink-0" />
-                    {temAcoes && (
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="-mr-2 -mt-1 h-9 w-9 shrink-0" aria-label="Ações da reserva">
-                                    <MoreVertical className="h-5 w-5" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="min-w-52">
-                                {canEditReservations && (
-                                    <>
-                                        <DropdownMenuItem className="min-h-11 gap-2" onClick={() => handleEdit(r)}>
-                                            <Edit className="h-4 w-4" /> Editar
-                                        </DropdownMenuItem>
-                                        <DropdownMenuCheckboxItem
-                                            className="min-h-11"
-                                            checked={r.is_communicated || false}
-                                            onCheckedChange={(checked) => handleCheckboxChange(r.id, 'is_communicated', checked as boolean)}
-                                        >
-                                            Comunicado
-                                        </DropdownMenuCheckboxItem>
-                                        <DropdownMenuCheckboxItem
-                                            className="min-h-11"
-                                            checked={r.receipt_sent || false}
-                                            onCheckedChange={(checked) => handleCheckboxChange(r.id, 'receipt_sent', checked as boolean)}
-                                        >
-                                            Recibo enviado
-                                        </DropdownMenuCheckboxItem>
-                                    </>
-                                )}
-                                {canDeleteReservations && (
-                                    <>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem className="min-h-11 gap-2 text-danger-600 focus:text-danger-700" onClick={() => setExcluindoId(r.id)}>
-                                            <Trash2 className="h-4 w-4" /> Excluir
-                                        </DropdownMenuItem>
-                                    </>
-                                )}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    )}
-                </div>
-
-                <div className="mt-3 flex items-end justify-between gap-3">
-                    <div className="font-mono text-sm tabular-nums text-ink">
-                        {formatarData(r.check_in_date, true)} <span className="text-gray-400">→</span> {formatarData(r.check_out_date, true)}
-                        <span className="ml-1.5 font-sans text-xs text-gray-500">{noites} {noites === 1 ? 'noite' : 'noites'}</span>
-                    </div>
-                    <div className="text-right font-mono tabular-nums">
-                        <div className="text-base font-semibold text-success-700">{formatarMoeda(r.net_revenue)}</div>
-                        <div className="text-xs text-gray-500">Total {formatarMoeda(r.total_revenue)}</div>
-                    </div>
-                </div>
-
-                <div className="mt-3 flex flex-wrap items-center gap-2 border-t pt-3">
-                    {canEditReservations ? (
-                        <>
-                            <StatusSelector reservationId={r.id} currentStatus={r.reservation_status} statusType="reservation_status" onUpdate={atualizar} />
-                            <StatusSelector reservationId={r.id} currentStatus={r.payment_status || 'Pendente'} statusType="payment_status" onUpdate={atualizar} />
-                        </>
-                    ) : (
-                        <>
-                            <EtiquetaStatus status={r.reservation_status} />
-                            <EtiquetaStatus status={r.payment_status || 'Pendente'} />
-                        </>
-                    )}
-                    <span className="text-xs text-gray-500">Faxina: {nomeFaxineira(r)}</span>
-                    {r.guest_phone && (
-                        <Button variant="outline" size="icon" onClick={() => abrirWhatsApp(r)} className="ml-auto h-9 w-9" aria-label="Conversar no WhatsApp">
-                            <MessageCircle className="h-4 w-4 text-success-600" />
-                        </Button>
-                    )}
-                </div>
-            </article>
-        );
-    };
-
     const ABAS = [
         { valor: 'cashflow', rotulo: 'Receita Gerada no Período', curto: 'Receita gerada', total: reservationsByCompetence.cashflow.length, ajuda: 'Representa a receita efetivamente gerada no período selecionado: inclui Airbnb e Direto já recebidos + Booking.com com check-out no período (mesmo que o pagamento seja futuro). Este é o caixa real do mês.' },
         { valor: 'received', rotulo: 'Receber no Período (Airbnb e Direto)', curto: 'Recebidas', total: reservationsByCompetence.received.length, ajuda: 'Mostra reservas do Airbnb e Direto cujo pagamento foi efetivamente recebido dentro do período selecionado. Exclui Booking.com que paga no mês seguinte ao check-out.' },
         { valor: 'future', rotulo: 'À Receber no Próximo Período (Booking)', curto: 'A receber (Booking)', total: reservationsByCompetence.future.length, ajuda: 'Reservas do Booking.com com check-out no período selecionado, mas cujo pagamento será recebido apenas no próximo período (mês seguinte ao check-out).' },
         { valor: 'active', rotulo: 'Ativas no Período', curto: 'Ativas', total: reservationsByCompetence.active.length, ajuda: 'Mostra todas as reservas que possuem intersecção com o período selecionado (check-in ou check-out dentro do período), independente de quando o pagamento foi recebido. Útil para visualizar a ocupação geral.' },
     ];
-    const abaAtual = ABAS.find((a) => a.valor === activeTab);
+
+    if (compacto) {
+        const folhaReserva = (folhaId ? reservations.find((r) => r.id === folhaId) : null) as unknown as ReservaDaFolha | null;
+        return (
+            <div className="min-w-0">
+                <PageHeader titulo="Reservas" descricao="Gerencie suas reservas e acompanhe o status" />
+                <ReservasCelular
+                    reservas={filteredReservations}
+                    abas={ABAS}
+                    aba={activeTab}
+                    aoMudarAba={setActiveTab}
+                    busca={searchTerm}
+                    aoBuscar={setSearchTerm}
+                    status={selectedStatus}
+                    aoMudarStatus={setSelectedStatus}
+                    pagamento={selectedPaymentStatus}
+                    aoMudarPagamento={setSelectedPaymentStatus}
+                    totais={totals}
+                    podeCriar={canCreateReservations}
+                    aoNova={() => { setEditingReservation(null); setShowForm(true); }}
+                    aoTocar={(r) => { setFolhaId(r.id); setFolhaAberta(true); }}
+                />
+                <FolhaReserva
+                    aberta={folhaAberta}
+                    aoMudar={setFolhaAberta}
+                    reserva={folhaReserva}
+                    nomeFaxineira={folhaReserva?.cleaner_user_id ? cleanerMap.get(folhaReserva.cleaner_user_id) : null}
+                    aoAlterar={atualizar}
+                    aoEditar={(r) => handleEdit(r)}
+                />
+                <JanelaResponsiva
+                    aberta={showForm}
+                    aoMudar={(aberta) => { if (!aberta) { setShowForm(false); setEditingReservation(null); } }}
+                    titulo={editingReservation ? 'Editar Reserva' : 'Nova Reserva'}
+                    telaCheia
+                    largura="xl"
+                >
+                    <ReservationForm
+                        reservation={editingReservation}
+                        onSuccess={handleFormSuccess}
+                        onCancel={() => { setShowForm(false); setEditingReservation(null); }}
+                    />
+                </JanelaResponsiva>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-5 sm:space-y-6">
@@ -629,39 +598,14 @@ const ReservasPage = () => {
                             ),
                         }))}
                     />
-                    {abaAtual && <p className="mb-3 text-xs text-gray-500 lg:hidden">{abaAtual.ajuda}</p>}
 
                     <TabsContent value={activeTab} className="mt-3 space-y-3">
-                        {/* Resumo da aba (no desktop fica no rodapé da tabela) */}
-                        <div className="grid grid-cols-2 gap-3 md:hidden">
-                            <div className="rounded-2xl border bg-card p-3.5 shadow-sm">
-                                <div className="text-xs text-gray-600">{totals.count} {totals.count === 1 ? 'reserva' : 'reservas'} · líquido</div>
-                                <div className="font-mono text-lg font-semibold tabular-nums text-success-700">{formatarMoeda(totals.netRevenue)}</div>
-                                <div className="font-mono text-xs tabular-nums text-gray-500">Bruto {formatarMoeda(totals.totalRevenue)}</div>
-                            </div>
-                            <div className="rounded-2xl border bg-card p-3.5 text-xs text-gray-600 shadow-sm">
-                                {activeTab === 'cashflow' ? (
-                                    <>
-                                        <div>Recebido</div>
-                                        <div className="font-mono text-sm font-semibold tabular-nums text-info-600">{formatarMoeda(totals.receivedNetRevenue)}</div>
-                                        <div className="mt-1">A receber</div>
-                                        <div className="font-mono text-sm font-semibold tabular-nums text-orange-600">{formatarMoeda(totals.futureNetRevenue)}</div>
-                                    </>
-                                ) : (
-                                    <>
-                                        <div>Pagos {totals.paidCount} · Pendentes {totals.pendingCount}</div>
-                                        <div className="mt-1">Airbnb {totals.airbnbCount} · Booking {totals.bookingCount} · Direto {totals.diretoCount}</div>
-                                    </>
-                                )}
-                            </div>
-                        </div>
-
                         <div className="md:rounded-2xl md:border md:bg-card md:shadow-sm">
                             <TabelaResponsiva
                                 itens={filteredReservations}
                                 chaveItem={(r: any) => r.id}
                                 colunas={colunas}
-                                cartao={cartaoReserva}
+                                cartao={() => null}
                                 vazio={
                                     <EstadoVazio
                                         icone={CalendarX}

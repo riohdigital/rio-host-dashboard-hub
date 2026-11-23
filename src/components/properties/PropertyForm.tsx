@@ -21,9 +21,11 @@ interface PropertyFormProps {
   property?: Property | null;
   onSuccess: () => void;
   onCancel: () => void;
+  /** Celular: o "Excluir imóvel" no fim do formulário, longe de Salvar (regra 12) */
+  excluir?: React.ReactNode;
 }
 
-const PropertyForm = ({ property, onSuccess, onCancel }: PropertyFormProps) => {
+const PropertyForm = ({ property, onSuccess, onCancel, excluir }: PropertyFormProps) => {
   const [formData, setFormData] = useState({
     name: '',
     nickname: '',
@@ -469,6 +471,8 @@ const { error: insertError } = await supabase
           />
         </div>
       </BlocoFormulario>
+
+      {excluir && <div className="border-t pt-3">{excluir}</div>}
 
       {/* Botões */}
       <div className="sticky -bottom-4 z-10 -mx-4 -mb-4 flex justify-end gap-3 border-t bg-background px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 sm:-mx-6 sm:px-6 sm:pb-3 [&>button]:flex-1 sm:[&>button]:flex-none">

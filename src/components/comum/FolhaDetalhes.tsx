@@ -59,7 +59,8 @@ interface FolhaDetalhesProps {
   className?: string;
 }
 
-const BotaoExcluir = ({ excluir }: { excluir: AcaoExcluir }) => {
+/** O botão "Excluir" com a confirmação, para usar fora da folha (ex.: dentro de um formulário) */
+export const BotaoExcluir = ({ excluir }: { excluir: AcaoExcluir }) => {
   const [confirmando, setConfirmando] = useState(false);
   const [trabalhando, setTrabalhando] = useState(false);
 
