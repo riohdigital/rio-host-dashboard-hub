@@ -7,14 +7,23 @@ import { useDateRange } from '@/hooks/dashboard/useDateRange';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
-import { Card, CardContent } from '@/components/ui/card';
+import { TableCell, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Edit, Trash2, Plus, Search, Loader2, AlertTriangle, MessageCircle, Info } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Edit, Trash2, Plus, Search, AlertTriangle, MessageCircle, Info, MoreVertical, CalendarX } from 'lucide-react';
+import PageHeader from '@/components/comum/PageHeader';
+import TabelaResponsiva, { type Coluna } from '@/components/comum/TabelaResponsiva';
+import JanelaResponsiva from '@/components/comum/JanelaResponsiva';
+import EstadoVazio from '@/components/comum/EstadoVazio';
+import { EsqueletoLista } from '@/components/comum/Esqueleto';
+import { Etiqueta, EtiquetaPlataforma, EtiquetaStatus } from '@/components/comum/Etiquetas';
+import { formatarData, formatarMoeda } from '@/components/comum/formatos';
+import { ABAS_ROLAVEIS } from '@/components/comum/classes';
+import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import ReservationForm from '@/components/reservations/ReservationForm';
 import StatusSelector from '@/components/reservations/StatusSelector';
@@ -122,6 +131,7 @@ const ReservasPage = () => {
     const [selectedStatus, setSelectedStatus] = useState('all');
     const [selectedPaymentStatus, setSelectedPaymentStatus] = useState('all');
     const [activeTab, setActiveTab] = useState(urlSearchCode ? 'active' : 'cashflow');
+    const [excluindoId, setExcluindoId] = useState<string | null>(null);
     const { toast } = useToast();
     const { hasPermission, getAccessibleProperties, loading: permissionsLoading } = useUserPermissions();
     const { selectedProperties, selectedPeriod, selectedPlatform, customStartDate, customEndDate } = useGlobalFilters();
@@ -134,11 +144,6 @@ const ReservasPage = () => {
             setActiveTab('active');
         }
     }, [urlSearchCode]);
-
-    // LOG: Verificando o estado a cada renderização
-    console.log("--- COMPONENTE RENDERIZADO ---");
-    console.log("Estado 'showForm':", showForm);
-    console.log("Reserva em edição:", editingReservation ? editingReservation.id : null);
 
     const queryKey = useMemo(() => ['reservations', selectedPeriod, startDateString, endDateString, selectedProperties, selectedPlatform, selectedPaymentStatus, urlSearchCode], 
         [selectedPeriod, startDateString, endDateString, selectedProperties, selectedPlatform, selectedPaymentStatus, urlSearchCode]);
@@ -191,12 +196,8 @@ const ReservasPage = () => {
         }
     };
 
-    // LOG: Adicionando logs detalhados à função handleEdit
     const handleEdit = (reservation: Reservation) => {
-        console.log("--- PASSO 2: Função handleEdit EXECUTADA ---");
-        console.log("Definindo 'editingReservation' para:", reservation);
         setEditingReservation(reservation);
-        console.log("Definindo 'showForm' para: true");
         setShowForm(true);
     };
 
@@ -330,8 +331,9 @@ const ReservasPage = () => {
 
     if (totalLoading && !data) {
         return (
-            <div className="flex items-center justify-center min-h-[400px]">
-                <Loader2 className="h-8 w-8 animate-spin" />
+            <div className="space-y-4">
+                <div className="h-8 w-40 animate-pulse rounded-lg bg-gray-200" />
+                <EsqueletoLista linhas={6} />
             </div>
         );
     }
@@ -343,7 +345,7 @@ const ReservasPage = () => {
 
     if (!canViewReservations) {
         return (
-            <div className="p-6">
+            <div>
                 <Alert variant="destructive">
                     <AlertTriangle className="h-4 w-4" />
                     <AlertDescription>Você não tem permissão para visualizar reservas.</AlertDescription>
@@ -352,340 +354,379 @@ const ReservasPage = () => {
         );
     }
 
-    return (
-        <div className="p-6 space-y-6">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold text-gray-900">Reservas</h1>
-                        <p className="text-gray-600 mt-1">Gerencie suas reservas e acompanhe o status</p>
-                    </div>
-                    {canCreateReservations && (
-                        <Button onClick={() => { setEditingReservation(null); setShowForm(true); }} className="bg-info-600 hover:bg-info-700 text-white">
-                            <Plus className="mr-2 h-4 w-4" />
-                            Adicionar Nova Reserva
+    const atualizar = () => queryClient.invalidateQueries({ queryKey });
+    const nomeFaxineira = (r: any) =>
+        r.cleaner_user_id ? cleanerMap.get(r.cleaner_user_id) || 'Não atribuída' : 'Não atribuída';
+    const abrirWhatsApp = (r: any) => {
+        const phoneNumber = r.guest_phone?.replace(/\D/g, '');
+        if (phoneNumber) window.open(`https://wa.me/55${phoneNumber}`, '_blank');
+    };
+    const temAcoes = canEditReservations || canDeleteReservations;
+
+    const colunas: Coluna<any>[] = [
+        { chave: 'codigo', titulo: 'Código', celula: (r) => <span className="font-mono text-sm font-medium text-info-600">{r.reservation_code}</span> },
+        { chave: 'imovel', titulo: 'Propriedade', celula: (r) => r.properties?.nickname || r.properties?.name },
+        {
+            chave: 'hospede', titulo: 'Hóspede', celula: (r) => (
+                <div className="flex items-center gap-2">
+                    <span>{r.guest_name || '-'}</span>
+                    {r.number_of_guests && (
+                        <Badge variant="outline" className="text-xs bg-info-50 text-info-700 border-info-200">{r.number_of_guests} 👥</Badge>
+                    )}
+                </div>
+            ),
+        },
+        {
+            chave: 'contato', titulo: 'Contato', celula: (r) => r.guest_phone ? (
+                <Button variant="outline" size="sm" onClick={() => abrirWhatsApp(r)} className="gap-2">
+                    <MessageCircle className="h-4 w-4 text-success-600" /> WhatsApp
+                </Button>
+            ) : '-',
+        },
+        {
+            chave: 'checkin', titulo: 'Check-in', celula: (r) => (
+                <div className="space-y-1"><div className="font-mono text-sm font-medium">{formatDate(r.check_in_date)}</div>
+                    {r.checkin_time && <div className="font-mono text-xs text-gray-500">{formatTime(r.checkin_time)}</div>}
+                </div>
+            ),
+        },
+        {
+            chave: 'checkout', titulo: 'Check-out', celula: (r) => (
+                <div className="space-y-1"><div className="font-mono text-sm font-medium">{formatDate(r.check_out_date)}</div>
+                    {r.checkout_time && <div className="font-mono text-xs text-gray-500">{formatTime(r.checkout_time)}</div>}
+                </div>
+            ),
+        },
+        {
+            chave: 'noites', titulo: 'Noites', alinhar: 'centro', celula: (r) => (
+                <Etiqueta tom="brand">{calculateNights(r.check_in_date, r.check_out_date)} noites</Etiqueta>
+            ),
+        },
+        {
+            chave: 'faxineira', titulo: 'Faxineira', celula: (r) => (
+                <div className="space-y-1">
+                    <span className="text-sm font-medium">{nomeFaxineira(r)}</span>
+                    <div><EtiquetaStatus status={r.cleaning_status || 'Pendente'} /></div>
+                </div>
+            ),
+        },
+        { chave: 'plataforma', titulo: 'Plataforma', celula: (r) => <EtiquetaPlataforma plataforma={r.platform} /> },
+        {
+            chave: 'status', titulo: 'Status', celula: (r) => canEditReservations ? (
+                <StatusSelector reservationId={r.id} currentStatus={r.reservation_status} statusType="reservation_status" onUpdate={atualizar} />
+            ) : <EtiquetaStatus status={r.reservation_status} />,
+        },
+        {
+            chave: 'pagamento', titulo: 'Pagamento', celula: (r) => canEditReservations ? (
+                <StatusSelector reservationId={r.id} currentStatus={r.payment_status || 'Pendente'} statusType="payment_status" onUpdate={atualizar} />
+            ) : <EtiquetaStatus status={r.payment_status || 'Pendente'} />,
+        },
+        {
+            chave: 'valores', titulo: 'Valores', alinhar: 'direita', celula: (r) => (
+                <div className="space-y-1 font-mono tabular-nums">
+                    <div className="font-semibold text-success-700">{formatarMoeda(r.net_revenue)}</div>
+                    <div className="text-xs text-gray-600">Total: {formatarMoeda(r.total_revenue)}</div>
+                </div>
+            ),
+        },
+        {
+            chave: 'comunicado', titulo: 'Comunicado', alinhar: 'centro', celula: (r) => canEditReservations ? (
+                <Checkbox aria-label="Comunicado" checked={r.is_communicated || false} onCheckedChange={(checked) => handleCheckboxChange(r.id, 'is_communicated', checked as boolean)} />
+            ) : <div className={`mx-auto w-4 h-4 border rounded ${r.is_communicated ? 'bg-info-600' : ''}`}></div>,
+        },
+        {
+            chave: 'recibo', titulo: 'Recibo', alinhar: 'centro', celula: (r) => canEditReservations ? (
+                <Checkbox aria-label="Recibo enviado" checked={r.receipt_sent || false} onCheckedChange={(checked) => handleCheckboxChange(r.id, 'receipt_sent', checked as boolean)} />
+            ) : <div className={`mx-auto w-4 h-4 border rounded ${r.receipt_sent ? 'bg-info-600' : ''}`}></div>,
+        },
+        ...(temAcoes ? [{
+            chave: 'acoes', titulo: 'Ações', celula: (r: any) => (
+                <div className="flex items-center gap-2">
+                    {canEditReservations && (
+                        <Button variant="outline" size="icon" onClick={() => handleEdit(r)} className="h-8 w-8" aria-label="Editar reserva">
+                            <Edit className="h-4 w-4" />
+                        </Button>
+                    )}
+                    {canDeleteReservations && (
+                        <Button variant="outline" size="icon" onClick={() => setExcluindoId(r.id)} className="h-8 w-8 text-danger-600 border-danger-300 hover:bg-danger-50 hover:text-danger-700" aria-label="Excluir reserva">
+                            <Trash2 className="h-4 w-4" />
                         </Button>
                     )}
                 </div>
+            ),
+        }] : []),
+    ];
 
-                <Card className="mb-6">
-                    <CardContent className="pt-6">
-                        <div className="flex flex-col sm:flex-row gap-4">
-                            <div className="relative flex-1">
-                                <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-                                <Input
-                                    placeholder="Buscar por código, hóspede ou propriedade..."
-                                    className="pl-10"
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                />
-                            </div>
-                            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                                <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Status da reserva" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">Todos os status</SelectItem>
-                                    <SelectItem value="Confirmada">Confirmada</SelectItem>
-                                    <SelectItem value="Em Andamento">Em Andamento</SelectItem>
-                                    <SelectItem value="Finalizada">Finalizada</SelectItem>
-                                    <SelectItem value="Cancelada">Cancelada</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <Select value={selectedPaymentStatus} onValueChange={setSelectedPaymentStatus}>
-                                <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Status do pagamento" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">Todos os status de pagamento</SelectItem>
-                                    <SelectItem value="Pago">Pago</SelectItem>
-                                    <SelectItem value="Pendente">Pendente</SelectItem>
-                                </SelectContent>
-                            </Select>
+    const cartaoReserva = (r: any) => {
+        const noites = calculateNights(r.check_in_date, r.check_out_date);
+        return (
+            <article className="rounded-2xl border bg-card p-4 shadow-sm">
+                <div className="flex items-start gap-3">
+                    <button
+                        type="button"
+                        className="min-w-0 flex-1 text-left"
+                        onClick={canEditReservations ? () => handleEdit(r) : undefined}
+                        disabled={!canEditReservations}
+                    >
+                        <div className="flex items-center gap-2">
+                            <h3 className="truncate font-display text-base font-bold text-ink">{r.guest_name || 'Hóspede sem nome'}</h3>
+                            {r.number_of_guests ? <span className="shrink-0 text-xs text-gray-500">{r.number_of_guests} 👥</span> : null}
                         </div>
-                    </CardContent>
-                </Card>
+                        <p className="mt-0.5 truncate text-sm text-gray-600">
+                            {r.properties?.nickname || r.properties?.name} · <span className="font-mono text-xs">{r.reservation_code}</span>
+                        </p>
+                    </button>
+                    <EtiquetaPlataforma plataforma={r.platform} className="mt-0.5 shrink-0" />
+                    {temAcoes && (
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="-mr-2 -mt-1 h-9 w-9 shrink-0" aria-label="Ações da reserva">
+                                    <MoreVertical className="h-5 w-5" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="min-w-52">
+                                {canEditReservations && (
+                                    <>
+                                        <DropdownMenuItem className="min-h-11 gap-2" onClick={() => handleEdit(r)}>
+                                            <Edit className="h-4 w-4" /> Editar
+                                        </DropdownMenuItem>
+                                        <DropdownMenuCheckboxItem
+                                            className="min-h-11"
+                                            checked={r.is_communicated || false}
+                                            onCheckedChange={(checked) => handleCheckboxChange(r.id, 'is_communicated', checked as boolean)}
+                                        >
+                                            Comunicado
+                                        </DropdownMenuCheckboxItem>
+                                        <DropdownMenuCheckboxItem
+                                            className="min-h-11"
+                                            checked={r.receipt_sent || false}
+                                            onCheckedChange={(checked) => handleCheckboxChange(r.id, 'receipt_sent', checked as boolean)}
+                                        >
+                                            Recibo enviado
+                                        </DropdownMenuCheckboxItem>
+                                    </>
+                                )}
+                                {canDeleteReservations && (
+                                    <>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem className="min-h-11 gap-2 text-danger-600 focus:text-danger-700" onClick={() => setExcluindoId(r.id)}>
+                                            <Trash2 className="h-4 w-4" /> Excluir
+                                        </DropdownMenuItem>
+                                    </>
+                                )}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    )}
+                </div>
+
+                <div className="mt-3 flex items-end justify-between gap-3">
+                    <div className="font-mono text-sm tabular-nums text-ink">
+                        {formatarData(r.check_in_date, true)} <span className="text-gray-400">→</span> {formatarData(r.check_out_date, true)}
+                        <span className="ml-1.5 font-sans text-xs text-gray-500">{noites} {noites === 1 ? 'noite' : 'noites'}</span>
+                    </div>
+                    <div className="text-right font-mono tabular-nums">
+                        <div className="text-base font-semibold text-success-700">{formatarMoeda(r.net_revenue)}</div>
+                        <div className="text-xs text-gray-500">Total {formatarMoeda(r.total_revenue)}</div>
+                    </div>
+                </div>
+
+                <div className="mt-3 flex flex-wrap items-center gap-2 border-t pt-3">
+                    {canEditReservations ? (
+                        <>
+                            <StatusSelector reservationId={r.id} currentStatus={r.reservation_status} statusType="reservation_status" onUpdate={atualizar} />
+                            <StatusSelector reservationId={r.id} currentStatus={r.payment_status || 'Pendente'} statusType="payment_status" onUpdate={atualizar} />
+                        </>
+                    ) : (
+                        <>
+                            <EtiquetaStatus status={r.reservation_status} />
+                            <EtiquetaStatus status={r.payment_status || 'Pendente'} />
+                        </>
+                    )}
+                    <span className="text-xs text-gray-500">Faxina: {nomeFaxineira(r)}</span>
+                    {r.guest_phone && (
+                        <Button variant="outline" size="icon" onClick={() => abrirWhatsApp(r)} className="ml-auto h-9 w-9" aria-label="Conversar no WhatsApp">
+                            <MessageCircle className="h-4 w-4 text-success-600" />
+                        </Button>
+                    )}
+                </div>
+            </article>
+        );
+    };
+
+    const ABAS = [
+        { valor: 'cashflow', rotulo: 'Receita Gerada no Período', curto: 'Receita gerada', total: reservationsByCompetence.cashflow.length, ajuda: 'Representa a receita efetivamente gerada no período selecionado: inclui Airbnb e Direto já recebidos + Booking.com com check-out no período (mesmo que o pagamento seja futuro). Este é o caixa real do mês.' },
+        { valor: 'received', rotulo: 'Receber no Período (Airbnb e Direto)', curto: 'Recebidas', total: reservationsByCompetence.received.length, ajuda: 'Mostra reservas do Airbnb e Direto cujo pagamento foi efetivamente recebido dentro do período selecionado. Exclui Booking.com que paga no mês seguinte ao check-out.' },
+        { valor: 'future', rotulo: 'À Receber no Próximo Período (Booking)', curto: 'A receber (Booking)', total: reservationsByCompetence.future.length, ajuda: 'Reservas do Booking.com com check-out no período selecionado, mas cujo pagamento será recebido apenas no próximo período (mês seguinte ao check-out).' },
+        { valor: 'active', rotulo: 'Ativas no Período', curto: 'Ativas', total: reservationsByCompetence.active.length, ajuda: 'Mostra todas as reservas que possuem intersecção com o período selecionado (check-in ou check-out dentro do período), independente de quando o pagamento foi recebido. Útil para visualizar a ocupação geral.' },
+    ];
+    const abaAtual = ABAS.find((a) => a.valor === activeTab);
+
+    return (
+        <div className="space-y-5 sm:space-y-6">
+                <PageHeader
+                    titulo="Reservas"
+                    descricao="Gerencie suas reservas e acompanhe o status"
+                    acao={canCreateReservations ? (
+                        <Button onClick={() => { setEditingReservation(null); setShowForm(true); }} className="gap-2">
+                            <Plus className="h-4 w-4" />
+                            Nova reserva
+                        </Button>
+                    ) : undefined}
+                />
+
+                <div className="flex flex-col gap-3 rounded-2xl border bg-card p-3 shadow-sm sm:flex-row sm:p-4">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                        <Input
+                            type="search"
+                            placeholder="Buscar por código, hóspede ou propriedade..."
+                            className="h-11 pl-10 sm:h-10"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 sm:flex">
+                        <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                            <SelectTrigger className="h-11 w-full sm:h-10 sm:w-[180px]"><SelectValue placeholder="Status da reserva" /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Todos os status</SelectItem>
+                                <SelectItem value="Confirmada">Confirmada</SelectItem>
+                                <SelectItem value="Em Andamento">Em Andamento</SelectItem>
+                                <SelectItem value="Finalizada">Finalizada</SelectItem>
+                                <SelectItem value="Cancelada">Cancelada</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Select value={selectedPaymentStatus} onValueChange={setSelectedPaymentStatus}>
+                            <SelectTrigger className="h-11 w-full sm:h-10 sm:w-[180px]"><SelectValue placeholder="Status do pagamento" /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Todos os pagamentos</SelectItem>
+                                <SelectItem value="Pago">Pago</SelectItem>
+                                <SelectItem value="Pendente">Pendente</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
 
                 <TooltipProvider delayDuration={200}>
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <TabsList className="grid w-full grid-cols-4 mb-4">
-                        <TabsTrigger value="cashflow">
-                            <div className="flex items-center gap-1.5">
-                                <span>Receita Gerada no Período</span>
+                    <TabsList className={cn(ABAS_ROLAVEIS, "mb-1")}>
+                        {ABAS.map((aba) => (
+                            <TabsTrigger key={aba.valor} value={aba.valor} className="shrink-0 gap-1.5">
+                                <span className="sm:hidden">{aba.curto}</span>
+                                <span className="hidden sm:inline">{aba.rotulo}</span>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors cursor-help" />
+                                        <Info className="hidden h-3.5 w-3.5 text-muted-foreground transition-colors hover:text-foreground sm:block cursor-help" />
                                     </TooltipTrigger>
                                     <TooltipContent side="bottom" align="center" className="max-w-lg whitespace-normal" sideOffset={8}>
-                                        <p className="text-sm">Representa a receita efetivamente gerada no período selecionado: inclui Airbnb e Direto já recebidos + Booking.com com check-out no período (mesmo que o pagamento seja futuro). Este é o caixa real do mês.</p>
+                                        <p className="text-sm">{aba.ajuda}</p>
                                     </TooltipContent>
                                 </Tooltip>
-                                <Badge variant="secondary" className="ml-1">{reservationsByCompetence.cashflow.length}</Badge>
-                            </div>
-                        </TabsTrigger>
-                        <TabsTrigger value="received">
-                            <div className="flex items-center gap-1.5">
-                                <span>Receber no Período (Airbnb e Direto)</span>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors cursor-help" />
-                                    </TooltipTrigger>
-                                    <TooltipContent side="bottom" align="center" className="max-w-lg whitespace-normal" sideOffset={8}>
-                                        <p className="text-sm">Mostra reservas do Airbnb e Direto cujo pagamento foi efetivamente recebido dentro do período selecionado. Exclui Booking.com que paga no mês seguinte ao check-out.</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                                <Badge variant="secondary" className="ml-1">{reservationsByCompetence.received.length}</Badge>
-                            </div>
-                        </TabsTrigger>
-                        <TabsTrigger value="future">
-                            <div className="flex items-center gap-1.5">
-                                <span>À Receber no Próximo Período (Booking)</span>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors cursor-help" />
-                                    </TooltipTrigger>
-                                    <TooltipContent side="bottom" align="center" className="max-w-lg whitespace-normal" sideOffset={8}>
-                                        <p className="text-sm">Reservas do Booking.com com check-out no período selecionado, mas cujo pagamento será recebido apenas no próximo período (mês seguinte ao check-out).</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                                <Badge variant="secondary" className="ml-1">{reservationsByCompetence.future.length}</Badge>
-                            </div>
-                        </TabsTrigger>
-                        <TabsTrigger value="active">
-                            <div className="flex items-center gap-1.5">
-                                <span>Ativas no Período</span>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors cursor-help" />
-                                    </TooltipTrigger>
-                                    <TooltipContent side="bottom" align="center" className="max-w-lg whitespace-normal" sideOffset={8}>
-                                        <p className="text-sm">Mostra todas as reservas que possuem intersecção com o período selecionado (check-in ou check-out dentro do período), independente de quando o pagamento foi recebido. Útil para visualizar a ocupação geral.</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                                <Badge variant="secondary" className="ml-1">{reservationsByCompetence.active.length}</Badge>
-                            </div>
-                        </TabsTrigger>
+                                <span className="rounded-full bg-gray-200/70 px-1.5 font-mono text-xs tabular-nums">{aba.total}</span>
+                            </TabsTrigger>
+                        ))}
                     </TabsList>
+                    {abaAtual && <p className="mb-3 text-xs text-gray-500 sm:hidden">{abaAtual.ajuda}</p>}
 
-                    <TabsContent value={activeTab}>
-                        <Card>
-                            <CardContent className="p-0">
-                                <div className="overflow-x-auto">
-                                    <Table>
-                                <TableHeader>
-                                    <TableRow className="bg-gray-50 hover:bg-gray-50">
-                                        <TableHead>Código</TableHead>
-                                        <TableHead>Propriedade</TableHead>
-                                        <TableHead>Hóspede</TableHead>
-                                        <TableHead>Contato</TableHead>
-                                        <TableHead>Check-in</TableHead>
-                                        <TableHead>Check-out</TableHead>
-                                        <TableHead className="text-center">Noites</TableHead>
-                                        <TableHead>Faxineira</TableHead>
-                                        <TableHead>Plataforma</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead>Pagamento</TableHead>
-                                        <TableHead>Valores</TableHead>
-                                        <TableHead>Comunicado</TableHead>
-                                        <TableHead>Recibo</TableHead>
-                                        {(canEditReservations || canDeleteReservations) && (<TableHead>Ações</TableHead>)}
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {filteredReservations.map((reservation) => {
-                                        const property = reservation.properties;
-                                        return (
-                                            <TableRow key={reservation.id} className="hover:bg-gray-50">
-                                                <TableCell className="font-medium text-info-600">{reservation.reservation_code}</TableCell>
-                                                <TableCell>{property?.nickname || property?.name}</TableCell>
-                                                <TableCell>
-                                                    <div className="flex items-center gap-2">
-                                                        <span>{reservation.guest_name || '-'}</span>
-                                                        {reservation.number_of_guests && (
-                                                            <Badge variant="outline" className="text-xs bg-info-50 text-info-700 border-info-200">
-                                                                {reservation.number_of_guests} 👥
-                                                            </Badge>
-                                                        )}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    {reservation.guest_phone ? (<Button variant="outline" size="sm" onClick={() => {
-                                                        const phoneNumber = reservation.guest_phone?.replace(/\D/g, '');
-                                                        if (phoneNumber) window.open(`https://wa.me/55${phoneNumber}`, '_blank');
-                                                        }} className="gap-2">
-                                                        <MessageCircle className="h-4 w-4 text-success-600" /> WhatsApp
-                                                    </Button>
-                                                    ) : ('-')}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="space-y-1"><div className="font-medium">{formatDate(reservation.check_in_date)}</div>
-                                                        {reservation.checkin_time && (<div className="text-sm text-gray-500">{formatTime(reservation.checkin_time)}</div>)}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="space-y-1"><div className="font-medium">{formatDate(reservation.check_out_date)}</div>
-                                                        {reservation.checkout_time && (<div className="text-sm text-gray-500">{formatTime(reservation.checkout_time)}</div>)}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-center">
-                                                    <Badge variant="outline" className="bg-brand-50 text-brand-700 border-brand-200">
-                                                        {calculateNights(reservation.check_in_date, reservation.check_out_date)} noites
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="space-y-1">
-                                                        <span className="text-sm font-medium">
-                                                            {reservation.cleaner_user_id ? cleanerMap.get(reservation.cleaner_user_id) || 'Não atribuída' : 'Não atribuída'}
-                                                        </span>
-                                                        <div>
-                                                            <Badge 
-                                                                variant="outline"
-                                                                className={
-                                                                    reservation.cleaning_status === 'Realizada' 
-                                                                        ? 'bg-success-50 text-success-700 border-success-200 text-xs' 
-                                                                        : 'bg-orange-50 text-orange-700 border-orange-200 text-xs'
-                                                                }
-                                                            >
-                                                                {reservation.cleaning_status || 'Pendente'}
-                                                            </Badge>
-                                                        </div>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell><Badge variant="secondary">{reservation.platform}</Badge></TableCell>
-                                                <TableCell>
-                                                    {canEditReservations ? (
-                                                        <StatusSelector reservationId={reservation.id} currentStatus={reservation.reservation_status} statusType="reservation_status" onUpdate={() => queryClient.invalidateQueries({ queryKey })} />
-                                                    ) : (
-                                                        <Badge variant="secondary">{reservation.reservation_status}</Badge>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {canEditReservations ? (
-                                                        <StatusSelector reservationId={reservation.id} currentStatus={reservation.payment_status || 'Pendente'} statusType="payment_status" onUpdate={() => queryClient.invalidateQueries({ queryKey })} />
-                                                    ) : (
-                                                        <Badge variant="secondary">{reservation.payment_status || 'Pendente'}</Badge>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="space-y-1">
-                                                        <div className="font-bold text-success-700">R$ {reservation.net_revenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}</div>
-                                                        <div className="text-sm text-gray-600">Total: R$ {reservation.total_revenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="flex items-center justify-center">
-                                                        {canEditReservations ? (
-                                                            <Checkbox checked={reservation.is_communicated || false} onCheckedChange={(checked) => handleCheckboxChange(reservation.id, 'is_communicated', checked as boolean)} />
-                                                        ) : (
-                                                            <div className={`w-4 h-4 border rounded ${reservation.is_communicated ? 'bg-info-600' : ''}`}></div>
-                                                        )}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="flex items-center justify-center">
-                                                        {canEditReservations ? (
-                                                            <Checkbox checked={reservation.receipt_sent || false} onCheckedChange={(checked) => handleCheckboxChange(reservation.id, 'receipt_sent', checked as boolean)} />
-                                                        ) : (
-                                                            <div className={`w-4 h-4 border rounded ${reservation.receipt_sent ? 'bg-info-600' : ''}`}></div>
-                                                        )}
-                                                    </div>
-                                                </TableCell>
-                                                {(canEditReservations || canDeleteReservations) && (
-                                                    <TableCell>
-                                                        <div className="flex items-center gap-2">
-                                                            {canEditReservations && (<Button
-                                                                variant="outline"
-                                                                size="icon"
-                                                                onClick={() => {
-                                                                    console.log("--- PASSO 1: Botão de Edição CLICADO ---");
-                                                                    console.log("Reserva a ser editada:", reservation);
-                                                                    handleEdit(reservation);
-                                                                }}
-                                                                className="h-8 w-8"
-                                                            >
-                                                                <Edit className="h-4 w-4" />
-                                                            </Button>)}
-                                                            {canDeleteReservations && (
-                                                                <AlertDialog>
-                                                                    <AlertDialogTrigger asChild><Button variant="outline" size="icon" className="h-8 w-8 text-danger-600 border-danger-300 hover:bg-danger-50 hover:text-danger-700"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
-                                                                    <AlertDialogContent>
-                                                                        <AlertDialogHeader>
-                                                                            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
-                                                                            <AlertDialogDescription>Tem certeza que deseja excluir esta reserva? Esta ação não pode ser desfeita.</AlertDialogDescription>
-                                                                        </AlertDialogHeader>
-                                                                        <AlertDialogFooter>
-                                                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                                            <AlertDialogAction onClick={() => handleDelete(reservation.id)} className="bg-danger-600 hover:bg-danger-700">Excluir</AlertDialogAction>
-                                                                        </AlertDialogFooter>
-                                                                    </AlertDialogContent>
-                                                                </AlertDialog>
-                                                            )}
-                                                        </div>
-                                                    </TableCell>
-                                                )}
-                                            </TableRow>
-                                        );
-                                    })}
-                                </TableBody>
-                                <TableFooter>
+                    <TabsContent value={activeTab} className="mt-3 space-y-3">
+                        {/* Resumo da aba (no desktop fica no rodapé da tabela) */}
+                        <div className="grid grid-cols-2 gap-3 md:hidden">
+                            <div className="rounded-2xl border bg-card p-3.5 shadow-sm">
+                                <div className="text-xs text-gray-600">{totals.count} {totals.count === 1 ? 'reserva' : 'reservas'} · líquido</div>
+                                <div className="font-mono text-lg font-semibold tabular-nums text-success-700">{formatarMoeda(totals.netRevenue)}</div>
+                                <div className="font-mono text-xs tabular-nums text-gray-500">Bruto {formatarMoeda(totals.totalRevenue)}</div>
+                            </div>
+                            <div className="rounded-2xl border bg-card p-3.5 text-xs text-gray-600 shadow-sm">
+                                {activeTab === 'cashflow' ? (
+                                    <>
+                                        <div>Recebido</div>
+                                        <div className="font-mono text-sm font-semibold tabular-nums text-info-600">{formatarMoeda(totals.receivedNetRevenue)}</div>
+                                        <div className="mt-1">A receber</div>
+                                        <div className="font-mono text-sm font-semibold tabular-nums text-orange-600">{formatarMoeda(totals.futureNetRevenue)}</div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div>Pagos {totals.paidCount} · Pendentes {totals.pendingCount}</div>
+                                        <div className="mt-1">Airbnb {totals.airbnbCount} · Booking {totals.bookingCount} · Direto {totals.diretoCount}</div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="md:rounded-2xl md:border md:bg-card md:shadow-sm">
+                            <TabelaResponsiva
+                                itens={filteredReservations}
+                                chaveItem={(r: any) => r.id}
+                                colunas={colunas}
+                                cartao={cartaoReserva}
+                                vazio={
+                                    <EstadoVazio
+                                        icone={CalendarX}
+                                        titulo="Nenhuma reserva aqui"
+                                        descricao="Ajuste a busca, os status ou o período nos filtros."
+                                        className="md:border-0"
+                                    />
+                                }
+                                rodape={
                                     <TableRow>
                                         <TableCell colSpan={11} className="font-medium">Total de Reservas: {totals.count}</TableCell>
-                                        <TableCell className="font-bold">
-                                            <div className="space-y-1">
-                                                <div className="text-success-700">
-                                                    Líquido Total: R$ {totals.netRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                                </div>
+                                        <TableCell className="font-semibold">
+                                            <div className="space-y-1 text-right font-mono tabular-nums">
+                                                <div className="text-success-700">Líquido Total: {formatarMoeda(totals.netRevenue)}</div>
                                                 {activeTab === 'cashflow' && (
                                                     <>
-                                                        <div className="text-sm text-info-600">
-                                                            Recebido: R$ {totals.receivedNetRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                                        </div>
-                                                        <div className="text-sm text-orange-600">
-                                                            A Receber: R$ {totals.futureNetRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                                        </div>
+                                                        <div className="text-sm text-info-600">Recebido: {formatarMoeda(totals.receivedNetRevenue)}</div>
+                                                        <div className="text-sm text-orange-600">A Receber: {formatarMoeda(totals.futureNetRevenue)}</div>
                                                     </>
                                                 )}
-                                                <div className="text-sm text-gray-600">Bruto: R$ {totals.totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                                                <div className="text-sm text-gray-600">Bruto: {formatarMoeda(totals.totalRevenue)}</div>
                                             </div>
                                         </TableCell>
-                                        <TableCell colSpan={3}>
+                                        <TableCell colSpan={temAcoes ? 3 : 2}>
                                             <div className="space-y-1 text-sm">
                                                 <div>Pagos: {totals.paidCount} | Pendentes: {totals.pendingCount}</div>
                                                 <div>Airbnb: {totals.airbnbCount} | Booking: {totals.bookingCount} | Direto: {totals.diretoCount}</div>
                                             </div>
                                         </TableCell>
                                     </TableRow>
-                                </TableFooter>
-                                    </Table>
-                                </div>
-                            </CardContent>
-                        </Card>
+                                }
+                            />
+                        </div>
                     </TabsContent>
                     </Tabs>
                 </TooltipProvider>
-                
-                {(() => {
-                    if (typeof window !== 'undefined') {
-                        console.log("--- PASSO 3: Verificando condição para RENDERIZAR o formulário ---");
-                        console.log("Valor de 'showForm' neste momento:", showForm);
-                        if (showForm) {
-                            console.log("✅ CONDIÇÃO VERDADEIRA: O modal deveria ser renderizado agora.");
-                        } else {
-                            console.log("❌ CONDIÇÃO FALSA: O modal não será renderizado.");
-                        }
-                    }
-                    return null;
-                })()}
 
-                {showForm && (
-                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                        <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-                            <div className="p-6">
-                                <h2 className="text-xl font-semibold mb-6 text-gray-900">{editingReservation ? 'Editar Reserva' : 'Nova Reserva'}</h2>
-                                <ReservationForm
-                                    reservation={editingReservation}
-                                    onSuccess={handleFormSuccess}
-                                    onCancel={() => { setShowForm(false); setEditingReservation(null); }}
-                                />
-                            </div>
-                        </div>
-                    </div>
-                )}
+                <AlertDialog open={!!excluindoId} onOpenChange={(aberto) => { if (!aberto) setExcluindoId(null); }}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+                            <AlertDialogDescription>Tem certeza que deseja excluir esta reserva? Esta ação não pode ser desfeita.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                                onClick={() => { if (excluindoId) handleDelete(excluindoId); setExcluindoId(null); }}
+                                className="bg-danger-600 hover:bg-danger-700"
+                            >
+                                Excluir
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+
+                <JanelaResponsiva
+                    aberta={showForm}
+                    aoMudar={(aberta) => { if (!aberta) { setShowForm(false); setEditingReservation(null); } }}
+                    titulo={editingReservation ? 'Editar Reserva' : 'Nova Reserva'}
+                    telaCheia
+                    largura="xl"
+                >
+                    <ReservationForm
+                        reservation={editingReservation}
+                        onSuccess={handleFormSuccess}
+                        onCancel={() => { setShowForm(false); setEditingReservation(null); }}
+                    />
+                </JanelaResponsiva>
             </div>
     );
 };
