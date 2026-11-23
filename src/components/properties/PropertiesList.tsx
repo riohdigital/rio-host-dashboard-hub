@@ -10,6 +10,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import PropertyForm from './PropertyForm';
+import PropriedadesCelular from './PropriedadesCelular';
+import { BotaoExcluir } from '@/components/comum/FolhaDetalhes';
+import { useEhCompacto } from '@/hooks/useMidia';
 import { Property } from '@/types/property';
 
 const PropertiesList = () => {
@@ -22,6 +25,7 @@ const PropertiesList = () => {
   // ?editar=<id> abre o cadastro direto (vem do pedido de "Atualizar cadastro" da Precificação).
   const [searchParams, setSearchParams] = useSearchParams();
   const editarId = searchParams.get('editar');
+  const compacto = useEhCompacto();
 
   useEffect(() => {
     fetchProperties();
@@ -92,9 +96,16 @@ const PropertiesList = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editarId, loading, properties]);
 
-  const handleDelete = async (propertyId: string) => {
+  const podeExcluir = (propertyId: string) =>
+    canAccessProperty(propertyId) === 'full' && hasPermission('properties_delete');
+
+  const podeEditar = (propertyId: string) => {
     const accessLevel = canAccessProperty(propertyId);
-    if (accessLevel !== 'full' || !hasPermission('properties_delete')) {
+    return accessLevel === 'full' || (accessLevel === 'read_only' && hasPermission('properties_edit'));
+  };
+
+  const handleDelete = async (propertyId: string) => {
+    if (!podeExcluir(propertyId)) {
       toast({
         title: "Erro",
         description: "Você não tem permissão para excluir esta propriedade.",
@@ -104,7 +115,12 @@ const PropertiesList = () => {
     }
 
     if (!confirm('Tem certeza que deseja excluir esta propriedade?')) return;
+    await excluirImovel(propertyId);
+  };
 
+  // Exclui sem perguntar (no celular, o botão de dentro do imóvel já confirmou)
+  const excluirImovel = async (propertyId: string) => {
+    if (!podeExcluir(propertyId)) return;
     try {
       const { error } = await supabase
         .from('properties')
@@ -119,6 +135,7 @@ const PropertiesList = () => {
       });
       
       fetchProperties();
+      if (editingProperty?.id === propertyId) handleCancel();
     } catch (error) {
       console.error('Erro ao excluir propriedade:', error);
       toast({
@@ -148,6 +165,50 @@ const PropertiesList = () => {
     );
   }
 
+  const janela = (
+    <JanelaResponsiva
+      aberta={dialogOpen}
+      aoMudar={(a) => { if (!a) handleCancel(); else setDialogOpen(true); }}
+      titulo={editingProperty ? 'Editar Propriedade' : 'Nova Propriedade'}
+      telaCheia
+      largura="xl"
+    >
+      <PropertyForm
+        property={editingProperty}
+        onSuccess={handleSuccess}
+        onCancel={handleCancel}
+        excluir={
+          compacto && editingProperty && podeExcluir(editingProperty.id) ? (
+            <BotaoExcluir
+              excluir={{
+                rotulo: 'Excluir imóvel',
+                titulo: 'Excluir este imóvel?',
+                descricao: `${editingProperty.nickname || editingProperty.name} sai do sistema. Esta ação não pode ser desfeita.`,
+                aoConfirmar: () => excluirImovel(editingProperty.id),
+              }}
+            />
+          ) : undefined
+        }
+      />
+    </JanelaResponsiva>
+  );
+
+  // Celular e tablet: desenho novo (T5); o computador continua como está
+  if (compacto) {
+    return (
+      <>
+        <PropriedadesCelular
+          imoveis={properties}
+          podeCriar={hasPermission('properties_create')}
+          podeAbrir={(p) => podeEditar(p.id)}
+          aoNova={() => { setEditingProperty(null); setDialogOpen(true); }}
+          aoAbrir={handleEdit}
+        />
+        {janela}
+      </>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -162,15 +223,7 @@ const PropertiesList = () => {
             Nova Propriedade
           </Button>
         )}
-        <JanelaResponsiva
-          aberta={dialogOpen}
-          aoMudar={(a) => { if (!a) handleCancel(); else setDialogOpen(true); }}
-          titulo={editingProperty ? 'Editar Propriedade' : 'Nova Propriedade'}
-          telaCheia
-          largura="xl"
-        >
-          <PropertyForm property={editingProperty} onSuccess={handleSuccess} onCancel={handleCancel} />
-        </JanelaResponsiva>
+        {janela}
       </div>
 
       {properties.length === 0 ? (

@@ -18,6 +18,8 @@ import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import ExpenseForm from './ExpenseForm';
 import { Expense } from '@/types/expense';
 import RecurrenceDetailModal from './RecurrenceDetailModal';
+import DespesasCelular from './DespesasCelular';
+import { useEhCompacto } from '@/hooks/useMidia';
 
 const ExpensesList = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -32,6 +34,7 @@ const ExpensesList = () => {
   const { selectedProperties, selectedPeriod } = useGlobalFilters();
   const { startDate, endDate } = useDateRange(selectedPeriod);
   const { isVisible, shouldRefetch } = usePageVisibility();
+  const compacto = useEhCompacto();
 
   useEffect(() => {
     fetchExpenses();
@@ -142,8 +145,8 @@ const ExpensesList = () => {
     setDialogOpen(true);
   };
 
-  const handleDeleteSingle = async (expenseId: string, fromModal = false) => {
-    if (!confirm('Tem certeza que deseja excluir esta despesa?')) return;
+  // Exclui sem perguntar (a folha de detalhes do celular já confirmou)
+  const excluirDespesa = async (expenseId: string, fromModal = false) => {
     try {
       const { error } = await supabase.from('expenses').delete().eq('id', expenseId);
       if (error) throw error;
@@ -155,6 +158,28 @@ const ExpensesList = () => {
     } catch (error: any) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
     }
+  };
+
+  const handleDeleteSingle = async (expenseId: string, fromModal = false) => {
+    if (!confirm('Tem certeza que deseja excluir esta despesa?')) return;
+    await excluirDespesa(expenseId, fromModal);
+  };
+
+  // Abre a janela da recorrência a partir de uma ocorrência (celular)
+  const verRecorrencia = (grupoId: string) => {
+    const ocorrencias = expenses.filter(exp => exp.recurrence_group_id === grupoId);
+    if (ocorrencias.length === 0) return;
+    const primeira = ocorrencias[0];
+    setSelectedGroup({
+      recurrence_group_id: grupoId,
+      description: primeira.description,
+      amount: primeira.amount,
+      property_name: primeira.properties?.nickname || primeira.properties?.name,
+      category: primeira.category,
+      count: ocorrencias.length,
+      expenses: ocorrencias,
+    });
+    setDetailModalOpen(true);
   };
 
   const handleDeleteAllRecurrent = async (groupId: string) => {
@@ -186,6 +211,54 @@ const ExpensesList = () => {
 
   if (loading) return <EsqueletoLista linhas={5} />;
 
+  const janelaRecorrencia = (
+    <RecurrenceDetailModal 
+      isOpen={detailModalOpen} 
+      onClose={() => setDetailModalOpen(false)} 
+      group={selectedGroup} 
+      onEditGroup={(expense) => {
+        setEditingExpense(expense);
+        setDetailModalOpen(false);
+        setDialogOpen(true);
+      }} 
+      onDeleteAll={handleDeleteAllRecurrent} 
+      onDeleteSingle={(id) => handleDeleteSingle(id, true)}
+      onMarkAsPaid={(id) => handleMarkAsPaid(id)}
+    />
+  );
+
+  const janelaFormulario = (
+    <JanelaResponsiva
+      aberta={dialogOpen}
+      aoMudar={setDialogOpen}
+      titulo={`${editingExpense ? 'Editar' : 'Nova'} Despesa`}
+      largura="lg"
+    >
+      <ExpenseForm expense={editingExpense} onSuccess={handleSuccess} onCancel={() => setDialogOpen(false)} />
+    </JanelaResponsiva>
+  );
+
+  // Celular e tablet: desenho novo (T4); o computador continua como está
+  if (compacto) {
+    return (
+      <>
+        <DespesasCelular
+          despesas={expenses}
+          totalAReembolsar={totalPendingReimbursements}
+          podeCriar={hasPermission('expenses_create')}
+          podeEditar={hasPermission('expenses_edit')}
+          aoNova={() => { setEditingExpense(null); setDialogOpen(true); }}
+          aoEditar={handleEdit}
+          aoExcluir={(id) => excluirDespesa(id)}
+          aoMarcarPaga={handleMarkAsPaid}
+          aoVerRecorrencia={verRecorrencia}
+        />
+        {janelaFormulario}
+        {janelaRecorrencia}
+      </>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Topo: título da lista e "Nova Despesa" (no celular vira botão + fixo) */}
@@ -195,31 +268,14 @@ const ExpensesList = () => {
           <p className="text-sm text-gray-600 mt-1">Gerencie despesas fixas, variáveis e notas fiscais a reembolsar.</p>
         </div>
         {hasPermission('expenses_create') && (
-          <>
-            <Button onClick={() => { setEditingExpense(null); setDialogOpen(true); }} className="hidden gap-2 md:inline-flex">
-              <Plus className="h-4 w-4" />
-              Nova Despesa
-            </Button>
-            <button
-              type="button"
-              onClick={() => { setEditingExpense(null); setDialogOpen(true); }}
-              aria-label="Nova despesa"
-              className="fixed bottom-[calc(theme(spacing.tabbar)+5.25rem+env(safe-area-inset-bottom))] right-4 z-30 grid h-14 w-14 place-items-center rounded-full bg-brand text-brand-foreground shadow-lg shadow-brand/30 active:scale-95 md:hidden"
-            >
-              <Plus className="h-6 w-6" />
-            </button>
-          </>
+          <Button onClick={() => { setEditingExpense(null); setDialogOpen(true); }} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Nova Despesa
+          </Button>
         )}
       </div>
 
-      <JanelaResponsiva
-        aberta={dialogOpen}
-        aoMudar={setDialogOpen}
-        titulo={`${editingExpense ? 'Editar' : 'Nova'} Despesa`}
-        largura="lg"
-      >
-        <ExpenseForm expense={editingExpense} onSuccess={handleSuccess} onCancel={() => setDialogOpen(false)} />
-      </JanelaResponsiva>
+      {janelaFormulario}
 
       {/* Card Destaque: Reembolsos a Pagar */}
       <Card className="border-warning-200 bg-gradient-to-r from-warning-50/70 via-orange-50/40 to-background shadow-sm">
@@ -358,19 +414,7 @@ const ExpensesList = () => {
         )}
       </div>
 
-      <RecurrenceDetailModal 
-        isOpen={detailModalOpen} 
-        onClose={() => setDetailModalOpen(false)} 
-        group={selectedGroup} 
-        onEditGroup={(expense) => {
-          setEditingExpense(expense);
-          setDetailModalOpen(false);
-          setDialogOpen(true);
-        }} 
-        onDeleteAll={handleDeleteAllRecurrent} 
-        onDeleteSingle={(id) => handleDeleteSingle(id, true)}
-        onMarkAsPaid={(id) => handleMarkAsPaid(id)}
-      />
+      {janelaRecorrencia}
     </div>
   );
 };
