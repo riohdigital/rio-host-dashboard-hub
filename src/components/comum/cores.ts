@@ -48,3 +48,23 @@ export function corDoCanal(plataforma?: string | null): { fundo: string; texto: 
   return { fundo: 'bg-gray-100', texto: 'text-gray-700', ponto: 'bg-gray-400', css: 'hsl(var(--channel-other))' };
 }
 
+
+/** Cor de texto de um valor (R$, contagem) conforme o tom */
+export const TEXTO_DO_TOM: Record<Tom, string> = {
+  brand: 'text-brand-700',
+  success: 'text-success-700',
+  warning: 'text-warning-700',
+  danger: 'text-danger-600',
+  info: 'text-info-700',
+  neutro: 'text-gray-900',
+};
+
+/** Fundo e cor do ícone quadrado à esquerda de uma linha */
+export const ICONE_DO_TOM: Record<Tom, string> = {
+  brand: 'bg-brand-50 text-brand-600',
+  success: 'bg-success-50 text-success-600',
+  warning: 'bg-warning-50 text-warning-700',
+  danger: 'bg-danger-50 text-danger-600',
+  info: 'bg-info-50 text-info-600',
+  neutro: 'bg-gray-100 text-gray-600',
+};

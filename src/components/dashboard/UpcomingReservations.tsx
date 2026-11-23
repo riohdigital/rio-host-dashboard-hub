@@ -2,6 +2,8 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, User, MapPin, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import VerTodos from '@/components/comum/VerTodos';
+import { useListaCurta } from '@/components/comum/useListaCurta';
 
 interface PeriodEvent {
   type: 'checkin' | 'checkout';
@@ -12,6 +14,8 @@ interface PeriodEvent {
 }
 
 const UpcomingReservations = ({ events, loading }: { events: PeriodEvent[], loading: boolean }) => {
+  // Celular: 3 eventos + "Ver todos" (sem rolagem dentro da página); computador: caixa com rolagem
+  const lista = useListaCurta(events, 3, { soCompacto: true });
   const formatDate = (dateString: string) => {
     const date = new Date(dateString + 'T00:00:00');
     const today = new Date();
@@ -88,10 +92,11 @@ const UpcomingReservations = ({ events, loading }: { events: PeriodEvent[], load
             <p className="text-sm text-gray-500">Não há check-ins ou check-outs no período selecionado</p>
           </div>
         ) : (
-          // --- MELHORIA APLICADA AQUI ---
-          <div className="h-96 overflow-y-auto pr-3 custom-scrollbar">
+          <>
+          {/* Computador: altura fixa com rolagem; celular: a lista cortada pelo useListaCurta */}
+          <div className="custom-scrollbar lg:h-96 lg:overflow-y-auto lg:pr-3">
             <div className="space-y-3">
-              {events.map((event, index) => {
+              {lista.visiveis.map((event, index) => {
                 const dateInfo = formatDate(event.date);
                 return (
                   <div key={index} className="flex items-center space-x-4 p-4 rounded-lg border border-gray-200 bg-gray-50/50 hover:bg-gray-50 transition-colors">
@@ -121,6 +126,8 @@ const UpcomingReservations = ({ events, loading }: { events: PeriodEvent[], load
               })}
             </div>
           </div>
+          {lista.temMais && <VerTodos total={lista.total} expandido={lista.expandido} aoClicar={lista.alternar} className="mt-3" />}
+          </>
         )}
       </CardContent>
     </Card>

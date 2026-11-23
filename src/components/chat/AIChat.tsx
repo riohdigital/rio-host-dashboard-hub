@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAIChat } from '@/hooks/useAIChat';
 import { useChatNotifications } from '@/hooks/useChatNotifications';
-import { useEhCelular } from '@/hooks/useMidia';
+import { useEhCompacto } from '@/hooks/useMidia';
+import { useUserRole } from '@/hooks/useUserRole';
 import { ChatHeader } from './ChatHeader';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
@@ -30,7 +31,10 @@ export const AIChat = () => {
   } = useAIChat();
 
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const celular = useEhCelular();
+  // Abaixo de 1024px a conversa ocupa a tela inteira e abre pelo botão do
+  // centro da barra de baixo (NavegacaoCelular); o botão flutuante some.
+  const celular = useEhCompacto();
+  const { isCleaner } = useUserRole();
 
   // Habilitar notificações desktop
   useChatNotifications(isOpen, unreadCount);
@@ -76,13 +80,15 @@ export const AIChat = () => {
   );
 
   if (!isOpen) {
+    // Celular com barra de baixo: o chat abre pelo botão do centro da barra
+    if (celular && !isCleaner) return null;
     return celular ? (
-      // Celular: botão redondo só com ícone, acima da barra inferior
+      // Faxineira (sem barra de baixo): botão redondo só com ícone
       <button
         type="button"
         onClick={toggleChat}
         aria-label="Abrir assistente de IA"
-        className="fixed bottom-[calc(theme(spacing.tabbar)+0.75rem+env(safe-area-inset-bottom))] right-4 z-40 grid h-14 w-14 place-items-center rounded-full bg-gradient-primary text-white shadow-lg shadow-brand/30 active:scale-95"
+        className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 z-40 grid h-14 w-14 place-items-center rounded-full bg-gradient-primary text-white shadow-lg shadow-brand/30 active:scale-95"
       >
         <MessageSquare className="h-6 w-6" aria-hidden="true" />
         {contagem}

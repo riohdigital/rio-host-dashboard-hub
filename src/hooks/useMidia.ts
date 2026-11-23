@@ -19,3 +19,9 @@ export function useMidia(consulta: string): boolean {
 
 /** Celular: abaixo de 768px (tabelas viram cartões, janelas viram gavetas) */
 export const useEhCelular = () => useMidia('(max-width: 767px)');
+
+/**
+ * Tela compacta: abaixo de 1024px (celular e tablet). É o mesmo corte da
+ * navegação: aqui aparecem a barra de baixo e o desenho de celular das telas.
+ */
+export const useEhCompacto = () => useMidia('(max-width: 1023px)');

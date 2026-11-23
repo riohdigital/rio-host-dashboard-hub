@@ -40,7 +40,7 @@ export const PropertyPerformanceTable = ({ data, loading }: PropertyPerformanceT
     return (
       <Card className="card-elevated">
         <CardHeader>
-          <CardTitle className="text-lg">📋 Performance por Propriedade</CardTitle>
+          <CardTitle className="text-lg">Performance por Propriedade</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8 text-muted-foreground">
@@ -54,7 +54,7 @@ export const PropertyPerformanceTable = ({ data, loading }: PropertyPerformanceT
   return (
     <Card className="card-elevated">
       <CardHeader>
-        <CardTitle className="text-lg">📋 Performance por Propriedade</CardTitle>
+        <CardTitle className="text-lg">Performance por Propriedade</CardTitle>
       </CardHeader>
       <CardContent>
         <TabelaResponsiva

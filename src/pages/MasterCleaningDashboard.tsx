@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import PageHeader from '@/components/comum/PageHeader';
-import { ABAS_ROLAVEIS } from '@/components/comum/classes';
+import AbasRolaveis from '@/components/comum/AbasRolaveis';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RefreshCw, Filter, Search } from 'lucide-react';
@@ -295,27 +295,17 @@ const MasterCleaningDashboard = () => {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className={ABAS_ROLAVEIS}>
-          <TabsTrigger value="all" className="flex items-center gap-2">
-            Todas
-            <Badge variant="outline">{filteredCleanings.length}</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="pending" className="flex items-center gap-2">
-            Pendentes
-            <Badge variant="outline">{pendingCleanings.length}</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="completed" className="flex items-center gap-2">
-            Concluídas
-            <Badge variant="outline">{completedCleanings.length}</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="available" className="flex items-center gap-2">
-            Disponíveis
-            <Badge variant="outline">{filteredAvailableCleanings.length}</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="stats">
-            Estatísticas
-          </TabsTrigger>
-        </TabsList>
+        <AbasRolaveis
+          rotulo="Faxinas"
+          sangrar
+          itens={[
+            { valor: 'all', rotulo: 'Todas', contagem: filteredCleanings.length },
+            { valor: 'pending', rotulo: 'Pendentes', contagem: pendingCleanings.length },
+            { valor: 'completed', rotulo: 'Concluídas', contagem: completedCleanings.length },
+            { valor: 'available', rotulo: 'Disponíveis', contagem: filteredAvailableCleanings.length },
+            { valor: 'stats', rotulo: 'Estatísticas' },
+          ]}
+        />
 
         <TabsContent value="all" className="space-y-4">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">

@@ -4,16 +4,18 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchN8n } from '@/lib/n8n';
+import { alternarChat, contarNaoLida, useChatAberto, useNaoLidasChat } from '@/components/chat/controleChat';
 
 const CHAT_WEBHOOK = 'DashBoard%20RiohHost%20ChatAI';
 
 export const useAIChat = () => {
-  const [isOpen, setIsOpen] = useState(false);
+  // Aberto/fechado e não lidas ficam fora do componente (a barra de baixo também abre o chat)
+  const isOpen = useChatAberto();
+  const unreadCount = useNaoLidasChat();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [unreadCount, setUnreadCount] = useState(0);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -234,9 +236,7 @@ export const useAIChat = () => {
       });
 
       // Incrementar contador de não lidas se chat estiver fechado
-      if (!isOpen) {
-        setUnreadCount(prev => prev + 1);
-      }
+      contarNaoLida();
 
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);
@@ -250,15 +250,12 @@ export const useAIChat = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [addMessage, updateMessageStatus, toast, user, isOpen]);
+  }, [addMessage, updateMessageStatus, toast, user]);
 
   // ========== TOGGLE CHAT ==========
   const toggleChat = useCallback(() => {
-    setIsOpen(prev => !prev);
-    if (!isOpen) {
-      setUnreadCount(0);
-    }
-  }, [isOpen]);
+    alternarChat();
+  }, []);
 
   // ========== LIMPAR CHAT ==========
   const clearChat = useCallback(async () => {

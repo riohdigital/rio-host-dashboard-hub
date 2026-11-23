@@ -145,7 +145,7 @@ const ConflictAlert = ({ conflicts, onDismiss }: ConflictAlertProps) => {
                 {conflict.conflictType === 'overlap' && (
                   <div className="bg-destructive/10 border border-destructive/30 rounded p-3 text-sm">
                     <p className="text-destructive font-medium">
-                      ⚠️ Atenção: As datas se sobrepõem. Uma das reservas precisa ser
+                      Atenção: As datas se sobrepõem. Uma das reservas precisa ser
                       ajustada ou cancelada.
                     </p>
                   </div>
@@ -154,7 +154,7 @@ const ConflictAlert = ({ conflicts, onDismiss }: ConflictAlertProps) => {
                 {conflict.conflictType === 'gap_too_short' && (
                   <div className="bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-800 rounded p-3 text-sm">
                     <p className="text-orange-700 dark:text-orange-400 font-medium">
-                      ⏰ Tempo insuficiente entre reservas para limpeza adequada.
+                      Tempo insuficiente entre reservas para limpeza adequada.
                     </p>
                   </div>
                 )}

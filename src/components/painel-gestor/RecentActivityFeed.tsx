@@ -1,5 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import RolagemComputador from '@/components/comum/RolagemComputador';
+import VerTodos from '@/components/comum/VerTodos';
+import { useListaCurta } from '@/components/comum/useListaCurta';
 import { CalendarPlus, CheckCircle, CreditCard, RefreshCw } from 'lucide-react';
 import { RecentActivity } from '@/types/painel-gestor';
 import { formatDistanceToNow, parseISO } from 'date-fns';
@@ -11,6 +13,8 @@ interface RecentActivityFeedProps {
 }
 
 export const RecentActivityFeed = ({ activities, loading }: RecentActivityFeedProps) => {
+  // Celular: 3 atividades + "Ver todas" (sem rolagem dentro da página)
+  const lista = useListaCurta(activities, 3, { soCompacto: true });
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -71,7 +75,7 @@ export const RecentActivityFeed = ({ activities, loading }: RecentActivityFeedPr
     return (
       <Card className="card-elevated h-full">
         <CardHeader>
-          <CardTitle className="text-lg">📰 Atividades Recentes</CardTitle>
+          <CardTitle className="text-lg">Atividades Recentes</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
@@ -85,12 +89,12 @@ export const RecentActivityFeed = ({ activities, loading }: RecentActivityFeedPr
   return (
     <Card className="card-elevated h-full">
       <CardHeader>
-        <CardTitle className="text-lg">📰 Atividades Recentes</CardTitle>
+        <CardTitle className="text-lg">Atividades Recentes</CardTitle>
       </CardHeader>
       <CardContent className="p-0">
-        <ScrollArea className="h-[400px] px-6">
+        <RolagemComputador className="h-[400px] px-[var(--card-pad)] lg:px-6">
           <div className="space-y-3 pb-4">
-            {activities.map((activity) => (
+            {lista.visiveis.map((activity) => (
               <div 
                 key={activity.id}
                 className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors"
@@ -122,7 +126,10 @@ export const RecentActivityFeed = ({ activities, loading }: RecentActivityFeedPr
               </div>
             ))}
           </div>
-        </ScrollArea>
+          {lista.temMais && (
+            <VerTodos total={lista.total} rotulo={`Ver todas (${lista.total})`} expandido={lista.expandido} aoClicar={lista.alternar} />
+          )}
+        </RolagemComputador>
       </CardContent>
     </Card>
   );

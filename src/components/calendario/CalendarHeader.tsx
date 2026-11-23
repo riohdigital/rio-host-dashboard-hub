@@ -34,7 +34,8 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
 }) => (
   <div className="flex flex-col gap-3">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-      <div>
+      {/* Celular: o nome da tela fica só na barra do topo */}
+      <div className="max-lg:sr-only">
         <h1 className="font-display text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">Calendário de Reservas</h1>
       </div>
 

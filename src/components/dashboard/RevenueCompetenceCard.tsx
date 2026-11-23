@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { BarChart3 } from 'lucide-react';
 
 interface RevenueCompetenceCardProps {
   periodType: 'past' | 'current' | 'future';
@@ -45,7 +46,7 @@ export const RevenueCompetenceCard = ({
     <Card className="bg-white card-elevated">
       <CardHeader>
         <CardTitle className="text-gradient-primary">
-          💰 Detalhamento por Plataforma
+          Detalhamento por Plataforma
         </CardTitle>
         <CardDescription>
           Receita líquida recebida no período
@@ -79,7 +80,7 @@ export const RevenueCompetenceCard = ({
             <div className="flex items-center gap-4 p-4 rounded-lg border border-info-200 bg-info-50">
               <div className="flex-shrink-0">
                 <div className="w-10 h-10 rounded-full bg-info-100 flex items-center justify-center">
-                  <span className="text-xl">📊</span>
+                  <BarChart3 className="h-5 w-5 text-info-700" aria-hidden="true" />
                 </div>
               </div>
               <div className="flex-1">

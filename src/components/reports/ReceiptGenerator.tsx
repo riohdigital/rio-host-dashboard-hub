@@ -19,6 +19,8 @@ import ProfessionalReceiptTemplate from './ProfessionalReceiptTemplate'; // ADIC
 import GuestReceiptTemplate from './GuestReceiptTemplate';
 import { buildGuestMonthReceipts, formatMonthLabel, GuestMonthReceipt } from '@/lib/guestReceipts';
 import { useReceiptIssuer } from '@/hooks/useReceiptIssuer';
+import VerTodos from '@/components/comum/VerTodos';
+import { useListaCurta } from '@/components/comum/useListaCurta';
 
 // CÓDIGO ORIGINAL MANTIDO
 interface Reservation {
@@ -72,6 +74,10 @@ const ReceiptGenerator = () => {
     const comValor = new Set(buildGuestMonthReceipts(reservations).map((r) => r.reservation.id));
     return reservations.filter((r) => r.reservation_status !== 'Cancelada' && !comValor.has(r.id)).length;
   }, [reservations]);
+
+  // Celular: 3 itens + "Ver todos" (sem rolagem dentro da página); computador: caixa com rolagem
+  const listaComprovantes = useListaCurta(guestReceipts, 3, { soCompacto: true });
+  const listaRecibos = useListaCurta(reservations, 3, { soCompacto: true });
 
   // Implementação com duas consultas separadas para evitar problemas de join
   useEffect(() => {
@@ -507,11 +513,12 @@ const ReceiptGenerator = () => {
           </div>
           <Separator />
           {receiptType === 'guest' ? (
-          <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+          <>
+          <div className="space-y-3 lg:max-h-96 lg:overflow-y-auto lg:pr-2">
             {guestReceipts.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">Nenhuma reserva com valor pago pelo hóspede no período</div>
             ) : (
-              guestReceipts.map((receipt) => (
+              listaComprovantes.visiveis.map((receipt) => (
                 <div key={receipt.key} className="flex flex-col gap-3 rounded-xl border p-4 transition-colors hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex items-center gap-2 flex-wrap"><Badge>{formatMonthLabel(receipt.monthKey)}</Badge><Badge variant="outline">{receipt.reservation.reservation_code}</Badge><Badge variant="secondary">{receipt.reservation.platform}</Badge></div>
@@ -526,12 +533,15 @@ const ReceiptGenerator = () => {
               ))
             )}
           </div>
+          {listaComprovantes.temMais && <VerTodos total={listaComprovantes.total} expandido={listaComprovantes.expandido} aoClicar={listaComprovantes.alternar} />}
+          </>
           ) : (
-          <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+          <>
+          <div className="space-y-3 lg:max-h-96 lg:overflow-y-auto lg:pr-2">
             {reservations.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">Nenhuma reserva encontrada</div>
             ) : (
-              reservations.map((reservation) => (
+              listaRecibos.visiveis.map((reservation) => (
                 <div key={reservation.id} className="flex flex-col gap-3 rounded-xl border p-4 transition-colors hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex items-center gap-2 flex-wrap"><Badge variant="outline">{reservation.reservation_code}</Badge><Badge variant={reservation.platform === 'Airbnb' ? 'default' : 'secondary'}>{reservation.platform}</Badge>{reservation.payment_status && (<Badge variant={reservation.payment_status === 'Pago' ? 'secondary' : 'destructive'}>{reservation.payment_status}</Badge>)}</div>
@@ -546,6 +556,8 @@ const ReceiptGenerator = () => {
               ))
             )}
           </div>
+          {listaRecibos.temMais && <VerTodos total={listaRecibos.total} expandido={listaRecibos.expandido} aoClicar={listaRecibos.alternar} />}
+          </>
           )}
 
           {previewGuestReceipt && (

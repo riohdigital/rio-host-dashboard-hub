@@ -55,7 +55,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 
   return (
     <div className="overflow-hidden rounded-2xl border bg-card">
-      <div className="max-h-[calc(100dvh-16rem)] min-h-[320px] overflow-auto overscroll-contain">
+      {/* Celular: só rola de lado (a página rola na vertical); computador: caixa com altura fixa */}
+      <div className="overflow-x-auto overscroll-x-contain lg:max-h-[calc(100dvh-16rem)] lg:min-h-[320px] lg:overflow-auto lg:overscroll-contain">
         <div style={{ width: `calc(var(--coluna-imovel) + ${larguraDias}px)` }} className="[--coluna-imovel:7rem] sm:[--coluna-imovel:12rem]">
           <DateAxis startDate={startDate} endDate={endDate} dayWidth={dayWidth} datasEspeciais={datasEspeciais} />
           {properties.map((property, index) => (
