@@ -10,11 +10,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { addWeeks, format, isSameWeek, parseISO, startOfWeek } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { AlertTriangle, CheckCircle, MapPin, Search, UserCheck, Users, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle, MapPin, UserCheck, Users, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AbasRolaveis from '@/components/comum/AbasRolaveis';
+import BarraBusca, { BotaoBarra } from '@/components/comum/BarraBusca';
 import GrupoLista, { ListaLinhas } from '@/components/comum/GrupoLista';
 import LinhaLista from '@/components/comum/LinhaLista';
 import FolhaDetalhes from '@/components/comum/FolhaDetalhes';
@@ -23,7 +23,6 @@ import { Etiqueta, EtiquetaStatus } from '@/components/comum/Etiquetas';
 import { formatarData, formatarMoeda } from '@/components/comum/formatos';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserPermissions } from '@/contexts/UserPermissionsContext';
-import { cn } from '@/lib/utils';
 import type { CleanerProfile, ReservationWithCleanerInfo } from '@/types/master-cleaning';
 
 type Faxina = ReservationWithCleanerInfo;
@@ -455,29 +454,14 @@ const FaxinasCelular = (p: FaxinasCelularProps) => {
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
       {/* Busca + filtro numa linha */}
-      <div className="flex gap-2">
-        <div className="relative min-w-0 flex-1">
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-gray-400" aria-hidden="true" />
-          <Input
-            type="search"
-            value={p.busca}
-            onChange={(e) => p.aoBuscar(e.target.value)}
-            placeholder="Imóvel, código ou hóspede"
-            aria-label="Buscar faxinas"
-            className="h-11 rounded-full bg-card pl-10 text-sm"
-          />
-        </div>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => setFiltroAberto(true)}
-          aria-label={nomeFiltro ? `Filtrar por faxineira (atual: ${nomeFiltro})` : 'Filtrar por faxineira'}
-          className={cn('relative h-11 w-11 shrink-0 rounded-full', nomeFiltro && 'border-brand text-brand')}
-        >
-          <Users className="h-[18px] w-[18px]" />
-          {nomeFiltro && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-brand" aria-hidden="true" />}
-        </Button>
-      </div>
+      <BarraBusca valor={p.busca} aoMudar={p.aoBuscar} placeholder="Buscar imóvel ou hóspede" rotulo="Buscar por imóvel, código, hóspede ou faxineira">
+        <BotaoBarra
+          icone={Users}
+          rotulo={nomeFiltro ? `Filtrar por faxineira (atual: ${nomeFiltro})` : 'Filtrar por faxineira'}
+          contagem={nomeFiltro ? 1 : 0}
+          aoClicar={() => setFiltroAberto(true)}
+        />
+      </BarraBusca>
       {nomeFiltro && (
         <button type="button" onClick={() => p.aoEscolherFaxineira(null)} className="-mt-1 self-start text-xs font-semibold text-brand-600">
           Só {nomeFiltro} · limpar filtro
