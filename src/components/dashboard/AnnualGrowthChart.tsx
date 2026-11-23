@@ -6,6 +6,13 @@ import LegendaGrafico from '@/components/graficos/LegendaGrafico';
 import TooltipGrafico from '@/components/graficos/TooltipGrafico';
 import { eixoMoeda, moedaCompleta, PROPS_EIXO_X, PROPS_EIXO_Y, PROPS_GRADE, RAIO_BARRA } from '@/components/graficos/tema';
 import { TrendingUp, TrendingDown } from 'lucide-react';
+import Bloco from '@/components/comum/Bloco';
+import AbasRolaveis from '@/components/comum/AbasRolaveis';
+import { formatarMoedaCurta } from '@/components/comum/formatos';
+import LinhaSemEixo from '@/components/graficos/LinhaSemEixo';
+import BarrasSimples from '@/components/graficos/BarrasSimples';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useEhCompacto } from '@/hooks/useMidia';
 
 interface MonthlyData {
   month: string;
@@ -26,6 +33,7 @@ interface AnnualGrowthChartProps {
 
 const AnnualGrowthChart = ({ monthlyData, yearlyData, loading }: AnnualGrowthChartProps) => {
   const [viewMode, setViewMode] = useState<'monthly' | 'yearly'>('monthly');
+  const compacto = useEhCompacto();
 
   const currentYear = new Date().getFullYear();
   const previousYear = currentYear - 1;
@@ -101,6 +109,60 @@ const AnnualGrowthChart = ({ monthlyData, yearlyData, loading }: AnnualGrowthCha
     viewMode === 'monthly'
       ? !monthlyData.some((m) => m.current > 0 || m.previous > 0)
       : !yearlyData.some((y) => y.revenue > 0);
+
+  // Celular (G2): linha sem eixo, Mensal/Anual em dois botões
+  if (compacto) {
+    // Meses do ano até o atual (ou até o último com receita, se houver reservas à frente)
+    const mesAtual = new Date().getMonth();
+    const ultimoComValor = monthlyData.reduce((u, m, i) => (m.current > 0 ? i : u), -1);
+    const pontos = monthlyData
+      .slice(0, Math.max(mesAtual, ultimoComValor) + 1)
+      .map((m) => ({ rotulo: m.month.toLowerCase(), valor: m.current }));
+    const crescimento =
+      totalGrowthInfo.type === 'nodata' ? null : `${totalGrowthInfo.text.replace('.', ',')} sobre ${previousYear}`;
+
+    return (
+      <Bloco
+        titulo="Crescimento"
+        extra={
+          <AbasRolaveis
+            valor={viewMode}
+            aoMudar={(v) => setViewMode(v as 'monthly' | 'yearly')}
+            rotulo="Ver crescimento"
+            className="max-lg:w-[150px]"
+            itens={[
+              { valor: 'monthly', rotulo: 'Mensal' },
+              { valor: 'yearly', rotulo: 'Anual' },
+            ]}
+          />
+        }
+      >
+        <p className="text-xs text-gray-500">
+          {viewMode === 'monthly' ? `Receita por mês em ${currentYear}` : 'Receita por ano'}
+          {crescimento && (
+            <>
+              {' · '}
+              <span className={totalGrowthInfo.value >= 0 ? 'text-success-700' : 'text-danger-700'}>{crescimento}</span>
+            </>
+          )}
+        </p>
+        {loading ? (
+          <Skeleton className="mt-2 h-[150px] w-full rounded-xl" />
+        ) : semDados ? (
+          <p className="py-6 text-center text-sm text-gray-500">Sem receita para comparar ainda.</p>
+        ) : viewMode === 'monthly' ? (
+          <LinhaSemEixo pontos={pontos} rotulo={`Receita por mês em ${currentYear}`} className="mt-1" />
+        ) : (
+          <BarrasSimples
+            itens={yearlyData.map((y) => ({ rotulo: y.year, valor: y.revenue }))}
+            rotulo="Receita por ano"
+            formatar={formatarMoedaCurta}
+            className="mt-2"
+          />
+        )}
+      </Bloco>
+    );
+  }
 
   return (
     <ChartCard

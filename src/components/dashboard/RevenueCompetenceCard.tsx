@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { BarChart3 } from 'lucide-react';
+import { regraDeRecebimento } from './canais';
 
 interface RevenueCompetenceCardProps {
   periodType: 'past' | 'current' | 'future';
@@ -24,19 +25,19 @@ export const RevenueCompetenceCard = ({
   const platforms = [
     {
       name: 'Airbnb',
-      timing: 'Recebe em D+1',
+      timing: regraDeRecebimento('Airbnb'),
       value: financial.airbnbRevenue,
       color: 'bg-airbnb',
     },
     {
       name: 'Booking.com',
-      timing: 'Recebe mês seguinte',
+      timing: regraDeRecebimento('Booking.com'),
       value: financial.bookingRevenue,
       color: 'bg-booking',
     },
     {
       name: 'Reservas Diretas',
-      timing: 'Recebe no check-in',
+      timing: regraDeRecebimento('Direto'),
       value: financial.directRevenue,
       color: 'bg-success',
     },

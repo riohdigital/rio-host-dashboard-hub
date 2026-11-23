@@ -36,7 +36,7 @@ export const useOperationalData = (
       let reservationsInPeriodQuery = supabase.from('reservations').select('payment_status, net_revenue, platform').gte('check_in_date', startDateString).lte('check_in_date', endDateString);
       let allReservationsQuery = supabase.from('reservations').select('payment_status');
       let periodEventsQuery = supabase.from('reservations').select('guest_name, check_in_date, check_out_date, payment_status, properties(nickname, name)').or(`check_in_date.gte.${startDateString},check_out_date.gte.${startDateString}`).or(`check_in_date.lte.${endDateString},check_out_date.lte.${endDateString}`).order('check_in_date', { ascending: true });
-      let recentQuery = supabase.from('reservations').select('guest_name, check_in_date, check_out_date, platform, total_revenue, created_at, properties(nickname, name)').order('created_at', { ascending: false }).limit(5);
+      let recentQuery = supabase.from('reservations').select('id, reservation_code, guest_name, check_in_date, check_out_date, platform, total_revenue, payment_status, created_at, properties(nickname, name)').order('created_at', { ascending: false }).limit(5);
 
       if (propertyFilter && propertyFilter.length > 0) {
         reservationsInPeriodQuery = reservationsInPeriodQuery.in('property_id', propertyFilter);
@@ -115,6 +115,9 @@ export const useOperationalData = (
       periodEvents.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
       const recentReservations = recent.map(res => ({
+        id: res.id,
+        reservation_code: res.reservation_code || '',
+        payment_status: res.payment_status || 'Pendente',
         guest_name: res.guest_name || 'N/A',
         property_name: res.properties?.nickname || res.properties?.name || 'N/A',
         check_in_date: res.check_in_date,
