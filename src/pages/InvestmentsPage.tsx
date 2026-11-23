@@ -1,5 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
+import PageHeader from '@/components/comum/PageHeader';
+import JanelaResponsiva from '@/components/comum/JanelaResponsiva';
+import { CartaoIndicador } from '@/components/comum/CartaoIndicador';
 import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
 import { useDateRange } from '@/hooks/dashboard/useDateRange';
 import { usePageVisibility } from '@/hooks/usePageVisibility';
@@ -264,120 +267,45 @@ useEffect(() => {
   }
 
   return (
-    <div className="space-y-8">
-        {/* Header */}
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-3xl font-bold text-gradient-primary">Investimentos & ROI</h1>
-            <p className="text-gray-600 mt-2">
-              Controle seus investimentos e acompanhe o retorno sobre investimento
-            </p>
-          </div>
-          
-          <div className="flex gap-3 items-center">            
-            {canCreateInvestments && (
-              <Dialog open={formOpen} onOpenChange={setFormOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Novo Investimento
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl">
-                  <DialogHeader>
-                    <DialogTitle>Adicionar Investimento</DialogTitle>
-                  </DialogHeader>
-                  <InvestmentForm
-                    properties={properties}
-                    onSubmit={handleCreateInvestment}
-                    loading={propertiesLoading}
-                  />
-                </DialogContent>
-              </Dialog>
-            )}
-          </div>
-        </div>
+    <div className="space-y-6 sm:space-y-8">
+        <PageHeader
+          titulo="Investimentos & ROI"
+          descricao="Controle seus investimentos e acompanhe o retorno sobre investimento"
+          acao={canCreateInvestments ? (
+            <Button onClick={() => setFormOpen(true)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Novo Investimento
+            </Button>
+          ) : undefined}
+        />
 
-        {/* KPIs Gerais */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                Receita Bruta Total
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <Receipt className="h-5 w-5 text-info-500" />
-                <span className="text-2xl font-bold text-info-600">
-                  {formatCurrency(totalGrossRevenue)}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                Investimento Total
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5 text-danger-500" />
-                <span className="text-2xl font-bold text-danger-600">
-                  {formatCurrency(totalInvestment)}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
+        <JanelaResponsiva aberta={formOpen} aoMudar={setFormOpen} titulo="Adicionar Investimento" largura="lg">
+          <InvestmentForm
+            properties={properties}
+            onSubmit={handleCreateInvestment}
+            loading={propertiesLoading}
+          />
+        </JanelaResponsiva>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                Receita Líquida Total
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-success-500" />
-                <span className={`text-2xl font-bold ${totalNetRevenue >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
-                  {formatCurrency(totalNetRevenue)}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                ROI Médio
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-info-500" />
-                <span className="text-2xl font-bold text-info-600">
-                  {averageROI.toFixed(1)}%
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                Propriedades Lucrativas
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-success-500" />
-                <span className="text-2xl font-bold">
-                  {profitableProperties}/{filteredROIData.length}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
+        {/* Resumo: ROI em destaque */}
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-4 2xl:grid-cols-5">
+          <CartaoIndicador
+            className="col-span-2 border-brand-200 bg-brand-50/60 lg:col-span-1"
+            titulo="ROI Médio"
+            valor={`${averageROI.toFixed(1)}%`}
+            icone={BarChart3}
+            tom={averageROI >= 0 ? 'brand' : 'danger'}
+            detalhe={`${profitableProperties}/${filteredROIData.length} propriedades lucrativas`}
+          />
+          <CartaoIndicador titulo="Receita Bruta Total" valor={formatCurrency(totalGrossRevenue)} icone={Receipt} tom="info" />
+          <CartaoIndicador titulo="Investimento Total" valor={formatCurrency(totalInvestment)} icone={DollarSign} tom="danger" />
+          <CartaoIndicador
+            titulo="Receita Líquida Total"
+            valor={formatCurrency(totalNetRevenue)}
+            icone={TrendingUp}
+            tom={totalNetRevenue >= 0 ? 'success' : 'danger'}
+          />
+          <CartaoIndicador titulo="Propriedades Lucrativas" valor={`${profitableProperties}/${filteredROIData.length}`} icone={TrendingUp} tom="neutro" />
         </div>
 
         {/* Resumo por Propriedade */}
@@ -388,7 +316,7 @@ useEffect(() => {
 
         {/* Histórico de Investimentos */}
         <div className="space-y-4">
-          <h2 className="text-xl font-semibold">
+          <h2 className="font-display text-lg font-bold text-ink sm:text-xl">
             Histórico de Investimentos
           </h2>
           

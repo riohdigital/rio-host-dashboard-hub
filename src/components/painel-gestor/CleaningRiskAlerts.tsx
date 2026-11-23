@@ -59,9 +59,9 @@ export const CleaningRiskAlerts = ({ alerts, loading }: CleaningRiskAlertsProps)
           {alerts.map((alert) => (
             <div 
               key={alert.reservationId}
-              className="flex items-center justify-between p-3 bg-white rounded-lg border border-danger-100 hover:border-danger-200 transition-colors"
+              className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-danger-100 bg-white p-3 transition-colors hover:border-danger-200"
             >
-              <div className="flex items-center gap-3">
+              <div className="flex min-w-0 flex-1 basis-48 items-center gap-3">
                 <div className={`w-2 h-2 rounded-full ${getUrgencyColor(alert.daysUntilCheckout)}`} />
                 <div>
                   <p className="font-medium text-sm">
@@ -72,10 +72,10 @@ export const CleaningRiskAlerts = ({ alerts, loading }: CleaningRiskAlertsProps)
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex shrink-0 items-center gap-2">
                 <Badge 
                   variant={alert.daysUntilCheckout === 0 ? 'destructive' : 'secondary'}
-                  className="text-xs"
+                  className="whitespace-nowrap text-xs"
                 >
                   {getDaysLabel(alert.daysUntilCheckout)}
                 </Badge>

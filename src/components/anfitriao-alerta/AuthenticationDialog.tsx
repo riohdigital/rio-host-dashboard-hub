@@ -1,4 +1,6 @@
 import React, { useState, useRef } from 'react';
+import { FOLHA_NO_CELULAR } from '@/components/comum/classes';
+import { cn } from '@/lib/utils';
 import QRCode from 'qrcode';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -51,7 +53,7 @@ const AuthenticationDialog = ({ destination, onClose }: AuthenticationDialogProp
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className={cn("sm:max-w-[425px]", FOLHA_NO_CELULAR)}>
         <DialogHeader>
           <DialogTitle>Autenticar {destination.destination_name}</DialogTitle>
         </DialogHeader>

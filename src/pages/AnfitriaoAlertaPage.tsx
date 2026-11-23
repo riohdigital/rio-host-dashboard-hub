@@ -12,29 +12,29 @@ const AnfitriaoAlertaPage = () => {
     <PermissionGuard permission="anfitriao_alerta_view">
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Anfitrião Alerta</h1>
+          <h1 className="font-display text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">Anfitrião Alerta</h1>
           <p className="text-muted-foreground">
             Configure destinatários para receber alertas sobre suas propriedades
           </p>
         </div>
         
         {/* Toggle Buttons */}
-        <div className="flex space-x-2 bg-muted p-1 rounded-lg w-fit">
+        <div className="flex w-full gap-1 rounded-full bg-muted p-1 sm:w-fit">
           <Button
             variant={activeTab === 'whatsapp' ? 'default' : 'ghost'}
             onClick={() => setActiveTab('whatsapp')}
-            className="flex items-center gap-2"
+            className="flex flex-1 items-center gap-2 sm:flex-none"
           >
             <MessageCircle className="h-4 w-4" />
-            Avisos por WhatsApp
+            <span className="hidden sm:inline">Avisos por </span>WhatsApp
           </Button>
           <Button
             variant={activeTab === 'email' ? 'default' : 'ghost'}
             onClick={() => setActiveTab('email')}
-            className="flex items-center gap-2"
+            className="flex flex-1 items-center gap-2 sm:flex-none"
           >
             <Mail className="h-4 w-4" />
-            Avisos por E-mail
+            <span className="hidden sm:inline">Avisos por </span>E-mail
           </Button>
         </div>
 

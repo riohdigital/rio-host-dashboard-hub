@@ -97,7 +97,7 @@ export const CommissionKPICards = ({ kpis, loading }: CommissionKPICardsProps) =
                 <card.icon className={`h-3.5 w-3.5 ${card.color}`} />
               </div>
             </div>
-            <div className={`text-2xl font-bold ${card.color}`}>
+            <div className={`font-mono text-xl font-semibold tabular-nums sm:text-2xl ${card.color}`}>
               {card.value}
             </div>
             <p className="text-xs text-muted-foreground mt-1">

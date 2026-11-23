@@ -11,7 +11,8 @@ interface ReportData {
 }
 
 export const usePDFExport = () => {
-  const exportToPDF = useCallback(async (elementId: string, filename: string) => {
+  // compartilhar: no celular abre a folha de compartilhar com o mesmo PDF (cai no download se não der)
+  const exportToPDF = useCallback(async (elementId: string, filename: string, opcoes?: { compartilhar?: boolean }) => {
     try {
       const element = document.getElementById(elementId);
       if (!element) {
@@ -61,7 +62,14 @@ export const usePDFExport = () => {
         heightLeft -= pageHeight;
       }
 
-      pdf.save(`${filename}.pdf`);
+      const arquivo = opcoes?.compartilhar
+        ? new File([pdf.output('blob')], `${filename}.pdf`, { type: 'application/pdf' })
+        : null;
+      if (arquivo && navigator.canShare?.({ files: [arquivo] })) {
+        await navigator.share({ files: [arquivo], title: filename });
+      } else {
+        pdf.save(`${filename}.pdf`);
+      }
       return true;
     } catch (error) {
       console.error('Erro ao exportar PDF:', error);

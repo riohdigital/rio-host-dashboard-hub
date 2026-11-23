@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { FOLHA_NO_CELULAR } from '@/components/comum/classes';
+import { cn } from '@/lib/utils';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -98,7 +100,7 @@ const DestinationForm = ({ onClose, onSuccess }: DestinationFormProps) => {
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className={cn("sm:max-w-[500px] max-h-[90vh] overflow-y-auto", FOLHA_NO_CELULAR)}>
         <DialogHeader>
           <DialogTitle>Novo Destinatário</DialogTitle>
         </DialogHeader>

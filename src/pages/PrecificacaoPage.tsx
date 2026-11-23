@@ -59,9 +59,9 @@ const PrecificacaoPage: React.FC = () => {
 
   if (!canAccess) {
     return (
-      <div className="p-6 space-y-6 bg-surface min-h-screen">
+      <div className="space-y-6">
         <div className="border-b border-gray-200 pb-4">
-          <h1 className="text-3xl font-bold text-gradient-primary">Precificação & Yield</h1>
+          <h1 className="text-2xl font-extrabold text-gradient-primary sm:text-3xl">Precificação & Yield</h1>
           <p className="text-gray-600 mt-2">Inteligência de mercado e rentabilidade de tarifas</p>
         </div>
         <Alert>
@@ -98,11 +98,11 @@ const PrecificacaoPage: React.FC = () => {
   };
 
   return (
-    <div className="p-6 space-y-6 bg-surface min-h-screen">
+    <div className="space-y-6">
       {/* Header com Título e Badges Informativos do Filtro Global */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-4">
         <div>
-          <h1 className="text-3xl font-bold text-gradient-primary flex items-center gap-2.5">
+          <h1 className="flex items-center gap-2.5 text-2xl font-extrabold text-gradient-primary sm:text-3xl">
             <Sparkles className="h-7 w-7 text-brand" />
             Precificação & Yield Estratégico
           </h1>

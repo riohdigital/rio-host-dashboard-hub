@@ -115,14 +115,14 @@ const OwnerCard = ({ owner }: OwnerCardProps) => {
           </div>
         ) : (
           <div className="mt-3 pt-3 border-t">
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 gap-3 font-mono tabular-nums sm:grid-cols-4 [&>*]:min-w-0">
               <div className="text-center">
                 <div className="text-xs text-muted-foreground mb-1">Receita Bruta</div>
                 <div className="font-semibold text-sm">
                   {fmt(owner.platformBreakdown.reduce((s, p) => s + p.totalRevenue, 0))}
                 </div>
               </div>
-              <div className="text-center border-x">
+              <div className="text-center sm:border-x">
                 <div className="text-xs text-muted-foreground mb-1">Comissão</div>
                 <div className="font-semibold text-sm text-brand">{fmt(owner.totalCommission)}</div>
               </div>
@@ -325,13 +325,13 @@ const OwnerPaymentsTab = ({ ownerPayments, loading, hasFilter }: OwnerPaymentsTa
     <div className="space-y-4">
       {/* Search filter */}
       <div className="flex items-center gap-3">
-        <div className="relative flex-1 min-w-[180px] max-w-xs">
+        <div className="relative w-full sm:min-w-[180px] sm:max-w-xs sm:flex-1">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
             placeholder="Buscar imóvel..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="pl-8 h-8 text-sm"
+            className="h-11 pl-8 text-sm sm:h-8"
           />
         </div>
       </div>

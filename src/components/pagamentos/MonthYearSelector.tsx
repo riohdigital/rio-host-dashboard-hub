@@ -31,25 +31,27 @@ const MonthYearSelector = ({ month, year, onChange }: MonthYearSelectorProps) =>
   };
 
   return (
-    <div className="flex items-center gap-2">
-      <CalendarDays className="h-5 w-5 text-muted-foreground" />
-      <div className="flex items-center gap-1 bg-muted/30 rounded-lg p-1">
+    <div className="flex w-full items-center gap-2 sm:w-auto">
+      <CalendarDays className="hidden h-5 w-5 text-muted-foreground sm:block" />
+      <div className="flex flex-1 items-center justify-between gap-1 rounded-full border bg-card p-1 sm:flex-none">
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8"
+          className="h-9 w-9"
           onClick={handlePrev}
+          aria-label="Mês anterior"
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <span className="px-4 py-1 min-w-[160px] text-center font-semibold text-sm">
+        <span className="flex-1 px-2 py-1 text-center text-sm font-semibold sm:min-w-[160px] sm:px-4">
           {MONTHS[month - 1]} {year}
         </span>
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8"
+          className="h-9 w-9"
           onClick={handleNext}
+          aria-label="Próximo mês"
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
