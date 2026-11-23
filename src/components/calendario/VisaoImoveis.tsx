@@ -38,7 +38,7 @@ interface Props {
 }
 
 /** Coluna dos imóveis e as 14 colunas de dias */
-const COLUNAS = 'grid grid-cols-[76px_repeat(14,minmax(0,1fr))] lg:grid-cols-[12rem_repeat(14,minmax(0,1fr))]';
+const COLUNAS = 'grid grid-cols-[86px_repeat(14,minmax(0,1fr))] lg:grid-cols-[12rem_repeat(14,minmax(0,1fr))]';
 
 const VisaoImoveis = ({ inicio, fim, meses, imoveis, reservas, hoje, aoTocarReserva }: Props) => {
   const [janela, setJanela] = useState(inicio);
@@ -173,10 +173,10 @@ const VisaoImoveis = ({ inicio, fim, meses, imoveis, reservas, hoje, aoTocarRese
                   type="button"
                   onClick={() => setImovelAberto(p.id)}
                   style={{ gridColumn: 1, gridRow: 1 }}
-                  className="flex min-w-0 items-center self-stretch px-2 text-left text-[11.5px] font-semibold leading-tight text-gray-900 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand lg:px-4 lg:text-sm"
+                  className="flex min-w-0 items-center self-stretch px-1.5 text-left text-[11.5px] font-semibold leading-tight text-gray-900 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand lg:px-4 lg:text-sm"
                   aria-label={`${nome}: abrir o mês só deste imóvel`}
                 >
-                  <span className="line-clamp-2 break-words">{nome}</span>
+                  <span className="line-clamp-2 [overflow-wrap:normal] [word-break:normal]">{nome}</span>
                 </button>
                 {barras.map(({ r, a, b, corteEsq, corteDir }) => (
                   <button
