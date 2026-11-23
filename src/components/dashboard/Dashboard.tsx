@@ -2,8 +2,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
+import ChartCard from '@/components/graficos/ChartCard';
+import GraficoProporcao from '@/components/graficos/GraficoProporcao';
+import { corDoCanalGrafico, eixoMoeda, moedaCompleta } from '@/components/graficos/tema';
 import { Loader2 } from 'lucide-react';
 
 // Importando os hooks customizados
@@ -60,12 +61,11 @@ const Dashboard = () => {
   
   const isLoading = financialLoading || operationalLoading || annualGrowthLoading;
   
-  const COLORS = ['hsl(var(--brand))', 'hsl(var(--brand-accent))', 'hsl(var(--warning))', 'hsl(var(--success))', 'hsl(var(--danger))', 'hsl(var(--chart-5))'];
 
   return (
-    <div className="p-6 space-y-8 bg-surface">
+    <div className="space-y-6 sm:space-y-8">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gradient-primary">Dashboard Analítico</h1>
+        <h1 className="text-2xl font-extrabold text-gradient-primary sm:text-3xl">Dashboard Analítico</h1>
       </div>
 
       {isLoading ? (
@@ -150,7 +150,21 @@ const Dashboard = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
             <div className="lg:col-span-3"><AnnualGrowthChart monthlyData={annualGrowthData.monthlyData} yearlyData={annualGrowthData.yearlyData} loading={annualGrowthLoading} /></div>
-            <div className="lg:col-span-2"><Card className="bg-white h-full"><CardHeader><CardTitle className="text-gradient-primary">Receita por Plataforma</CardTitle></CardHeader><CardContent><ResponsiveContainer width="100%" height={300}><PieChart><Pie data={financialData.revenueByPlatform} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>{financialData.revenueByPlatform.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}</Pie><Tooltip formatter={(value) => `R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} /></PieChart></ResponsiveContainer></CardContent></Card></div>
+            <div className="lg:col-span-2">
+              <ChartCard
+                titulo={<span className="text-gradient-primary">Receita por Plataforma</span>}
+                vazio={!financialData.revenueByPlatform.some((p) => p.value > 0)}
+              >
+                {(altura) => (
+                  <GraficoProporcao
+                    fatias={financialData.revenueByPlatform.map((p) => ({ nome: p.name, valor: p.value, cor: corDoCanalGrafico(p.name) }))}
+                    altura={altura}
+                    formatar={moedaCompleta}
+                    formatarTotal={eixoMoeda}
+                  />
+                )}
+              </ChartCard>
+            </div>
           </div>
 
           <div className="border-t pt-8 space-y-6">

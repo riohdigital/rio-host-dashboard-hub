@@ -2,7 +2,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle2, Clock, TrendingUp } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import GraficoProporcao from '@/components/graficos/GraficoProporcao';
 
 interface PaymentSummaryCardProps {
   totalPaidCount: number;
@@ -19,13 +19,8 @@ const PaymentSummaryCard = ({ totalPaidCount, totalPendingCount }: PaymentSummar
     { name: 'Pendentes', value: totalPendingCount, color: 'hsl(var(--warning))' }
   ];
 
-  const formatTooltip = (value: number, name: string) => [
-    `${value} reservas`,
-    name
-  ];
-
   return (
-    <Card className="bg-white card-elevated gradient-hover-card smooth-transition">
+    <Card className="bg-white card-elevated smooth-transition">
       <CardHeader>
         <CardTitle className="text-sm font-medium text-gradient-primary flex items-center gap-2">
           <TrendingUp className="h-4 w-4" />
@@ -39,7 +34,7 @@ const PaymentSummaryCard = ({ totalPaidCount, totalPendingCount }: PaymentSummar
               <CheckCircle2 className="h-4 w-4 text-success-500" />
               <span className="text-sm text-gray-600">Pagas</span>
             </div>
-            <div className="text-2xl font-bold text-success-600">{totalPaidCount}</div>
+            <div className="font-mono text-2xl font-semibold tabular-nums text-success-600">{totalPaidCount}</div>
             <div className="text-xs text-gray-500">{paidPercentage.toFixed(1)}%</div>
           </div>
           <div className="text-center">
@@ -47,37 +42,26 @@ const PaymentSummaryCard = ({ totalPaidCount, totalPendingCount }: PaymentSummar
               <Clock className="h-4 w-4 text-warning-500" />
               <span className="text-sm text-gray-600">Pendentes</span>
             </div>
-            <div className="text-2xl font-bold text-warning-600">{totalPendingCount}</div>
+            <div className="font-mono text-2xl font-semibold tabular-nums text-warning-600">{totalPendingCount}</div>
             <div className="text-xs text-gray-500">{pendingPercentage.toFixed(1)}%</div>
           </div>
         </div>
         
         {total > 0 && (
-          <div className="h-32">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={chartData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={20}
-                  outerRadius={40}
-                  paddingAngle={2}
-                  dataKey="value"
-                >
-                  {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={formatTooltip} />
-              </PieChart>
-            </ResponsiveContainer>
+          <div className="h-48">
+            <GraficoProporcao
+              fatias={chartData.map((c) => ({ nome: c.name, valor: c.value, cor: c.color }))}
+              altura={192}
+              formatar={(v) => `${v} ${v === 1 ? 'reserva' : 'reservas'}`}
+              formatarTotal={(v) => `${v}`}
+              rotuloTotal="Reservas"
+            />
           </div>
         )}
         
         <div className="text-center">
           <span className="text-sm text-gray-600">Total de Reservas: </span>
-          <span className="font-bold text-gray-800">{total}</span>
+          <span className="font-mono font-semibold tabular-nums text-gray-800">{total}</span>
         </div>
       </CardContent>
     </Card>

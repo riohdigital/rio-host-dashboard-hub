@@ -8,7 +8,11 @@ import { format, differenceInDays, eachDayOfInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ArrowLeft, MapPin, TrendingUp, Calendar, Users } from 'lucide-react';
 import { ReservationBlock } from './ReservationBlock';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import ChartCard from '@/components/graficos/ChartCard';
+import GraficoProporcao from '@/components/graficos/GraficoProporcao';
+import TooltipGrafico from '@/components/graficos/TooltipGrafico';
+import { corDoCanalGrafico, PROPS_EIXO_X, PROPS_EIXO_Y, PROPS_GRADE, RAIO_BARRA } from '@/components/graficos/tema';
 
 interface PropertyViewProps {
   property: Property | undefined;
@@ -18,12 +22,6 @@ interface PropertyViewProps {
   onReservationClick: (reservation: CalendarReservation) => void;
   onBackToAll: () => void;
 }
-
-const PLATFORM_COLORS = {
-  Airbnb: 'hsl(var(--chart-1))',
-  Booking: 'hsl(var(--chart-2))',
-  Direto: 'hsl(var(--chart-3))',
-};
 
 const PropertyView = ({
   property,
@@ -228,51 +226,31 @@ const PropertyView = ({
 
       {/* Gráficos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Distribuição por Plataforma</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie
-                  data={platformData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  label
-                >
-                  {platformData.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={PLATFORM_COLORS[entry.name as keyof typeof PLATFORM_COLORS] || 'hsl(var(--chart-4))'}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+        <ChartCard titulo="Distribuição por Plataforma" vazio={platformData.length === 0} alturaDesktop={260}>
+          {(altura) => (
+            <GraficoProporcao
+              fatias={platformData.map((p) => ({ nome: p.name, valor: p.value, cor: corDoCanalGrafico(p.name) }))}
+              altura={altura}
+              formatar={(v) => `${v} ${v === 1 ? 'reserva' : 'reservas'}`}
+              formatarTotal={(v) => `${v}`}
+              rotuloTotal="Reservas"
+            />
+          )}
+        </ChartCard>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Distribuição de Hóspedes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={guestDistribution}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="value" fill="hsl(var(--primary))" />
+        <ChartCard titulo="Distribuição de Hóspedes" vazio={guestDistribution.length === 0} alturaDesktop={260}>
+          {(altura) => (
+            <ResponsiveContainer width="100%" height={altura}>
+              <BarChart data={guestDistribution} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid {...PROPS_GRADE} />
+                <XAxis dataKey="name" {...PROPS_EIXO_X} />
+                <YAxis {...PROPS_EIXO_Y} width={32} allowDecimals={false} />
+                <Tooltip cursor={{ fill: 'hsl(var(--chart-grid))' }} content={<TooltipGrafico formatar={(v) => `${v} ${v === 1 ? 'reserva' : 'reservas'}`} />} />
+                <Bar dataKey="value" name="Reservas" fill="hsl(var(--chart-1))" radius={RAIO_BARRA} maxBarSize={48} />
               </BarChart>
             </ResponsiveContainer>
-          </CardContent>
-        </Card>
+          )}
+        </ChartCard>
       </div>
     </div>
   );

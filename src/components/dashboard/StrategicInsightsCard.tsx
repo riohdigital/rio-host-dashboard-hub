@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import MarcaIA from '@/components/comum/MarcaIA';
 import { Sparkles, TrendingUp, TrendingDown, AlertTriangle, CheckCircle2, Target, Zap, ChevronDown } from 'lucide-react';
 import { usePropertyInsights, PropertyInsight, ActionPlanItem } from '@/hooks/usePropertyInsights';
 import { cn } from '@/lib/utils';
@@ -153,8 +154,9 @@ const SparkleConstellation = () => (
 );
 
 const LoadingSkeleton = () => (
-  <Card className="ai-card-glow bg-card relative overflow-hidden">
-    <CardHeader className="pb-4">
+  <Card className="ai-card-glow bg-card relative overflow-hidden" aria-busy="true">
+    <CardHeader className="pb-4 relative">
+      <SparkleConstellation />
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-2">
           <Skeleton className="h-9 w-9 rounded-lg" />
@@ -217,20 +219,18 @@ export function StrategicInsightsCard() {
 
   return (
     <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-      <Card className="ai-card-glow bg-card relative overflow-hidden mb-6 shadow-lg hover:shadow-xl transition-shadow duration-300">
+      {/* Borda animada só enquanto carrega (LoadingSkeleton); pronto, o cartão fica quieto */}
+      <Card className="bg-card relative overflow-hidden mb-6 border-brand-100 shadow-sm">
         {/* Header - SEMPRE VISÍVEL */}
         <CardHeader className="pb-4 relative">
-          <SparkleConstellation />
-          
-          <div className="flex items-start justify-between">
-            <div className="space-y-2">
+
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="min-w-0 space-y-2">
               <div className="flex items-center gap-2">
-                <div className="p-2 rounded-lg gradient-primary">
-                  <Sparkles className="h-5 w-5 text-white" />
-                </div>
                 <div>
-                  <h3 className="font-semibold text-lg text-gradient-primary flex items-center gap-2">
-                    Dicas da IA
+                  <h3 className="font-display font-bold text-lg text-ink flex flex-wrap items-center gap-2">
+                    <MarcaIA />
+                    Dicas
                     <Badge variant="secondary" className="text-xs font-normal">
                       {currentInsight.property_name}
                     </Badge>

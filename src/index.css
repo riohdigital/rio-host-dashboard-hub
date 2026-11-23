@@ -127,6 +127,11 @@
     }
   }
 
+  /* Modelos capturados para PDF: respiro fixo, igual em qualquer tela */
+  .modelo-pdf {
+    --card-pad: 1.5rem;
+  }
+
   html {
     -webkit-text-size-adjust: 100%;
     -webkit-tap-highlight-color: transparent;
@@ -406,6 +411,23 @@
   }
   .no-scrollbar::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Cursor piscando no fim da resposta da IA */
+  .cursor-ia {
+    display: inline-block;
+    width: 0.5em;
+    height: 1.1em;
+    margin-left: 2px;
+    vertical-align: text-bottom;
+    border-radius: 2px;
+    background: hsl(var(--brand));
+    animation: cursor-ia 1s steps(1) infinite;
+  }
+  @keyframes cursor-ia {
+    50% {
+      opacity: 0;
+    }
   }
 
   /* Barra de rolagem fina das listas do dashboard */

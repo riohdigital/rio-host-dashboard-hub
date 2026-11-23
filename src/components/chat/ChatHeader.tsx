@@ -1,4 +1,4 @@
-import { Bot, Trash2, X, Search, Download, Filter } from 'lucide-react';
+import { Trash2, X, Search, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -12,13 +12,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { useState } from 'react';
+import MarcaIA from '@/components/comum/MarcaIA';
+import { cn } from '@/lib/utils';
 
 interface ChatHeaderProps {
   onClose: () => void;
@@ -30,6 +26,14 @@ interface ChatHeaderProps {
   onCategoryChange: (category: string) => void;
 }
 
+const categories = [
+  { value: 'all', label: 'Todas' },
+  { value: 'financeiro', label: 'Financeiro' },
+  { value: 'reservas', label: 'Reservas' },
+  { value: 'limpeza', label: 'Limpeza' },
+  { value: 'geral', label: 'Geral' },
+];
+
 export const ChatHeader = ({
   onClose,
   onClear,
@@ -39,68 +43,34 @@ export const ChatHeader = ({
   selectedCategory,
   onCategoryChange,
 }: ChatHeaderProps) => {
-  const [showSearch, setShowSearch] = useState(false);
-
-  const categories = [
-    { value: 'all', label: 'Todas' },
-    { value: 'financeiro', label: 'Financeiro' },
-    { value: 'reservas', label: 'Reservas' },
-    { value: 'limpeza', label: 'Limpeza' },
-    { value: 'geral', label: 'Geral' },
-  ];
+  // Busca e categorias ficam atrás da lupa
+  const [showSearch, setShowSearch] = useState(Boolean(searchQuery) || selectedCategory !== 'all');
 
   return (
-    <div className="bg-gradient-primary rounded-t-2xl">
-      {/* Linha 1: Título e ações */}
-      <div className="flex items-center justify-between p-5 border-b border-white/10">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-full bg-white/20 backdrop-blur-sm">
-            <Bot className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h3 className="font-semibold text-white">Assistente RiohHost</h3>
-            <p className="text-xs text-white/80">Sempre pronto para ajudar</p>
-          </div>
+    <div className="shrink-0 border-b bg-background pt-safe-t">
+      <div className="flex h-14 items-center justify-between gap-2 px-3">
+        <div className="flex min-w-0 items-center gap-2 pl-1">
+          <MarcaIA />
+          <h2 className="truncate font-display text-base font-bold text-ink">Assistente Rioh Host</h2>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center">
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-white hover:bg-white/20"
+            className={cn('h-10 w-10', showSearch && 'bg-brand-50 text-brand')}
             onClick={() => setShowSearch(!showSearch)}
+            aria-label="Buscar nas mensagens"
+            aria-expanded={showSearch}
           >
-            <Search className="w-4 h-4" />
+            <Search className="h-4 w-4" />
           </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-white hover:bg-white/20">
-                <Filter className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {categories.map(cat => (
-                <DropdownMenuItem
-                  key={cat.value}
-                  onClick={() => onCategoryChange(cat.value)}
-                  className={selectedCategory === cat.value ? 'bg-accent' : ''}
-                >
-                  {cat.label}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-white hover:bg-white/20"
-            onClick={onExport}
-          >
-            <Download className="w-4 h-4" />
+          <Button variant="ghost" size="icon" className="h-10 w-10" onClick={onExport} aria-label="Exportar conversa">
+            <Download className="h-4 w-4" />
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-white hover:bg-white/20">
-                <Trash2 className="w-4 h-4" />
+              <Button variant="ghost" size="icon" className="h-10 w-10" aria-label="Limpar histórico">
+                <Trash2 className="h-4 w-4" />
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
@@ -116,21 +86,38 @@ export const ChatHeader = ({
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-white hover:bg-white/20" onClick={onClose}>
-            <X className="w-4 h-4" />
+          <Button variant="ghost" size="icon" className="h-10 w-10" onClick={onClose} aria-label="Fechar assistente">
+            <X className="h-5 w-5" />
           </Button>
         </div>
       </div>
 
-      {/* Linha 2: Busca (condicional) */}
       {showSearch && (
-        <div className="p-3 border-b border-white/10">
+        <div className="space-y-2 px-3 pb-3">
           <Input
+            type="search"
             placeholder="Buscar mensagens..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="bg-white/10 border-white/20 text-white placeholder:text-white/60"
+            className="h-10"
+            autoFocus
           />
+          <div className="no-scrollbar flex gap-1.5 overflow-x-auto">
+            {categories.map((cat) => (
+              <button
+                key={cat.value}
+                type="button"
+                onClick={() => onCategoryChange(cat.value)}
+                aria-pressed={selectedCategory === cat.value}
+                className={cn(
+                  'min-h-8 shrink-0 rounded-full border px-3 text-xs font-medium transition-colors',
+                  selectedCategory === cat.value ? 'border-brand bg-brand text-brand-foreground' : 'bg-background text-gray-600 hover:bg-surface',
+                )}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>
