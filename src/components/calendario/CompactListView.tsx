@@ -61,11 +61,11 @@ export const CompactListView = ({
   const getPlatformColor = (platform: string) => {
     switch (platform.toLowerCase()) {
       case 'airbnb':
-        return 'bg-rose-500';
+        return 'bg-danger-500';
       case 'booking':
-        return 'bg-blue-500';
+        return 'bg-info-500';
       case 'direto':
-        return 'bg-green-500';
+        return 'bg-success-500';
       default:
         return 'bg-gray-500';
     }

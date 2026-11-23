@@ -8,28 +8,28 @@ const benefits = [
     title: '90% de Redução no Tempo',
     description: 'Automatize tarefas repetitivas e foque no que realmente importa para seu negócio.',
     stat: '8h → 45min',
-    color: 'from-blue-500 to-cyan-500'
+    color: 'from-info-500 to-cyan-500'
   },
   {
     icon: TrendingUp,
     title: 'Aumento de 40% na Receita',
     description: 'Otimize preços, reduza vacância e maximize o retorno de cada propriedade.',
     stat: '+40%',
-    color: 'from-green-500 to-emerald-500'
+    color: 'from-success-500 to-success-500'
   },
   {
     icon: Shield,
     title: '100% de Segurança',
     description: 'Dados criptografados, backups automáticos e conformidade total com LGPD.',
     stat: 'ISO 27001',
-    color: 'from-purple-500 to-pink-500'
+    color: 'from-brand-500 to-pink-500'
   },
   {
     icon: Users,
     title: 'Satisfação Garantida',
     description: 'Melhore a experiência dos hóspedes e receba mais avaliações 5 estrelas.',
     stat: '4.9★',
-    color: 'from-orange-500 to-red-500'
+    color: 'from-orange-500 to-danger-500'
   }
 ];
 

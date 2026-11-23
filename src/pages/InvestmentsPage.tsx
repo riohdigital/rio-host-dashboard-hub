@@ -308,8 +308,8 @@ useEffect(() => {
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2">
-                <Receipt className="h-5 w-5 text-blue-500" />
-                <span className="text-2xl font-bold text-blue-600">
+                <Receipt className="h-5 w-5 text-info-500" />
+                <span className="text-2xl font-bold text-info-600">
                   {formatCurrency(totalGrossRevenue)}
                 </span>
               </div>
@@ -323,8 +323,8 @@ useEffect(() => {
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5 text-red-500" />
-                <span className="text-2xl font-bold text-red-600">
+                <DollarSign className="h-5 w-5 text-danger-500" />
+                <span className="text-2xl font-bold text-danger-600">
                   {formatCurrency(totalInvestment)}
                 </span>
               </div>
@@ -339,8 +339,8 @@ useEffect(() => {
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-green-500" />
-                <span className={`text-2xl font-bold ${totalNetRevenue >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <TrendingUp className="h-5 w-5 text-success-500" />
+                <span className={`text-2xl font-bold ${totalNetRevenue >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
                   {formatCurrency(totalNetRevenue)}
                 </span>
               </div>
@@ -355,8 +355,8 @@ useEffect(() => {
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-blue-500" />
-                <span className="text-2xl font-bold text-blue-600">
+                <BarChart3 className="h-5 w-5 text-info-500" />
+                <span className="text-2xl font-bold text-info-600">
                   {averageROI.toFixed(1)}%
                 </span>
               </div>
@@ -371,7 +371,7 @@ useEffect(() => {
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-green-500" />
+                <TrendingUp className="h-5 w-5 text-success-500" />
                 <span className="text-2xl font-bold">
                   {profitableProperties}/{filteredROIData.length}
                 </span>

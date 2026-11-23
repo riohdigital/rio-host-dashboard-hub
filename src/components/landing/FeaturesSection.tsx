@@ -15,31 +15,31 @@ const features = [
     icon: BarChart3,
     title: 'Dashboard Completo',
     description: 'Visualize todas as métricas importantes em tempo real com gráficos interativos e KPIs personalizados.',
-    gradient: 'from-blue-500 to-cyan-500'
+    gradient: 'from-info-500 to-cyan-500'
   },
   {
     icon: Calendar,
     title: 'Gestão de Reservas',
     description: 'Controle todas as reservas em um só lugar, com sincronização automática com OTAs.',
-    gradient: 'from-purple-500 to-pink-500'
+    gradient: 'from-brand-500 to-pink-500'
   },
   {
     icon: Users,
     title: 'Controle de Equipe',
     description: 'Gerencie faxineiras, co-anfitriões e toda a equipe com permissões granulares.',
-    gradient: 'from-green-500 to-emerald-500'
+    gradient: 'from-success-500 to-success-500'
   },
   {
     icon: FileText,
     title: 'Relatórios Profissionais',
     description: 'Gere relatórios detalhados para análise financeira e tomada de decisão.',
-    gradient: 'from-orange-500 to-red-500'
+    gradient: 'from-orange-500 to-danger-500'
   },
   {
     icon: Bell,
     title: 'Alertas Inteligentes',
     description: 'Receba notificações automáticas sobre eventos importantes e prazos.',
-    gradient: 'from-indigo-500 to-purple-500'
+    gradient: 'from-brand-500 to-brand-500'
   },
   {
     icon: Shield,
@@ -51,13 +51,13 @@ const features = [
     icon: Zap,
     title: 'Automação Avançada',
     description: 'Automatize tarefas repetitivas e economize horas de trabalho.',
-    gradient: 'from-yellow-500 to-orange-500'
+    gradient: 'from-warning-500 to-orange-500'
   },
   {
     icon: Globe,
     title: 'Integração Completa',
     description: 'Conecte-se com Airbnb, Booking, calendários e outros sistemas.',
-    gradient: 'from-teal-500 to-blue-500'
+    gradient: 'from-teal-500 to-info-500'
   }
 ];
 

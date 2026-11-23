@@ -95,7 +95,7 @@ const ExpenseCategoriesSection = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold text-[#6A6DDF] mb-2">Gerenciar Categorias de Despesas</h2>
+        <h2 className="text-xl font-semibold text-brand mb-2">Gerenciar Categorias de Despesas</h2>
         <p className="text-gray-600">Adicione ou remova categorias para organizar suas despesas.</p>
       </div>
 
@@ -111,7 +111,7 @@ const ExpenseCategoriesSection = () => {
         <Button 
           type="submit" 
           disabled={loading || !newCategory.trim()}
-          className="bg-[#6A6DDF] hover:bg-[#5A5BCF] text-white"
+          className="bg-brand hover:bg-brand-hover text-white"
         >
           <Plus className="mr-2 h-4 w-4" />
           Adicionar
@@ -134,7 +134,7 @@ const ExpenseCategoriesSection = () => {
                   variant="outline"
                   size="sm"
                   onClick={() => handleDeleteCategory(category.id)}
-                  className="text-red-600 hover:text-red-700"
+                  className="text-danger-600 hover:text-danger-700"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>

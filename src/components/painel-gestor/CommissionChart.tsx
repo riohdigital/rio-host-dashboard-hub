@@ -21,10 +21,10 @@ export const CommissionChart = ({ data, loading }: CommissionChartProps) => {
         <div className="bg-background border border-border rounded-lg shadow-lg p-3">
           <p className="font-semibold text-sm mb-2">{label}</p>
           <div className="space-y-1">
-            <p className="text-sm text-green-600">
+            <p className="text-sm text-success-600">
               Comissão: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(payload[0]?.value || 0)}
             </p>
-            <p className="text-sm text-blue-600">
+            <p className="text-sm text-info-600">
               Reservas: {payload[1]?.value || 0}
             </p>
           </div>

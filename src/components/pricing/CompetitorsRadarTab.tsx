@@ -161,10 +161,10 @@ export const CompetitorsRadarTab: React.FC<Props> = ({ propertyId, properties, s
       <div className="bg-white p-5 rounded-xl border shadow-xs space-y-1.5">
         <div className="flex items-center gap-2 flex-wrap">
           <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
-            <Layers className="h-4 w-4 text-[#6A6DDF]" />
+            <Layers className="h-4 w-4 text-brand" />
             Concorrentes escolhidos automaticamente
           </h3>
-          <Badge variant="outline" className="bg-[#6A6DDF]/10 text-[#6A6DDF] border-[#6A6DDF]/20 text-[11px] font-bold">
+          <Badge variant="outline" className="bg-brand/10 text-brand border-brand/20 text-[11px] font-bold">
             {concorrentes.length} acompanhado(s)
           </Badge>
         </div>
@@ -177,30 +177,30 @@ export const CompetitorsRadarTab: React.FC<Props> = ({ propertyId, properties, s
 
       {selectedProperty && (minhaNoite || mercado) && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Card className="bg-gradient-to-br from-indigo-50/50 to-white border-indigo-100 shadow-xs">
+          <Card className="bg-gradient-to-br from-brand-50/50 to-white border-brand-100 shadow-xs">
             <CardContent className="p-4">
               <span className="text-xs font-medium text-gray-500">Sua noite comum</span>
               <div className="text-2xl font-bold text-gray-900 mt-1">{reais(minhaNoite)}</div>
               <span className="text-[11px] text-gray-400">Mediana de terça a quinta no seu calendário (próximos 60 dias)</span>
             </CardContent>
           </Card>
-          <Card className="bg-gradient-to-br from-purple-50/50 to-white border-purple-100 shadow-xs">
+          <Card className="bg-gradient-to-br from-brand-50/50 to-white border-brand-100 shadow-xs">
             <CardContent className="p-4">
               <span className="text-xs font-medium text-gray-500">Mercado em noite comum</span>
-              <div className="text-2xl font-bold text-[#6A6DDF] mt-1">{mercado?.comum ? reais(mercado.comum) : 'Em coleta'}</div>
+              <div className="text-2xl font-bold text-brand mt-1">{mercado?.comum ? reais(mercado.comum) : 'Em coleta'}</div>
               <span className="text-[11px] text-gray-400">Mediana dos anúncios parecidos numa semana comum</span>
             </CardContent>
           </Card>
-          <Card className="bg-gradient-to-br from-amber-50/50 to-white border-amber-100 shadow-xs">
+          <Card className="bg-gradient-to-br from-warning-50/50 to-white border-warning-100 shadow-xs">
             <CardContent className="p-4">
               <span className="text-xs font-medium text-gray-500">Posicionamento</span>
               <div className="text-xl font-bold mt-1 flex items-center gap-1.5">
                 {posicao === null ? (
                   <span className="text-gray-400 text-sm">Sem dado suficiente</span>
                 ) : posicao < -5 ? (
-                  <span className="text-emerald-600 flex items-center gap-1"><TrendingDown className="h-4 w-4" /> {Math.abs(posicao)}% abaixo</span>
+                  <span className="text-success-600 flex items-center gap-1"><TrendingDown className="h-4 w-4" /> {Math.abs(posicao)}% abaixo</span>
                 ) : posicao > 5 ? (
-                  <span className="text-amber-600 flex items-center gap-1"><TrendingUp className="h-4 w-4" /> {posicao}% acima</span>
+                  <span className="text-warning-600 flex items-center gap-1"><TrendingUp className="h-4 w-4" /> {posicao}% acima</span>
                 ) : (
                   <span className="text-gray-700">No preço do mercado</span>
                 )}
@@ -214,7 +214,7 @@ export const CompetitorsRadarTab: React.FC<Props> = ({ propertyId, properties, s
             <div className="sm:col-span-3 rounded-lg border bg-white px-4 py-2.5 text-xs text-gray-600 flex flex-wrap gap-x-4 gap-y-1">
               <span className="font-semibold text-gray-700">Quanto o mercado sobe:</span>
               {mercado.regras.map(r => (
-                <span key={r.tipo_data}>{NOME_DO_TIPO[r.tipo_data] || r.tipo_data} <strong className="text-[#6A6DDF]">{percentual(Number(r.fator))}</strong> <span className="text-gray-400">({r.amostras} anúncios)</span></span>
+                <span key={r.tipo_data}>{NOME_DO_TIPO[r.tipo_data] || r.tipo_data} <strong className="text-brand">{percentual(Number(r.fator))}</strong> <span className="text-gray-400">({r.amostras} anúncios)</span></span>
               ))}
             </div>
           )}
@@ -223,7 +223,7 @@ export const CompetitorsRadarTab: React.FC<Props> = ({ propertyId, properties, s
 
       {loading ? (
         <div className="py-12 text-center text-gray-500 bg-white rounded-lg border">
-          <RefreshCw className="h-6 w-6 animate-spin mx-auto text-[#6A6DDF] mb-2" />
+          <RefreshCw className="h-6 w-6 animate-spin mx-auto text-brand mb-2" />
           Carregando concorrentes...
         </div>
       ) : concorrentes.length === 0 ? (
@@ -250,15 +250,15 @@ export const CompetitorsRadarTab: React.FC<Props> = ({ propertyId, properties, s
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <Badge variant="outline" className="text-[10px] uppercase font-bold bg-rose-50 text-rose-700 border-rose-200">{c.platform}</Badge>
+                        <Badge variant="outline" className="text-[10px] uppercase font-bold bg-danger-50 text-danger-700 border-danger-200">{c.platform}</Badge>
                         {c.similarity_score !== null && (
-                          <Badge variant="outline" className="text-[10px] bg-indigo-50 text-[#6A6DDF] border-indigo-200">Semelhança {Math.round(Number(c.similarity_score))}</Badge>
+                          <Badge variant="outline" className="text-[10px] bg-brand-50 text-brand border-brand-200">Semelhança {Math.round(Number(c.similarity_score))}</Badge>
                         )}
                       </div>
                       <h4 className="font-bold text-gray-900 text-sm mt-1 line-clamp-1" title={c.name}>{c.name}</h4>
                       {!selectedProperty && <p className="text-[11px] text-gray-400">Concorrente de {nomeDoImovel(c.property_id)}</p>}
                     </div>
-                    <a href={c.listing_url} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-[#6A6DDF] p-1 rounded-md hover:bg-gray-100" title="Abrir anúncio">
+                    <a href={c.listing_url} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-brand p-1 rounded-md hover:bg-gray-100" title="Abrir anúncio">
                       <ArrowUpRight className="h-4 w-4" />
                     </a>
                   </div>
@@ -266,8 +266,8 @@ export const CompetitorsRadarTab: React.FC<Props> = ({ propertyId, properties, s
                   <div className="grid grid-cols-3 gap-1 bg-gray-50 p-2 rounded-lg text-xs text-gray-600 border border-gray-100">
                     <span className="flex items-center gap-1"><MapPin className="h-3 w-3 text-gray-400" />{c.distance_km !== null ? `${Number(c.distance_km).toLocaleString('pt-BR')} km` : '—'}</span>
                     <span className="flex items-center gap-1"><Bed className="h-3 w-3 text-gray-400" />{c.bedrooms === null ? '—' : c.bedrooms === 0 ? 'Estúdio' : `${c.bedrooms} qto`}</span>
-                    <span className="flex items-center gap-1 text-amber-600 font-semibold">
-                      <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                    <span className="flex items-center gap-1 text-warning-600 font-semibold">
+                      <Star className="h-3 w-3 fill-warning-400 text-warning-400" />
                       {c.current_rating ? Number(c.current_rating).toFixed(2).replace('.', ',') : 'Novo'}
                     </span>
                   </div>
@@ -289,7 +289,7 @@ export const CompetitorsRadarTab: React.FC<Props> = ({ propertyId, properties, s
                     <span className="text-[10px] text-gray-400">
                       {c.last_seen_at ? `Visto em ${new Date(c.last_seen_at).toLocaleDateString('pt-BR')}` : ''}
                     </span>
-                    <Button variant="ghost" size="sm" className="h-7 text-xs text-gray-500 hover:text-red-600" disabled={excluindo === c.id} onClick={() => excluir(c)}>
+                    <Button variant="ghost" size="sm" className="h-7 text-xs text-gray-500 hover:text-danger-600" disabled={excluindo === c.id} onClick={() => excluir(c)}>
                       <XCircle className="h-3.5 w-3.5 mr-1" /> Não é concorrente
                     </Button>
                   </div>

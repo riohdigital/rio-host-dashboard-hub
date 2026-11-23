@@ -12,9 +12,9 @@ interface ROICardProps {
 
 const ROICard = ({ roi }: ROICardProps) => {
   const getROIColor = (percentage: number) => {
-    if (percentage >= 20) return 'text-green-600';
-    if (percentage >= 10) return 'text-yellow-600';
-    return 'text-red-600';
+    if (percentage >= 20) return 'text-success-600';
+    if (percentage >= 10) return 'text-warning-600';
+    return 'text-danger-600';
   };
 
   const getROIBadgeVariant = (percentage: number) => {
@@ -82,7 +82,7 @@ const ROICard = ({ roi }: ROICardProps) => {
               <DollarSign className="h-3 w-3" />
               <span>Investimento</span>
             </div>
-            <div className="font-semibold text-red-600">
+            <div className="font-semibold text-danger-600">
               {formatCurrency(roi.total_investment)}
             </div>
           </div>
@@ -92,7 +92,7 @@ const ROICard = ({ roi }: ROICardProps) => {
               <TrendingUp className="h-3 w-3" />
               <span>Receita Líquida</span>
             </div>
-            <div className="font-semibold text-green-600">
+            <div className="font-semibold text-success-600">
               {formatCurrency(roi.net_revenue)}
             </div>
           </div>
@@ -126,7 +126,7 @@ const ROICard = ({ roi }: ROICardProps) => {
 
         {/* Status Alert */}
         {!roi.is_profitable && (
-          <div className="flex items-center gap-2 p-2 bg-yellow-50 rounded-lg text-yellow-800 text-sm">
+          <div className="flex items-center gap-2 p-2 bg-warning-50 rounded-lg text-warning-800 text-sm">
             <AlertCircle className="h-4 w-4" />
             <span>Investimento ainda não foi recuperado</span>
           </div>

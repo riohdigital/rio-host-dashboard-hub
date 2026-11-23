@@ -130,16 +130,16 @@ export const OTASessionsCard: React.FC = () => {
       return {
         name: 'Booking.com',
         loginUrl: 'https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/home.html',
-        badgeColor: 'bg-blue-600/10 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300 border-blue-200 dark:border-blue-800',
-        brandAccent: 'text-blue-600 dark:text-blue-400',
+        badgeColor: 'bg-info-600/10 text-info-700 dark:bg-info-500/20 dark:text-info-300 border-info-200 dark:border-info-800',
+        brandAccent: 'text-info-600 dark:text-info-400',
         description: 'Extranet Booking.com para auditoria de comissões e reservas diretas.',
       };
     }
     return {
       name: 'Airbnb',
       loginUrl: 'https://www.airbnb.com.br/hosting/reservations',
-      badgeColor: 'bg-rose-600/10 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300 border-rose-200 dark:border-rose-800',
-      brandAccent: 'text-rose-600 dark:text-rose-400',
+      badgeColor: 'bg-danger-600/10 text-danger-700 dark:bg-danger-500/20 dark:text-danger-300 border-danger-200 dark:border-danger-800',
+      brandAccent: 'text-danger-600 dark:text-danger-400',
       description: 'Portal de Anfitrião Airbnb para verificação de extratos e valores líquidos.',
     };
   };
@@ -149,14 +149,14 @@ export const OTASessionsCard: React.FC = () => {
       <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50">
+            <div className="p-2 rounded-lg bg-brand-50 dark:bg-brand-950/50 text-brand-600 dark:text-brand-400 border border-brand-100 dark:border-brand-900/50">
               <Globe className="h-5 w-5" />
             </div>
             <div>
               <CardTitle className="text-lg font-semibold flex items-center gap-2">
                 Suas Contas nas Plataformas
                 <Badge variant="outline" className="text-xs font-normal text-muted-foreground border-border/60">
-                  <Sparkles className="h-3 w-3 mr-1 text-amber-500" />
+                  <Sparkles className="h-3 w-3 mr-1 text-warning-500" />
                   Keepalive Ativo (12 min)
                 </Badge>
               </CardTitle>
@@ -171,9 +171,9 @@ export const OTASessionsCard: React.FC = () => {
           size="sm"
           onClick={handleTestSessions}
           disabled={testing || loading}
-          className="hover:border-indigo-300 transition-all duration-200"
+          className="hover:border-brand-300 transition-all duration-200"
         >
-          <RefreshCw className={`h-4 w-4 mr-2 ${testing ? 'animate-spin text-indigo-600' : ''}`} />
+          <RefreshCw className={`h-4 w-4 mr-2 ${testing ? 'animate-spin text-brand-600' : ''}`} />
           {testing ? 'Testando...' : 'Testar Conexões'}
         </Button>
       </CardHeader>
@@ -217,7 +217,7 @@ export const OTASessionsCard: React.FC = () => {
                         Não conectado
                       </Badge>
                     ) : session.is_valid ? (
-                      <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-medium text-xs flex items-center gap-1 hover:bg-emerald-500/20">
+                      <Badge className="bg-success-500/10 text-success-600 dark:text-success-400 border border-success-500/20 font-medium text-xs flex items-center gap-1 hover:bg-success-500/20">
                         <CheckCircle2 className="h-3 w-3" />
                         Autenticado
                       </Badge>
@@ -245,7 +245,7 @@ export const OTASessionsCard: React.FC = () => {
                       href={platform.loginUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 flex items-center gap-1 hover:underline"
+                      className="text-xs text-brand-600 hover:text-brand-700 dark:text-brand-400 flex items-center gap-1 hover:underline"
                     >
                       Acessar Portal
                       <ExternalLink className="h-3 w-3" />
@@ -256,7 +256,7 @@ export const OTASessionsCard: React.FC = () => {
                       variant={session.is_valid ? 'outline' : 'default'}
                       onClick={() => handleOpenScreencast(session)}
                       disabled={loginEmAndamento}
-                      className={!session.is_valid ? 'bg-amber-600 hover:bg-amber-700 text-white' : ''}
+                      className={!session.is_valid ? 'bg-warning-600 hover:bg-warning-700 text-white' : ''}
                     >
                       <Monitor className="h-3.5 w-3.5 mr-1.5" />
                       {session.is_valid ? 'Entrar de novo' : `Conectar ${platform.name}`}
@@ -268,8 +268,8 @@ export const OTASessionsCard: React.FC = () => {
           </div>
         )}
 
-        <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1 bg-indigo-50/40 dark:bg-indigo-950/20 p-2.5 rounded-lg border border-indigo-100/60 dark:border-indigo-900/30">
-          <ShieldCheck className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+        <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1 bg-brand-50/40 dark:bg-brand-950/20 p-2.5 rounded-lg border border-brand-100/60 dark:border-brand-900/30">
+          <ShieldCheck className="h-4 w-4 text-brand-600 dark:text-brand-400 shrink-0" />
           <span>
             <strong>Proteção Ativa:</strong> As requisições de keepalive simulam navegação humana pelo Browserless, atualizando automaticamente os tokens de sessão sem necessidade de intervenção diária.
           </span>

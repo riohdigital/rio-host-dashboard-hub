@@ -23,13 +23,13 @@ export const RecentActivityFeed = ({ activities, loading }: RecentActivityFeedPr
   const getActivityIcon = (type: RecentActivity['type']) => {
     switch (type) {
       case 'new_reservation':
-        return <CalendarPlus className="h-4 w-4 text-green-600" />;
+        return <CalendarPlus className="h-4 w-4 text-success-600" />;
       case 'cleaning_completed':
-        return <CheckCircle className="h-4 w-4 text-blue-600" />;
+        return <CheckCircle className="h-4 w-4 text-info-600" />;
       case 'payment_received':
-        return <CreditCard className="h-4 w-4 text-emerald-600" />;
+        return <CreditCard className="h-4 w-4 text-success-600" />;
       case 'reservation_updated':
-        return <RefreshCw className="h-4 w-4 text-amber-600" />;
+        return <RefreshCw className="h-4 w-4 text-warning-600" />;
       default:
         return <CalendarPlus className="h-4 w-4 text-muted-foreground" />;
     }
@@ -38,13 +38,13 @@ export const RecentActivityFeed = ({ activities, loading }: RecentActivityFeedPr
   const getActivityColor = (type: RecentActivity['type']) => {
     switch (type) {
       case 'new_reservation':
-        return 'bg-green-100';
+        return 'bg-success-100';
       case 'cleaning_completed':
-        return 'bg-blue-100';
+        return 'bg-info-100';
       case 'payment_received':
-        return 'bg-emerald-100';
+        return 'bg-success-100';
       case 'reservation_updated':
-        return 'bg-amber-100';
+        return 'bg-warning-100';
       default:
         return 'bg-muted';
     }
@@ -107,7 +107,7 @@ export const RecentActivityFeed = ({ activities, loading }: RecentActivityFeedPr
                       </span>
                     )}
                     {activity.amount && (
-                      <span className="text-xs font-medium text-green-600">
+                      <span className="text-xs font-medium text-success-600">
                         {formatCurrency(activity.amount)}
                       </span>
                     )}

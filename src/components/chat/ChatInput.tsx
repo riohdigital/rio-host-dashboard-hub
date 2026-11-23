@@ -94,7 +94,7 @@ export const ChatInput = ({ onSend, isLoading }: ChatInputProps) => {
           placeholder="Digite sua mensagem ou envie um print..."
           className={cn(
             'min-h-[44px] max-h-[120px] resize-none',
-            'focus-visible:ring-2 focus-visible:ring-purple-500'
+            'focus-visible:ring-2 focus-visible:ring-brand-500'
           )}
           disabled={isLoading}
         />

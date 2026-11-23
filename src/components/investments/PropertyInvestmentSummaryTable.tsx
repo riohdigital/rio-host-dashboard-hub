@@ -96,13 +96,13 @@ const PropertyInvestmentSummaryTable = ({ roiData, loading }: PropertyInvestment
                     )}
                   </div>
                 </TableCell>
-                <TableCell className="text-right font-medium text-blue-600">
+                <TableCell className="text-right font-medium text-info-600">
                   {formatCurrency(roi.total_revenue)}
                 </TableCell>
-                <TableCell className="text-right font-medium text-red-600">
+                <TableCell className="text-right font-medium text-danger-600">
                   {formatCurrency(roi.total_investment)}
                 </TableCell>
-                <TableCell className={`text-right font-medium ${roi.net_revenue >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <TableCell className={`text-right font-medium ${roi.net_revenue >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
                   {formatCurrency(roi.net_revenue)}
                 </TableCell>
                 <TableCell className="text-center">

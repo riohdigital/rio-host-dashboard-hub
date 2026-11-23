@@ -87,7 +87,7 @@ export const PropertyPerformanceTable = ({ data, loading }: PropertyPerformanceT
                   <TableCell className="text-right font-medium">
                     {formatCurrency(property.totalRevenue)}
                   </TableCell>
-                  <TableCell className="text-right font-medium text-green-600">
+                  <TableCell className="text-right font-medium text-success-600">
                     {formatCurrency(property.commission)}
                   </TableCell>
                   <TableCell className="text-center">
@@ -106,9 +106,9 @@ export const PropertyPerformanceTable = ({ data, loading }: PropertyPerformanceT
                   </TableCell>
                   <TableCell className="text-center">
                     <div className="flex items-center justify-center gap-1">
-                      <span className="text-green-600">{property.completedCleanings}</span>
+                      <span className="text-success-600">{property.completedCleanings}</span>
                       <span className="text-muted-foreground">/</span>
-                      <span className={property.pendingCleanings > 0 ? 'text-amber-600' : 'text-muted-foreground'}>
+                      <span className={property.pendingCleanings > 0 ? 'text-warning-600' : 'text-muted-foreground'}>
                         {property.pendingCleanings}
                       </span>
                     </div>

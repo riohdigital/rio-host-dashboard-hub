@@ -76,7 +76,7 @@ export const PlatformLoginModal: React.FC<PlatformLoginModalProps> = ({ open, on
   const { toast } = useToast();
   const plataforma = session?.domain.includes('booking') ? 'booking' : 'airbnb';
   const nome = plataforma === 'booking' ? 'Booking.com' : 'Airbnb';
-  const corMarca = plataforma === 'booking' ? 'from-blue-600 to-sky-500' : 'from-rose-500 to-pink-500';
+  const corMarca = plataforma === 'booking' ? 'from-info-600 to-info-500' : 'from-danger-500 to-pink-500';
 
   const [passo, setPasso] = useState<Passo>('conectando');
   const [erro, setErro] = useState<string | null>(null);
@@ -281,7 +281,7 @@ export const PlatformLoginModal: React.FC<PlatformLoginModalProps> = ({ open, on
   };
 
   const etapaAtual = etapaDoPasso(passo);
-  const corLatencia = latencia === null ? 'bg-muted-foreground/40' : latencia < 150 ? 'bg-emerald-500' : latencia < 400 ? 'bg-amber-500' : 'bg-red-500';
+  const corLatencia = latencia === null ? 'bg-muted-foreground/40' : latencia < 150 ? 'bg-success-500' : latencia < 400 ? 'bg-warning-500' : 'bg-danger-500';
   const ativo = !erro && passo !== 'pronto';
 
   return (
@@ -311,7 +311,7 @@ export const PlatformLoginModal: React.FC<PlatformLoginModalProps> = ({ open, on
                   <span
                     className={[
                       'flex items-center gap-1 rounded-full px-2.5 py-1 border transition-all duration-300',
-                      feita ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-400' : '',
+                      feita ? 'bg-success-500/10 border-success-500/30 text-success-700 dark:text-success-400' : '',
                       atual ? 'bg-primary/10 border-primary/40 text-foreground font-medium' : '',
                       !feita && !atual ? 'border-border/60 text-muted-foreground' : '',
                     ].join(' ')}
@@ -328,7 +328,7 @@ export const PlatformLoginModal: React.FC<PlatformLoginModalProps> = ({ open, on
 
         {/* Tela do navegador */}
         <div
-          className="relative w-full bg-neutral-950 select-none touch-none"
+          className="relative w-full bg-gray-950 select-none touch-none"
           style={{ aspectRatio: `${tamanhoRef.current.w} / ${tamanhoRef.current.h}`, maxHeight: '72vh' }}
           onPointerDown={ativo ? aoPressionar : undefined}
           onPointerUp={ativo ? aoSoltar : undefined}
@@ -358,7 +358,7 @@ export const PlatformLoginModal: React.FC<PlatformLoginModalProps> = ({ open, on
 
           {!temImagem && !erro && (
             <div className="absolute inset-0 grid place-items-center">
-              <div className="flex flex-col items-center gap-3 text-neutral-300">
+              <div className="flex flex-col items-center gap-3 text-gray-300">
                 <Loader2 className="h-8 w-8 animate-spin" />
                 <span className="text-sm">{DICAS[passo]}</span>
               </div>
@@ -373,30 +373,30 @@ export const PlatformLoginModal: React.FC<PlatformLoginModalProps> = ({ open, on
           )}
 
           {passo === 'captcha' && ativo && (
-            <div className="pointer-events-none absolute left-1/2 bottom-3 -translate-x-1/2 rounded-full bg-amber-500/90 px-3 py-1.5 text-xs font-medium text-white shadow-lg">
+            <div className="pointer-events-none absolute left-1/2 bottom-3 -translate-x-1/2 rounded-full bg-warning-500/90 px-3 py-1.5 text-xs font-medium text-white shadow-lg">
               <ShieldAlert className="inline h-3.5 w-3.5 mr-1.5 -mt-0.5" />
               Resolva a verificação de segurança na tela
             </div>
           )}
 
           {(passo === 'conectado' || passo === 'salvando' || passo === 'pronto') && (
-            <div className="absolute inset-0 grid place-items-center bg-emerald-950/70 backdrop-blur-sm animate-in fade-in duration-300">
+            <div className="absolute inset-0 grid place-items-center bg-success-950/70 backdrop-blur-sm animate-in fade-in duration-300">
               <div className="flex flex-col items-center gap-3 text-white text-center px-6">
                 {passo === 'pronto' ? (
-                  <CheckCircle2 className="h-14 w-14 text-emerald-400 animate-in zoom-in duration-300" />
+                  <CheckCircle2 className="h-14 w-14 text-success-400 animate-in zoom-in duration-300" />
                 ) : (
-                  <Loader2 className="h-12 w-12 animate-spin text-emerald-300" />
+                  <Loader2 className="h-12 w-12 animate-spin text-success-300" />
                 )}
                 <p className="text-lg font-semibold">{passo === 'pronto' ? `${nome} conectado` : 'Conectado! Salvando a sessão…'}</p>
-                <p className="text-sm text-emerald-100/80 max-w-sm">{DICAS[passo]}</p>
+                <p className="text-sm text-success-100/80 max-w-sm">{DICAS[passo]}</p>
               </div>
             </div>
           )}
 
           {erro && (
-            <div className="absolute inset-0 grid place-items-center bg-neutral-950/85 backdrop-blur-sm animate-in fade-in">
+            <div className="absolute inset-0 grid place-items-center bg-gray-950/85 backdrop-blur-sm animate-in fade-in">
               <div className="flex max-w-md flex-col items-center gap-3 px-6 text-center text-white">
-                <XCircle className="h-12 w-12 text-red-400" />
+                <XCircle className="h-12 w-12 text-danger-400" />
                 <p className="text-base font-medium">{erro}</p>
                 <div className="flex gap-2 pt-1">
                   <Button size="sm" onClick={() => setTentativa((n) => n + 1)}>

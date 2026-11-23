@@ -205,7 +205,7 @@ const EmailTemplateForm = ({ template, onSuccess, onCancel }: EmailTemplateFormP
                       placeholder="Ex: Boas-vindas ao hóspede"
                     />
                     {errors.template_name && (
-                      <span className="text-red-500 text-sm">{errors.template_name.message}</span>
+                      <span className="text-danger-500 text-sm">{errors.template_name.message}</span>
                     )}
                   </div>
                   <div>
@@ -225,7 +225,7 @@ const EmailTemplateForm = ({ template, onSuccess, onCancel }: EmailTemplateFormP
                       </SelectContent>
                     </Select>
                     {errors.template_type && (
-                      <span className="text-red-500 text-sm">{errors.template_type.message}</span>
+                      <span className="text-danger-500 text-sm">{errors.template_type.message}</span>
                     )}
                   </div>
                 </div>
@@ -238,7 +238,7 @@ const EmailTemplateForm = ({ template, onSuccess, onCancel }: EmailTemplateFormP
                     placeholder="Ex: Bem-vindo à {property_name}!"
                   />
                   {errors.subject && (
-                    <span className="text-red-500 text-sm">{errors.subject.message}</span>
+                    <span className="text-danger-500 text-sm">{errors.subject.message}</span>
                   )}
                 </div>
 
@@ -251,7 +251,7 @@ const EmailTemplateForm = ({ template, onSuccess, onCancel }: EmailTemplateFormP
                     className="min-h-[300px] font-mono text-sm"
                   />
                   {errors.body_html && (
-                    <span className="text-red-500 text-sm">{errors.body_html.message}</span>
+                    <span className="text-danger-500 text-sm">{errors.body_html.message}</span>
                   )}
                 </div>
 
@@ -308,7 +308,7 @@ const EmailTemplateForm = ({ template, onSuccess, onCancel }: EmailTemplateFormP
                     className="w-full justify-start text-left h-auto p-2"
                   >
                     <div>
-                      <div className="font-mono text-xs text-blue-600">
+                      <div className="font-mono text-xs text-info-600">
                         {`{${variable.key}}`}
                       </div>
                       <div className="text-xs text-muted-foreground">

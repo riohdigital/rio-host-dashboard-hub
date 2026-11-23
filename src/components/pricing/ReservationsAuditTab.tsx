@@ -280,7 +280,7 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-xl border shadow-xs">
         <div>
           <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-emerald-600" />
+            <ShieldCheck className="h-4 w-4 text-success-600" />
             Auditoria de Reservas & Validação de Plataforma (IA)
           </h3>
           <p className="text-xs text-gray-500 mt-0.5">
@@ -289,10 +289,10 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
-          <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs">
+          <Badge variant="outline" className="bg-success-50 text-success-700 border-success-200 text-xs">
             {verifiedCount} Auditadas por IA
           </Badge>
-          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-xs">
+          <Badge variant="outline" className="bg-warning-50 text-warning-700 border-warning-200 text-xs">
             {pendingCount} Pendentes
           </Badge>
         </div>
@@ -301,7 +301,7 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
       {/* Tabela / Lista de Reservas */}
       {loading ? (
         <div className="py-12 text-center text-gray-500 bg-white rounded-lg border">
-          <RefreshCw className="h-6 w-6 animate-spin mx-auto text-[#6A6DDF] mb-2" />
+          <RefreshCw className="h-6 w-6 animate-spin mx-auto text-brand mb-2" />
           Carregando histórico de auditorias...
         </div>
       ) : reservations.length === 0 ? (
@@ -326,10 +326,10 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
                 key={res.id}
                 className={`transition-all border-l-4 ${
                   isAuditing
-                    ? 'border-l-indigo-500 bg-indigo-50/20 shadow-sm'
+                    ? 'border-l-brand-500 bg-brand-50/20 shadow-sm'
                     : isVerified
-                    ? 'border-l-emerald-500 bg-white'
-                    : 'border-l-amber-400 bg-white'
+                    ? 'border-l-success-500 bg-white'
+                    : 'border-l-warning-400 bg-white'
                 }`}
               >
                 <CardContent className="p-4">
@@ -339,10 +339,10 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
                         {/* Nome da Propriedade em Destaque */}
                         <Badge
                           variant="secondary"
-                          className="bg-slate-100 hover:bg-slate-200/80 text-slate-800 border border-slate-200 text-[11px] font-semibold flex items-center gap-1.5 py-0.5 px-2"
+                          className="bg-gray-100 hover:bg-gray-200/80 text-gray-800 border border-gray-200 text-[11px] font-semibold flex items-center gap-1.5 py-0.5 px-2"
                           title={`Propriedade: ${propertyName}`}
                         >
-                          <Building2 className="h-3 w-3 text-slate-500" />
+                          <Building2 className="h-3 w-3 text-gray-500" />
                           {propertyName}
                         </Badge>
 
@@ -350,8 +350,8 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
                           variant="outline"
                           className={
                             isAirbnb
-                              ? 'bg-rose-50 text-rose-700 border-rose-200 text-[10px]'
-                              : 'bg-blue-50 text-blue-700 border-blue-200 text-[10px]'
+                              ? 'bg-danger-50 text-danger-700 border-danger-200 text-[10px]'
+                              : 'bg-info-50 text-info-700 border-info-200 text-[10px]'
                           }
                         >
                           {res.platform}
@@ -366,15 +366,15 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
                         </span>
 
                         {isAuditing ? (
-                          <Badge className="bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] gap-1 font-semibold animate-pulse">
-                            <RefreshCw className="h-3 w-3 animate-spin text-indigo-600" /> Auditando no Portal...
+                          <Badge className="bg-brand-50 text-brand-700 border border-brand-200 text-[10px] gap-1 font-semibold animate-pulse">
+                            <RefreshCw className="h-3 w-3 animate-spin text-brand-600" /> Auditando no Portal...
                           </Badge>
                         ) : isVerified ? (
-                          <Badge className="bg-emerald-100 text-emerald-800 text-[10px] gap-1 font-semibold">
+                          <Badge className="bg-success-100 text-success-800 text-[10px] gap-1 font-semibold">
                             <CheckCircle2 className="h-3 w-3" /> Auditada Oficialmente
                           </Badge>
                         ) : (
-                          <Badge className="bg-amber-100 text-amber-800 text-[10px] gap-1 font-semibold">
+                          <Badge className="bg-warning-100 text-warning-800 text-[10px] gap-1 font-semibold">
                             <AlertCircle className="h-3 w-3" /> Aguardando Validação
                           </Badge>
                         )}
@@ -404,7 +404,7 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
                           href={`/reservas?search=${encodeURIComponent(res.reservation_code)}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-700 hover:text-indigo-600 bg-gray-100 hover:bg-gray-200/80 px-2.5 py-1 rounded-md border border-gray-200 transition-all shadow-2xs"
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-700 hover:text-brand-600 bg-gray-100 hover:bg-gray-200/80 px-2.5 py-1 rounded-md border border-gray-200 transition-all shadow-2xs"
                           title="Abrir e gerenciar esta reserva no próprio Dashboard Rioh Host (/reservas)"
                         >
                           <LayoutDashboard className="h-3.5 w-3.5 text-gray-600" />
@@ -417,10 +417,10 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
                             href={directUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#6A6DDF] hover:text-[#5254be] hover:underline bg-[#6A6DDF]/5 px-2.5 py-1 rounded-md border border-[#6A6DDF]/20 transition-all shadow-2xs"
+                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand hover:text-brand-hover hover:underline bg-brand/5 px-2.5 py-1 rounded-md border border-brand/20 transition-all shadow-2xs"
                             title={`Abrir página oficial da reserva no ${res.platform}`}
                           >
-                            <ExternalLink className="h-3.5 w-3.5 text-[#6A6DDF]" />
+                            <ExternalLink className="h-3.5 w-3.5 text-brand" />
                             Conferir Valores no {res.platform} ↗
                           </a>
                         )}
@@ -431,10 +431,10 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
                             href={payoutUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-[11px] font-medium text-gray-600 hover:text-gray-900 hover:underline px-2 py-1 rounded bg-slate-50 border border-slate-200/70"
+                            className="inline-flex items-center gap-1 text-[11px] font-medium text-gray-600 hover:text-gray-900 hover:underline px-2 py-1 rounded bg-gray-50 border border-gray-200/70"
                             title={isAirbnb ? (isAirbnbFuture ? "Abrir repasses futuros no Airbnb (ID 122285728)" : "Abrir extrato de repasses concluídos no Airbnb (ID 122285728)") : "Abrir extrato financeiro no portal"}
                           >
-                            <DollarSign className="h-3 w-3 text-emerald-600" />
+                            <DollarSign className="h-3 w-3 text-success-600" />
                             {isAirbnb ? (isAirbnbFuture ? 'Repasses Futuros (Airbnb) ↗' : 'Repasses Concluídos (Airbnb) ↗') : 'Faturas / Extrato ↗'}
                           </a>
                         )}
@@ -456,14 +456,14 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
                         <div
                           className={`p-2.5 rounded text-[11px] border mt-2 flex items-start gap-1.5 ${
                             isVerified
-                              ? 'bg-emerald-50/70 text-emerald-900 border-emerald-100'
-                              : 'bg-amber-50/70 text-amber-900 border-amber-200'
+                              ? 'bg-success-50/70 text-success-900 border-success-100'
+                              : 'bg-warning-50/70 text-warning-900 border-warning-200'
                           }`}
                         >
                           {isVerified ? (
-                            <Sparkles className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                            <Sparkles className="h-3.5 w-3.5 text-success-600 shrink-0 mt-0.5" />
                           ) : (
-                            <AlertCircle className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
+                            <AlertCircle className="h-3.5 w-3.5 text-warning-600 shrink-0 mt-0.5" />
                           )}
                           <span>{res.verification_notes}</span>
                         </div>
@@ -480,11 +480,11 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
                         disabled={isAuditing}
                         className={`text-xs font-semibold h-8 gap-1.5 transition-all ${
                           isAuditing
-                            ? 'bg-indigo-50 text-[#6A6DDF] border-[#6A6DDF]/30 cursor-wait'
-                            : 'text-gray-700 hover:text-[#6A6DDF]'
+                            ? 'bg-brand-50 text-brand border-brand/30 cursor-wait'
+                            : 'text-gray-700 hover:text-brand'
                         }`}
                       >
-                        <RefreshCw className={`h-3.5 w-3.5 ${isAuditing ? 'animate-spin text-[#6A6DDF]' : ''}`} />
+                        <RefreshCw className={`h-3.5 w-3.5 ${isAuditing ? 'animate-spin text-brand' : ''}`} />
                         {isAuditing ? 'Auditando...' : isVerified ? 'Reconferir' : 'Auditar com IA'}
                       </Button>
                     </div>
@@ -515,11 +515,11 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="space-y-2.5 bg-slate-50 p-3.5 rounded-lg border text-xs">
+              <div className="space-y-2.5 bg-gray-50 p-3.5 rounded-lg border text-xs">
                 <div className="flex justify-between items-center py-1 border-b">
                   <span className="text-gray-500 font-medium">Propriedade:</span>
                   <span className="font-semibold text-gray-800 flex items-center gap-1">
-                    <Building2 className="h-3.5 w-3.5 text-slate-500" />
+                    <Building2 className="h-3.5 w-3.5 text-gray-500" />
                     {selectedModalRes.properties?.nickname || selectedModalRes.properties?.name || selectedProperty?.nickname || selectedProperty?.name || 'Imóvel'}
                   </span>
                 </div>
@@ -553,7 +553,7 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
                 {selectedModalRes.net_revenue && (
                   <div className="flex justify-between items-center py-1 border-b">
                     <span className="text-gray-500 font-medium">Receita Líquida Estimada:</span>
-                    <span className="font-semibold text-emerald-700">
+                    <span className="font-semibold text-success-700">
                       R$ {brl(selectedModalRes.net_revenue)}
                     </span>
                   </div>
@@ -572,7 +572,7 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
                   href={`/reservas?search=${encodeURIComponent(selectedModalRes.reservation_code)}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-800 hover:text-indigo-600 bg-gray-100 hover:bg-gray-200/80 px-3 py-1.5 rounded border transition-all"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-800 hover:text-brand-600 bg-gray-100 hover:bg-gray-200/80 px-3 py-1.5 rounded border transition-all"
                 >
                   <LayoutDashboard className="h-3.5 w-3.5" />
                   Abrir no Dashboard (/reservas) ↗
@@ -583,7 +583,7 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
                     href={getPlatformDirectUrl(selectedModalRes.platform, selectedModalRes.reservation_code, selectedModalRes.property_id)!}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#6A6DDF] hover:underline bg-[#6A6DDF]/10 px-3 py-1.5 rounded border border-[#6A6DDF]/20 transition-all"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand hover:underline bg-brand/10 px-3 py-1.5 rounded border border-brand/20 transition-all"
                   >
                     <ExternalLink className="h-3.5 w-3.5" />
                     Abrir no {selectedModalRes.platform} ↗

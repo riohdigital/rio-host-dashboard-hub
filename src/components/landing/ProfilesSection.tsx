@@ -9,7 +9,7 @@ const profiles = [
     id: 'owner',
     title: 'Proprietários',
     icon: Home,
-    color: 'from-blue-500 to-cyan-500',
+    color: 'from-info-500 to-cyan-500',
     features: [
       {
         title: 'Dashboard Financeiro Completo',
@@ -37,7 +37,7 @@ const profiles = [
     id: 'cohost',
     title: 'Co-Anfitriões e Gestores',
     icon: Users2,
-    color: 'from-purple-500 to-pink-500',
+    color: 'from-brand-500 to-pink-500',
     features: [
       {
         title: 'Central de Reservas',
@@ -65,7 +65,7 @@ const profiles = [
     id: 'cleaner',
     title: 'Faxineiras',
     icon: Sparkles,
-    color: 'from-green-500 to-emerald-500',
+    color: 'from-success-500 to-success-500',
     features: [
       {
         title: 'Agenda Otimizada',

@@ -79,7 +79,7 @@ export const EnhancedReportTemplate = ({ report }: EnhancedReportTemplateProps) 
                   </div>
                   <div>
                     <div className="text-muted-foreground">Recebido</div>
-                    <div className="font-medium text-green-600">{formatCurrency(property.receivedAmount)}</div>
+                    <div className="font-medium text-success-600">{formatCurrency(property.receivedAmount)}</div>
                   </div>
                   <div>
                     <div className="text-muted-foreground">A Receber</div>
@@ -216,7 +216,7 @@ export const EnhancedReportTemplate = ({ report }: EnhancedReportTemplateProps) 
                   labelLine={false}
                   label={({ name, value, percent }) => `${name}: ${formatCurrency(value)} (${(percent * 100).toFixed(0)}%)`}
                   outerRadius={80}
-                  fill="#8884d8"
+                  fill={COLORS[0]}
                   dataKey="revenue"
                 >
                   {report.data.platformRevenue?.map((entry: any, index: number) => (
@@ -256,7 +256,7 @@ export const EnhancedReportTemplate = ({ report }: EnhancedReportTemplateProps) 
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="text-center p-4 border rounded-lg">
-              <div className="text-2xl font-bold text-green-600">{formatCurrency(report.data.receivedAmount || 0)}</div>
+              <div className="text-2xl font-bold text-success-600">{formatCurrency(report.data.receivedAmount || 0)}</div>
               <div className="text-sm text-muted-foreground">Já Recebido</div>
             </div>
             <div className="text-center p-4 border rounded-lg">
@@ -390,7 +390,7 @@ export const EnhancedReportTemplate = ({ report }: EnhancedReportTemplateProps) 
                 labelLine={false}
                 label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                 outerRadius={80}
-                fill="#8884d8"
+                fill={COLORS[0]}
                 dataKey="amount"
               >
                 {report.data.charts?.expensesByCategory?.map((entry: any, index: number) => (

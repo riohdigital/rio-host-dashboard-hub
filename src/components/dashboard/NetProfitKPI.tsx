@@ -65,7 +65,7 @@ const NetProfitKPI = ({ netRevenue, commission, baseRevenue }: NetProfitKPIProps
             </SelectContent>
           </Select>
         </div>
-        <div className="text-[#6A6DDF]">
+        <div className="text-brand">
           <TrendingUp className="h-4 w-4" />
         </div>
       </CardHeader>

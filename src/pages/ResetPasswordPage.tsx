@@ -48,31 +48,31 @@ const ResetPasswordPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
+    <div className="min-h-screen flex items-center justify-center bg-surface">
       <Card className="w-full max-w-md bg-white">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-[#6A6DDF]">
+          <CardTitle className="text-2xl font-bold text-brand">
             Redefinir senha
           </CardTitle>
         </CardHeader>
         <CardContent>
           {!user ? (
             <div className="space-y-4 text-center">
-              <p className="text-[#374151]">
+              <p className="text-ink">
                 Este link é inválido ou já expirou. Peça um novo link ao administrador.
               </p>
               <Button
                 onClick={() => navigate('/auth', { replace: true })}
-                className="w-full bg-[#6A6DDF] hover:bg-[#5A5CCF] text-white"
+                className="w-full bg-brand hover:bg-brand-hover text-white"
               >
                 Ir para o login
               </Button>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
-              <p className="text-sm text-[#374151] text-center">{user.email}</p>
+              <p className="text-sm text-ink text-center">{user.email}</p>
               <div>
-                <label className="block text-sm font-medium text-[#374151] mb-2">
+                <label className="block text-sm font-medium text-ink mb-2">
                   Nova senha
                 </label>
                 <Input
@@ -84,7 +84,7 @@ const ResetPasswordPage = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-[#374151] mb-2">
+                <label className="block text-sm font-medium text-ink mb-2">
                   Confirmar nova senha
                 </label>
                 <Input
@@ -98,7 +98,7 @@ const ResetPasswordPage = () => {
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-[#6A6DDF] hover:bg-[#5A5CCF] text-white"
+                className="w-full bg-brand hover:bg-brand-hover text-white"
               >
                 {loading ? 'Salvando...' : 'Salvar nova senha'}
               </Button>

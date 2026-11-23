@@ -160,9 +160,9 @@ export const OccupancyStatsCard: React.FC<OccupancyStatsCardProps> = ({ stats })
                         <td className="py-2 px-2 font-medium">{stat.propertyName}</td>
                         <td className="py-2 px-2 text-right">
                           <span className={`font-semibold ${
-                            stat.occupancyRate >= 80 ? 'text-green-600 dark:text-green-400' :
-                            stat.occupancyRate >= 60 ? 'text-yellow-600 dark:text-yellow-400' :
-                            'text-red-600 dark:text-red-400'
+                            stat.occupancyRate >= 80 ? 'text-success-600 dark:text-success-400' :
+                            stat.occupancyRate >= 60 ? 'text-warning-600 dark:text-warning-400' :
+                            'text-danger-600 dark:text-danger-400'
                           }`}>
                             {stat.occupancyRate.toFixed(1)}%
                           </span>

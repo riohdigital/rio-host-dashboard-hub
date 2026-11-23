@@ -197,7 +197,7 @@ const { error: insertError } = await supabase
 
       {/* Seção 1: Informações Principais */}
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-[#6A6DDF] border-b pb-2">
+        <h3 className="text-lg font-semibold text-brand border-b pb-2">
           Informações Principais
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -237,13 +237,13 @@ const { error: insertError } = await supabase
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-sm font-medium text-gray-700">Localização para a precificação</span>
             {property?.geo_status === 'ok' && !localEditado && (
-              <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200">Encontrada pelo endereço</Badge>
+              <Badge variant="outline" className="text-[10px] bg-success-50 text-success-700 border-success-200">Encontrada pelo endereço</Badge>
             )}
             {(property?.geo_status === 'manual' || localEditado) && (
-              <Badge variant="outline" className="text-[10px] bg-indigo-50 text-[#6A6DDF] border-indigo-200">Informada por você</Badge>
+              <Badge variant="outline" className="text-[10px] bg-brand-50 text-brand border-brand-200">Informada por você</Badge>
             )}
             {property?.geo_status === 'nao_encontrado' && !localEditado && (
-              <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">Endereço não encontrado no mapa</Badge>
+              <Badge variant="outline" className="text-[10px] bg-warning-50 text-warning-700 border-warning-200">Endereço não encontrado no mapa</Badge>
             )}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -311,7 +311,7 @@ const { error: insertError } = await supabase
 
       {/* Seção 2: Plataformas e Marketing */}
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-[#6A6DDF] border-b pb-2">
+        <h3 className="text-lg font-semibold text-brand border-b pb-2">
           Plataformas e Marketing
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -340,7 +340,7 @@ const { error: insertError } = await supabase
 
       {/* Seção 3: Configurações Financeiras e Operacionais */}
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-[#6A6DDF] border-b pb-2">
+        <h3 className="text-lg font-semibold text-brand border-b pb-2">
           Configurações Financeiras e Operacionais
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -423,7 +423,7 @@ const { error: insertError } = await supabase
 
       {/* Seção 4: Anotações */}
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-[#6A6DDF] border-b pb-2">
+        <h3 className="text-lg font-semibold text-brand border-b pb-2">
           Anotações
         </h3>
         <div>
@@ -450,7 +450,7 @@ const { error: insertError } = await supabase
         </Button>
         <Button
           type="submit"
-          className="bg-[#6A6DDF] hover:bg-[#5A5BCF] text-white"
+          className="bg-brand hover:bg-brand-hover text-white"
           disabled={loading}
         >
           {loading ? 'Salvando...' : 'Salvar'}

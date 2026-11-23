@@ -25,5 +25,25 @@ export default tseslint.config(
       ],
       "@typescript-eslint/no-unused-vars": "off",
     },
+  },
+  {
+    // Cores só pelos tokens de src/styles/tokens.css (classes brand, success,
+    // danger… ou hsl(var(--token))). Hex novo em .tsx é erro.
+    files: ["src/**/*.tsx"],
+    // Modelos capturados para PDF/recibo: o html2canvas precisa de cor literal.
+    ignores: ["src/components/reports/**", "src/components/ui/chart.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "Literal[value=/#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3})(?![0-9a-zA-Z_-])/]",
+          message: "Cor em hex: use um token de src/styles/tokens.css (ex.: bg-brand, text-success, hsl(var(--danger))).",
+        },
+        {
+          selector: "TemplateElement[value.raw=/#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3})(?![0-9a-zA-Z_-])/]",
+          message: "Cor em hex: use um token de src/styles/tokens.css (ex.: bg-brand, text-success, hsl(var(--danger))).",
+        },
+      ],
+    },
   }
 );

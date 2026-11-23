@@ -34,9 +34,9 @@ export const FeriadosDoPeriodo: React.FC<Props> = ({ eventos, properties, reserv
     <div className="rounded-lg border bg-card px-4 py-3 space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-sm font-semibold flex items-center gap-1.5">
-          <CalendarHeart className="h-4 w-4 text-amber-500" /> Feriados e eventos no período
+          <CalendarHeart className="h-4 w-4 text-warning-500" /> Feriados e eventos no período
         </span>
-        <Link to="/precificacao" className="text-xs font-semibold text-[#6A6DDF] hover:underline flex items-center gap-1">
+        <Link to="/precificacao" className="text-xs font-semibold text-brand hover:underline flex items-center gap-1">
           Ver oportunidades de preço <ArrowRight className="h-3 w-3" />
         </Link>
       </div>
@@ -56,11 +56,11 @@ export const FeriadosDoPeriodo: React.FC<Props> = ({ eventos, properties, reserv
                   {imoveis.length - livres.length} de {imoveis.length} {imoveis.length > 1 ? 'imóveis reservados' : 'imóvel reservado'}
                 </div>
               ) : livres.length === 0 ? (
-                <div className="text-emerald-700 font-medium flex items-center gap-1">
+                <div className="text-success-700 font-medium flex items-center gap-1">
                   <CheckCircle2 className="h-3 w-3" /> {imoveis.length > 1 ? 'Todos reservados' : 'Reservado'}
                 </div>
               ) : (
-                <div className="text-amber-700 font-medium flex items-center gap-1">
+                <div className="text-warning-700 font-medium flex items-center gap-1">
                   <Flame className="h-3 w-3" />
                   {imoveis.length > 1 ? `Livre em ${livres.length} de ${imoveis.length} imóveis` : 'Livre'}
                 </div>

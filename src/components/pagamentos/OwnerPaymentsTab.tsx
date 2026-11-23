@@ -13,11 +13,11 @@ const fmt = (v: number) =>
 const getPlatformStyle = (platform: string) => {
   switch (platform) {
     case 'Airbnb':
-      return { bg: 'bg-rose-50 border-rose-200', badge: 'bg-rose-100 text-rose-700 border-rose-200', dot: 'bg-rose-500' };
+      return { bg: 'bg-danger-50 border-danger-200', badge: 'bg-danger-100 text-danger-700 border-danger-200', dot: 'bg-danger-500' };
     case 'Booking.com':
-      return { bg: 'bg-blue-50 border-blue-200', badge: 'bg-blue-100 text-blue-700 border-blue-200', dot: 'bg-blue-500' };
+      return { bg: 'bg-info-50 border-info-200', badge: 'bg-info-100 text-info-700 border-info-200', dot: 'bg-info-500' };
     default:
-      return { bg: 'bg-emerald-50 border-emerald-200', badge: 'bg-emerald-100 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' };
+      return { bg: 'bg-success-50 border-success-200', badge: 'bg-success-100 text-success-700 border-success-200', dot: 'bg-success-500' };
   }
 };
 
@@ -26,10 +26,10 @@ const getTransferLabel = (platform: string, status: string) => {
     return { label: 'Pendente', className: 'text-muted-foreground border-muted-foreground/30 bg-muted/50' };
   }
   if (platform === 'Booking.com') {
-    return { label: 'A Repassar', className: 'text-amber-700 border-amber-300 bg-amber-50' };
+    return { label: 'A Repassar', className: 'text-warning-700 border-warning-300 bg-warning-50' };
   }
   // Airbnb, Direto, etc.
-  return { label: 'Repassado', className: 'bg-emerald-100 text-emerald-700 border-emerald-200' };
+  return { label: 'Repassado', className: 'bg-success-100 text-success-700 border-success-200' };
 };
 
 const isBooking = (platform: string) => platform === 'Booking.com';
@@ -74,7 +74,7 @@ const OwnerCard = ({ owner }: OwnerCardProps) => {
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center text-white font-bold text-sm">
+            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-warning-500 to-orange-500 flex items-center justify-center text-white font-bold text-sm">
               {initials}
             </div>
             <div>
@@ -124,11 +124,11 @@ const OwnerCard = ({ owner }: OwnerCardProps) => {
               </div>
               <div className="text-center border-x">
                 <div className="text-xs text-muted-foreground mb-1">Comissão</div>
-                <div className="font-semibold text-sm text-[#6A6DDF]">{fmt(owner.totalCommission)}</div>
+                <div className="font-semibold text-sm text-brand">{fmt(owner.totalCommission)}</div>
               </div>
               <div className="text-center border-r">
                 <div className="text-xs text-muted-foreground mb-1">Investimentos</div>
-                <div className="font-semibold text-sm text-red-500">
+                <div className="font-semibold text-sm text-danger-500">
                   {owner.investments > 0 ? `-${fmt(owner.investments)}` : fmt(0)}
                 </div>
               </div>
@@ -136,13 +136,13 @@ const OwnerCard = ({ owner }: OwnerCardProps) => {
                 {totalRepassado > 0 && (
                   <div>
                     <div className="text-xs text-muted-foreground mb-0.5">Repassado</div>
-                    <div className="font-bold text-sm text-emerald-600">{fmt(totalRepassado)}</div>
+                    <div className="font-bold text-sm text-success-600">{fmt(totalRepassado)}</div>
                   </div>
                 )}
                 {totalARepassar > 0 && (
                   <div>
                     <div className="text-xs text-muted-foreground mb-0.5">A Repassar</div>
-                    <div className="font-bold text-sm text-amber-600">
+                    <div className="font-bold text-sm text-warning-600">
                       {fmt(Math.max(0, totalARepassar - owner.investments))}
                     </div>
                   </div>
@@ -150,7 +150,7 @@ const OwnerCard = ({ owner }: OwnerCardProps) => {
                 {totalRepassado === 0 && totalARepassar === 0 && (
                   <div>
                     <div className="text-xs text-muted-foreground mb-0.5">Repasse</div>
-                    <div className="font-bold text-sm text-emerald-600">{fmt(0)}</div>
+                    <div className="font-bold text-sm text-success-600">{fmt(0)}</div>
                   </div>
                 )}
               </div>
@@ -191,11 +191,11 @@ const OwnerCard = ({ owner }: OwnerCardProps) => {
                     </div>
                     <div>
                       <div className="text-xs text-muted-foreground">Comissão</div>
-                      <div className="font-medium text-[#6A6DDF]">{fmt(plat.commission)}</div>
+                      <div className="font-medium text-brand">{fmt(plat.commission)}</div>
                     </div>
                     <div>
                       <div className="text-xs text-muted-foreground">Proprietário</div>
-                      <div className="font-medium text-emerald-600">{fmt(plat.netRevenue)}</div>
+                      <div className="font-medium text-success-600">{fmt(plat.netRevenue)}</div>
                     </div>
                   </div>
                 </div>
@@ -209,7 +209,7 @@ const OwnerCard = ({ owner }: OwnerCardProps) => {
               </h4>
               <div className="space-y-1.5 text-sm">
                 {totalRepassado > 0 && (
-                  <div className="flex justify-between text-emerald-600">
+                  <div className="flex justify-between text-success-600">
                     <span className="flex items-center gap-1">
                       <CheckCircle2 className="h-3 w-3" />
                       Repassado (Airbnb/Direto)
@@ -218,7 +218,7 @@ const OwnerCard = ({ owner }: OwnerCardProps) => {
                   </div>
                 )}
                 {totalARepassar > 0 && (
-                  <div className="flex justify-between text-amber-600">
+                  <div className="flex justify-between text-warning-600">
                     <span className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
                       A Repassar (Booking)
@@ -227,7 +227,7 @@ const OwnerCard = ({ owner }: OwnerCardProps) => {
                   </div>
                 )}
                 {owner.investments > 0 && (
-                  <div className="flex justify-between text-red-600">
+                  <div className="flex justify-between text-danger-600">
                     <span className="flex items-center gap-1">
                       <TrendingDown className="h-3 w-3" />
                       Investimentos do Mês
@@ -241,7 +241,7 @@ const OwnerCard = ({ owner }: OwnerCardProps) => {
                       <ArrowRight className="h-3 w-3" />
                       Líquido a Repassar
                     </span>
-                    <span className={Math.max(0, totalARepassar - owner.investments) >= 0 ? 'text-amber-600' : 'text-red-600'}>
+                    <span className={Math.max(0, totalARepassar - owner.investments) >= 0 ? 'text-warning-600' : 'text-danger-600'}>
                       {fmt(Math.max(0, totalARepassar - owner.investments))}
                     </span>
                   </div>
@@ -343,20 +343,20 @@ const OwnerPaymentsTab = ({ ownerPayments, loading, hasFilter }: OwnerPaymentsTa
           {withPayments.length} com recebimentos neste mês
         </span>
         <div className="flex flex-wrap items-center gap-4 text-sm">
-          <span className="text-[#6A6DDF] font-medium">Comissão: {fmt(totalCommission)}</span>
+          <span className="text-brand font-medium">Comissão: {fmt(totalCommission)}</span>
           {totalInvestments > 0 && (
-            <span className="text-red-500 font-medium">Investimentos: -{fmt(totalInvestments)}</span>
+            <span className="text-danger-500 font-medium">Investimentos: -{fmt(totalInvestments)}</span>
           )}
           {globalTotals.repassado > 0 && (
-            <span className="font-bold text-emerald-600">Repassado: {fmt(globalTotals.repassado)}</span>
+            <span className="font-bold text-success-600">Repassado: {fmt(globalTotals.repassado)}</span>
           )}
           {globalTotals.aRepassar > 0 && (
-            <span className="font-bold text-amber-600">
+            <span className="font-bold text-warning-600">
               A Repassar: {fmt(Math.max(0, globalTotals.aRepassar - totalInvestments))}
             </span>
           )}
           {globalTotals.repassado === 0 && globalTotals.aRepassar === 0 && (
-            <span className="font-bold text-emerald-600">Repasse: {fmt(0)}</span>
+            <span className="font-bold text-success-600">Repasse: {fmt(0)}</span>
           )}
         </div>
       </div>

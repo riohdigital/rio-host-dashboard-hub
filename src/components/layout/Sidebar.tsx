@@ -76,7 +76,7 @@ const Sidebar = () => {
   return (
     <div className="w-64 bg-white h-screen shadow-lg fixed left-0 top-0 flex flex-col">
       <div className="p-6 border-b">
-        <h1 className="text-xl font-bold text-[#6A6DDF]">
+        <h1 className="text-xl font-bold text-brand">
           Rioh Host Rentals
         </h1>
       </div>
@@ -97,8 +97,8 @@ const Sidebar = () => {
                 className={({ isActive }) =>
                   `flex items-center px-4 py-3 rounded-lg transition-colors ${
                     isActive
-                      ? 'bg-[#F472B6] text-white'
-                      : 'text-[#374151] hover:bg-[#F8F9FA]'
+                      ? 'bg-brand-accent text-white'
+                      : 'text-ink hover:bg-surface'
                   }`
                 }
               >
@@ -115,8 +115,8 @@ const Sidebar = () => {
                 onClick={() => setGestorOpen(!gestorOpen)}
                 className={`flex items-center w-full px-4 py-3 rounded-lg transition-colors ${
                   isGestorSection
-                    ? 'bg-[#6A6DDF]/10 text-[#6A6DDF]'
-                    : 'text-[#374151] hover:bg-[#F8F9FA]'
+                    ? 'bg-brand/10 text-brand'
+                    : 'text-ink hover:bg-surface'
                 }`}
               >
                 <Briefcase className="mr-3 h-5 w-5" />
@@ -129,7 +129,7 @@ const Sidebar = () => {
               </button>
 
               {gestorOpen && (
-                <ul className="mt-1 ml-4 space-y-1 border-l-2 border-[#6A6DDF]/20 pl-3">
+                <ul className="mt-1 ml-4 space-y-1 border-l-2 border-brand/20 pl-3">
                   <li>
                     <NavLink
                       to="/painel-gestor"
@@ -137,8 +137,8 @@ const Sidebar = () => {
                       className={({ isActive }) =>
                         `flex items-center px-3 py-2 rounded-lg transition-colors text-sm ${
                           isActive
-                            ? 'bg-[#F472B6] text-white'
-                            : 'text-[#374151] hover:bg-[#F8F9FA]'
+                            ? 'bg-brand-accent text-white'
+                            : 'text-ink hover:bg-surface'
                         }`
                       }
                     >
@@ -152,8 +152,8 @@ const Sidebar = () => {
                       className={({ isActive }) =>
                         `flex items-center px-3 py-2 rounded-lg transition-colors text-sm ${
                           isActive
-                            ? 'bg-[#F472B6] text-white'
-                            : 'text-[#374151] hover:bg-[#F8F9FA]'
+                            ? 'bg-brand-accent text-white'
+                            : 'text-ink hover:bg-surface'
                         }`
                       }
                     >
@@ -171,7 +171,7 @@ const Sidebar = () => {
       <div className="p-4 border-t">
         <button
           onClick={handleLogout}
-          className="flex items-center w-full px-4 py-3 text-[#374151] hover:bg-[#F8F9FA] rounded-lg transition-colors"
+          className="flex items-center w-full px-4 py-3 text-ink hover:bg-surface rounded-lg transition-colors"
         >
           <LogOut className="mr-3 h-5 w-5" />
           Sair

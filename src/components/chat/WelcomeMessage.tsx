@@ -10,17 +10,17 @@ export const WelcomeMessage = ({ onQuickReply }: WelcomeMessageProps) => {
     {
       icon: DollarSign,
       text: 'Qual foi o caixa deste mês?',
-      gradient: 'from-green-500 to-emerald-500',
+      gradient: 'from-success-500 to-success-500',
     },
     {
       icon: Calendar,
       text: 'Mostrar próximas reservas',
-      gradient: 'from-blue-500 to-cyan-500',
+      gradient: 'from-info-500 to-cyan-500',
     },
     {
       icon: Sparkles,
       text: 'Status de limpeza hoje',
-      gradient: 'from-purple-500 to-pink-500',
+      gradient: 'from-brand-500 to-pink-500',
     },
   ];
 
@@ -41,7 +41,7 @@ export const WelcomeMessage = ({ onQuickReply }: WelcomeMessageProps) => {
             <Button
               key={index}
               variant="outline"
-              className="w-full justify-start gap-3 h-auto py-3 hover:border-purple-500 transition-all"
+              className="w-full justify-start gap-3 h-auto py-3 hover:border-brand-500 transition-all"
               onClick={() => onQuickReply(reply.text)}
             >
               <div className={`p-2 rounded-lg bg-gradient-to-br ${reply.gradient}`}>

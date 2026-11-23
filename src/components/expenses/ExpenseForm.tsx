@@ -185,19 +185,19 @@ const ExpenseForm = ({ expense, selectedPropertyId, onSuccess, onCancel }: Expen
                 <SelectTrigger><SelectValue placeholder="Selecionar propriedade" /></SelectTrigger>
                 <SelectContent>{properties.map(p => <SelectItem key={p.id} value={p.id}>{p.nickname || p.name}</SelectItem>)}</SelectContent>
               </Select>
-              {errors.property_id && <p className="text-sm text-red-600">{errors.property_id.message}</p>}
+              {errors.property_id && <p className="text-sm text-danger-600">{errors.property_id.message}</p>}
             </div>
           )} />
           <div className="space-y-2">
             <Label>Data da Despesa *</Label>
             <Input type="date" {...register('expense_date')} />
-            {errors.expense_date && <p className="text-sm text-red-600">{errors.expense_date.message}</p>}
+            {errors.expense_date && <p className="text-sm text-danger-600">{errors.expense_date.message}</p>}
           </div>
         </div>
         <div className="space-y-2">
           <Label>Descrição *</Label>
           <Input placeholder="Ex: Taxa de limpeza, Reparo..." {...register('description')} />
-          {errors.description && <p className="text-sm text-red-600">{errors.description.message}</p>}
+          {errors.description && <p className="text-sm text-danger-600">{errors.description.message}</p>}
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Controller name="category" control={control} render={({ field }) => (
@@ -207,7 +207,7 @@ const ExpenseForm = ({ expense, selectedPropertyId, onSuccess, onCancel }: Expen
                 <SelectTrigger><SelectValue placeholder="Selecionar categoria" /></SelectTrigger>
                 <SelectContent>{categories.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
               </Select>
-              {errors.category && <p className="text-sm text-red-600">{errors.category.message}</p>}
+              {errors.category && <p className="text-sm text-danger-600">{errors.category.message}</p>}
             </div>
           )} />
           <Controller name="expense_type" control={control} render={({ field }) => (
@@ -223,7 +223,7 @@ const ExpenseForm = ({ expense, selectedPropertyId, onSuccess, onCancel }: Expen
         <div className="space-y-2">
           <Label>Valor (R$) *</Label>
           <Input type="number" step="0.01" min="0" placeholder="0.00" {...register('amount', { valueAsNumber: true })} />
-          {errors.amount && <p className="text-sm text-red-600">{errors.amount.message}</p>}
+          {errors.amount && <p className="text-sm text-danger-600">{errors.amount.message}</p>}
         </div>
         
         {showRecurrenceSettings && (
@@ -240,7 +240,7 @@ const ExpenseForm = ({ expense, selectedPropertyId, onSuccess, onCancel }: Expen
         
         <div className="flex gap-4 justify-end pt-4">
           <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-          <Button type="submit" disabled={loading} className="bg-[#6A6DDF] hover:bg-[#5A5BCF] text-white">
+          <Button type="submit" disabled={loading} className="bg-brand hover:bg-brand-hover text-white">
             {loading ? 'Salvando...' : (expense ? 'Atualizar' : 'Salvar')}
           </Button>
         </div>

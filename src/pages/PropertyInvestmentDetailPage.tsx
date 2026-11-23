@@ -91,7 +91,7 @@ const PropertyInvestmentDetailPage = () => {
     return (
       <MainLayout>
         <div className="text-center py-8">
-          <div className="text-lg text-red-600">Propriedade não encontrada</div>
+          <div className="text-lg text-danger-600">Propriedade não encontrada</div>
           <Button 
             variant="outline" 
             className="mt-4"
@@ -163,8 +163,8 @@ const PropertyInvestmentDetailPage = () => {
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5 text-red-500" />
-                  <span className="text-2xl font-bold text-red-600">
+                  <DollarSign className="h-5 w-5 text-danger-500" />
+                  <span className="text-2xl font-bold text-danger-600">
                     {formatCurrency(propertyROI.total_investment)}
                   </span>
                 </div>
@@ -179,8 +179,8 @@ const PropertyInvestmentDetailPage = () => {
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-green-500" />
-                  <span className="text-2xl font-bold text-green-600">
+                  <TrendingUp className="h-5 w-5 text-success-500" />
+                  <span className="text-2xl font-bold text-success-600">
                     {formatCurrency(propertyROI.net_revenue)}
                   </span>
                 </div>
@@ -195,9 +195,9 @@ const PropertyInvestmentDetailPage = () => {
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5 text-blue-500" />
+                  <BarChart3 className="h-5 w-5 text-info-500" />
                   <span className={`text-2xl font-bold ${
-                    propertyROI.roi_percentage >= 0 ? 'text-green-600' : 'text-red-600'
+                    propertyROI.roi_percentage >= 0 ? 'text-success-600' : 'text-danger-600'
                   }`}>
                     {propertyROI.roi_percentage.toFixed(1)}%
                   </span>
@@ -213,8 +213,8 @@ const PropertyInvestmentDetailPage = () => {
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5 text-purple-500" />
-                  <span className="text-2xl font-bold text-purple-600">
+                  <Calendar className="h-5 w-5 text-brand-500" />
+                  <span className="text-2xl font-bold text-brand-600">
                     {formatPaybackTime(propertyROI.payback_months)}
                   </span>
                 </div>

@@ -106,10 +106,10 @@ const RevenueBreakdownCard = ({
               <TooltipTrigger asChild>
                 <div className="space-y-1">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-green-700">Líquido Proprietário</span>
-                    <span className="text-sm font-semibold text-green-700">{formatCurrency(netRevenue)}</span>
+                    <span className="text-sm font-medium text-success-700">Líquido Proprietário</span>
+                    <span className="text-sm font-semibold text-success-700">{formatCurrency(netRevenue)}</span>
                   </div>
-                  <Progress value={netRevenuePercent} className="h-2 bg-green-100" />
+                  <Progress value={netRevenuePercent} className="h-2 bg-success-100" />
                 </div>
               </TooltipTrigger>
               <TooltipContent>
@@ -122,8 +122,8 @@ const RevenueBreakdownCard = ({
         <div className="border-t pt-3 space-y-2">
           {/* Despesas */}
           <div className="flex justify-between items-center">
-            <span className="text-sm font-medium text-red-700">Despesas</span>
-            <span className="text-sm font-semibold text-red-700">{formatCurrency(expenses)}</span>
+            <span className="text-sm font-medium text-danger-700">Despesas</span>
+            <span className="text-sm font-semibold text-danger-700">{formatCurrency(expenses)}</span>
           </div>
 
           {/* Lucro Líquido Final */}

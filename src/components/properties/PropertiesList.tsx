@@ -130,7 +130,7 @@ const PropertiesList = () => {
   };
 
   const getStatusColor = (status: string) => {
-    return status === 'Ativo' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+    return status === 'Ativo' ? 'bg-success-100 text-success-800' : 'bg-danger-100 text-danger-800';
   };
 
   if (loading) {
@@ -160,7 +160,7 @@ const PropertiesList = () => {
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button 
-                className="bg-[#6A6DDF] hover:bg-[#5A5BCF] text-white"
+                className="bg-brand hover:bg-brand-hover text-white"
                 onClick={() => setEditingProperty(null)}
               >
                 <Plus className="h-4 w-4 mr-2" />
@@ -192,7 +192,7 @@ const PropertiesList = () => {
             {hasPermission('properties_create') && (
               <Button 
                 onClick={() => setDialogOpen(true)}
-                className="bg-[#6A6DDF] hover:bg-[#5A5BCF] text-white"
+                className="bg-brand hover:bg-brand-hover text-white"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Adicionar Propriedade
@@ -230,7 +230,7 @@ const PropertiesList = () => {
                         variant="outline"
                         size="sm"
                         onClick={() => handleDelete(property.id)}
-                        className="text-red-600 hover:text-red-700 hover:border-red-300"
+                        className="text-danger-600 hover:text-danger-700 hover:border-danger-300"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

@@ -25,19 +25,19 @@ export const RevenueCompetenceCard = ({
       name: 'Airbnb',
       timing: 'Recebe em D+1',
       value: financial.airbnbRevenue,
-      color: 'bg-[#FF5A5F]',
+      color: 'bg-airbnb',
     },
     {
       name: 'Booking.com',
       timing: 'Recebe mês seguinte',
       value: financial.bookingRevenue,
-      color: 'bg-[#003580]',
+      color: 'bg-booking',
     },
     {
       name: 'Reservas Diretas',
       timing: 'Recebe no check-in',
       value: financial.directRevenue,
-      color: 'bg-[#10B981]',
+      color: 'bg-success',
     },
   ];
 
@@ -76,22 +76,22 @@ export const RevenueCompetenceCard = ({
 
           {/* Alerta de Booking Futuro */}
           {futureBooking && futureBooking.total > 0 && (
-            <div className="flex items-center gap-4 p-4 rounded-lg border border-blue-200 bg-blue-50">
+            <div className="flex items-center gap-4 p-4 rounded-lg border border-info-200 bg-info-50">
               <div className="flex-shrink-0">
-                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-full bg-info-100 flex items-center justify-center">
                   <span className="text-xl">📊</span>
                 </div>
               </div>
               <div className="flex-1">
-                <h4 className="font-semibold text-blue-900 mb-1">
+                <h4 className="font-semibold text-info-900 mb-1">
                   Receita Futura - Booking.com
                 </h4>
-                <p className="text-sm text-blue-700">
+                <p className="text-sm text-info-700">
                   Previsão de recebimento: {futureBooking.nextMonth}
                 </p>
               </div>
               <div className="text-right">
-                <div className="text-2xl font-bold text-blue-900">
+                <div className="text-2xl font-bold text-info-900">
                   R$ {futureBooking.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </div>
               </div>

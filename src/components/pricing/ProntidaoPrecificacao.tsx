@@ -164,10 +164,10 @@ export const ProntidaoPrecificacao: React.FC<Props> = ({ properties, regras, onA
   if (!naoAtivados.length && !comPendencia.length) {
     const ultima = etapas.map(e => e.ultima_ok_em).filter(Boolean).sort().pop();
     return (
-      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-emerald-100 bg-emerald-50/50 px-4 py-2.5 text-xs text-emerald-900">
-        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-success-100 bg-success-50/50 px-4 py-2.5 text-xs text-success-900">
+        <CheckCircle2 className="h-4 w-4 text-success-600" />
         <span className="font-semibold">Precificação automática ativa</span>
-        <span className="text-emerald-800/80">
+        <span className="text-success-800/80">
           {unico ? (linhas[0].p.nickname || linhas[0].p.name) : `${emDia.length} imóveis`} • localização, feriados e regras em dia
           {ultima ? ` • revisado em ${quando(ultima)}` : ''}
         </span>
@@ -178,11 +178,11 @@ export const ProntidaoPrecificacao: React.FC<Props> = ({ properties, regras, onA
   const regrasDe = (id: string) => regras.filter(r => r.property_id === id && r.tipo_data !== 'fim_de_semana' && Number(r.fator) > 0);
 
   return (
-    <Card className="shadow-xs border-t-2 border-t-[#6A6DDF]">
+    <Card className="shadow-xs border-t-2 border-t-brand">
       <CardContent className="p-5 space-y-4">
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
           <div className="flex items-start gap-3">
-            <span className="p-2 rounded-lg bg-[#6A6DDF]/10 text-[#6A6DDF]">
+            <span className="p-2 rounded-lg bg-brand/10 text-brand">
               <Zap className="h-5 w-5" />
             </span>
             <div>
@@ -197,7 +197,7 @@ export const ProntidaoPrecificacao: React.FC<Props> = ({ properties, regras, onA
           {naoAtivados.length > 1 && naoAtivados.some(l => !l.faltando.length) && (
             <Button
               size="sm"
-              className="bg-[#6A6DDF] hover:bg-[#5A5BCF] text-white shrink-0"
+              className="bg-brand hover:bg-brand-hover text-white shrink-0"
               onClick={() => naoAtivados.filter(l => !l.faltando.length).forEach(l => ativar(l.p))}
             >
               <Sparkles className="h-3.5 w-3.5 mr-1.5" /> Ativar nos {naoAtivados.filter(l => !l.faltando.length).length} imóveis prontos
@@ -213,14 +213,14 @@ export const ProntidaoPrecificacao: React.FC<Props> = ({ properties, regras, onA
                   <span className="font-semibold text-sm text-gray-800 truncate">{p.nickname || p.name}</span>
                   {!ativo ? (
                     faltando.length || bloqueios.some(b => b.status === 'bloqueado') ? (
-                      <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">Cadastro incompleto</Badge>
+                      <Badge variant="outline" className="text-[10px] bg-warning-50 text-warning-700 border-warning-200">Cadastro incompleto</Badge>
                     ) : (
-                      <Badge variant="outline" className="text-[10px] bg-indigo-50 text-[#6A6DDF] border-indigo-200">Pronto para ativar</Badge>
+                      <Badge variant="outline" className="text-[10px] bg-brand-50 text-brand border-brand-200">Pronto para ativar</Badge>
                     )
                   ) : rodando ? (
-                    <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200">Em andamento</Badge>
+                    <Badge variant="outline" className="text-[10px] bg-info-50 text-info-700 border-info-200">Em andamento</Badge>
                   ) : (
-                    <Badge variant="outline" className="text-[10px] bg-red-50 text-red-700 border-red-200">Precisa de atenção</Badge>
+                    <Badge variant="outline" className="text-[10px] bg-danger-50 text-danger-700 border-danger-200">Precisa de atenção</Badge>
                   )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -232,7 +232,7 @@ export const ProntidaoPrecificacao: React.FC<Props> = ({ properties, regras, onA
                     </Button>
                   )}
                   {!ativo && !faltando.length && (
-                    <Button size="sm" className="h-8 text-xs bg-[#6A6DDF] hover:bg-[#5A5BCF] text-white" disabled={enviando[p.id]} onClick={() => ativar(p)}>
+                    <Button size="sm" className="h-8 text-xs bg-brand hover:bg-brand-hover text-white" disabled={enviando[p.id]} onClick={() => ativar(p)}>
                       {enviando[p.id] ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 mr-1.5" />}
                       Ativar precificação automática
                     </Button>
@@ -247,15 +247,15 @@ export const ProntidaoPrecificacao: React.FC<Props> = ({ properties, regras, onA
               </div>
 
               {!ativo && bloqueios.some(b => b.status === 'bloqueado' && b.motivo) && (
-                <p className="text-[11px] text-amber-800 bg-amber-50/70 border border-amber-200 rounded px-2 py-1.5">
+                <p className="text-[11px] text-warning-800 bg-warning-50/70 border border-warning-200 rounded px-2 py-1.5">
                   {bloqueios.filter(b => b.status === 'bloqueado' && b.motivo).map(b => b.motivo).join(' ')}
                 </p>
               )}
               {!ativo ? (
                 <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
                   {reqs.map(r => (
-                    <li key={r.texto} className={`flex items-center gap-1.5 ${r.ok ? 'text-gray-600' : r.obrigatorio ? 'text-amber-700 font-medium' : 'text-gray-400'}`}>
-                      {r.ok ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> : r.obrigatorio ? <AlertTriangle className="h-3.5 w-3.5" /> : <Circle className="h-3.5 w-3.5" />}
+                    <li key={r.texto} className={`flex items-center gap-1.5 ${r.ok ? 'text-gray-600' : r.obrigatorio ? 'text-warning-700 font-medium' : 'text-gray-400'}`}>
+                      {r.ok ? <CheckCircle2 className="h-3.5 w-3.5 text-success-600" /> : r.obrigatorio ? <AlertTriangle className="h-3.5 w-3.5" /> : <Circle className="h-3.5 w-3.5" />}
                       {r.texto}{!r.ok && !r.obrigatorio ? ' (recomendado)' : ''}
                     </li>
                   ))}
@@ -267,17 +267,17 @@ export const ProntidaoPrecificacao: React.FC<Props> = ({ properties, regras, onA
                     const st = s?.status || 'pendente';
                     return (
                       <li key={e.chave} className="flex items-start gap-2">
-                        {st === 'ok' ? <CheckCircle2 className="h-3.5 w-3.5 mt-px text-emerald-600 shrink-0" />
-                          : st === 'rodando' || st === 'pendente' ? <Loader2 className="h-3.5 w-3.5 mt-px text-blue-600 animate-spin shrink-0" />
+                        {st === 'ok' ? <CheckCircle2 className="h-3.5 w-3.5 mt-px text-success-600 shrink-0" />
+                          : st === 'rodando' || st === 'pendente' ? <Loader2 className="h-3.5 w-3.5 mt-px text-info-600 animate-spin shrink-0" />
                           : st === 'bloqueado' && e.opcional ? <Circle className="h-3.5 w-3.5 mt-px text-gray-400 shrink-0" />
-                          : st === 'bloqueado' ? <AlertTriangle className="h-3.5 w-3.5 mt-px text-amber-600 shrink-0" />
-                          : <XCircle className="h-3.5 w-3.5 mt-px text-red-600 shrink-0" />}
+                          : st === 'bloqueado' ? <AlertTriangle className="h-3.5 w-3.5 mt-px text-warning-600 shrink-0" />
+                          : <XCircle className="h-3.5 w-3.5 mt-px text-danger-600 shrink-0" />}
                         <div className="min-w-0">
                           <span className="font-semibold text-gray-700">{e.nome}</span>
                           <span className="text-gray-400"> — {e.descricao}</span>
-                          {st === 'bloqueado' && s?.motivo && <p className={e.opcional ? 'text-gray-500' : 'text-amber-800'}>{s.motivo}</p>}
+                          {st === 'bloqueado' && s?.motivo && <p className={e.opcional ? 'text-gray-500' : 'text-warning-800'}>{s.motivo}</p>}
                           {st === 'falhou' && (
-                            <p className="text-red-700">
+                            <p className="text-danger-700">
                               {s?.motivo || 'Falha passageira.'} Nova tentativa automática{s?.proxima_tentativa_em ? ` em ${quando(s.proxima_tentativa_em)}` : ''}.
                             </p>
                           )}
@@ -299,7 +299,7 @@ export const ProntidaoPrecificacao: React.FC<Props> = ({ properties, regras, onA
         </div>
 
         {emDia.length > 0 && (
-          <p className="text-[11px] text-emerald-700 flex items-center gap-1.5">
+          <p className="text-[11px] text-success-700 flex items-center gap-1.5">
             <CheckCircle2 className="h-3.5 w-3.5" /> Em dia: {emDia.map(l => l.p.nickname || l.p.name).join(', ')}
           </p>
         )}

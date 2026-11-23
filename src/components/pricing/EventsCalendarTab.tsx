@@ -64,10 +64,10 @@ export const EventsCalendarTab: React.FC<EventsCalendarTabProps> = ({
         <div>
           <div className="flex items-center gap-2">
             <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-[#6A6DDF]" />
+              <Calendar className="h-4 w-4 text-brand" />
               Calendário de Eventos & Demanda Local
             </h3>
-            <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[10px] font-bold">
+            <Badge variant="outline" className="bg-warning-50 text-warning-700 border-warning-200 text-[10px] font-bold">
               Lista em revisão
             </Badge>
           </div>
@@ -108,7 +108,7 @@ export const EventsCalendarTab: React.FC<EventsCalendarTabProps> = ({
               onClick={() => setFilterImpact(impact)}
               className={`px-3 py-1 rounded-full text-xs font-semibold transition-all border ${
                 filterImpact === impact
-                  ? 'bg-[#6A6DDF] text-white border-[#6A6DDF]'
+                  ? 'bg-brand text-white border-brand'
                   : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'
               }`}
             >
@@ -120,16 +120,16 @@ export const EventsCalendarTab: React.FC<EventsCalendarTabProps> = ({
 
       {/* Indicador de Unidade Selecionada */}
       {selectedProperty && (
-        <div className="bg-indigo-50/70 border border-indigo-100 rounded-lg px-4 py-2.5 flex items-center justify-between text-xs text-indigo-900">
+        <div className="bg-brand-50/70 border border-brand-100 rounded-lg px-4 py-2.5 flex items-center justify-between text-xs text-brand-900">
           <div className="flex items-center gap-2">
-            <Building2 className="h-4 w-4 text-[#6A6DDF]" />
+            <Building2 className="h-4 w-4 text-brand" />
             <span>
               Exibindo eventos com impacto no imóvel: <strong>{selectedProperty.nickname || selectedProperty.name}</strong>
               {selectedCity ? ` (${selectedCity})` : ' (localização ainda não conferida: ative a precificação automática)'}
             </span>
           </div>
           {filterCity !== 'all' && (
-            <button onClick={() => setFilterCity('all')} className="text-[#6A6DDF] hover:underline font-semibold">
+            <button onClick={() => setFilterCity('all')} className="text-brand hover:underline font-semibold">
               Ver todas as cidades
             </button>
           )}
@@ -157,7 +157,7 @@ export const EventsCalendarTab: React.FC<EventsCalendarTabProps> = ({
               <Card
                 key={ev.id}
                 className={`transition-shadow hover:shadow-md border-l-4 ${
-                  isCritical ? 'border-l-red-500' : isHigh ? 'border-l-purple-500' : 'border-l-blue-500'
+                  isCritical ? 'border-l-danger-500' : isHigh ? 'border-l-brand-500' : 'border-l-info-500'
                 }`}
               >
                 <CardContent className="p-4 space-y-3">
@@ -179,10 +179,10 @@ export const EventsCalendarTab: React.FC<EventsCalendarTabProps> = ({
                       <Badge
                         className={`text-[10px] font-bold shrink-0 ${
                           isCritical
-                            ? 'bg-red-50 text-red-700 border-red-200'
+                            ? 'bg-danger-50 text-danger-700 border-danger-200'
                             : isHigh
-                            ? 'bg-purple-50 text-purple-700 border-purple-200'
-                            : 'bg-blue-50 text-blue-700 border-blue-200'
+                            ? 'bg-brand-50 text-brand-700 border-brand-200'
+                            : 'bg-info-50 text-info-700 border-info-200'
                         }`}
                         variant="outline"
                       >
@@ -202,7 +202,7 @@ export const EventsCalendarTab: React.FC<EventsCalendarTabProps> = ({
                     <div className="text-right">
                       <span className="text-gray-400 text-[10px] block">Fonte</span>
                       {ev.source_url ? (
-                        <a href={ev.source_url} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#6A6DDF] hover:underline">
+                        <a href={ev.source_url} target="_blank" rel="noopener noreferrer" className="font-semibold text-brand hover:underline">
                           {ev.source === 'nager' ? 'Calendário oficial' : 'Ver fonte'}
                         </a>
                       ) : (
@@ -212,9 +212,9 @@ export const EventsCalendarTab: React.FC<EventsCalendarTabProps> = ({
                   </div>
 
                   {ev.notes && (
-                    <div className="bg-amber-50/60 border border-amber-200/60 rounded-lg p-2.5 text-[11px] text-amber-900 leading-relaxed">
-                      <span className="font-semibold text-amber-950 mb-0.5 flex items-center gap-1">
-                        <Sparkles className="h-3 w-3 text-amber-600" />
+                    <div className="bg-warning-50/60 border border-warning-200/60 rounded-lg p-2.5 text-[11px] text-warning-900 leading-relaxed">
+                      <span className="font-semibold text-warning-950 mb-0.5 flex items-center gap-1">
+                        <Sparkles className="h-3 w-3 text-warning-600" />
                         Observações do evento:
                       </span>
                       {ev.notes}
@@ -237,22 +237,22 @@ export const EventsCalendarTab: React.FC<EventsCalendarTabProps> = ({
                           {(() => {
                             const r = regraDe(p.id, ev);
                             return r ? (
-                              <span className="ml-1 text-[#6A6DDF] font-semibold" title={`Regra: ${ORIGEM_DA_REGRA[r.origem] || r.origem}`}>
+                              <span className="ml-1 text-brand font-semibold" title={`Regra: ${ORIGEM_DA_REGRA[r.origem] || r.origem}`}>
                                 {percentual(Number(r.fator))}
                               </span>
                             ) : null;
                           })()}
                         </span>
                         {situacao === 'reservado' ? (
-                          <span className="text-emerald-700 font-bold flex items-center gap-1 text-[11px] shrink-0">
+                          <span className="text-success-700 font-bold flex items-center gap-1 text-[11px] shrink-0">
                             <CheckCircle2 className="h-3.5 w-3.5" /> Reservado
                           </span>
                         ) : situacao === 'parcial' ? (
-                          <span className="text-amber-600 font-bold flex items-center gap-1 text-[11px] shrink-0">
+                          <span className="text-warning-600 font-bold flex items-center gap-1 text-[11px] shrink-0">
                             <Flame className="h-3.5 w-3.5" /> {noitesLivres} de {noitesDoEvento} noites livres
                           </span>
                         ) : (
-                          <span className="text-amber-600 font-bold flex items-center gap-1 text-[11px] shrink-0">
+                          <span className="text-warning-600 font-bold flex items-center gap-1 text-[11px] shrink-0">
                             <Flame className="h-3.5 w-3.5" /> Disponível (Yield)
                           </span>
                         )}

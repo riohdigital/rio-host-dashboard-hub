@@ -41,7 +41,7 @@ const ReceiptIssuerSection = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold text-[#6A6DDF] mb-2">Emissão de Comprovantes</h2>
+        <h2 className="text-xl font-semibold text-brand mb-2">Emissão de Comprovantes</h2>
         <p className="text-gray-600">Dados que aparecem no Comprovante do Hóspede (Relatórios → Gerador de Recibos).</p>
       </div>
 
@@ -72,7 +72,7 @@ const ReceiptIssuerSection = () => {
           <Label htmlFor="footer_note">Observação no rodapé</Label>
           <Textarea id="footer_note" value={form.footer_note ?? ''} onChange={set('footer_note')} placeholder="Ex.: Obrigado pela preferência!" rows={2} />
         </div>
-        <Button type="submit" disabled={saving} className="bg-[#6A6DDF] hover:bg-[#5A5BCF] text-white">
+        <Button type="submit" disabled={saving} className="bg-brand hover:bg-brand-hover text-white">
           {saving ? 'Salvando...' : 'Salvar'}
         </Button>
       </form>

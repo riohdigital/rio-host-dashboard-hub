@@ -8,13 +8,13 @@ interface PlatformBreakdownChartProps {
 }
 
 const PLATFORM_COLORS: Record<string, string> = {
-  'Airbnb': '#FF5A5F',
-  'Booking': '#003580',
-  'Booking.com': '#003580',
-  'Direto': '#10B981',
-  'Direct': '#10B981',
-  'VRBO': '#0071C2',
-  'Expedia': '#FDDB32'
+  'Airbnb': 'hsl(var(--airbnb))',
+  'Booking': 'hsl(var(--booking))',
+  'Booking.com': 'hsl(var(--booking))',
+  'Direto': 'hsl(var(--success))',
+  'Direct': 'hsl(var(--success))',
+  'VRBO': 'hsl(var(--booking-light))',
+  'Expedia': 'hsl(var(--expedia))'
 };
 
 export const PlatformBreakdownChart = ({ data, loading }: PlatformBreakdownChartProps) => {
@@ -39,7 +39,7 @@ export const PlatformBreakdownChart = ({ data, loading }: PlatformBreakdownChart
           <p className="font-semibold text-sm mb-2">{data.platform}</p>
           <div className="space-y-1">
             <p className="text-sm">
-              Comissão: <span className="font-medium text-green-600">{formatCurrency(data.commission)}</span>
+              Comissão: <span className="font-medium text-success-600">{formatCurrency(data.commission)}</span>
             </p>
             <p className="text-sm">
               Reservas: <span className="font-medium">{data.reservations}</span>

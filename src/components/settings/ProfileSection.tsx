@@ -37,7 +37,7 @@ const ProfileSection = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold text-[#6A6DDF] mb-2">Meu Perfil</h2>
+        <h2 className="text-xl font-semibold text-brand mb-2">Meu Perfil</h2>
         <p className="text-gray-600">Atualize suas informações pessoais.</p>
       </div>
 
@@ -55,7 +55,7 @@ const ProfileSection = () => {
         <Button 
           type="submit" 
           disabled={loading}
-          className="bg-[#6A6DDF] hover:bg-[#5A5BCF] text-white"
+          className="bg-brand hover:bg-brand-hover text-white"
         >
           {loading ? 'Salvando...' : 'Salvar Alterações'}
         </Button>

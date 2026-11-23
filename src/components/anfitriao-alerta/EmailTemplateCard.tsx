@@ -46,11 +46,11 @@ const EmailTemplateCard = ({ template, onEdit, onToggleStatus, onDelete }: Email
   const getTypeColor = (type: string) => {
     switch (type) {
       case 'guest':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
+        return 'bg-info-100 text-info-800 border-info-200';
       case 'owner':
-        return 'bg-green-100 text-green-800 border-green-200';
+        return 'bg-success-100 text-success-800 border-success-200';
       case 'cleaner':
-        return 'bg-purple-100 text-purple-800 border-purple-200';
+        return 'bg-brand-100 text-brand-800 border-brand-200';
       case 'manager':
         return 'bg-orange-100 text-orange-800 border-orange-200';
       default:
@@ -67,7 +67,7 @@ const EmailTemplateCard = ({ template, onEdit, onToggleStatus, onDelete }: Email
           </CardTitle>
           <div className="flex items-center gap-1">
             {template.is_active ? (
-              <Power className="h-4 w-4 text-green-500" />
+              <Power className="h-4 w-4 text-success-500" />
             ) : (
               <PowerOff className="h-4 w-4 text-gray-400" />
             )}
@@ -114,7 +114,7 @@ const EmailTemplateCard = ({ template, onEdit, onToggleStatus, onDelete }: Email
                 variant="outline"
                 size="sm"
                 onClick={() => onToggleStatus(template)}
-                className={`h-8 px-2 ${template.is_active ? 'text-orange-600 hover:text-orange-700' : 'text-green-600 hover:text-green-700'}`}
+                className={`h-8 px-2 ${template.is_active ? 'text-orange-600 hover:text-orange-700' : 'text-success-600 hover:text-success-700'}`}
               >
                 {template.is_active ? <PowerOff className="h-3 w-3" /> : <Power className="h-3 w-3" />}
               </Button>
@@ -123,7 +123,7 @@ const EmailTemplateCard = ({ template, onEdit, onToggleStatus, onDelete }: Email
               variant="outline"
               size="sm"
               onClick={() => onDelete(template)}
-              className="h-8 px-2 text-red-600 hover:text-red-700"
+              className="h-8 px-2 text-danger-600 hover:text-danger-700"
             >
               <Trash2 className="h-3 w-3" />
             </Button>

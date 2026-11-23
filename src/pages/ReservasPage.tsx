@@ -360,7 +360,7 @@ const ReservasPage = () => {
                         <p className="text-gray-600 mt-1">Gerencie suas reservas e acompanhe o status</p>
                     </div>
                     {canCreateReservations && (
-                        <Button onClick={() => { setEditingReservation(null); setShowForm(true); }} className="bg-blue-600 hover:bg-blue-700 text-white">
+                        <Button onClick={() => { setEditingReservation(null); setShowForm(true); }} className="bg-info-600 hover:bg-info-700 text-white">
                             <Plus className="mr-2 h-4 w-4" />
                             Adicionar Nova Reserva
                         </Button>
@@ -491,13 +491,13 @@ const ReservasPage = () => {
                                         const property = reservation.properties;
                                         return (
                                             <TableRow key={reservation.id} className="hover:bg-gray-50">
-                                                <TableCell className="font-medium text-blue-600">{reservation.reservation_code}</TableCell>
+                                                <TableCell className="font-medium text-info-600">{reservation.reservation_code}</TableCell>
                                                 <TableCell>{property?.nickname || property?.name}</TableCell>
                                                 <TableCell>
                                                     <div className="flex items-center gap-2">
                                                         <span>{reservation.guest_name || '-'}</span>
                                                         {reservation.number_of_guests && (
-                                                            <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                                            <Badge variant="outline" className="text-xs bg-info-50 text-info-700 border-info-200">
                                                                 {reservation.number_of_guests} 👥
                                                             </Badge>
                                                         )}
@@ -508,7 +508,7 @@ const ReservasPage = () => {
                                                         const phoneNumber = reservation.guest_phone?.replace(/\D/g, '');
                                                         if (phoneNumber) window.open(`https://wa.me/55${phoneNumber}`, '_blank');
                                                         }} className="gap-2">
-                                                        <MessageCircle className="h-4 w-4 text-green-600" /> WhatsApp
+                                                        <MessageCircle className="h-4 w-4 text-success-600" /> WhatsApp
                                                     </Button>
                                                     ) : ('-')}
                                                 </TableCell>
@@ -523,7 +523,7 @@ const ReservasPage = () => {
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="text-center">
-                                                    <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                                                    <Badge variant="outline" className="bg-brand-50 text-brand-700 border-brand-200">
                                                         {calculateNights(reservation.check_in_date, reservation.check_out_date)} noites
                                                     </Badge>
                                                 </TableCell>
@@ -537,7 +537,7 @@ const ReservasPage = () => {
                                                                 variant="outline"
                                                                 className={
                                                                     reservation.cleaning_status === 'Realizada' 
-                                                                        ? 'bg-green-50 text-green-700 border-green-200 text-xs' 
+                                                                        ? 'bg-success-50 text-success-700 border-success-200 text-xs' 
                                                                         : 'bg-orange-50 text-orange-700 border-orange-200 text-xs'
                                                                 }
                                                             >
@@ -563,7 +563,7 @@ const ReservasPage = () => {
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="space-y-1">
-                                                        <div className="font-bold text-green-700">R$ {reservation.net_revenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}</div>
+                                                        <div className="font-bold text-success-700">R$ {reservation.net_revenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}</div>
                                                         <div className="text-sm text-gray-600">Total: R$ {reservation.total_revenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                                                     </div>
                                                 </TableCell>
@@ -572,7 +572,7 @@ const ReservasPage = () => {
                                                         {canEditReservations ? (
                                                             <Checkbox checked={reservation.is_communicated || false} onCheckedChange={(checked) => handleCheckboxChange(reservation.id, 'is_communicated', checked as boolean)} />
                                                         ) : (
-                                                            <div className={`w-4 h-4 border rounded ${reservation.is_communicated ? 'bg-blue-600' : ''}`}></div>
+                                                            <div className={`w-4 h-4 border rounded ${reservation.is_communicated ? 'bg-info-600' : ''}`}></div>
                                                         )}
                                                     </div>
                                                 </TableCell>
@@ -581,7 +581,7 @@ const ReservasPage = () => {
                                                         {canEditReservations ? (
                                                             <Checkbox checked={reservation.receipt_sent || false} onCheckedChange={(checked) => handleCheckboxChange(reservation.id, 'receipt_sent', checked as boolean)} />
                                                         ) : (
-                                                            <div className={`w-4 h-4 border rounded ${reservation.receipt_sent ? 'bg-blue-600' : ''}`}></div>
+                                                            <div className={`w-4 h-4 border rounded ${reservation.receipt_sent ? 'bg-info-600' : ''}`}></div>
                                                         )}
                                                     </div>
                                                 </TableCell>
@@ -602,7 +602,7 @@ const ReservasPage = () => {
                                                             </Button>)}
                                                             {canDeleteReservations && (
                                                                 <AlertDialog>
-                                                                    <AlertDialogTrigger asChild><Button variant="outline" size="icon" className="h-8 w-8 text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
+                                                                    <AlertDialogTrigger asChild><Button variant="outline" size="icon" className="h-8 w-8 text-danger-600 border-danger-300 hover:bg-danger-50 hover:text-danger-700"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
                                                                     <AlertDialogContent>
                                                                         <AlertDialogHeader>
                                                                             <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
@@ -610,7 +610,7 @@ const ReservasPage = () => {
                                                                         </AlertDialogHeader>
                                                                         <AlertDialogFooter>
                                                                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                                            <AlertDialogAction onClick={() => handleDelete(reservation.id)} className="bg-red-600 hover:bg-red-700">Excluir</AlertDialogAction>
+                                                                            <AlertDialogAction onClick={() => handleDelete(reservation.id)} className="bg-danger-600 hover:bg-danger-700">Excluir</AlertDialogAction>
                                                                         </AlertDialogFooter>
                                                                     </AlertDialogContent>
                                                                 </AlertDialog>
@@ -627,12 +627,12 @@ const ReservasPage = () => {
                                         <TableCell colSpan={11} className="font-medium">Total de Reservas: {totals.count}</TableCell>
                                         <TableCell className="font-bold">
                                             <div className="space-y-1">
-                                                <div className="text-green-700">
+                                                <div className="text-success-700">
                                                     Líquido Total: R$ {totals.netRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                                 </div>
                                                 {activeTab === 'cashflow' && (
                                                     <>
-                                                        <div className="text-sm text-blue-600">
+                                                        <div className="text-sm text-info-600">
                                                             Recebido: R$ {totals.receivedNetRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                                         </div>
                                                         <div className="text-sm text-orange-600">

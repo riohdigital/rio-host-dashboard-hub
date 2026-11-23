@@ -15,14 +15,14 @@ const ExpandIndicator = ({ isExpanded }: { isExpanded: boolean }) => (
       <TooltipTrigger asChild>
         <CollapsibleTrigger asChild>
           <div className="w-full flex items-center justify-center gap-3 py-3 group cursor-pointer hover:bg-muted/30 transition-colors rounded-lg">
-            <div className="h-px w-12 bg-gradient-to-r from-transparent via-violet-300 to-transparent group-hover:w-16 transition-all duration-300" />
+            <div className="h-px w-12 bg-gradient-to-r from-transparent via-brand-300 to-transparent group-hover:w-16 transition-all duration-300" />
             <ChevronDown 
               className={cn(
-                "h-5 w-5 text-violet-500 transition-transform duration-300 chevron-bounce",
+                "h-5 w-5 text-brand-500 transition-transform duration-300 chevron-bounce",
                 isExpanded && "rotate-180"
               )} 
             />
-            <div className="h-px w-12 bg-gradient-to-r from-transparent via-violet-300 to-transparent group-hover:w-16 transition-all duration-300" />
+            <div className="h-px w-12 bg-gradient-to-r from-transparent via-brand-300 to-transparent group-hover:w-16 transition-all duration-300" />
           </div>
         </CollapsibleTrigger>
       </TooltipTrigger>
@@ -38,17 +38,17 @@ const SentimentBadge = ({ sentiment }: { sentiment: PropertyInsight['sentiment']
     positive: {
       label: 'Bom Desempenho',
       icon: TrendingUp,
-      className: 'bg-emerald-100 text-emerald-700 border-emerald-200'
+      className: 'bg-success-100 text-success-700 border-success-200'
     },
     warning: {
       label: 'Atenção',
       icon: AlertTriangle,
-      className: 'bg-amber-100 text-amber-700 border-amber-200'
+      className: 'bg-warning-100 text-warning-700 border-warning-200'
     },
     critical: {
       label: 'Crítico',
       icon: TrendingDown,
-      className: 'bg-red-100 text-red-700 border-red-200'
+      className: 'bg-danger-100 text-danger-700 border-danger-200'
     }
   };
 
@@ -70,7 +70,7 @@ const RichActionItem = ({ action, index }: { action: ActionPlanItem; index: numb
       className={cn(
         'p-3 rounded-lg transition-all cursor-pointer border',
         checked 
-          ? 'bg-emerald-50 border-emerald-200' 
+          ? 'bg-success-50 border-success-200' 
           : 'bg-muted/50 hover:bg-muted border-transparent'
       )}
       onClick={() => setChecked(!checked)}
@@ -79,7 +79,7 @@ const RichActionItem = ({ action, index }: { action: ActionPlanItem; index: numb
         <div className={cn(
           'flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all mt-0.5',
           checked 
-            ? 'bg-emerald-500 border-emerald-500' 
+            ? 'bg-success-500 border-success-500' 
             : 'border-muted-foreground/30'
         )}>
           {checked && <CheckCircle2 className="h-3 w-3 text-white" />}
@@ -99,7 +99,7 @@ const RichActionItem = ({ action, index }: { action: ActionPlanItem; index: numb
           </p>
           {action.expected_impact && (
             <div className="flex items-center gap-1.5 mt-2">
-              <Badge variant="secondary" className="text-xs font-normal bg-violet-100 text-violet-700 border-violet-200">
+              <Badge variant="secondary" className="text-xs font-normal bg-brand-100 text-brand-700 border-brand-200">
                 <Zap className="h-3 w-3 mr-1" />
                 {action.expected_impact}
               </Badge>
@@ -123,9 +123,9 @@ const PropertyPill = ({
   sentiment: PropertyInsight['sentiment'];
 }) => {
   const sentimentColors = {
-    positive: 'bg-emerald-500',
-    warning: 'bg-amber-500',
-    critical: 'bg-red-500'
+    positive: 'bg-success-500',
+    warning: 'bg-warning-500',
+    critical: 'bg-danger-500'
   };
 
   return (
@@ -146,9 +146,9 @@ const PropertyPill = ({
 
 const SparkleConstellation = () => (
   <div className="absolute top-3 right-3 opacity-60">
-    <Sparkles className="h-4 w-4 text-violet-400 ai-sparkle absolute -top-1 -left-1" />
-    <Sparkles className="h-3 w-3 text-blue-400 ai-sparkle-delay-1 absolute top-2 left-3" />
-    <Sparkles className="h-2 w-2 text-purple-400 ai-sparkle-delay-2 absolute top-0 left-6" />
+    <Sparkles className="h-4 w-4 text-brand-400 ai-sparkle absolute -top-1 -left-1" />
+    <Sparkles className="h-3 w-3 text-info-400 ai-sparkle-delay-1 absolute top-2 left-3" />
+    <Sparkles className="h-2 w-2 text-brand-400 ai-sparkle-delay-2 absolute top-0 left-6" />
   </div>
 );
 
@@ -248,12 +248,12 @@ export function StrategicInsightsCard() {
         {/* Summary & Diagnosis - SEMPRE VISÍVEIS */}
         <CardContent key={animationKey} className="ai-card-content-enter pb-0 space-y-4">
           {/* Resumo */}
-          <div className="p-4 rounded-xl bg-gradient-to-br from-violet-50 to-blue-50 border border-violet-100 dark:from-violet-950/30 dark:to-blue-950/30 dark:border-violet-800/30">
+          <div className="p-4 rounded-xl bg-gradient-to-br from-brand-50 to-info-50 border border-brand-100 dark:from-brand-950/30 dark:to-info-950/30 dark:border-brand-800/30">
             <div className="flex items-start gap-3">
-              <Target className="h-5 w-5 text-violet-600 dark:text-violet-400 flex-shrink-0 mt-0.5" />
+              <Target className="h-5 w-5 text-brand-600 dark:text-brand-400 flex-shrink-0 mt-0.5" />
               <div>
-                <h4 className="font-medium text-sm text-violet-900 dark:text-violet-200 mb-1">Resumo</h4>
-                <p className="text-sm text-violet-700 dark:text-violet-300 leading-relaxed font-medium">
+                <h4 className="font-medium text-sm text-brand-900 dark:text-brand-200 mb-1">Resumo</h4>
+                <p className="text-sm text-brand-700 dark:text-brand-300 leading-relaxed font-medium">
                   {currentInsight.summary}
                 </p>
               </div>
@@ -274,7 +274,7 @@ export function StrategicInsightsCard() {
           )}
 
           {/* Fade Line */}
-          <div className="w-full h-px bg-gradient-to-r from-transparent via-violet-200/60 to-transparent" />
+          <div className="w-full h-px bg-gradient-to-r from-transparent via-brand-200/60 to-transparent" />
 
           {/* Expand Indicator */}
           <ExpandIndicator isExpanded={isExpanded} />
@@ -286,12 +286,12 @@ export function StrategicInsightsCard() {
 
             {/* Opportunity Alert */}
             {currentInsight.opportunity_alert && (
-              <div className="p-4 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 dark:from-amber-950/30 dark:to-orange-950/30 dark:border-amber-700/30">
+              <div className="p-4 rounded-xl bg-gradient-to-br from-warning-50 to-orange-50 border border-warning-200 dark:from-warning-950/30 dark:to-orange-950/30 dark:border-warning-700/30">
                 <div className="flex items-start gap-3">
-                  <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                  <AlertTriangle className="h-5 w-5 text-warning-600 dark:text-warning-400 flex-shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="font-medium text-sm text-amber-900 dark:text-amber-200 mb-1">Alerta de Oportunidade</h4>
-                    <p className="text-sm text-amber-800 dark:text-amber-300 leading-relaxed">
+                    <h4 className="font-medium text-sm text-warning-900 dark:text-warning-200 mb-1">Alerta de Oportunidade</h4>
+                    <p className="text-sm text-warning-800 dark:text-warning-300 leading-relaxed">
                       {currentInsight.opportunity_alert}
                     </p>
                   </div>
@@ -305,14 +305,14 @@ export function StrategicInsightsCard() {
                 {/* Strengths */}
                 {currentInsight.strengths.length > 0 && (
                   <div className="space-y-2">
-                    <h4 className="text-sm font-medium text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
+                    <h4 className="text-sm font-medium text-success-700 dark:text-success-400 flex items-center gap-2">
                       <TrendingUp className="h-4 w-4" />
                       Pontos Fortes
                     </h4>
                     <ul className="space-y-1">
                       {currentInsight.strengths.map((strength, i) => (
                         <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
-                          <span className="text-emerald-500 mt-1">•</span>
+                          <span className="text-success-500 mt-1">•</span>
                           {strength}
                         </li>
                       ))}
@@ -323,14 +323,14 @@ export function StrategicInsightsCard() {
                 {/* Weaknesses */}
                 {currentInsight.weaknesses.length > 0 && (
                   <div className="space-y-2">
-                    <h4 className="text-sm font-medium text-amber-700 dark:text-amber-400 flex items-center gap-2">
+                    <h4 className="text-sm font-medium text-warning-700 dark:text-warning-400 flex items-center gap-2">
                       <AlertTriangle className="h-4 w-4" />
                       Pontos de Atenção
                     </h4>
                     <ul className="space-y-1">
                       {currentInsight.weaknesses.map((weakness, i) => (
                         <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
-                          <span className="text-amber-500 mt-1">•</span>
+                          <span className="text-warning-500 mt-1">•</span>
                           {weakness}
                         </li>
                       ))}
@@ -344,7 +344,7 @@ export function StrategicInsightsCard() {
             {currentInsight.actionPlan.length > 0 && (
               <div className="space-y-3">
                 <h4 className="font-medium text-foreground flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-violet-500" />
+                  <Sparkles className="h-4 w-4 text-brand-500" />
                   Plano de Ação Sugerido
                 </h4>
                 <div className="space-y-2">

@@ -17,7 +17,7 @@ export const CleaningRiskAlerts = ({ alerts, loading }: CleaningRiskAlertsProps)
 
   if (loading) {
     return (
-      <Card className="card-elevated border-amber-200 bg-amber-50/30">
+      <Card className="card-elevated border-warning-200 bg-warning-50/30">
         <CardContent className="p-4">
           <div className="h-16 bg-muted rounded animate-pulse" />
         </CardContent>
@@ -36,22 +36,22 @@ export const CleaningRiskAlerts = ({ alerts, loading }: CleaningRiskAlertsProps)
   };
 
   const getUrgencyColor = (days: number) => {
-    if (days === 0) return 'bg-red-500';
-    if (days === 1) return 'bg-amber-500';
-    return 'bg-yellow-500';
+    if (days === 0) return 'bg-danger-500';
+    if (days === 1) return 'bg-warning-500';
+    return 'bg-warning-500';
   };
 
   return (
-    <Card className="card-elevated border-red-200 bg-red-50/30">
+    <Card className="card-elevated border-danger-200 bg-danger-50/30">
       <CardHeader className="pb-2">
-        <CardTitle className="text-lg flex items-center gap-2 text-red-700">
+        <CardTitle className="text-lg flex items-center gap-2 text-danger-700">
           <AlertTriangle className="h-5 w-5" />
           Alertas de Risco - Faxinas
           <Badge variant="destructive">{alerts.length}</Badge>
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="text-sm text-red-600 mb-4">
+        <p className="text-sm text-danger-600 mb-4">
           Os seguintes checkouts estão sem faxineira atribuída:
         </p>
         
@@ -59,7 +59,7 @@ export const CleaningRiskAlerts = ({ alerts, loading }: CleaningRiskAlertsProps)
           {alerts.map((alert) => (
             <div 
               key={alert.reservationId}
-              className="flex items-center justify-between p-3 bg-white rounded-lg border border-red-100 hover:border-red-200 transition-colors"
+              className="flex items-center justify-between p-3 bg-white rounded-lg border border-danger-100 hover:border-danger-200 transition-colors"
             >
               <div className="flex items-center gap-3">
                 <div className={`w-2 h-2 rounded-full ${getUrgencyColor(alert.daysUntilCheckout)}`} />

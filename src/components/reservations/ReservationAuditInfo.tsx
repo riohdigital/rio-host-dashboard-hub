@@ -49,9 +49,9 @@ const ReservationAuditInfo = ({
 
   const getSourceBadge = () => {
     const sourceConfig = {
-      manual: { label: 'Manual', color: 'bg-blue-100 text-blue-800', icon: User },
-      n8n_automation: { label: 'Automação N8N', color: 'bg-purple-100 text-purple-800', icon: Workflow },
-      api: { label: 'API Externa', color: 'bg-green-100 text-green-800', icon: Info },
+      manual: { label: 'Manual', color: 'bg-info-100 text-info-800', icon: User },
+      n8n_automation: { label: 'Automação N8N', color: 'bg-brand-100 text-brand-800', icon: Workflow },
+      api: { label: 'API Externa', color: 'bg-success-100 text-success-800', icon: Info },
       import: { label: 'Importação', color: 'bg-orange-100 text-orange-800', icon: Info },
     };
 

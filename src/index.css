@@ -1,11 +1,12 @@
 
+@import './styles/tokens.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Variáveis do shadcn/ui. As cores vêm de src/styles/tokens.css; aqui só
+   apontamos cada papel do shadcn para um token. Todas em HSL. */
 
 @layer base {
   :root {
@@ -18,8 +19,9 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Botão padrão e foco: roxo da marca */
+    --primary: var(--brand);
+    --primary-foreground: var(--brand-foreground);
 
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -27,37 +29,38 @@ All colors MUST be HSL.
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Realce de itens (menus, listas): tom claro da marca */
+    --accent: var(--brand-50);
+    --accent-foreground: var(--brand-700);
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: var(--danger);
+    --destructive-foreground: var(--danger-foreground);
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --ring: var(--brand);
 
     --radius: 0.5rem;
 
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: var(--ink);
+    --sidebar-primary: var(--brand);
+    --sidebar-primary-foreground: var(--brand-foreground);
+    --sidebar-accent: var(--surface);
+    --sidebar-accent-foreground: var(--ink);
+    --sidebar-border: var(--gray-200);
+    --sidebar-ring: var(--brand);
 
     /* Gradientes do sistema de design */
-    --gradient-primary: linear-gradient(135deg, hsl(251 78% 63%) 0%, hsl(268 67% 66%) 100%);
-    --gradient-secondary: linear-gradient(135deg, hsl(210 40% 96%) 0%, hsl(220 13% 91%) 100%);
-    --gradient-accent: linear-gradient(135deg, hsl(174 100% 29%) 0%, hsl(158 64% 52%) 100%);
+    --gradient-primary: linear-gradient(135deg, hsl(var(--gradient-brand-from)) 0%, hsl(var(--gradient-brand-to)) 100%);
+    --gradient-secondary: linear-gradient(135deg, hsl(210 40% 96%) 0%, hsl(var(--gray-200)) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(var(--gradient-support-from)) 0%, hsl(var(--gradient-support-to)) 100%);
     --gradient-muted: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(210 40% 96%) 100%);
     --gradient-hover: linear-gradient(135deg, hsl(251 78% 68%) 0%, hsl(268 67% 71%) 100%);
-    --gradient-success: linear-gradient(135deg, hsl(142 76% 36%) 0%, hsl(158 64% 52%) 100%);
-    --gradient-warning: linear-gradient(135deg, hsl(38 92% 50%) 0%, hsl(43 96% 56%) 100%);
-    --gradient-danger: linear-gradient(135deg, hsl(0 84% 60%) 0%, hsl(0 72% 51%) 100%);
-    --gradient-info: linear-gradient(135deg, hsl(217 91% 60%) 0%, hsl(221 83% 53%) 100%);
+    --gradient-success: linear-gradient(135deg, hsl(142 76% 36%) 0%, hsl(var(--gradient-support-to)) 100%);
+    --gradient-warning: linear-gradient(135deg, hsl(var(--warning-500)) 0%, hsl(var(--warning-400)) 100%);
+    --gradient-danger: linear-gradient(135deg, hsl(var(--danger-500)) 0%, hsl(var(--danger-600)) 100%);
+    --gradient-info: linear-gradient(135deg, hsl(var(--info-500)) 0%, hsl(var(--info-600)) 100%);
   }
 
   .dark {
@@ -207,7 +210,7 @@ All colors MUST be HSL.
   .gradient-hover-card:hover {
     background: var(--gradient-hover);
     transform: translateY(-2px);
-    box-shadow: 0 10px 25px rgba(106, 109, 223, 0.2);
+    box-shadow: 0 10px 25px hsl(var(--brand) / 0.2);
   }
 
   /* Botões com gradientes */
@@ -221,7 +224,7 @@ All colors MUST be HSL.
   .btn-gradient-primary:hover {
     background: var(--gradient-hover);
     transform: translateY(-1px);
-    box-shadow: 0 5px 15px rgba(106, 109, 223, 0.3);
+    box-shadow: 0 5px 15px hsl(var(--brand) / 0.3);
   }
   
   .btn-gradient-accent {
@@ -234,7 +237,7 @@ All colors MUST be HSL.
   .btn-gradient-accent:hover {
     opacity: 0.9;
     transform: translateY(-1px);
-    box-shadow: 0 5px 15px rgba(16, 185, 129, 0.3);
+    box-shadow: 0 5px 15px hsl(var(--success) / 0.3);
   }
 
   /* Bordas com gradientes */
@@ -278,11 +281,11 @@ All colors MUST be HSL.
     border-radius: inherit;
     background: linear-gradient(
       135deg,
-      hsl(251 78% 63%) 0%,
-      hsl(268 67% 66%) 25%,
-      hsl(217 91% 60%) 50%,
-      hsl(268 67% 66%) 75%,
-      hsl(251 78% 63%) 100%
+      hsl(var(--gradient-brand-from)) 0%,
+      hsl(var(--gradient-brand-to)) 25%,
+      hsl(var(--info-500)) 50%,
+      hsl(var(--gradient-brand-to)) 75%,
+      hsl(var(--gradient-brand-from)) 100%
     );
     background-size: 300% 300%;
     animation: shimmer 4s ease-in-out infinite;
@@ -357,5 +360,22 @@ All colors MUST be HSL.
 
   .chevron-bounce.rotate-180 {
     animation: none;
+  }
+
+  /* Barra de rolagem fina das listas do dashboard */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--brand-300));
+    border-radius: 10px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--brand));
   }
 }
