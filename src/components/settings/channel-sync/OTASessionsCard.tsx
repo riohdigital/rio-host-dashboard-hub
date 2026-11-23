@@ -146,14 +146,14 @@ export const OTASessionsCard: React.FC = () => {
 
   return (
     <Card className="border border-border/80 shadow-sm overflow-hidden bg-gradient-to-br from-card via-card to-muted/20">
-      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-4">
+      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-4 max-sm:flex-col max-sm:gap-3">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <div className="p-2 rounded-lg bg-brand-50 dark:bg-brand-950/50 text-brand-600 dark:text-brand-400 border border-brand-100 dark:border-brand-900/50">
               <Globe className="h-5 w-5" />
             </div>
             <div>
-              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+              <CardTitle className="text-lg font-semibold flex items-center gap-2 max-sm:flex-wrap">
                 Suas Contas nas Plataformas
                 <Badge variant="outline" className="text-xs font-normal text-muted-foreground border-border/60">
                   <Sparkles className="h-3 w-3 mr-1 text-warning-500" />
@@ -199,9 +199,9 @@ export const OTASessionsCard: React.FC = () => {
                   key={session.id}
                   className="rounded-xl border border-border/70 p-4 bg-background/50 hover:bg-background/80 transition-all duration-200 space-y-3"
                 >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="font-semibold text-base">{platform.name}</span>
                         <Badge variant="outline" className={`text-xs ${platform.badgeColor}`}>
                           {session.domain}

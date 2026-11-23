@@ -184,7 +184,7 @@ const UserManagementSection = () => {
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4 justify-between">
-        <div className="flex gap-2">
+        <div className="flex gap-2 max-sm:flex-wrap max-sm:[&>button]:min-h-11 max-sm:[&>button]:flex-1">
           <Button onClick={() => setCreateModalOpen(true)}>
             <UserPlus className="h-4 w-4 mr-2" />
             Adicionar Usuário
@@ -204,7 +204,7 @@ const UserManagementSection = () => {
             placeholder="Buscar por email ou nome..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
+            className="pl-10 max-sm:h-11"
           />
         </div>
       </div>

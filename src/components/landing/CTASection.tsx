@@ -45,7 +45,7 @@ const CTASection = ({ onGetStarted, isLoggedIn }: CTASectionProps) => {
               <Button
                 size="lg"
                 onClick={onGetStarted}
-                className="bg-gradient-primary hover:opacity-90 text-white font-semibold px-8 py-6 text-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group"
+                className="bg-gradient-primary hover:opacity-90 text-white font-semibold px-8 py-6 text-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group max-sm:w-full"
               >
                 {isLoggedIn ? 'Ir para o Dashboard' : 'Começar Teste Grátis'}
                 <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />

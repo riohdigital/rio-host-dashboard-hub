@@ -21,6 +21,9 @@ import { buildGuestMonthReceipts, formatMonthLabel, GuestMonthReceipt } from '@/
 import { useReceiptIssuer } from '@/hooks/useReceiptIssuer';
 import VerTodos from '@/components/comum/VerTodos';
 import { useListaCurta } from '@/components/comum/useListaCurta';
+import { useEhCompacto } from '@/hooks/useMidia';
+import LinhaLista from '@/components/comum/LinhaLista';
+import { ListaLinhas } from '@/components/comum/GrupoLista';
 
 // CÓDIGO ORIGINAL MANTIDO
 interface Reservation {
@@ -78,6 +81,13 @@ const ReceiptGenerator = () => {
   // Celular: 3 itens + "Ver todos" (sem rolagem dentro da página); computador: caixa com rolagem
   const listaComprovantes = useListaCurta(guestReceipts, 3, { soCompacto: true });
   const listaRecibos = useListaCurta(reservations, 3, { soCompacto: true });
+  // Celular: cada recibo vira uma linha (tocar abre a prévia; o botão baixa o PDF)
+  const compacto = useEhCompacto();
+  const botaoPDF = (aoTocar: () => void) => (
+    <Button size="icon" variant="outline" onClick={aoTocar} aria-label="Baixar PDF" className="h-11 w-11 rounded-full">
+      <Download className="h-4 w-4" />
+    </Button>
+  );
 
   // Implementação com duas consultas separadas para evitar problemas de join
   useEffect(() => {
@@ -517,6 +527,21 @@ const ReceiptGenerator = () => {
           <div className="space-y-3 lg:max-h-96 lg:overflow-y-auto lg:pr-2">
             {guestReceipts.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">Nenhuma reserva com valor pago pelo hóspede no período</div>
+            ) : compacto ? (
+              <ListaLinhas>
+                {listaComprovantes.visiveis.map((receipt) => (
+                  <LinhaLista
+                    key={receipt.key}
+                    canal={receipt.reservation.platform}
+                    titulo={receipt.reservation.guest_name || 'Nome não informado'}
+                    subtitulo={`${formatMonthLabel(receipt.monthKey)} · ${receipt.reservation.properties?.name || 'Propriedade não informada'} · ${receipt.nightsInMonth} noite(s)`}
+                    valor={formatCurrency(receipt.amount)}
+                    legenda={receipt.reservation.reservation_code}
+                    aoTocar={() => setPreviewGuestReceipt(receipt)}
+                    acao={botaoPDF(() => generateGuestPDF(receipt))}
+                  />
+                ))}
+              </ListaLinhas>
             ) : (
               listaComprovantes.visiveis.map((receipt) => (
                 <div key={receipt.key} className="flex flex-col gap-3 rounded-xl border p-4 transition-colors hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between">
@@ -540,6 +565,22 @@ const ReceiptGenerator = () => {
           <div className="space-y-3 lg:max-h-96 lg:overflow-y-auto lg:pr-2">
             {reservations.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">Nenhuma reserva encontrada</div>
+            ) : compacto ? (
+              <ListaLinhas>
+                {listaRecibos.visiveis.map((reservation) => (
+                  <LinhaLista
+                    key={reservation.id}
+                    canal={reservation.platform}
+                    titulo={reservation.guest_name || 'Nome não informado'}
+                    subtitulo={`${reservation.properties?.name || 'Propriedade não informada'} · ${formatDate(reservation.check_in_date)} - ${formatDate(reservation.check_out_date)}`}
+                    valor={formatCurrency(calculateOwnerValue(reservation))}
+                    legenda={reservation.payment_status || reservation.reservation_code}
+                    tomLegenda={reservation.payment_status === 'Pago' ? 'success' : reservation.payment_status ? 'warning' : 'neutro'}
+                    aoTocar={() => setPreviewReservation(reservation)}
+                    acao={botaoPDF(() => generatePDF(reservation))}
+                  />
+                ))}
+              </ListaLinhas>
             ) : (
               listaRecibos.visiveis.map((reservation) => (
                 <div key={reservation.id} className="flex flex-col gap-3 rounded-xl border p-4 transition-colors hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between">

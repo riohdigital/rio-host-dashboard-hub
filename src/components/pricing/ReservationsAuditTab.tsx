@@ -27,6 +27,8 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables } from '@/integrations/supabase/types';
 import { useToast } from '@/hooks/use-toast';
+import { useListaCurta } from '@/components/comum/useListaCurta';
+import VerTodos from '@/components/comum/VerTodos';
 import { Property } from '@/types/property';
 import { formatLocalDate } from '@/utils/dateUtils';
 import { fetchN8n } from '@/lib/n8n';
@@ -65,6 +67,8 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
   const [loading, setLoading] = useState(true);
   const [auditingIds, setAuditingIds] = useState<Record<string, boolean>>({});
   const [selectedModalRes, setSelectedModalRes] = useState<ReservaAuditada | null>(null);
+  // Celular: 10 reservas por vez (regra 5); o computador vê todas
+  const listaCurta = useListaCurta(reservations, 10, { soCompacto: true });
   // hotel_id da Booking por imóvel: sem ele o link da extranet dá erro 400.
   const [bookingHotelIds, setBookingHotelIds] = useState<Record<string, string>>({});
 
@@ -312,7 +316,7 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
         </div>
       ) : (
         <div className="space-y-3">
-          {reservations.map(res => {
+          {listaCurta.visiveis.map(res => {
             const isVerified = !!res.is_verified_by_ai;
             const isAuditing = !!auditingIds[res.id];
             const isAirbnb = res.platform?.toLowerCase() === 'airbnb';
@@ -493,6 +497,15 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
               </Card>
             );
           })}
+          {listaCurta.temMais && (
+            <VerTodos
+              semFio
+              total={listaCurta.total}
+              expandido={listaCurta.expandido}
+              aoClicar={listaCurta.alternar}
+              className="rounded-2xl border bg-card"
+            />
+          )}
         </div>
       )}
 

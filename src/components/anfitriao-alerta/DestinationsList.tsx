@@ -5,11 +5,15 @@ import { useNotificationDestinations } from '@/hooks/useNotificationDestinations
 import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import DestinationCard from './DestinationCard';
 import DestinationForm from './DestinationForm';
+import { useEhCompacto } from '@/hooks/useMidia';
+import Bloco from '@/components/comum/Bloco';
+import { ListaLinhas } from '@/components/comum/GrupoLista';
 
 const DestinationsList = () => {
   const { destinations, loading } = useNotificationDestinations();
   const { hasPermission } = useUserPermissions();
   const [showForm, setShowForm] = useState(false);
+  const compacto = useEhCompacto();
   
   const canCreate = hasPermission('anfitriao_alerta_create');
 
@@ -24,9 +28,10 @@ const DestinationsList = () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-xl font-semibold text-foreground">Destinatários de Alertas</h2>
+        {/* Celular: o título fica no bloco da lista */}
+        <h2 className="text-xl font-semibold text-foreground max-lg:sr-only">Destinatários de Alertas</h2>
         {canCreate && (
-          <Button onClick={() => setShowForm(true)} className="gap-2">
+          <Button onClick={() => setShowForm(true)} className="gap-2 max-lg:min-h-11">
             <Plus className="h-4 w-4" />
             Novo Destinatário
           </Button>
@@ -45,6 +50,14 @@ const DestinationsList = () => {
             </Button>
           )}
         </div>
+      ) : compacto ? (
+        <Bloco titulo="Destinatários" extra={destinations.length} compacto>
+          <ListaLinhas>
+            {destinations.map((destination) => (
+              <DestinationCard key={destination.id} destination={destination} />
+            ))}
+          </ListaLinhas>
+        </Bloco>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {destinations.map((destination) => (

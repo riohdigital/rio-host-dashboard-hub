@@ -109,7 +109,7 @@ const HeroSection = ({ onGetStarted, isLoggedIn }: HeroSectionProps) => {
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1, duration: 0.6 }}
-            className="mx-auto mb-12 grid max-w-2xl grid-cols-1 gap-6 min-[420px]:grid-cols-3 sm:gap-8"
+            className="mx-auto mb-12 grid max-w-2xl grid-cols-3 gap-3 sm:gap-8"
           >
             <div className="text-center">
               <div className="text-3xl font-bold text-primary">90%</div>
@@ -131,7 +131,8 @@ const HeroSection = ({ onGetStarted, isLoggedIn }: HeroSectionProps) => {
             animate={{ opacity: 1 }}
             transition={{ delay: 1.2, duration: 0.6 }}
             onClick={scrollToFeatures}
-            className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce"
+            aria-label="Ver funcionalidades"
+            className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce max-sm:hidden"
           >
             <ChevronDown className="h-8 w-8 text-muted-foreground" />
           </motion.button>

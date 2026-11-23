@@ -1,4 +1,4 @@
-import { TrendingUp, Clock, Shield, Users } from 'lucide-react';
+import { TrendingUp, Clock, Shield, Users, XCircle, CheckCircle2 } from 'lucide-react';
 import { motion } from '@/lib/motion';
 import { Card } from '@/components/ui/card';
 
@@ -73,11 +73,8 @@ const BenefitsSection = () => {
                     <benefit.icon className="h-6 w-6 text-white" />
                   </div>
                   
-                  <div className="text-3xl font-bold mb-2 bg-gradient-to-r bg-clip-text text-transparent"
-                    style={{
-                      backgroundImage: `linear-gradient(135deg, ${benefit.color.split(' ')[1]}, ${benefit.color.split(' ')[3]})`
-                    }}
-                  >
+                  {/* O degradê vem das mesmas classes do ícone (o estilo em linha recebia nomes de classe e deixava o número invisível) */}
+                  <div className={`text-3xl font-bold mb-2 bg-gradient-to-r ${benefit.color} bg-clip-text text-transparent`}>
                     {benefit.stat}
                   </div>
                   
@@ -103,7 +100,7 @@ const BenefitsSection = () => {
             <div className="grid md:grid-cols-2 gap-8">
               <div className="space-y-4">
                 <h4 className="font-semibold text-destructive flex items-center gap-2">
-                  <span className="text-2xl">❌</span> Antes
+                  <XCircle className="h-6 w-6" aria-hidden="true" /> Antes
                 </h4>
                 <ul className="space-y-3 text-muted-foreground">
                   <li className="flex items-start gap-2">
@@ -127,7 +124,7 @@ const BenefitsSection = () => {
               
               <div className="space-y-4">
                 <h4 className="font-semibold text-primary flex items-center gap-2">
-                  <span className="text-2xl">✅</span> Depois
+                  <CheckCircle2 className="h-6 w-6" aria-hidden="true" /> Depois
                 </h4>
                 <ul className="space-y-3 text-foreground">
                   <li className="flex items-start gap-2">

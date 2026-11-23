@@ -7,6 +7,10 @@ import { NotificationDestination, useNotificationDestinations } from '@/hooks/us
 import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import AuthenticationDialog from './AuthenticationDialog';
 import DestinationSettingsDialog from './DestinationSettingsDialog';
+import { useEhCompacto } from '@/hooks/useMidia';
+import LinhaLista from '@/components/comum/LinhaLista';
+import FolhaDetalhes from '@/components/comum/FolhaDetalhes';
+import { Etiqueta } from '@/components/comum/Etiquetas';
 
 interface DestinationCardProps {
   destination: NotificationDestination;
@@ -17,6 +21,9 @@ const DestinationCard = ({ destination }: DestinationCardProps) => {
   const { hasPermission } = useUserPermissions();
   const [showAuth, setShowAuth] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  // Celular: uma linha; tocar abre a folha com Autenticar, Configurar e Remover (longe de editar)
+  const compacto = useEhCompacto();
+  const [folha, setFolha] = useState(false);
   
   const canEdit = hasPermission('anfitriao_alerta_edit');
   const canDelete = hasPermission('anfitriao_alerta_delete');
@@ -26,6 +33,75 @@ const DestinationCard = ({ destination }: DestinationCardProps) => {
       await deleteDestination(destination.id);
     }
   };
+
+  const dialogos = (
+    <>
+      {showAuth && canEdit && (
+        <AuthenticationDialog
+          destination={destination}
+          onClose={() => setShowAuth(false)}
+        />
+      )}
+
+      {showSettings && canEdit && (
+        <DestinationSettingsDialog
+          destination={destination}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
+    </>
+  );
+
+  if (compacto) {
+    const status = (
+      <Etiqueta tom={destination.is_authenticated ? 'success' : 'warning'}>
+        {destination.is_authenticated ? 'Autenticado' : 'Pendente'}
+      </Etiqueta>
+    );
+    return (
+      <>
+        <LinhaLista
+          icone={Phone}
+          titulo={destination.destination_name}
+          subtitulo={[destination.whatsapp_number || 'Número não informado', destination.destination_role].filter(Boolean).join(' · ')}
+          etiqueta={status}
+          aoTocar={() => setFolha(true)}
+        />
+        <FolhaDetalhes
+          aberta={folha}
+          aoMudar={setFolha}
+          titulo={destination.destination_name}
+          etiqueta={status}
+          subtitulo={destination.whatsapp_number || 'Número não informado'}
+          acoes={canEdit ? (
+            <>
+              {!destination.is_authenticated && (
+                <Button variant="outline" onClick={() => { setFolha(false); setShowAuth(true); }}>Autenticar</Button>
+              )}
+              <Button variant="outline" className="gap-2" onClick={() => { setFolha(false); setShowSettings(true); }}>
+                <Settings className="h-4 w-4" />
+                Configurar
+              </Button>
+            </>
+          ) : undefined}
+          excluir={canDelete ? {
+            rotulo: 'Remover destinatário',
+            titulo: 'Remover este destinatário?',
+            descricao: 'Ele deixa de receber os alertas.',
+            aoConfirmar: async () => {
+              await deleteDestination(destination.id);
+              setFolha(false);
+            },
+          } : undefined}
+        >
+          <p className="text-sm text-gray-700">
+            <span className="text-gray-500">Papel:</span> {destination.destination_role}
+          </p>
+        </FolhaDetalhes>
+        {dialogos}
+      </>
+    );
+  }
 
   return (
     <>
@@ -88,19 +164,7 @@ const DestinationCard = ({ destination }: DestinationCardProps) => {
         </CardContent>
       </Card>
 
-      {showAuth && canEdit && (
-        <AuthenticationDialog
-          destination={destination}
-          onClose={() => setShowAuth(false)}
-        />
-      )}
-
-      {showSettings && canEdit && (
-        <DestinationSettingsDialog
-          destination={destination}
-          onClose={() => setShowSettings(false)}
-        />
-      )}
+      {dialogos}
     </>
   );
 };

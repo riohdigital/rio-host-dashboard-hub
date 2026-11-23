@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, CheckCircle2, Circle, Loader2, PencilLine, RefreshCw, Sparkles, XCircle, Zap } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronRight, Circle, Loader2, PencilLine, RefreshCw, Sparkles, XCircle, Zap } from 'lucide-react';
+import FolhaDetalhes from '@/components/comum/FolhaDetalhes';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -57,9 +58,15 @@ interface Props {
   regras: PricingRule[];
   /** Chamado quando a esteira termina, para a página recarregar alertas e regras. */
   onAtualizado: () => void;
+  /**
+   * "linha" (celular): a lista vira uma linha com o resumo ("7 imóveis prontos ·
+   * Ativar precificação automática") que abre a lista numa folha.
+   */
+  modo?: 'cartao' | 'linha';
 }
 
-export const ProntidaoPrecificacao: React.FC<Props> = ({ properties, regras, onAtualizado }) => {
+export const ProntidaoPrecificacao: React.FC<Props> = ({ properties, regras, onAtualizado, modo = 'cartao' }) => {
+  const [folhaAberta, setFolhaAberta] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
   const [etapas, setEtapas] = useState<PipelineStage[]>([]);
@@ -163,6 +170,19 @@ export const ProntidaoPrecificacao: React.FC<Props> = ({ properties, regras, onA
   // Tudo ativo e em dia: uma linha discreta com o que o sistema aprendeu, sem ocupar a página.
   if (!naoAtivados.length && !comPendencia.length) {
     const ultima = etapas.map(e => e.ultima_ok_em).filter(Boolean).sort().pop();
+    if (modo === 'linha') {
+      return (
+        <div className="flex min-h-11 min-w-0 items-center gap-2 rounded-[14px] border border-success-100 bg-success-50/50 px-3.5 py-2.5 text-[13px] text-success-900">
+          <CheckCircle2 className="h-[18px] w-[18px] shrink-0 text-success-600" aria-hidden="true" />
+          <span className="min-w-0 truncate">
+            <span className="font-semibold">Precificação automática ativa</span>
+            {' · '}
+            {unico ? (linhas[0].p.nickname || linhas[0].p.name) : `${emDia.length} imóveis`} em dia
+            {ultima ? ` · revisado em ${quando(ultima)}` : ''}
+          </span>
+        </div>
+      );
+    }
     return (
       <div className="flex flex-wrap items-center gap-2 rounded-lg border border-success-100 bg-success-50/50 px-4 py-2.5 text-xs text-success-900">
         <CheckCircle2 className="h-4 w-4 text-success-600" />
@@ -177,9 +197,15 @@ export const ProntidaoPrecificacao: React.FC<Props> = ({ properties, regras, onA
 
   const regrasDe = (id: string) => regras.filter(r => r.property_id === id && r.tipo_data !== 'fim_de_semana' && Number(r.fator) > 0);
 
-  return (
-    <Card className="shadow-xs border-t-2 border-t-brand">
-      <CardContent className="p-5 space-y-4">
+  const prontos = naoAtivados.filter(l => !l.faltando.length);
+  const linha = (() => {
+    if (prontos.length) return { destaque: `${prontos.length} ${prontos.length === 1 ? 'imóvel pronto' : 'imóveis prontos'}`, texto: 'Ativar precificação automática' };
+    if (comPendencia.length) return { destaque: `${comPendencia.length} ${comPendencia.length === 1 ? 'imóvel' : 'imóveis'}`, texto: 'precisam de atenção na precificação' };
+    return { destaque: `${naoAtivados.length} ${naoAtivados.length === 1 ? 'imóvel' : 'imóveis'}`, texto: 'com cadastro incompleto para precificar' };
+  })();
+
+  const conteudo = (
+    <>
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
           <div className="flex items-start gap-3">
             <span className="p-2 rounded-lg bg-brand/10 text-brand">
@@ -303,6 +329,39 @@ export const ProntidaoPrecificacao: React.FC<Props> = ({ properties, regras, onA
             <CheckCircle2 className="h-3.5 w-3.5" /> Em dia: {emDia.map(l => l.p.nickname || l.p.name).join(', ')}
           </p>
         )}
+    </>
+  );
+
+  if (modo === 'linha') {
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => setFolhaAberta(true)}
+          className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-[14px] border bg-card px-3.5 py-2.5 text-left text-[13px] text-gray-700 shadow-sm transition-colors active:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        >
+          <Sparkles className="h-[18px] w-[18px] shrink-0 text-brand" aria-hidden="true" />
+          <span className="min-w-0 flex-1 truncate">
+            <span className="font-semibold text-gray-900">{linha.destaque}</span> · {linha.texto}
+          </span>
+          <ChevronRight className="h-[18px] w-[18px] shrink-0 text-gray-500" aria-hidden="true" />
+        </button>
+        <FolhaDetalhes
+          aberta={folhaAberta}
+          aoMudar={setFolhaAberta}
+          titulo="Precificação automática"
+          subtitulo={`${linha.destaque} · ${linha.texto}`}
+        >
+          <div className="space-y-4 [&_a]:min-h-11 [&_button]:min-h-11 [&_h3]:sr-only">{conteudo}</div>
+        </FolhaDetalhes>
+      </>
+    );
+  }
+
+  return (
+    <Card className="shadow-xs border-t-2 border-t-brand">
+      <CardContent className="p-5 space-y-4">
+        {conteudo}
       </CardContent>
     </Card>
   );
