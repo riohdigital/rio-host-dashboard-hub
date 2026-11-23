@@ -1,146 +1,124 @@
+/**
+ * Um dia na grade do Mês no computador: número, ocupação ("5/7"), pontos de
+ * entrada (verde) e saída (laranja) e até 3 reservas do dia. Dia fora do
+ * período fica apagado e sem toque. Clicar no dia abre a lista do dia abaixo
+ * do mês; clicar numa reserva abre a reserva.
+ */
 import React from 'react';
-import { format, isToday } from 'date-fns';
-import { CalendarReservation } from '@/types/calendar';
-import { Property } from '@/types/property';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { corDoCanal } from '@/components/comum/cores';
 import { cn } from '@/lib/utils';
+import { CalendarReservation } from '@/types/calendar';
+import { nomeDoImovel, primeiroNome, rotuloDia } from './periodo';
 
 interface DayCellProps {
-  date: Date;
+  /** 'AAAA-MM-DD' */
+  dia: string;
+  /** Reservas com noite neste dia */
   reservations: CalendarReservation[];
-  properties: Property[];
-  isCurrentMonth: boolean;
+  nomesImoveis: Map<string, string>;
+  foraDoPeriodo?: boolean;
+  hoje?: boolean;
+  selecionado?: boolean;
+  /** "5/7" */
+  ocupacao?: string;
+  entradas?: number;
+  saidas?: number;
   onReservationClick: (reservation: CalendarReservation) => void;
-  onDayClick?: (date: Date) => void;
+  onDayClick?: () => void;
 }
 
-const getPlatformColor = (platform: string) => {
-  switch (platform.toLowerCase()) {
-    case 'airbnb': return 'bg-pink-500';
-    case 'booking': return 'bg-info-500';
-    default: return 'bg-gray-500';
-  }
-};
-
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'Confirmada': return 'bg-info-100 text-info-900 dark:bg-info-900/20 dark:text-info-300';
-    case 'Em Andamento': return 'bg-success-100 text-success-900 dark:bg-success-900/20 dark:text-success-300';
-    case 'Finalizada': return 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400';
-    case 'Cancelada': return 'bg-danger-100 text-danger-900 dark:bg-danger-900/20 dark:text-danger-300';
-    default: return 'bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-300';
-  }
-};
+const ItemReserva = ({ r, nomesImoveis, onClick }: { r: CalendarReservation; nomesImoveis: Map<string, string>; onClick: () => void }) => (
+  <button
+    type="button"
+    title={`${r.guest_name || 'Sem nome'} · ${nomeDoImovel(r, nomesImoveis)} · ${r.platform}`}
+    onClick={(e) => {
+      e.stopPropagation();
+      onClick();
+    }}
+    className="flex w-full min-w-0 items-center gap-1 rounded bg-gray-100 px-1.5 py-0.5 text-left text-xs text-gray-800 transition-colors hover:bg-gray-200"
+  >
+    <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', corDoCanal(r.platform).ponto)} aria-hidden="true" />
+    <span className="truncate font-medium">{nomeDoImovel(r, nomesImoveis)}</span>
+    <span className="hidden truncate text-gray-500 2xl:inline">· {primeiroNome(r.guest_name)}</span>
+  </button>
+);
 
 export const DayCell: React.FC<DayCellProps> = ({
-  date,
+  dia,
   reservations,
-  properties,
-  isCurrentMonth,
+  nomesImoveis,
+  foraDoPeriodo,
+  hoje,
+  selecionado,
+  ocupacao,
+  entradas = 0,
+  saidas = 0,
   onReservationClick,
   onDayClick,
 }) => {
   const maxVisible = 3;
-  const visibleReservations = reservations.slice(0, maxVisible);
-  const hiddenCount = Math.max(0, reservations.length - maxVisible);
+  const visiveis = reservations.slice(0, maxVisible);
+  const escondidas = reservations.slice(maxVisible);
 
   return (
     <div
+      role={onDayClick ? 'button' : undefined}
+      tabIndex={onDayClick ? 0 : undefined}
+      aria-pressed={onDayClick ? !!selecionado : undefined}
+      aria-label={onDayClick ? `${rotuloDia(dia, true)}${ocupacao ? `, ${ocupacao} ocupados` : ''}` : undefined}
+      onClick={onDayClick}
+      onKeyDown={(e) => {
+        if (onDayClick && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault();
+          onDayClick();
+        }
+      }}
       className={cn(
-        'min-h-[72px] min-w-0 overflow-hidden p-1 transition-colors hover:bg-accent/50 sm:min-h-[120px] sm:p-2',
-        !isCurrentMonth && 'opacity-40',
-        isToday(date) && 'bg-accent/30'
+        'relative min-h-[112px] min-w-0 overflow-hidden p-2 transition-colors',
+        foraDoPeriodo ? 'bg-gray-50/60 opacity-40' : 'cursor-pointer hover:bg-brand-50/60',
+        hoje && 'bg-brand-50/50',
+        selecionado && 'outline outline-2 -outline-offset-2 outline-gray-900',
+        'focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand',
       )}
-      onClick={() => onDayClick?.(date)}
     >
-      {/* Número do dia */}
-      <div
-        className={cn(
-          'text-sm font-medium mb-1',
-          isToday(date) && 'inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground'
-        )}
-      >
-        {format(date, 'd')}
+      <div className="mb-1 flex items-center justify-between gap-1">
+        <span
+          className={cn(
+            'inline-flex h-6 min-w-6 items-center justify-center rounded-full text-sm font-medium',
+            hoje && 'bg-brand-accent px-1.5 text-white',
+          )}
+        >
+          {Number(dia.slice(8, 10))}
+        </span>
+        <span className="flex items-center gap-1">
+          {entradas > 0 && <span className="h-1.5 w-1.5 rounded-full bg-success-500" title="Entrada" />}
+          {saidas > 0 && <span className="h-1.5 w-1.5 rounded-full bg-warning-500" title="Saída" />}
+          {ocupacao && <span className="font-mono text-[11px] tabular-nums text-gray-500">{ocupacao}</span>}
+        </span>
       </div>
 
-      {/* Lista de reservas */}
       <div className="space-y-1">
-        {visibleReservations.map((reservation) => {
-          const property = properties.find(p => p.id === reservation.property_id);
-          
-          return (
-            <TooltipProvider key={reservation.id}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div
-                    className={cn(
-                      'rounded px-1 py-0.5 text-[10px] cursor-pointer truncate transition-all hover:shadow-md sm:px-1.5 sm:text-xs',
-                      getStatusColor(reservation.reservation_status || 'Confirmada')
-                    )}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onReservationClick(reservation);
-                    }}
-                  >
-                    <div className="flex items-center gap-1">
-                      <div
-                        className={cn(
-                          'w-1.5 h-1.5 rounded-full flex-shrink-0',
-                          getPlatformColor(reservation.platform)
-                        )}
-                      />
-                      <span className="truncate font-medium">
-                        {property?.nickname || property?.name || 'Imóvel'}
-                      </span>
-                    </div>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent side="top" className="max-w-xs">
-                  <div className="space-y-1">
-                    <p className="font-semibold">{reservation.reservation_code}</p>
-                    <p className="text-xs">{property?.nickname || property?.name}</p>
-                    <p className="text-xs">{reservation.guest_name || 'Sem nome'}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {reservation.platform} • {reservation.reservation_status}
-                    </p>
-                  </div>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          );
-        })}
+        {visiveis.map((r) => (
+          <ItemReserva key={r.id} r={r} nomesImoveis={nomesImoveis} onClick={() => onReservationClick(r)} />
+        ))}
 
-        {/* Mostrar mais reservas */}
-        {hiddenCount > 0 && (
+        {escondidas.length > 0 && (
           <Popover>
             <PopoverTrigger asChild>
               <button
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors w-full text-left px-1.5 py-0.5"
+                type="button"
+                className="w-full px-1.5 py-0.5 text-left text-xs text-gray-500 transition-colors hover:text-gray-900"
                 onClick={(e) => e.stopPropagation()}
               >
-                +{hiddenCount} mais
+                +{escondidas.length} mais
               </button>
             </PopoverTrigger>
             <PopoverContent className="w-64 p-2">
-              <div className="space-y-1 max-h-64 overflow-y-auto">
-                {reservations.slice(maxVisible).map((reservation) => {
-                  const property = properties.find(p => p.id === reservation.property_id);
-                  return (
-                    <div
-                      key={reservation.id}
-                      className={cn(
-                        'text-xs px-2 py-1.5 rounded cursor-pointer',
-                        getStatusColor(reservation.reservation_status || 'Confirmada')
-                      )}
-                      onClick={() => onReservationClick(reservation)}
-                    >
-                      <p className="font-medium">{reservation.reservation_code}</p>
-                      <p className="text-xs opacity-80">{property?.nickname || property?.name}</p>
-                      <p className="text-xs opacity-70">{reservation.guest_name || 'Sem nome'}</p>
-                    </div>
-                  );
-                })}
+              <div className="space-y-1">
+                {escondidas.map((r) => (
+                  <ItemReserva key={r.id} r={r} nomesImoveis={nomesImoveis} onClick={() => onReservationClick(r)} />
+                ))}
               </div>
             </PopoverContent>
           </Popover>

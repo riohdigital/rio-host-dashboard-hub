@@ -1,77 +1,94 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useCalendarView } from '@/hooks/useCalendarView';
+/**
+ * Calendário: segue o período do filtro global e o filtro de imóveis (regra
+ * D2), no celular e no computador. Três visões:
+ * - Mês: um bloco por mês do período, 3 por vez, com a faixa dos meses no topo;
+ * - Imóveis: linha do tempo de 14 dias por vez, do 1º dia do período;
+ * - Agenda: entradas e saídas, dia a dia, 14 dias por vez.
+ * No topo, uma linha com ocupação · receita · reservas e a etiqueta dos feriados.
+ */
+import { useMemo, useState } from 'react';
+import { MessageCircle, Pencil } from 'lucide-react';
 import { useCalendarData } from '@/hooks/useCalendarData';
 import { useOccupancyStats } from '@/hooks/useOccupancyStats';
 import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
 import { useProperties } from '@/hooks/useProperties';
 import { useDateRange } from '@/hooks/dashboard/useDateRange';
-import { CalendarHeader } from '@/components/calendario/CalendarHeader';
-import { TimelineView } from '@/components/calendario/TimelineView';
-import { GridView } from '@/components/calendario/GridView';
-import { CompactListView } from '@/components/calendario/CompactListView';
-import { CalendarLegend } from '@/components/calendario/CalendarLegend';
-import { OccupancyStatsCard } from '@/components/calendario/OccupancyStatsCard';
+import { useEventosDoPeriodo } from '@/hooks/useEventosDoPeriodo';
+import { useFaxineirasDosImoveis } from '@/hooks/useFaxineirasDosImoveis';
+import { useEhCompacto } from '@/hooks/useMidia';
 import { CalendarReservation } from '@/types/calendar';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import AbasRolaveis from '@/components/comum/AbasRolaveis';
+import FolhaDetalhes from '@/components/comum/FolhaDetalhes';
 import JanelaResponsiva from '@/components/comum/JanelaResponsiva';
 import { EtiquetaPlataforma, EtiquetaStatus } from '@/components/comum/Etiquetas';
-import { formatarData, formatarMoeda } from '@/components/comum/formatos';
-import { useEhCelular } from '@/hooks/useMidia';
-import { CalendarDensityControl } from '@/components/calendario/CalendarDensityControl';
+import { formatarMoeda } from '@/components/comum/formatos';
+import { hojeLocal, noites } from '@/components/pricing/ocupacao';
 import ReservationForm from '@/components/reservations/ReservationForm';
-import { Skeleton } from '@/components/ui/skeleton';
-import { MessageCircle, Pencil } from 'lucide-react';
-import { useEventosDoPeriodo } from '@/hooks/useEventosDoPeriodo';
-import { FeriadosDoPeriodo } from '@/components/calendario/FeriadosDoPeriodo';
-import { eventoValeParaImovel, noites, somarDias } from '@/components/pricing/ocupacao';
+import ResumoDoPeriodo from '@/components/calendario/ResumoDoPeriodo';
+import { feriadosRelevantes } from '@/components/calendario/feriados';
+import VisaoMes from '@/components/calendario/VisaoMes';
+import VisaoImoveis from '@/components/calendario/VisaoImoveis';
+import VisaoAgenda from '@/components/calendario/VisaoAgenda';
+import { EtiquetaFaxina } from '@/components/calendario/LinhaMovimento';
+import { hora, indexarDias, mesesDoPeriodo, nomeDoImovel, paraTexto, periodoDesenhavel, rotuloDia, rotuloIntervalo } from '@/components/calendario/periodo';
+
+type Visao = 'mes' | 'imoveis' | 'agenda';
+
+const VISOES = [
+  { valor: 'mes', rotulo: 'Mês' },
+  { valor: 'imoveis', rotulo: 'Imóveis' },
+  { valor: 'agenda', rotulo: 'Agenda' },
+];
 
 const CalendarioPage = () => {
   const { selectedProperties, selectedPlatform, selectedPeriod, customStartDate, customEndDate } = useGlobalFilters();
-  const { view, setView, goToNextPeriod, goToPreviousPeriod, goToToday, currentDate } = useCalendarView();
+  const [visao, setVisao] = useState<Visao>('mes');
   const [selectedReservation, setSelectedReservation] = useState<CalendarReservation | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const celular = useEhCelular();
   const [detalheAberto, setDetalheAberto] = useState(false);
-  const [exibicaoAberta, setExibicaoAberta] = useState(false);
+  const compacto = useEhCompacto();
+  const hoje = hojeLocal();
 
-  // No celular o calendário abre na Lista compacta
-  useEffect(() => {
-    if (window.matchMedia('(max-width: 767px)').matches) setView('list');
-  }, [setView]);
-  const [dayWidth, setDayWidth] = useState(() => {
-    // Carregar do localStorage ou usar padrão
-    const saved = localStorage.getItem('calendar-day-width');
-    return saved ? parseInt(saved) : 60;
-  });
-
-  // FASE 1: Usar filtros globais para dateRange (igual à página de Reservas)
+  // Período do filtro global (o mesmo da página de Reservas)
   const { startDate, endDate } = useDateRange(selectedPeriod, customStartDate, customEndDate);
 
-  // Persistir dayWidth no localStorage
-  useEffect(() => {
-    localStorage.setItem('calendar-day-width', dayWidth.toString());
-  }, [dayWidth]);
-
-  // Buscar propriedades
   const { properties: allProperties = [], loading: isLoadingProperties } = useProperties();
+  const filteredProperties = useMemo(
+    () => (selectedProperties.includes('todas') ? allProperties : allProperties.filter((p) => selectedProperties.includes(p.id))),
+    [allProperties, selectedProperties],
+  );
 
-  // Filtrar propriedades baseado no filtro global
-  const filteredProperties = selectedProperties.includes('todas')
-    ? allProperties
-    : allProperties.filter(p => selectedProperties.includes(p.id));
-
-  // Buscar reservas com filtros CORRETOS usando startDate e endDate dos filtros globais
   const { data: reservations = [], isLoading: isLoadingReservations, refetch } = useCalendarData({
-    startDate: startDate,
-    endDate: endDate,
+    startDate,
+    endDate,
     propertyIds: selectedProperties,
     platform: selectedPlatform,
   });
 
-  // Celular: toque abre a folha de detalhes; desktop: abre a edição direto (como antes)
+  const idsImoveis = useMemo(() => filteredProperties.map((p) => p.id), [filteredProperties]);
+  const { data: faxineiras } = useFaxineirasDosImoveis(idsImoveis);
+  const nomesImoveis = useMemo(() => new Map(filteredProperties.map((p) => [p.id, p.nickname || p.name])), [filteredProperties]);
+
+  // O que o calendário desenha: o período do filtro ("Geral" encolhe para os meses com reservas)
+  const periodo = useMemo(
+    () => periodoDesenhavel(paraTexto(startDate), paraTexto(endDate), reservations, hoje),
+    [startDate, endDate, reservations, hoje],
+  );
+  const meses = useMemo(() => mesesDoPeriodo(periodo.inicio, periodo.fim), [periodo]);
+  const dias = useMemo(() => indexarDias(reservations, new Set(idsImoveis), periodo.inicio, periodo.fim), [reservations, idsImoveis, periodo]);
+
+  const occupancyStats = useOccupancyStats(filteredProperties, reservations, startDate, endDate);
+
+  // Feriados e eventos onde os imóveis do filtro estão (mesma regra da Precificação)
+  const { data: eventos = [] } = useEventosDoPeriodo(startDate, endDate);
+  const feriados = useMemo(() => feriadosRelevantes(eventos, filteredProperties, reservations), [eventos, filteredProperties, reservations]);
+
+  // Celular: toque abre a folha de detalhes; computador: abre a edição direto (como antes)
   const handleReservationClick = (reservation: CalendarReservation) => {
     setSelectedReservation(reservation);
-    if (celular) setDetalheAberto(true);
+    if (compacto) setDetalheAberto(true);
     else setIsEditModalOpen(true);
   };
 
@@ -87,173 +104,147 @@ const CalendarioPage = () => {
   };
 
   const isLoading = isLoadingProperties || isLoadingReservations;
-
-  // Feriados e eventos onde os imóveis do filtro estão (mesma regra da Precificação).
-  const { data: eventos = [] } = useEventosDoPeriodo(startDate, endDate);
-  const datasEspeciais = useMemo(() => {
-    const mapa = new Map<string, string[]>();
-    for (const ev of eventos) {
-      if (!filteredProperties.some(p => eventoValeParaImovel(ev, p))) continue;
-      const n = Math.max(1, noites(ev.start_date, ev.end_date));
-      for (let i = 0; i < n; i++) {
-        const d = somarDias(ev.start_date, i);
-        mapa.set(d, [...(mapa.get(d) || []), ev.name]);
-      }
-    }
-    return mapa;
-  }, [eventos, filteredProperties]);
-
-  // Calcular estatísticas de ocupação usando startDate e endDate corretos
-  const occupancyStats = useOccupancyStats(
-    filteredProperties,
-    reservations,
-    startDate,
-    endDate
-  );
-
   const r = selectedReservation;
+  // As visões recomeçam (1º mês, 1º dia) quando o período muda
+  const chavePeriodo = `${periodo.inicio}|${periodo.fim}`;
 
   return (
-    <div className="space-y-5 sm:space-y-6">
-      <CalendarHeader
-        currentDate={currentDate}
-        view={view}
-        onViewChange={setView}
-        onPrevious={goToPreviousPeriod}
-        onNext={goToNextPeriod}
-        onToday={goToToday}
-        onAbrirExibicao={() => setExibicaoAberta(true)}
-      />
+    <div className="space-y-3 lg:space-y-4">
+      {/* Celular: o nome da tela fica só na barra do topo */}
+      <h1 className="font-display text-2xl font-extrabold tracking-tight text-ink max-lg:sr-only sm:text-3xl">Calendário de Reservas</h1>
+
+      <AbasRolaveis rotulo="Visões do calendário" valor={visao} aoMudar={(v) => setVisao(v as Visao)} itens={VISOES} className="lg:w-auto lg:max-w-md" />
 
       {isLoading ? (
-        <div className="space-y-4">
+        <div className="space-y-3">
           <Skeleton className="h-12 w-full rounded-2xl" />
           <Skeleton className="h-96 w-full rounded-2xl" />
         </div>
       ) : (
         <>
-          {/* Estatísticas de Ocupação - Compacta e colapsável */}
-          <OccupancyStatsCard stats={occupancyStats} />
+          <ResumoDoPeriodo stats={occupancyStats} rotuloPeriodo={rotuloIntervalo(paraTexto(startDate), paraTexto(endDate))} feriados={feriados} />
 
-          <FeriadosDoPeriodo eventos={eventos} properties={filteredProperties} reservations={reservations} />
-
-          {view === 'timeline' ? (
-            <TimelineView
-              reservations={reservations}
-              properties={filteredProperties}
-              startDate={startDate}
-              endDate={endDate}
-              dayWidth={dayWidth}
-              onReservationClick={handleReservationClick}
-              datasEspeciais={datasEspeciais}
+          {visao === 'mes' ? (
+            <VisaoMes
+              key={chavePeriodo}
+              meses={meses}
+              dias={dias}
+              imoveis={filteredProperties}
+              nomesImoveis={nomesImoveis}
+              faxineiras={faxineiras}
+              hoje={hoje}
+              aoTocarReserva={handleReservationClick}
             />
-          ) : view === 'grid' ? (
-            <GridView
-              reservations={reservations}
-              properties={filteredProperties}
-              startDate={startDate}
-              endDate={endDate}
-              onReservationClick={handleReservationClick}
+          ) : visao === 'imoveis' ? (
+            <VisaoImoveis
+              key={chavePeriodo}
+              inicio={periodo.inicio}
+              fim={periodo.fim}
+              meses={meses}
+              imoveis={filteredProperties}
+              reservas={reservations.filter((x) => nomesImoveis.has(x.property_id))}
+              hoje={hoje}
+              aoTocarReserva={handleReservationClick}
             />
-          ) : view === 'list' ? (
-            <CompactListView
-              reservations={reservations}
-              properties={filteredProperties}
-              startDate={startDate}
-              endDate={endDate}
-              onReservationClick={handleReservationClick}
+          ) : (
+            <VisaoAgenda
+              key={chavePeriodo}
+              inicio={periodo.inicio}
+              fim={periodo.fim}
+              dias={dias}
+              nomesImoveis={nomesImoveis}
+              faxineiras={faxineiras}
+              hoje={hoje}
+              aoTocarReserva={handleReservationClick}
             />
-          ) : null}
+          )}
         </>
       )}
 
-      {/* Exibição: densidade da linha do tempo e legenda */}
-      <JanelaResponsiva aberta={exibicaoAberta} aoMudar={setExibicaoAberta} titulo="Exibição do calendário" largura="lg">
-        <div className="space-y-6">
-          <section className="space-y-3">
-            <h3 className="text-sm font-semibold text-ink">Densidade da linha do tempo</h3>
-            <CalendarDensityControl dayWidth={dayWidth} onDayWidthChange={setDayWidth} />
-          </section>
-          <section>
-            <CalendarLegend />
-          </section>
-        </div>
-      </JanelaResponsiva>
-
       {/* Celular: folha de detalhes da reserva */}
-      <JanelaResponsiva
+      <FolhaDetalhes
         aberta={detalheAberto && !!r}
-        aoMudar={(a) => { setDetalheAberto(a); if (!a && !isEditModalOpen) setSelectedReservation(null); }}
+        aoMudar={(a) => {
+          setDetalheAberto(a);
+          if (!a && !isEditModalOpen) setSelectedReservation(null);
+        }}
         titulo={r?.guest_name || 'Reserva'}
-        descricao={r ? `${r.properties?.nickname || r.properties?.name || ''} · ${r.reservation_code}` : undefined}
-        rodape={
-          <>
-            <Button variant="outline" onClick={() => { setDetalheAberto(false); setSelectedReservation(null); }}>Fechar</Button>
-            <Button onClick={() => { setDetalheAberto(false); setIsEditModalOpen(true); }} className="gap-2">
-              <Pencil className="h-4 w-4" /> Editar reserva
-            </Button>
-          </>
+        etiqueta={r ? <EtiquetaPlataforma plataforma={r.platform} /> : undefined}
+        subtitulo={
+          r
+            ? `${nomeDoImovel(r, nomesImoveis)} · ${rotuloDia(r.check_in_date)} → ${rotuloDia(r.check_out_date)} · ${noites(r.check_in_date, r.check_out_date)} noites · ${r.reservation_code}`
+            : undefined
         }
-      >
-        {r && (
-          <dl className="grid grid-cols-2 gap-3 text-sm">
-            <div className="rounded-2xl bg-surface p-3">
-              <dt className="text-xs text-gray-500">Check-in</dt>
-              <dd className="font-mono font-semibold tabular-nums text-ink">{formatarData(r.check_in_date)}</dd>
-              {r.checkin_time && <dd className="font-mono text-xs text-gray-500">{r.checkin_time.slice(0, 5)}</dd>}
-            </div>
-            <div className="rounded-2xl bg-surface p-3">
-              <dt className="text-xs text-gray-500">Check-out</dt>
-              <dd className="font-mono font-semibold tabular-nums text-ink">{formatarData(r.check_out_date)}</dd>
-              {r.checkout_time && <dd className="font-mono text-xs text-gray-500">{r.checkout_time.slice(0, 5)}</dd>}
-            </div>
-            <div className="rounded-2xl bg-surface p-3">
-              <dt className="text-xs text-gray-500">Valor total</dt>
-              <dd className="font-mono font-semibold tabular-nums text-ink">{formatarMoeda(r.total_revenue)}</dd>
-              <dd className="font-mono text-xs text-success-700">Líquido {formatarMoeda(r.net_revenue)}</dd>
-            </div>
-            <div className="rounded-2xl bg-surface p-3">
-              <dt className="text-xs text-gray-500">Hóspedes</dt>
-              <dd className="font-mono font-semibold tabular-nums text-ink">{r.number_of_guests || '—'}</dd>
-            </div>
-            <div className="col-span-2 flex flex-wrap items-center gap-2">
-              <EtiquetaPlataforma plataforma={r.platform} />
-              <EtiquetaStatus status={r.reservation_status} />
-              <EtiquetaStatus status={r.payment_status || 'Pendente'} />
-            </div>
-            {r.guest_phone && (
-              <div className="col-span-2">
+        acoes={
+          r ? (
+            <>
+              {r.guest_phone && (
                 <Button
                   variant="outline"
-                  className="w-full gap-2"
+                  className="gap-2"
                   onClick={() => {
                     const tel = r.guest_phone?.replace(/\D/g, '');
                     if (tel) window.open(`https://wa.me/55${tel}`, '_blank');
                   }}
                 >
-                  <MessageCircle className="h-4 w-4 text-success-600" /> WhatsApp do hóspede
+                  <MessageCircle className="h-4 w-4 text-success-600" /> WhatsApp
                 </Button>
+              )}
+              <Button
+                onClick={() => {
+                  setDetalheAberto(false);
+                  setIsEditModalOpen(true);
+                }}
+                className="gap-2"
+              >
+                <Pencil className="h-4 w-4" /> Editar
+              </Button>
+            </>
+          ) : undefined
+        }
+      >
+        {r && (
+          <>
+            <dl className="grid grid-cols-3 gap-2">
+              <div className="min-w-0 rounded-xl bg-gray-50 p-2.5">
+                <dt className="text-xs text-gray-500">Entrada</dt>
+                <dd className="font-mono text-sm font-semibold tabular-nums text-gray-900">{hora(r.checkin_time) || rotuloDia(r.check_in_date)}</dd>
               </div>
-            )}
-          </dl>
+              <div className="min-w-0 rounded-xl bg-gray-50 p-2.5">
+                <dt className="text-xs text-gray-500">Saída</dt>
+                <dd className="font-mono text-sm font-semibold tabular-nums text-gray-900">{hora(r.checkout_time) || rotuloDia(r.check_out_date)}</dd>
+              </div>
+              <div className="min-w-0 rounded-xl bg-gray-50 p-2.5">
+                <dt className="text-xs text-gray-500">Hóspedes</dt>
+                <dd className="font-mono text-sm font-semibold tabular-nums text-gray-900">{r.number_of_guests || '—'}</dd>
+              </div>
+              <div className="col-span-3 flex min-w-0 items-baseline justify-between gap-2 rounded-xl bg-gray-50 p-2.5">
+                <dt className="text-xs text-gray-500">Total</dt>
+                <dd className="truncate font-mono text-sm font-semibold tabular-nums text-gray-900">
+                  {formatarMoeda(r.total_revenue)} <span className="text-xs font-medium text-success-700">· líquido {formatarMoeda(r.net_revenue)}</span>
+                </dd>
+              </div>
+            </dl>
+            <div className="flex flex-wrap items-center gap-2">
+              <EtiquetaStatus status={r.reservation_status} />
+              <EtiquetaStatus status={r.payment_status || 'Pendente'} />
+              <EtiquetaFaxina reserva={r} faxineiras={faxineiras} hoje={hoje} />
+            </div>
+          </>
         )}
-      </JanelaResponsiva>
+      </FolhaDetalhes>
 
       {/* Edição */}
       <JanelaResponsiva
         aberta={isEditModalOpen && !!selectedReservation}
-        aoMudar={(a) => { if (!a) handleEditCancel(); }}
+        aoMudar={(a) => {
+          if (!a) handleEditCancel();
+        }}
         titulo="Editar Reserva"
         telaCheia
         largura="xl"
       >
-        {selectedReservation && (
-          <ReservationForm
-            reservation={selectedReservation}
-            onSuccess={handleEditSuccess}
-            onCancel={handleEditCancel}
-          />
-        )}
+        {selectedReservation && <ReservationForm reservation={selectedReservation} onSuccess={handleEditSuccess} onCancel={handleEditCancel} />}
       </JanelaResponsiva>
     </div>
   );
