@@ -1,78 +1,65 @@
+/**
+ * Feriados e eventos do período onde os imóveis estão, com quantos ainda estão
+ * livres. Livre em data de alta demanda é oportunidade: o atalho leva às
+ * sugestões de preço da Precificação. Abre na folha da etiqueta
+ * "N feriados no período" do topo do Calendário; o aviso dos imóveis sem
+ * localização fica aqui dentro.
+ */
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { CalendarHeart, Flame, CheckCircle2, ArrowRight } from 'lucide-react';
+import { CalendarHeart } from 'lucide-react';
+import LinhaLista from '@/components/comum/LinhaLista';
+import { ListaLinhas } from '@/components/comum/GrupoLista';
+import { Etiqueta } from '@/components/comum/Etiquetas';
 import { Property } from '@/types/property';
-import { LocalEvent } from '@/types/pricing';
-import { CalendarReservation } from '@/types/calendar';
 import { formatLocalDate } from '@/utils/dateUtils';
-import { escopoDoEvento, eventoValeParaImovel, hojeLocal, imovelLocalizado, situacaoNoEvento } from '@/components/pricing/ocupacao';
+import { escopoDoEvento, hojeLocal } from '@/components/pricing/ocupacao';
+import { FeriadoRelevante } from './feriados';
 
 interface Props {
-  eventos: LocalEvent[];
-  properties: Property[];
-  reservations: CalendarReservation[];
+  relevantes: FeriadoRelevante[];
+  semLocal: Property[];
 }
 
-/**
- * Feriados e eventos do período onde os imóveis estão, com quantos ainda estão livres. Livre em
- * data de alta demanda é oportunidade: o atalho leva às sugestões de preço da Precificação.
- */
-export const FeriadosDoPeriodo: React.FC<Props> = ({ eventos, properties, reservations }) => {
-  const relevantes = eventos
-    .map(ev => {
-      const imoveis = properties.filter(p => eventoValeParaImovel(ev, p));
-      const livres = imoveis.filter(p => situacaoNoEvento(reservations.filter(r => r.property_id === p.id), ev).situacao !== 'reservado');
-      return { ev, imoveis, livres };
-    })
-    .filter(x => x.imoveis.length > 0);
-
-  const semLocal = properties.filter(p => !imovelLocalizado(p));
+export const FeriadosDoPeriodo: React.FC<Props> = ({ relevantes, semLocal }) => {
   const hoje = hojeLocal();
-  if (!relevantes.length && !semLocal.length) return null;
-
   return (
-    <div className="rounded-lg border bg-card px-4 py-3 space-y-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-sm font-semibold flex items-center gap-1.5">
-          <CalendarHeart className="h-4 w-4 text-warning-500" /> Feriados e eventos no período
-        </span>
-        <Link to="/precificacao" className="text-xs font-semibold text-brand hover:underline flex items-center gap-1">
-          Ver oportunidades de preço <ArrowRight className="h-3 w-3" />
-        </Link>
-      </div>
+    <div className="grid min-w-0 gap-3">
       {relevantes.length === 0 ? (
-        <p className="text-xs text-muted-foreground">Nenhum feriado ou evento confirmado onde os imóveis estão, neste período.</p>
+        <p className="text-sm text-gray-500">Nenhum feriado ou evento confirmado onde os imóveis estão, neste período.</p>
       ) : (
-        <div className="flex flex-wrap gap-2">
-          {relevantes.map(({ ev, imoveis, livres }) => (
-            <div key={ev.id} className="rounded-md border bg-muted/30 px-2.5 py-1.5 text-xs">
-              <div className="font-semibold text-foreground">{ev.name}</div>
-              <div className="text-muted-foreground">
-                {formatLocalDate(ev.start_date)} a {formatLocalDate(ev.end_date)} • {escopoDoEvento(ev)}
-              </div>
-              {ev.end_date <= hoje ? (
-                // Já passou: livre não é mais oportunidade, só registro de ocupação.
-                <div className="text-muted-foreground">
-                  {imoveis.length - livres.length} de {imoveis.length} {imoveis.length > 1 ? 'imóveis reservados' : 'imóvel reservado'}
-                </div>
-              ) : livres.length === 0 ? (
-                <div className="text-success-700 font-medium flex items-center gap-1">
-                  <CheckCircle2 className="h-3 w-3" /> {imoveis.length > 1 ? 'Todos reservados' : 'Reservado'}
-                </div>
-              ) : (
-                <div className="text-warning-700 font-medium flex items-center gap-1">
-                  <Flame className="h-3 w-3" />
-                  {imoveis.length > 1 ? `Livre em ${livres.length} de ${imoveis.length} imóveis` : 'Livre'}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+        <ListaLinhas className="min-w-0">
+          {relevantes.map(({ ev, imoveis, livres }) => {
+            let etiqueta: React.ReactNode;
+            if (ev.end_date <= hoje) {
+              // Já passou: livre não é mais oportunidade, só registro de ocupação.
+              etiqueta = (
+                <Etiqueta tom="neutro">
+                  {imoveis.length - livres.length} de {imoveis.length} reservados
+                </Etiqueta>
+              );
+            } else if (livres.length === 0) {
+              etiqueta = <Etiqueta tom="success">{imoveis.length > 1 ? 'Todos reservados' : 'Reservado'}</Etiqueta>;
+            } else {
+              etiqueta = <Etiqueta tom="warning">{imoveis.length > 1 ? `Livre em ${livres.length} de ${imoveis.length}` : 'Livre'}</Etiqueta>;
+            }
+            return (
+              <LinhaLista
+                key={ev.id}
+                icone={CalendarHeart}
+                tomIcone="warning"
+                titulo={ev.name}
+                subtitulo={`${formatLocalDate(ev.start_date)} a ${formatLocalDate(ev.end_date)} · ${escopoDoEvento(ev)}`}
+                etiqueta={etiqueta}
+              />
+            );
+          })}
+        </ListaLinhas>
       )}
       {semLocal.length > 0 && (
-        <p className="text-[11px] text-muted-foreground">
-          Sem localização conferida (feriados não aparecem): {semLocal.map(p => p.nickname || p.name).join(', ')}. Ative a
-          precificação automática ou corrija o endereço em Propriedades.
+        <p className="rounded-xl bg-gray-50 p-3 text-xs text-gray-600">
+          Sem localização conferida (feriados não aparecem): {semLocal.map((p) => p.nickname || p.name).join(', ')}. Ative a precificação automática ou
+          corrija o endereço em <Link to="/propriedades" className="font-semibold text-brand-700 underline-offset-2 hover:underline">Propriedades</Link>.
         </p>
       )}
     </div>
