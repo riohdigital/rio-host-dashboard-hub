@@ -29,6 +29,8 @@ import CashflowCard from './CashflowCard';
 import UpcomingReservations from './UpcomingReservations';
 import RecentReservations from './RecentReservations';
 import { StrategicInsightsCard } from './StrategicInsightsCard';
+import DashboardCelular from './DashboardCelular';
+import { useEhCompacto } from '@/hooks/useMidia';
 
 const Dashboard = () => {
   const { selectedProperties, selectedPeriod, selectedPlatform, customStartDate, customEndDate } = useGlobalFilters();
@@ -60,7 +62,8 @@ const Dashboard = () => {
   }, [startDateString, endDateString, selectedProperties, selectedPlatform]);
   
   const isLoading = financialLoading || operationalLoading || annualGrowthLoading;
-  
+  const compacto = useEhCompacto();
+
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -71,6 +74,38 @@ const Dashboard = () => {
 
       {isLoading ? (
         <div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="h-8 w-8 text-primary animate-spin" /></div>
+      ) : compacto ? (
+        // Celular: desenho próprio (T1 do plano), com os mesmos dados e cálculos
+        <DashboardCelular
+          pode={hasPermission}
+          previsao={showForecast}
+          inicio={startDateString}
+          fim={endDateString}
+          receita={showForecast ? competenceData.operational.totalRevenue : competenceData.operational.totalRevenueWithFuture}
+          comissao={showForecast ? competenceData.operational.totalCommission : competenceData.operational.totalCommissionWithFuture}
+          liquido={showForecast ? competenceData.operational.totalNetRevenue : competenceData.operational.totalNetRevenueWithFuture}
+          despesas={financialData.totalExpenses}
+          ocupacaoPrevista={competenceData.operational.occupancyRate}
+          detalhamento={{
+            bruto: competenceData.operational.totalRevenueWithFuture,
+            base: competenceData.operational.totalRevenueWithFuture,
+            comissao: competenceData.operational.totalCommissionWithFuture,
+            liquido: competenceData.operational.totalNetRevenueWithFuture,
+            despesas: financialData.totalExpenses,
+          }}
+          reservasDoPeriodo={financialData.reservationsForPeriod}
+          totalImoveis={financialData.propertiesCount}
+          fluxo={operationalData.cashflow}
+          bookingFuturo={
+            showCashBasis
+              ? { total: competenceData.futureRevenue.bookingComTotal, mes: competenceData.futureRevenue.nextPaymentMonth }
+              : null
+          }
+          pagas={operationalData.paidCount}
+          pendentes={operationalData.pendingCount}
+          recentes={operationalData.recentReservations}
+          crescimento={{ ...annualGrowthData, loading: annualGrowthLoading }}
+        />
       ) : (
         <>
           {/* Business Insights da IA - Topo */}

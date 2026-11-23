@@ -10,6 +10,8 @@ interface RevenueBreakdownCardProps {
   commission: number;
   netRevenue: number;
   expenses: number;
+  /** Só o conteúdo, sem o cartão e o título (celular, dentro do BlocoRecolhivel) */
+  semCartao?: boolean;
 }
 
 const RevenueBreakdownCard = ({ 
@@ -17,7 +19,8 @@ const RevenueBreakdownCard = ({
   baseRevenue, 
   commission, 
   netRevenue, 
-  expenses 
+  expenses,
+  semCartao,
 }: RevenueBreakdownCardProps) => {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -35,15 +38,8 @@ const RevenueBreakdownCard = ({
   const commissionPercent = baseRevenue > 0 ? (commission / baseRevenue) * 100 : 0;
   const netRevenuePercent = baseRevenue > 0 ? (netRevenue / baseRevenue) * 100 : 0;
 
-  return (
-    <Card className="bg-white card-elevated gradient-hover-card smooth-transition">
-      <CardHeader>
-        <CardTitle className="text-lg font-semibold text-gradient-primary flex items-center gap-2">
-          <TrendingUp className="h-5 w-5" />
-          Breakdown de Receita
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+  const conteudo = (
+    <>
         {/* Receita Bruta Total */}
         <div className="space-y-1">
           <TooltipProvider>
@@ -145,7 +141,20 @@ const RevenueBreakdownCard = ({
             </TooltipProvider>
           </div>
         </div>
-      </CardContent>
+    </>
+  );
+
+  if (semCartao) return <div className="space-y-4">{conteudo}</div>;
+
+  return (
+    <Card className="bg-white card-elevated gradient-hover-card smooth-transition">
+      <CardHeader>
+        <CardTitle className="text-lg font-semibold text-gradient-primary flex items-center gap-2">
+          <TrendingUp className="h-5 w-5" />
+          Breakdown de Receita
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">{conteudo}</CardContent>
     </Card>
   );
 };

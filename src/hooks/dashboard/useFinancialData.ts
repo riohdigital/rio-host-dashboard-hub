@@ -10,7 +10,10 @@ interface FinancialData {
   netProfit: number;              // net_revenue - despesas
   occupancyRate: number;
   revenueByPlatform: Array<{ name: string; value: number }>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- linhas de select('*, properties(...)') sem tipo
   reservationsForPeriod: any[];
+  /** Imóveis no filtro (bloco Hoje do celular: "N de M imóveis ocupados") */
+  propertiesCount: number;
 }
 
 export const useFinancialData = (
@@ -30,6 +33,7 @@ export const useFinancialData = (
     occupancyRate: 0,
     revenueByPlatform: [],
     reservationsForPeriod: [],
+    propertiesCount: 0,
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -158,11 +162,12 @@ export const useFinancialData = (
         occupancyRate,
         revenueByPlatform,
         reservationsForPeriod: reservations,
+        propertiesCount,
       });
 
-    } catch (err: any) {
+    } catch (err) {
       console.error('Erro ao buscar dados financeiros:', err);
-      setError(err.message || 'Erro ao carregar dados financeiros');
+      setError((err as { message?: string })?.message || 'Erro ao carregar dados financeiros');
     } finally {
       setLoading(false);
     }

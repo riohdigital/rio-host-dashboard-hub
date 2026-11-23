@@ -182,7 +182,12 @@ const LoadingSkeleton = () => (
   </Card>
 );
 
-export function StrategicInsightsCard() {
+/**
+ * `semCartao`: só o conteúdo, sem o cartão e sem o título "IA Dicas" — no
+ * celular as dicas ficam dentro do BlocoRecolhivel "Dicas da IA" do Dashboard
+ * (regra 10: sem cartão dentro de cartão).
+ */
+export function StrategicInsightsCard({ semCartao = false }: { semCartao?: boolean } = {}) {
   const { 
     insights, 
     currentInsight, 
@@ -201,11 +206,20 @@ export function StrategicInsightsCard() {
   }, [activePropertyIndex]);
 
   if (loading) {
+    if (semCartao) {
+      return (
+        <div className="space-y-3" aria-busy="true">
+          <Skeleton className="h-4 w-2/3" />
+          <Skeleton className="h-20 w-full rounded-xl" />
+          <Skeleton className="h-16 w-full rounded-xl" />
+        </div>
+      );
+    }
     return <LoadingSkeleton />;
   }
 
   if (!currentInsight) {
-    return null;
+    return semCartao ? <p className="text-sm text-gray-500">Nenhuma dica disponível ainda.</p> : null;
   }
 
   const daysSinceUpdate = Math.floor(
@@ -217,24 +231,36 @@ export function StrategicInsightsCard() {
     year: 'numeric'
   });
 
+  // No modo sem cartão, as partes do Card viram blocos simples, sem borda nem respiro próprio
+  const Raiz = semCartao ? 'div' : Card;
+  const Cabecalho = semCartao ? 'div' : CardHeader;
+  const Conteudo = semCartao ? 'div' : CardContent;
+  const Rodape = semCartao ? 'div' : CardFooter;
+
   return (
     <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
       {/* Borda animada só enquanto carrega (LoadingSkeleton); pronto, o cartão fica quieto */}
-      <Card className="bg-card relative overflow-hidden mb-6 border-brand-100 shadow-sm">
+      <Raiz className={semCartao ? undefined : 'bg-card relative overflow-hidden mb-6 border-brand-100 shadow-sm'}>
         {/* Header - SEMPRE VISÍVEL */}
-        <CardHeader className="pb-4 relative">
+        <Cabecalho className={semCartao ? 'pb-3' : 'pb-4 relative'}>
 
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div className="min-w-0 space-y-2">
               <div className="flex items-center gap-2">
                 <div>
-                  <h3 className="font-display font-bold text-lg text-ink flex flex-wrap items-center gap-2">
-                    <MarcaIA />
-                    Dicas
+                  {semCartao ? (
                     <Badge variant="secondary" className="text-xs font-normal">
                       {currentInsight.property_name}
                     </Badge>
-                  </h3>
+                  ) : (
+                    <h3 className="font-display font-bold text-lg text-ink flex flex-wrap items-center gap-2">
+                      <MarcaIA />
+                      Dicas
+                      <Badge variant="secondary" className="text-xs font-normal">
+                        {currentInsight.property_name}
+                      </Badge>
+                    </h3>
+                  )}
                   <p className="text-xs text-muted-foreground">
                     Análise de {targetMonthFormatted} • Atualizado há {daysSinceUpdate} {daysSinceUpdate === 1 ? 'dia' : 'dias'}
                   </p>
@@ -243,10 +269,10 @@ export function StrategicInsightsCard() {
             </div>
             <SentimentBadge sentiment={currentInsight.sentiment} />
           </div>
-        </CardHeader>
+        </Cabecalho>
 
         {/* Summary & Diagnosis - SEMPRE VISÍVEIS */}
-        <CardContent key={animationKey} className="ai-card-content-enter pb-0 space-y-4">
+        <Conteudo key={animationKey} className="ai-card-content-enter pb-0 space-y-4">
           {/* Resumo */}
           <div className="p-4 rounded-xl bg-gradient-to-br from-brand-50 to-info-50 border border-brand-100 dark:from-brand-950/30 dark:to-info-950/30 dark:border-brand-800/30">
             <div className="flex items-start gap-3">
@@ -278,11 +304,11 @@ export function StrategicInsightsCard() {
 
           {/* Expand Indicator */}
           <ExpandIndicator isExpanded={isExpanded} />
-        </CardContent>
+        </Conteudo>
 
         {/* Conteúdo expandido - OCULTO POR PADRÃO */}
         <CollapsibleContent className="data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up overflow-hidden">
-          <CardContent className="pt-0 space-y-5">
+          <Conteudo className={cn('space-y-5', semCartao ? 'pt-1' : 'pt-0')}>
 
             {/* Opportunity Alert */}
             {currentInsight.opportunity_alert && (
@@ -354,12 +380,12 @@ export function StrategicInsightsCard() {
                 </div>
               </div>
             )}
-          </CardContent>
+          </Conteudo>
         </CollapsibleContent>
 
         {/* Footer with property navigation - SEMPRE VISÍVEL */}
         {hasMultipleProperties && (
-          <CardFooter className="pt-4 border-t bg-muted/30">
+          <Rodape className={semCartao ? 'mt-3 border-t pt-3' : 'pt-4 border-t bg-muted/30'}>
             <div className="w-full">
               <p className="text-xs text-muted-foreground mb-3">
                 Insights disponíveis para {insights.length} propriedades:
@@ -376,9 +402,9 @@ export function StrategicInsightsCard() {
                 ))}
               </div>
             </div>
-          </CardFooter>
+          </Rodape>
         )}
-      </Card>
+      </Raiz>
     </Collapsible>
   );
 }

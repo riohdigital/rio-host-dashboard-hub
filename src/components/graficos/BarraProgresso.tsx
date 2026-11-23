@@ -4,7 +4,8 @@
  *
  *   <BarraProgresso valor={40} total={60} rotulo="Pagamentos" sufixo="pagas" detalhe="20 pendentes · R$ 26.472 a receber" />
  *
- * `tom` muda a cor da parte cheia (padrão: success).
+ * `tom` muda a cor da parte cheia (padrão: success). `semCabecalho` tira a
+ * linha de cima (rótulo + "X de Y") quando ela já está no título do Bloco.
  */
 import React from 'react';
 import { cn } from '@/lib/utils';
@@ -20,15 +21,17 @@ interface BarraProgressoProps {
   /** Linha abaixo da barra */
   detalhe?: React.ReactNode;
   tom?: TomGrafico;
+  /** Sem a linha de cima (o "X de Y" vai no título do Bloco) */
+  semCabecalho?: boolean;
   className?: string;
 }
 
-const BarraProgresso = ({ valor, total, rotulo, sufixo, detalhe, tom = 'success', className }: BarraProgressoProps) => {
+const BarraProgresso = ({ valor, total, rotulo, sufixo, detalhe, tom = 'success', semCabecalho, className }: BarraProgressoProps) => {
   const pct = total > 0 ? Math.min(100, Math.max(0, (valor / total) * 100)) : 0;
   const contagem = `${valor.toLocaleString('pt-BR')} de ${total.toLocaleString('pt-BR')}${sufixo ? ` ${sufixo}` : ''}`;
   return (
     <div className={cn('min-w-0', className)}>
-      {(rotulo || total > 0) && (
+      {!semCabecalho && (rotulo || total > 0) && (
         <div className="mb-1.5 flex items-baseline justify-between gap-2 text-[13px]">
           {rotulo && <span className="min-w-0 truncate font-semibold text-gray-900">{rotulo}</span>}
           <span className="ml-auto shrink-0 font-mono text-xs tabular-nums text-gray-500">{contagem}</span>
