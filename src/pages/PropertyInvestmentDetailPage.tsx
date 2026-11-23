@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, DollarSign, TrendingUp, BarChart3, Calendar } from 'lucide-react';
-import MainLayout from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -79,17 +78,17 @@ const PropertyInvestmentDetailPage = () => {
 
   if (propertyLoading) {
     return (
-      <MainLayout>
+      <>
         <div className="text-center py-8">
           <div className="text-lg">Carregando...</div>
         </div>
-      </MainLayout>
+      </>
     );
   }
 
   if (!property) {
     return (
-      <MainLayout>
+      <>
         <div className="text-center py-8">
           <div className="text-lg text-danger-600">Propriedade não encontrada</div>
           <Button 
@@ -100,12 +99,12 @@ const PropertyInvestmentDetailPage = () => {
             Voltar para Investimentos
           </Button>
         </div>
-      </MainLayout>
+      </>
     );
   }
 
   return (
-    <MainLayout>
+    <>
       <div className="space-y-8">
         {/* Header */}
         <div className="flex items-start justify-between">
@@ -236,7 +235,7 @@ const PropertyInvestmentDetailPage = () => {
           </div>
         </div>
       </div>
-    </MainLayout>
+    </>
   );
 };
 

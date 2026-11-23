@@ -13,6 +13,8 @@ interface PropertyMultiSelectProps {
   isOpen: boolean;
   onToggle: () => void;
   compact?: boolean;
+  /** Ocupa toda a largura (gaveta de filtros do celular) */
+  fullWidth?: boolean;
 }
 
 const PropertyMultiSelect = ({ 
@@ -21,7 +23,8 @@ const PropertyMultiSelect = ({
   onSelectionChange, 
   isOpen, 
   onToggle,
-  compact = false 
+  compact = false,
+  fullWidth = false
 }: PropertyMultiSelectProps) => {
   const handlePropertyToggle = (propertyId: string) => {
     if (propertyId === 'todas') {
@@ -53,13 +56,13 @@ const PropertyMultiSelect = ({
       <PopoverTrigger asChild>
         <Button 
           variant="outline" 
-          className={`justify-between ${compact ? 'h-8 text-xs px-2' : 'w-64'}`}
+          className={`justify-between ${fullWidth ? 'h-11 w-full rounded-md px-3 text-sm font-normal' : compact ? 'h-8 text-xs px-2 rounded-md font-normal' : 'w-64 rounded-md font-normal'}`}
         >
           <span className="truncate">{getSelectedText()}</span>
           <ChevronDown className={`${compact ? 'h-3 w-3' : 'h-4 w-4'} shrink-0 opacity-50`} />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className={`${compact ? 'w-56' : 'w-64'} p-0`} align="start">
+      <PopoverContent className={`${fullWidth ? 'w-[var(--radix-popover-trigger-width)]' : compact ? 'w-56' : 'w-64'} p-0`} align="start">
         <div className="p-1">
           <div className="flex items-center space-x-2 px-2 py-1.5 hover:bg-gray-50 rounded">
             <Checkbox

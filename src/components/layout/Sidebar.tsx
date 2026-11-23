@@ -1,183 +1,103 @@
-
 import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { 
-  BarChart3, 
-  Calendar, 
-  Tag, 
-  Home, 
-  Settings, 
-  LogOut,
-  TrendingUp,
-  FileText,
-  Bell,
-  Briefcase,
-  ChevronDown,
-  ChevronRight,
-  CreditCard,
-  LayoutDashboard,
-  Sparkles
-} from 'lucide-react';
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { useUserRole } from '@/hooks/useUserRole';
-import { useUserPermissions } from '@/contexts/UserPermissionsContext';
+import { ChevronDown, ChevronRight, LogOut } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import GlobalFilters from './GlobalFilters';
+import MarcaRioh from './MarcaRioh';
+import { ICONE_GESTOR, type ItemNavegacao, useNavegacao, useSair } from './navegacao';
 
+const classeItem = (ativo: boolean, pequeno = false) =>
+  cn(
+    'flex items-center gap-3 rounded-xl font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+    pequeno ? 'min-h-10 px-3 text-sm' : 'min-h-11 px-3 text-[15px]',
+    ativo ? 'bg-brand-accent text-brand-accent-foreground shadow-sm' : 'text-ink hover:bg-surface',
+  );
+
+const LinkMenu = ({ item, pequeno }: { item: ItemNavegacao; pequeno?: boolean }) => (
+  <NavLink to={item.caminho} end={item.exato} className={({ isActive }) => classeItem(isActive, pequeno)}>
+    <item.icone className={pequeno ? 'h-4 w-4 shrink-0' : 'h-5 w-5 shrink-0'} aria-hidden="true" />
+    <span className="truncate">{item.nome}</span>
+  </NavLink>
+);
+
+/**
+ * Menu lateral (telas a partir de 1024px). Fica montado também no celular,
+ * escondido por CSS, porque o GlobalFilters daqui ajusta a seleção inicial de
+ * imóveis dos usuários sem acesso total.
+ */
 const Sidebar = () => {
-  const { toast } = useToast();
-  const { isCleaner, isMaster, isOwner, isGestor } = useUserRole();
-  const { hasPermission } = useUserPermissions();
+  const { itens, itensGestor, mostrarGestor, isCleaner } = useNavegacao();
+  const sair = useSair();
   const location = useLocation();
-  
-  const isGestorSection = location.pathname.startsWith('/painel-gestor');
-  const [gestorOpen, setGestorOpen] = useState(isGestorSection);
 
-  const handleLogout = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session) {
-        const { error } = await supabase.auth.signOut();
-        if (error) {
-          toast({
-            title: "Erro ao sair",
-            description: error.message,
-            variant: "destructive",
-          });
-        }
-      } else {
-        window.location.href = '/auth';
-      }
-    } catch (error) {
-      console.error('Erro durante logout:', error);
-      window.location.href = '/auth';
-    }
-  };
-
-  const showGestorMenu = isMaster || isGestor || isOwner;
-
-  const menuItems = isCleaner ? [
-    { name: 'Minhas Faxinas', icon: Calendar, path: '/faxineira-dashboard' },
-  ] : [
-    { name: 'Dashboard', icon: BarChart3, path: '/dashboard' },
-    { name: 'Reservas', icon: Calendar, path: '/reservas' },
-    { name: 'Calendário', icon: Calendar, path: '/calendario' },
-    { name: 'Despesas', icon: Tag, path: '/despesas' },
-    { name: 'Propriedades', icon: Home, path: '/propriedades' },
-    { name: 'Precificação', icon: Sparkles, path: '/precificacao' },
-    { name: 'Investimentos & ROI', icon: TrendingUp, path: '/investimentos' },
-    { name: 'Relatórios', icon: FileText, path: '/relatorios' },
-    ...(hasPermission('anfitriao_alerta_view') ? [{ name: 'Anfitrião Alerta', icon: Bell, path: '/anfitriao-alerta' }] : []),
-    ...(hasPermission('gestao_faxinas_view') ? [{ name: 'Gestão de Faxinas', icon: Calendar, path: '/gestao-faxinas' }] : []),
-    { name: 'Configurações', icon: Settings, path: '/configuracoes' },
-  ];
+  const secaoGestor = location.pathname.startsWith('/painel-gestor');
+  const [gestorAberto, setGestorAberto] = useState(secaoGestor);
 
   return (
-    <div className="w-64 bg-white h-screen shadow-lg fixed left-0 top-0 flex flex-col">
-      <div className="p-6 border-b">
-        <h1 className="text-xl font-bold text-brand">
-          Rioh Host Rentals
-        </h1>
+    <aside
+      className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-gray-200 bg-white lg:flex"
+      aria-label="Menu principal"
+    >
+      <div className="flex h-16 shrink-0 items-center px-5">
+        <MarcaRioh />
       </div>
-      
-      {/* Filtros Globais - ocultar para faxineiras */}
+
+      {/* Filtros globais: ocultos para faxineiras */}
       {!isCleaner && (
-        <div className="border-b">
+        <div className="mx-3 mb-2 rounded-2xl bg-surface py-1">
           <GlobalFilters />
         </div>
       )}
-      
-      <nav className="flex-1 px-4 py-6 overflow-y-auto">
-        <ul className="space-y-2">
-          {menuItems.map((item) => (
-            <li key={item.name}>
-              <NavLink
-                to={item.path}
-                className={({ isActive }) =>
-                  `flex items-center px-4 py-3 rounded-lg transition-colors ${
-                    isActive
-                      ? 'bg-brand-accent text-white'
-                      : 'text-ink hover:bg-surface'
-                  }`
-                }
-              >
-                <item.icon className={`mr-3 h-5 w-5`} />
-                {item.name}
-              </NavLink>
+
+      <nav className="flex-1 overflow-y-auto px-3 py-2">
+        <ul className="space-y-1">
+          {itens.map((item) => (
+            <li key={item.caminho}>
+              <LinkMenu item={item} />
             </li>
           ))}
 
-          {/* Painel Gestor - Collapsible Submenu */}
-          {!isCleaner && showGestorMenu && (
+          {mostrarGestor && (
             <li>
               <button
-                onClick={() => setGestorOpen(!gestorOpen)}
-                className={`flex items-center w-full px-4 py-3 rounded-lg transition-colors ${
-                  isGestorSection
-                    ? 'bg-brand/10 text-brand'
-                    : 'text-ink hover:bg-surface'
-                }`}
-              >
-                <Briefcase className="mr-3 h-5 w-5" />
-                <span className="flex-1 text-left">Painel Gestor</span>
-                {gestorOpen ? (
-                  <ChevronDown className="h-4 w-4" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
+                type="button"
+                onClick={() => setGestorAberto(!gestorAberto)}
+                aria-expanded={gestorAberto}
+                className={cn(
+                  'flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-[15px] font-medium transition-colors',
+                  secaoGestor ? 'bg-brand/10 text-brand' : 'text-ink hover:bg-surface',
                 )}
+              >
+                <ICONE_GESTOR className="h-5 w-5 shrink-0" aria-hidden="true" />
+                <span className="flex-1 text-left">Painel Gestor</span>
+                {gestorAberto ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
               </button>
 
-              {gestorOpen && (
-                <ul className="mt-1 ml-4 space-y-1 border-l-2 border-brand/20 pl-3">
-                  <li>
-                    <NavLink
-                      to="/painel-gestor"
-                      end
-                      className={({ isActive }) =>
-                        `flex items-center px-3 py-2 rounded-lg transition-colors text-sm ${
-                          isActive
-                            ? 'bg-brand-accent text-white'
-                            : 'text-ink hover:bg-surface'
-                        }`
-                      }
-                    >
-                      <LayoutDashboard className="mr-2 h-4 w-4" />
-                      Dashboard
-                    </NavLink>
-                  </li>
-                  <li>
-                    <NavLink
-                      to="/painel-gestor/pagamentos"
-                      className={({ isActive }) =>
-                        `flex items-center px-3 py-2 rounded-lg transition-colors text-sm ${
-                          isActive
-                            ? 'bg-brand-accent text-white'
-                            : 'text-ink hover:bg-surface'
-                        }`
-                      }
-                    >
-                      <CreditCard className="mr-2 h-4 w-4" />
-                      Pagamentos
-                    </NavLink>
-                  </li>
+              {gestorAberto && (
+                <ul className="ml-5 mt-1 space-y-1 border-l-2 border-brand/20 pl-3">
+                  {itensGestor.map((item) => (
+                    <li key={item.caminho}>
+                      <LinkMenu item={item} pequeno />
+                    </li>
+                  ))}
                 </ul>
               )}
             </li>
           )}
         </ul>
       </nav>
-      
-      <div className="p-4 border-t">
+
+      <div className="border-t border-gray-200 p-3">
         <button
-          onClick={handleLogout}
-          className="flex items-center w-full px-4 py-3 text-ink hover:bg-surface rounded-lg transition-colors"
+          type="button"
+          onClick={sair}
+          className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-[15px] font-medium text-ink transition-colors hover:bg-surface"
         >
-          <LogOut className="mr-3 h-5 w-5" />
+          <LogOut className="h-5 w-5" aria-hidden="true" />
           Sair
         </button>
       </div>
-    </div>
+    </aside>
   );
 };
 

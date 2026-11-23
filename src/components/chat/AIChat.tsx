@@ -51,8 +51,9 @@ export const AIChat = () => {
     }
   }, [messages, isOpen]); // ← IMPORTANTE: isOpen nas dependências
 
+  // No celular fica acima da barra inferior; abaixo das gavetas (z-50)
   return (
-    <div className="fixed bottom-4 right-4 z-[9999]">
+    <div className="fixed bottom-[calc(theme(spacing.tabbar)+0.75rem+env(safe-area-inset-bottom))] right-4 z-40 lg:bottom-4">
       {/* Botão flutuante quando fechado */}
       {!isOpen && (
         <Button
@@ -74,7 +75,7 @@ export const AIChat = () => {
       {isOpen && (
         <Card
           className={cn(
-            'w-[400px] h-[600px] flex flex-col shadow-2xl shadow-brand-500/20 rounded-2xl',
+            'w-[400px] max-w-[calc(100vw-2rem)] h-[600px] max-h-[calc(100dvh-theme(spacing.tabbar)-2rem)] flex flex-col shadow-2xl shadow-brand-500/20 rounded-2xl',
             'animate-slide-in-right'
           )}
         >

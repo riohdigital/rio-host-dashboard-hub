@@ -30,6 +30,17 @@ export default {
 			}
 		},
 		extend: {
+			fontFamily: {
+				sans: ['"Inter Variable"', 'Inter', 'system-ui', 'sans-serif'],
+				display: ['"Manrope Variable"', 'Manrope', '"Inter Variable"', 'system-ui', 'sans-serif'],
+				mono: ['"JetBrains Mono Variable"', '"JetBrains Mono"', 'ui-monospace', 'monospace'],
+			},
+			spacing: {
+				'safe-b': 'env(safe-area-inset-bottom)',
+				'safe-t': 'env(safe-area-inset-top)',
+				// Altura da barra inferior do celular (sem a área segura)
+				tabbar: '64px',
+			},
 			colors: {
 				brand: escala('brand', {
 					hover: token('brand-hover'),
