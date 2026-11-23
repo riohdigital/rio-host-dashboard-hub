@@ -26,26 +26,34 @@ import CleanerCreateModal from './CleanerCreateModal';
 // Isso corrige o problema do formulário não salvar ao editar uma reserva existente,
 // pois a validação não falhará mais se o campo estiver vazio inicialmente.
 const reservationSchema = z.object({
-    property_id: z.string().optional(),
+    property_id: z.string().nullish(),
     platform: z.string().min(1, 'Plataforma é obrigatória'),
     reservation_code: z.string().min(1, 'Código da reserva é obrigatório'),
-    guest_name: z.string().optional(),
-    guest_email: z.string().email('E-mail inválido').optional().or(z.literal('')),
-    guest_phone: z.string().optional(),
-    number_of_guests: z.number().min(1).optional(),
+    // Nome e nº de hóspedes obrigatórios; e-mail e telefone opcionais (aceitam vazio e null do banco)
+    guest_name: z.preprocess(
+        (v) => (v == null ? '' : v),
+        z.string().trim().min(1, 'Nome do hóspede é obrigatório')
+    ),
+    guest_email: z.string().email('E-mail inválido').or(z.literal('')).nullish(),
+    guest_phone: z.string().nullish(),
+    // Campo numérico vazio vira NaN; tratamos como "não informado" para mostrar a mensagem certa
+    number_of_guests: z.preprocess(
+        (v) => (v === null || v === '' || (typeof v === 'number' && Number.isNaN(v)) ? undefined : v),
+        z.number({ required_error: 'Número de hóspedes é obrigatório' }).int().min(1, 'Mínimo de 1 hóspede')
+    ),
     check_in_date: z.string().min(1, 'Data de check-in é obrigatória'),
     check_out_date: z.string().min(1, 'Data de check-out é obrigatória'),
-    checkin_time: z.string().optional(),
-    checkout_time: z.string().optional(),
+    checkin_time: z.string().nullish(),
+    checkout_time: z.string().nullish(),
     total_revenue: z.number().min(0, 'Receita total deve ser positiva'),
     // Quanto o hóspede pagou (Comprovante do Hóspede). Vazio em reserva Direta = Receita Total.
     guest_total_paid: z.number().min(0, 'Valor deve ser positivo').optional().nullable(),
     base_revenue: z.number().optional(),
     commission_amount: z.number().optional(),
     net_revenue: z.number().optional(),
-    payment_status: z.string().optional(),
+    payment_status: z.string().nullish(),
     reservation_status: z.string().min(1, 'Status da reserva é obrigatório'),
-    cleaning_destination: z.string().optional(),
+    cleaning_destination: z.string().nullish(),
     cleaner_user_id: z.string().optional().nullable(),
     cleaning_payment_status: z.string().optional().nullable(),
     cleaning_rating: z.number().min(0).max(5).optional().nullable(),
@@ -304,6 +312,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                 cleaning_allocation: finalCleaningAllocation,
                 property_id: data.property_id || null,
                 guest_name: data.guest_name || null,
+                guest_email: data.guest_email || null,
                 guest_phone: data.guest_phone || null,
                 number_of_guests: data.number_of_guests || null,
                 checkin_time: data.checkin_time || null,
@@ -532,8 +541,9 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                         {errors.reservation_code && <span className="text-danger-500 text-sm">{errors.reservation_code.message}</span>}
                     </div>
                     <div>
-                        <Label htmlFor="guest_name">Nome do Hóspede</Label>
+                        <Label htmlFor="guest_name">Nome do Hóspede *</Label>
                         <Input id="guest_name" {...register('guest_name')} placeholder="Nome do hóspede" />
+                        {errors.guest_name && <span className="text-danger-500 text-sm">{errors.guest_name.message}</span>}
                     </div>
                     <div>
                         <Label htmlFor="guest_email">E-mail do Hóspede</Label>
@@ -545,8 +555,9 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                         <Input id="guest_phone" {...register('guest_phone')} placeholder="(11) 99999-9999" />
                     </div>
                     <div>
-                        <Label htmlFor="number_of_guests">Número de Hóspedes</Label>
-                        <Input id="number_of_guests" type="number" {...register('number_of_guests', { valueAsNumber: true })} placeholder="Ex: 2" />
+                        <Label htmlFor="number_of_guests">Número de Hóspedes *</Label>
+                        <Input id="number_of_guests" type="number" min={1} {...register('number_of_guests', { valueAsNumber: true })} placeholder="Ex: 2" />
+                        {errors.number_of_guests && <span className="text-danger-500 text-sm">{errors.number_of_guests.message}</span>}
                     </div>
                 </div>
             </BlocoFormulario>
