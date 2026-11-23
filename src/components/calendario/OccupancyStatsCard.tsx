@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { ChevronDown, ChevronUp, TrendingUp, DollarSign, Calendar } from 'lucide-react';
 import { OccupancyStats } from '@/hooks/useOccupancyStats';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { PROPS_EIXO_X, PROPS_GRADE, RAIO_BARRA_H } from '@/components/graficos/tema';
 
 interface OccupancyStatsCardProps {
   stats: OccupancyStats[];
@@ -30,23 +31,23 @@ export const OccupancyStatsCard: React.FC<OccupancyStatsCardProps> = ({ stats })
 
   // Cores para as barras baseadas na taxa de ocupação
   const getBarColor = (rate: number) => {
-    if (rate >= 80) return 'hsl(142, 76%, 36%)'; // verde
-    if (rate >= 60) return 'hsl(48, 96%, 53%)'; // amarelo
-    return 'hsl(0, 84%, 60%)'; // vermelho
+    if (rate >= 80) return 'hsl(var(--success))';
+    if (rate >= 60) return 'hsl(var(--warning))';
+    return 'hsl(var(--danger))';
   };
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="text-lg flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-primary" />
               Estatísticas de Ocupação
             </CardTitle>
-            <div className="flex items-center gap-2">
+            <div className="flex w-full items-center justify-between gap-2 sm:w-auto">
               {/* Resumo sempre visível */}
-              <div className="flex items-center gap-4 text-sm mr-4">
+              <div className="flex items-center gap-3 font-mono text-sm tabular-nums sm:mr-4 sm:gap-4">
                 <div className="flex items-center gap-1">
                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
                   <span className="font-semibold text-primary">
@@ -92,34 +93,29 @@ export const OccupancyStatsCard: React.FC<OccupancyStatsCardProps> = ({ stats })
                 <h4 className="text-sm font-medium mb-3 text-muted-foreground">
                   Taxa de Ocupação por Propriedade
                 </h4>
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis 
-                      dataKey="name" 
-                      angle={-45}
-                      textAnchor="end"
-                      height={80}
-                      tick={{ fontSize: 12 }}
-                      className="text-muted-foreground"
-                    />
-                    <YAxis 
-                      domain={[0, 100]}
-                      tick={{ fontSize: 12 }}
-                      className="text-muted-foreground"
-                    />
-                    <Tooltip 
+                <ResponsiveContainer width="100%" height={Math.max(120, chartData.length * 36 + 24)}>
+                  <BarChart
+                    data={[...chartData].sort((a, b) => b.occupancyRate - a.occupancyRate)}
+                    layout="vertical"
+                    margin={{ top: 0, right: 40, left: 0, bottom: 0 }}
+                    barCategoryGap={8}
+                  >
+                    <CartesianGrid {...PROPS_GRADE} vertical horizontal={false} />
+                    <XAxis type="number" domain={[0, 100]} {...PROPS_EIXO_X} tickFormatter={(v) => `${v}%`} />
+                    <YAxis type="category" dataKey="name" {...PROPS_EIXO_X} width={110} />
+                    <Tooltip
+                      cursor={{ fill: 'hsl(var(--chart-grid))' }}
                       content={({ active, payload }) => {
                         if (active && payload && payload.length) {
                           const data = payload[0].payload;
                           return (
-                            <div className="bg-popover border rounded-lg shadow-lg p-3 text-sm">
-                              <p className="font-semibold mb-1">{data.name}</p>
-                              <p className="text-muted-foreground">
-                                Ocupação: <span className="font-medium text-foreground">{data.occupancyRate.toFixed(1)}%</span>
+                            <div className="rounded-xl border bg-popover px-3 py-2 text-sm shadow-lg">
+                              <p className="mb-1 font-semibold text-ink">{data.name}</p>
+                              <p className="text-gray-600">
+                                Ocupação: <span className="font-mono font-medium tabular-nums text-ink">{data.occupancyRate.toFixed(1)}%</span>
                               </p>
-                              <p className="text-muted-foreground">
-                                Receita: <span className="font-medium text-foreground">
+                              <p className="text-gray-600">
+                                Receita: <span className="font-mono font-medium tabular-nums text-ink">
                                   {data.revenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                 </span>
                               </p>
@@ -129,8 +125,8 @@ export const OccupancyStatsCard: React.FC<OccupancyStatsCardProps> = ({ stats })
                         return null;
                       }}
                     />
-                    <Bar dataKey="occupancyRate" radius={[4, 4, 0, 0]}>
-                      {chartData.map((entry, index) => (
+                    <Bar dataKey="occupancyRate" radius={RAIO_BARRA_H} maxBarSize={22} label={{ position: 'right', fontSize: 11, fill: 'hsl(var(--ink))', formatter: (v: number) => `${Math.round(v)}%` }}>
+                      {[...chartData].sort((a, b) => b.occupancyRate - a.occupancyRate).map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={getBarColor(entry.occupancyRate)} />
                       ))}
                     </Bar>

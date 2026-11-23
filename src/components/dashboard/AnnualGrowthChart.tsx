@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import ChartCard from '@/components/graficos/ChartCard';
+import LegendaGrafico from '@/components/graficos/LegendaGrafico';
+import TooltipGrafico from '@/components/graficos/TooltipGrafico';
+import { eixoMoeda, moedaCompleta, PROPS_EIXO_X, PROPS_EIXO_Y, PROPS_GRADE, RAIO_BARRA } from '@/components/graficos/tema';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 
 interface MonthlyData {
@@ -84,69 +87,81 @@ const AnnualGrowthChart = ({ monthlyData, yearlyData, loading }: AnnualGrowthCha
     return 'Aguardando dados para comparação.';
   };
 
-  if (loading) {
-    return (
-      <Card className="bg-white col-span-2">
-        <CardHeader><CardTitle className="text-gradient-primary">Crescimento Anual</CardTitle></CardHeader>
-        <CardContent><div className="h-80 flex items-center justify-center"><div className="text-primary">Carregando dados de crescimento...</div></div></CardContent>
-      </Card>
-    );
-  }
+  const seletor = (
+    <Select value={viewMode} onValueChange={(value) => setViewMode(value as 'monthly' | 'yearly')}>
+      <SelectTrigger className="h-9 w-28"><SelectValue /></SelectTrigger>
+      <SelectContent>
+        <SelectItem value="monthly">Mensal</SelectItem>
+        <SelectItem value="yearly">Anual</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+
+  const semDados =
+    viewMode === 'monthly'
+      ? !monthlyData.some((m) => m.current > 0 || m.previous > 0)
+      : !yearlyData.some((y) => y.revenue > 0);
 
   return (
-    <Card className="bg-white col-span-2">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle className="text-gradient-primary flex items-center gap-2">
-            {totalGrowthInfo.value >= 0 ? <TrendingUp className="h-5 w-5 text-success-500" /> : <TrendingDown className="h-5 w-5 text-danger-500" />}
-            Crescimento Anual
-          </CardTitle>
-          <div className="flex items-center gap-4 mt-2">
-            {/* O valor principal agora mostra "100%" */}
-            <span className={`text-2xl font-bold ${totalGrowthInfo.value >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
-              {totalGrowthInfo.text}
-            </span>
-            {/* O subtítulo agora mostra o texto contextual completo */}
-            <span className="text-sm text-gray-500">
-              {renderSubtitle()}
-            </span>
-          </div>
+    <ChartCard
+      titulo={<span className="text-gradient-primary">Crescimento Anual</span>}
+      icone={totalGrowthInfo.value >= 0 ? <TrendingUp className="h-5 w-5 text-success-500" /> : <TrendingDown className="h-5 w-5 text-danger-500" />}
+      acoes={seletor}
+      carregando={loading}
+      vazio={semDados}
+      destaque={
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <span className={`font-mono text-2xl font-semibold tabular-nums ${totalGrowthInfo.value >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
+            {totalGrowthInfo.text}
+          </span>
+          <span className="text-xs text-gray-500 sm:text-sm">{renderSubtitle()}</span>
         </div>
-        
-        <Select value={viewMode} onValueChange={(value) => setViewMode(value as 'monthly' | 'yearly')}>
-          <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="monthly">Mensal</SelectItem>
-            <SelectItem value="yearly">Anual</SelectItem>
-          </SelectContent>
-        </Select>
-      </CardHeader>
-      
-      <CardContent>
-        {viewMode === 'monthly' ? (
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={monthlyData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip formatter={(value, name) => [`R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, name === 'current' ? `${currentYear}` : `${previousYear}`]} labelFormatter={(label) => `Mês: ${label}`} />
-              <Line type="monotone" dataKey="previous" stroke="hsl(var(--gray-400))" strokeWidth={2} dot={{ fill: 'hsl(var(--gray-400))', strokeWidth: 2 }} name={`${previousYear}`} />
-              <Line type="monotone" dataKey="current" stroke="hsl(var(--brand))" strokeWidth={3} dot={{ fill: 'hsl(var(--brand))', strokeWidth: 2 }} name={`${currentYear}`} />
-            </LineChart>
+      }
+      legenda={
+        viewMode === 'monthly' ? (
+          <LegendaGrafico
+            itens={[
+              { nome: `${currentYear}`, cor: 'hsl(var(--chart-1))' },
+              { nome: `${previousYear}`, cor: 'hsl(var(--gray-400))', linha: true },
+            ]}
+          />
+        ) : undefined
+      }
+    >
+      {(altura) =>
+        viewMode === 'monthly' ? (
+          <ResponsiveContainer width="100%" height={altura}>
+            <ComposedChart data={monthlyData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="degradeCrescimento" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="hsl(var(--chart-1))" stopOpacity={0.28} />
+                  <stop offset="100%" stopColor="hsl(var(--chart-1))" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid {...PROPS_GRADE} />
+              <XAxis dataKey="month" {...PROPS_EIXO_X} />
+              <YAxis {...PROPS_EIXO_Y} tickFormatter={eixoMoeda} />
+              <Tooltip
+                cursor={{ stroke: 'hsl(var(--gray-300))' }}
+                content={<TooltipGrafico formatar={moedaCompleta} titulo={(label) => `Mês: ${label}`} />}
+              />
+              <Line type="monotone" dataKey="previous" stroke="hsl(var(--gray-400))" strokeWidth={2} strokeDasharray="4 4" dot={false} name={`${previousYear}`} />
+              <Area type="monotone" dataKey="current" stroke="hsl(var(--chart-1))" strokeWidth={2} fill="url(#degradeCrescimento)" dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: 'hsl(var(--background))' }} name={`${currentYear}`} />
+            </ComposedChart>
           </ResponsiveContainer>
         ) : (
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={yearlyData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="year" />
-              <YAxis />
-              <Tooltip formatter={(value) => [`R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Receita']} />
-              <Bar dataKey="revenue" fill="hsl(var(--success))" />
+          <ResponsiveContainer width="100%" height={altura}>
+            <BarChart data={yearlyData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+              <CartesianGrid {...PROPS_GRADE} />
+              <XAxis dataKey="year" {...PROPS_EIXO_X} />
+              <YAxis {...PROPS_EIXO_Y} tickFormatter={eixoMoeda} />
+              <Tooltip cursor={{ fill: 'hsl(var(--chart-grid))' }} content={<TooltipGrafico formatar={moedaCompleta} />} />
+              <Bar dataKey="revenue" name="Receita" fill="hsl(var(--chart-1))" radius={RAIO_BARRA} maxBarSize={56} />
             </BarChart>
           </ResponsiveContainer>
-        )}
-      </CardContent>
-    </Card>
+        )
+      }
+    </ChartCard>
   );
 };
 

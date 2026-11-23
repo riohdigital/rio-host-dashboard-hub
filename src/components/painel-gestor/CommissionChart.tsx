@@ -1,108 +1,73 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, ComposedChart } from 'recharts';
+import { Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, ComposedChart } from 'recharts';
 import { MonthlyCommission } from '@/types/painel-gestor';
+import ChartCard from '@/components/graficos/ChartCard';
+import LegendaGrafico from '@/components/graficos/LegendaGrafico';
+import TooltipGrafico from '@/components/graficos/TooltipGrafico';
+import { eixoMoeda, moedaCompleta, PROPS_EIXO_X, PROPS_EIXO_Y, PROPS_GRADE, RAIO_BARRA } from '@/components/graficos/tema';
 
 interface CommissionChartProps {
   data: MonthlyCommission[];
   loading?: boolean;
 }
 
-export const CommissionChart = ({ data, loading }: CommissionChartProps) => {
-  const formatCurrency = (value: number) => {
-    if (value >= 1000) {
-      return `R$ ${(value / 1000).toFixed(1)}k`;
+const COR_COMISSAO = 'hsl(var(--chart-1))';
+const COR_RESERVAS = 'hsl(var(--chart-2))';
+
+/** Comissão (barras, eixo esquerdo em R$) e reservas (linha, eixo direito em quantidade) */
+export const CommissionChart = ({ data, loading }: CommissionChartProps) => (
+  <ChartCard
+    titulo="Evolução de Comissões"
+    subtitulo="Últimos 12 meses · barras: comissão (R$, eixo esquerdo) · linha: reservas (eixo direito)"
+    carregando={loading}
+    vazio={!data.some((d) => d.commission > 0 || d.reservations > 0)}
+    legenda={
+      <LegendaGrafico
+        itens={[
+          { nome: 'Comissão (R$)', cor: COR_COMISSAO },
+          { nome: 'Reservas (qtd.)', cor: COR_RESERVAS, linha: true },
+        ]}
+      />
     }
-    return `R$ ${value}`;
-  };
-
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-background border border-border rounded-lg shadow-lg p-3">
-          <p className="font-semibold text-sm mb-2">{label}</p>
-          <div className="space-y-1">
-            <p className="text-sm text-success-600">
-              Comissão: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(payload[0]?.value || 0)}
-            </p>
-            <p className="text-sm text-info-600">
-              Reservas: {payload[1]?.value || 0}
-            </p>
-          </div>
-        </div>
-      );
-    }
-    return null;
-  };
-
-  if (loading) {
-    return (
-      <Card className="card-elevated">
-        <CardHeader>
-          <CardTitle className="text-lg">Evolução de Comissões</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[300px] flex items-center justify-center">
-            <div className="animate-pulse text-muted-foreground">Carregando...</div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <Card className="card-elevated">
-      <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          📈 Evolução de Comissões
-          <span className="text-sm font-normal text-muted-foreground">(últimos 12 meses)</span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis 
-                dataKey="month" 
-                tick={{ fontSize: 12 }}
-                tickLine={false}
-                axisLine={false}
+  >
+    {(altura) => (
+      <ResponsiveContainer width="100%" height={altura}>
+        <ComposedChart data={data} margin={{ top: 20, right: 4, left: 0, bottom: 0 }}>
+          <CartesianGrid {...PROPS_GRADE} />
+          <XAxis dataKey="month" {...PROPS_EIXO_X} />
+          <YAxis
+            yAxisId="left"
+            {...PROPS_EIXO_Y}
+            tickFormatter={eixoMoeda}
+            label={{ value: 'R$', position: 'top', offset: 8, fontSize: 11, fill: 'hsl(var(--chart-axis))' }}
+          />
+          <YAxis
+            yAxisId="right"
+            orientation="right"
+            {...PROPS_EIXO_Y}
+            width={36}
+            allowDecimals={false}
+            label={{ value: 'Qtd.', position: 'top', offset: 8, fontSize: 11, fill: 'hsl(var(--chart-axis))' }}
+          />
+          <Tooltip
+            cursor={{ fill: 'hsl(var(--chart-grid))' }}
+            content={
+              <TooltipGrafico
+                formatar={(v, item) => (item.dataKey === 'commission' ? moedaCompleta(v) : `${v}`)}
               />
-              <YAxis 
-                yAxisId="left"
-                tick={{ fontSize: 12 }}
-                tickFormatter={formatCurrency}
-                tickLine={false}
-                axisLine={false}
-              />
-              <YAxis 
-                yAxisId="right"
-                orientation="right"
-                tick={{ fontSize: 12 }}
-                tickLine={false}
-                axisLine={false}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Bar 
-                yAxisId="left"
-                dataKey="commission" 
-                fill="hsl(var(--primary))" 
-                radius={[4, 4, 0, 0]}
-                name="Comissão"
-              />
-              <Line 
-                yAxisId="right"
-                type="monotone" 
-                dataKey="reservations" 
-                stroke="hsl(var(--chart-2))" 
-                strokeWidth={2}
-                dot={{ fill: 'hsl(var(--chart-2))', strokeWidth: 2 }}
-                name="Reservas"
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
+            }
+          />
+          <Bar yAxisId="left" dataKey="commission" fill={COR_COMISSAO} radius={RAIO_BARRA} maxBarSize={36} name="Comissão" />
+          <Line
+            yAxisId="right"
+            type="monotone"
+            dataKey="reservations"
+            stroke={COR_RESERVAS}
+            strokeWidth={2}
+            dot={{ r: 3, fill: COR_RESERVAS, stroke: 'hsl(var(--background))', strokeWidth: 2 }}
+            name="Reservas"
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
+    )}
+  </ChartCard>
+);

@@ -42,7 +42,7 @@ export const ChatInput = ({ onSend, isLoading }: ChatInputProps) => {
   };
 
   return (
-    <div className="p-4 border-t bg-card">
+    <div className="shrink-0 border-t bg-background px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3">
       {/* Preview de anexos */}
       {attachments.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-2">
@@ -58,7 +58,8 @@ export const ChatInput = ({ onSend, isLoading }: ChatInputProps) => {
               />
               <button
                 onClick={() => removeAttachment(index)}
-                className="absolute top-1 right-1 p-1 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute right-1 top-1 rounded-full bg-destructive p-1 text-destructive-foreground"
+                aria-label="Remover anexo"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -72,9 +73,10 @@ export const ChatInput = ({ onSend, isLoading }: ChatInputProps) => {
         <Button
           variant="ghost"
           size="icon"
-          className="flex-shrink-0"
+          className="h-11 w-11 flex-shrink-0"
           onClick={() => fileInputRef.current?.click()}
           disabled={isLoading}
+          aria-label="Anexar imagem"
         >
           <Paperclip className="w-4 h-4" />
         </Button>
@@ -91,9 +93,10 @@ export const ChatInput = ({ onSend, isLoading }: ChatInputProps) => {
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Digite sua mensagem ou envie um print..."
+          placeholder="Pergunte ou envie um print..."
+          rows={1}
           className={cn(
-            'min-h-[44px] max-h-[120px] resize-none',
+            'min-h-[44px] max-h-[120px] resize-none rounded-2xl py-2.5',
             'focus-visible:ring-2 focus-visible:ring-brand-500'
           )}
           disabled={isLoading}
@@ -103,17 +106,14 @@ export const ChatInput = ({ onSend, isLoading }: ChatInputProps) => {
           onClick={handleSend}
           disabled={isLoading || (!message.trim() && attachments.length === 0)}
           size="icon"
-          className={cn(
-            'flex-shrink-0 bg-gradient-primary text-white border-0',
-            'hover:shadow-lg hover:scale-105 active:scale-95 transition-all duration-200',
-            message.trim() && 'animate-pulse-soft'
-          )}
+          className="h-11 w-11 flex-shrink-0 border-0 bg-brand text-brand-foreground hover:bg-brand-hover"
+          aria-label="Enviar mensagem"
         >
           <Send className="w-4 h-4" />
         </Button>
       </div>
 
-      <p className="text-xs text-muted-foreground mt-2">
+      <p className="mt-1.5 hidden text-xs text-muted-foreground sm:block">
         Enter para enviar • Shift+Enter para nova linha
       </p>
     </div>

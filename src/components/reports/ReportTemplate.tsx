@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { corResolvida } from '@/lib/cores';
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
@@ -14,9 +15,12 @@ interface ReportTemplateProps {
   };
 }
 
-const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', 'hsl(var(--muted))'];
+// Cores já resolvidas: o html2canvas não lê var() dentro do SVG dos gráficos
+const coresDoRelatorio = () => ['chart-1', 'chart-2', 'chart-3', 'chart-4'].map((t) => corResolvida(t));
 
 export const ReportTemplate = ({ report }: ReportTemplateProps) => {
+  const COLORS = coresDoRelatorio();
+  const PRIMARIA = corResolvida('brand');
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -71,7 +75,7 @@ export const ReportTemplate = ({ report }: ReportTemplateProps) => {
               <XAxis dataKey="month" />
               <YAxis />
               <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-              <Bar dataKey="revenue" fill="hsl(var(--primary))" />
+              <Bar dataKey="revenue" fill={PRIMARIA} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
@@ -141,7 +145,7 @@ export const ReportTemplate = ({ report }: ReportTemplateProps) => {
               <XAxis dataKey="property" />
               <YAxis />
               <Tooltip formatter={(value) => `${Number(value).toFixed(1)}%`} />
-              <Bar dataKey="occupancy" fill="hsl(var(--primary))" />
+              <Bar dataKey="occupancy" fill={PRIMARIA} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
@@ -245,7 +249,7 @@ export const ReportTemplate = ({ report }: ReportTemplateProps) => {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="modelo-pdf space-y-6">
       {/* Header */}
       <div className="flex justify-between items-start">
         <div>

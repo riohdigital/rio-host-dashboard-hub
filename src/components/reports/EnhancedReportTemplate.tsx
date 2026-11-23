@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { corResolvida } from '@/lib/cores';
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts';
@@ -14,9 +15,12 @@ interface EnhancedReportTemplateProps {
   };
 }
 
-const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))'];
+// Cores já resolvidas: o html2canvas não lê var() dentro do SVG dos gráficos
+const coresDoRelatorio = () => ['chart-1', 'chart-2', 'chart-3', 'chart-4'].map((t) => corResolvida(t));
 
 export const EnhancedReportTemplate = ({ report }: EnhancedReportTemplateProps) => {
+  const COLORS = coresDoRelatorio();
+  const PRIMARIA = corResolvida('brand');
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -163,7 +167,7 @@ export const EnhancedReportTemplate = ({ report }: EnhancedReportTemplateProps) 
                     strokeWidth={3}
                     connectNulls={true}
                     dot={{ fill: COLORS[index % COLORS.length], strokeWidth: 1, r: 2 }}
-                    activeDot={{ r: 5, stroke: COLORS[index % COLORS.length], strokeWidth: 2, fill: 'hsl(var(--background))' }}
+                    activeDot={{ r: 5, stroke: COLORS[index % COLORS.length], strokeWidth: 2, fill: corResolvida('background') }}
                   />
                 ))}
               </LineChart>
@@ -191,7 +195,7 @@ export const EnhancedReportTemplate = ({ report }: EnhancedReportTemplateProps) 
                 />
                 <Bar 
                   dataKey="revenue" 
-                  fill="hsl(var(--primary))" 
+                  fill={PRIMARIA} 
                   radius={[4, 4, 0, 0]}
                 />
               </BarChart>
@@ -314,7 +318,7 @@ export const EnhancedReportTemplate = ({ report }: EnhancedReportTemplateProps) 
                 <XAxis dataKey="date" />
                 <YAxis />
                 <Tooltip />
-                <Bar dataKey="occupied" fill="hsl(var(--primary))" />
+                <Bar dataKey="occupied" fill={PRIMARIA} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -524,8 +528,8 @@ export const EnhancedReportTemplate = ({ report }: EnhancedReportTemplateProps) 
               <XAxis dataKey="date" />
               <YAxis />
               <Tooltip />
-              <Line type="monotone" dataKey="checkins" stroke="hsl(var(--primary))" />
-              <Line type="monotone" dataKey="checkouts" stroke="hsl(var(--chart-3))" />
+              <Line type="monotone" dataKey="checkins" stroke={PRIMARIA} />
+              <Line type="monotone" dataKey="checkouts" stroke={corResolvida('chart-3')} />
             </LineChart>
           </ResponsiveContainer>
         </CardContent>
@@ -547,7 +551,7 @@ export const EnhancedReportTemplate = ({ report }: EnhancedReportTemplateProps) 
   );
 
   return (
-    <div className="space-y-6">
+    <div className="modelo-pdf space-y-6">
       {/* Header */}
       <div className="flex justify-between items-start">
         <div>
