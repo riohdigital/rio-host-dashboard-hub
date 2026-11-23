@@ -12,6 +12,8 @@ import { UpcomingEventsTimeline } from '@/components/painel-gestor/UpcomingEvent
 import { CleaningRiskAlerts } from '@/components/painel-gestor/CleaningRiskAlerts';
 import { RecentActivityFeed } from '@/components/painel-gestor/RecentActivityFeed';
 import { CommissionDetailsCard } from '@/components/painel-gestor/CommissionDetailsCard';
+import PainelGestorCelular from '@/components/painel-gestor/PainelGestorCelular';
+import { useEhCompacto } from '@/hooks/useMidia';
 
 const PainelGestorPage = () => {
   const { isMaster, isGestor, isOwner, loading: permissionsLoading } = useUserPermissions();
@@ -27,10 +29,31 @@ const PainelGestorPage = () => {
     commissionDetails,
     refetch 
   } = useGestorDashboard();
+  const compacto = useEhCompacto();
 
   // Check access
   if (!permissionsLoading && !isMaster() && !isGestor() && !isOwner()) {
     return <Navigate to="/dashboard" replace />;
+  }
+
+  // Celular: o desenho do plano (T6), com os mesmos dados
+  if (compacto) {
+    return (
+      <>
+        <PageHeader titulo="Painel do Gestor" descricao="Acompanhe suas comissões e performance operacional" />
+        <PainelGestorCelular
+          loading={loading}
+          kpis={kpis}
+          monthlyCommissions={monthlyCommissions}
+          propertyPerformance={propertyPerformance}
+          platformBreakdown={platformBreakdown}
+          upcomingEvents={upcomingEvents}
+          cleaningRiskAlerts={cleaningRiskAlerts}
+          recentActivities={recentActivities}
+          commissionDetails={commissionDetails}
+        />
+      </>
+    );
   }
 
   return (

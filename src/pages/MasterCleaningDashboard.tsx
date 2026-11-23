@@ -17,6 +17,8 @@ import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import CleanerSelector from '@/components/master-cleaning/CleanerSelector';
 import MasterCleaningCard from '@/components/master-cleaning/MasterCleaningCard';
 import CleaningStats from '@/components/master-cleaning/CleaningStats';
+import FaxinasCelular from '@/components/master-cleaning/FaxinasCelular';
+import { useEhCompacto } from '@/hooks/useMidia';
 import type { ReservationWithCleanerInfo, CleanerProfile } from '@/types/master-cleaning';
 
 const MasterCleaningDashboard = () => {
@@ -47,6 +49,7 @@ const MasterCleaningDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [propertyCleaners, setPropertyCleaners] = useState<Record<string, CleanerProfile[]>>({});
+  const compacto = useEhCompacto();
 
   // Mutações para reassignação e remoção
   const reassignMutation = useMutation({
@@ -253,6 +256,31 @@ const MasterCleaningDashboard = () => {
           <p className="text-muted-foreground">Carregando dados...</p>
         </div>
       </div>
+    );
+  }
+
+  // Celular: o desenho do plano (T7), com os mesmos dados e as mesmas ações
+  if (compacto) {
+    return (
+      <>
+        <PageHeader titulo="Gestão de Faxinas" descricao="Controle centralizado de todas as faxinas" />
+        <FaxinasCelular
+          faxinas={filteredCleanings}
+          disponiveis={filteredAvailableCleanings}
+          faxineiras={cleaners}
+          faxinasSemFiltro={allCleanings}
+          faxineiraSelecionada={selectedCleaner}
+          aoEscolherFaxineira={setSelectedCleaner}
+          busca={searchTerm}
+          aoBuscar={setSearchTerm}
+          faxineirasDoImovel={propertyCleaners}
+          aoCarregarFaxineiras={(propertyId, lista) => setPropertyCleaners((prev) => ({ ...prev, [propertyId]: lista }))}
+          aoAtribuir={handleReassign}
+          aoRemover={handleUnassign}
+          aoAlternarConclusao={handleToggleComplete}
+          ocupado={reassignMutation.isPending || unassignMutation.isPending || assignMutation.isPending || toggleCompleteMutation.isPending}
+        />
+      </>
     );
   }
 

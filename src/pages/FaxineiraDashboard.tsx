@@ -1,5 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { EtiquetaStatus } from '@/components/comum/Etiquetas';
+import LinhaLista from '@/components/comum/LinhaLista';
+import GrupoLista, { ListaLinhas } from '@/components/comum/GrupoLista';
+import FolhaDetalhes from '@/components/comum/FolhaDetalhes';
+import { formatarMoeda } from '@/components/comum/formatos';
+import { tomDoStatus } from '@/components/comum/cores';
+import { useEhCompacto } from '@/hooks/useMidia';
 import AbasRolaveis from '@/components/comum/AbasRolaveis';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -161,11 +167,11 @@ const FaxineiraDashboard = () => {
             </header>
             
             <div style={{ display: activeTab === 'dashboard' ? 'block' : 'none' }}>
-                <div>
+                <div className="max-lg:sr-only">
                     <h1 className="font-display text-2xl font-extrabold text-ink">Minhas Faxinas</h1>
                     <p className="text-muted-foreground">Visualize e gerencie as limpezas designadas para você.</p>
                 </div>
-                <Tabs defaultValue="proximas" className="w-full mt-4">
+                <Tabs defaultValue="proximas" className="w-full mt-4 max-lg:mt-0">
                     <AbasRolaveis
                         rotulo="Minhas faxinas"
                         itens={[
@@ -185,8 +191,10 @@ const FaxineiraDashboard = () => {
             </div>
             
             <div style={{ display: activeTab === 'configuracao' ? 'block' : 'none' }}>
-                 <h1 className="font-display text-2xl font-extrabold text-ink">Configuração da Conta</h1>
-                 <p className="text-muted-foreground mb-6">Altere seus dados pessoais e de segurança.</p>
+                 <div className="max-lg:sr-only">
+                     <h1 className="font-display text-2xl font-extrabold text-ink">Configuração da Conta</h1>
+                     <p className="text-muted-foreground mb-6">Altere seus dados pessoais e de segurança.</p>
+                 </div>
                  <Card>
                     <CardHeader><CardTitle>Dados Pessoais</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
@@ -240,7 +248,7 @@ const MeusGanhosPage = ({ historicalData }: { historicalData: ReservationWithDet
     return (
         <div>
             <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                 <div><h1 className="font-display text-2xl font-extrabold text-ink">Meus Ganhos</h1><p className="text-muted-foreground">Acompanhe seus recebimentos por ciclo.</p></div>
+                 <div className="max-lg:sr-only"><h1 className="font-display text-2xl font-extrabold text-ink">Meus Ganhos</h1><p className="text-muted-foreground">Acompanhe seus recebimentos por ciclo.</p></div>
                 <Select value={selectedMonth} onValueChange={setSelectedMonth}>
                     <SelectTrigger className="h-11 w-full capitalize sm:w-[200px]"><SelectValue placeholder="Selecione o Mês" /></SelectTrigger>
                     <SelectContent>
@@ -262,28 +270,38 @@ const getStatusVariant = (status: string | null): 'default' | 'destructive' | 's
     switch (status) { case 'Confirmada': return 'default'; case 'Cancelada': return 'destructive'; case 'Finalizada': return 'secondary'; default: return 'outline'; }
 };
 
+/** Data e hora da saída do hóspede; sem horário cadastrado, o começo do dia da saída */
+const saidaDoHospede = (r: { check_out_date: string; checkout_time?: string | null }) =>
+    parseISO(r.checkout_time ? `${r.check_out_date}T${r.checkout_time}` : r.check_out_date);
+
+/** Janela de trabalho da faxina: da saída do hóspede até a próxima entrada */
+const janelaDeTrabalho = (reservation: ReservationWithDetails) => {
+    const now = new Date();
+    const checkoutDateTime = saidaDoHospede(reservation);
+    const hasCheckoutPassed = isPast(checkoutDateTime);
+    let startLabel = "INÍCIO DA JANELA (SAÍDA)";
+    // Sem horário de saída cadastrado, mostra só o dia (antes a tela quebrava com "Invalid time value")
+    let startValue = format(checkoutDateTime, reservation.checkout_time ? "dd/MM 'às' HH:mm" : 'dd/MM', { locale: ptBR });
+    const endLabel = "FIM DA JANELA";
+    let endValue = "Prazo de 48h para concluir";
+    if (reservation.next_check_in_date && reservation.next_checkin_time) {
+        const nextCheckinDateTime = parseISO(`${reservation.next_check_in_date}T${reservation.next_checkin_time}`);
+        const hoursRemaining = differenceInHours(nextCheckinDateTime, now);
+        if(hoursRemaining < 0) { endValue = `ENTRADA PERDIDA HÁ ${Math.abs(Math.round(hoursRemaining))}H`; } 
+        else if (hoursRemaining <= 48) { endValue = `Entrada: ${format(nextCheckinDateTime, "dd/MM 'às' HH:mm", { locale: ptBR })}`; } 
+        else { endValue = "Janela Ampla (+48h)"; }
+    }
+    if(hasCheckoutPassed) {
+        startLabel = "JANELA RESTANTE (DESDE)";
+        startValue = format(now, "dd/MM 'às' HH:mm", { locale: ptBR });
+    }
+    return { startLabel, startValue, endLabel, endValue };
+};
+
 const UpcomingCard = ({ reservation, children }: { reservation: ReservationWithDetails, children?: React.ReactNode }) => {
-    const workWindowInfo = useMemo(() => {
-        const now = new Date();
-        const checkoutDateTime = parseISO(`${reservation.check_out_date}T${reservation.checkout_time}`);
-        const hasCheckoutPassed = isPast(checkoutDateTime);
-        let startLabel = "INÍCIO DA JANELA (SAÍDA)";
-        let startValue = format(checkoutDateTime, "dd/MM 'às' HH:mm", { locale: ptBR });
-        const endLabel = "FIM DA JANELA";
-        let endValue = "Prazo de 48h para concluir";
-        if (reservation.next_check_in_date && reservation.next_checkin_time) {
-            const nextCheckinDateTime = parseISO(`${reservation.next_check_in_date}T${reservation.next_checkin_time}`);
-            const hoursRemaining = differenceInHours(nextCheckinDateTime, now);
-            if(hoursRemaining < 0) { endValue = `ENTRADA PERDIDA HÁ ${Math.abs(Math.round(hoursRemaining))}H`; } 
-            else if (hoursRemaining <= 48) { endValue = `Entrada: ${format(nextCheckinDateTime, "dd/MM 'às' HH:mm", { locale: ptBR })}`; } 
-            else { endValue = "Janela Ampla (+48h)"; }
-        }
-        if(hasCheckoutPassed) {
-            startLabel = "JANELA RESTANTE (DESDE)";
-            startValue = format(now, "dd/MM 'às' HH:mm", { locale: ptBR });
-        }
-        return { startLabel, startValue, endLabel, endValue };
-    }, [reservation.check_out_date, reservation.checkout_time, reservation.next_check_in_date, reservation.next_checkin_time]);
+    const workWindowInfo = useMemo(() => janelaDeTrabalho(reservation),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [reservation.check_out_date, reservation.checkout_time, reservation.next_check_in_date, reservation.next_checkin_time]);
     
     const urgencyClasses = { overdue: 'border-2 border-danger-500 bg-danger-50', critical: 'border-2 border-danger-500 bg-danger-50', warning: 'border-2 border-warning-500 bg-warning-50', normal: '' };
 
@@ -364,12 +382,175 @@ const HistoryCard = ({ reservation }: { reservation: ReservationWithDetails }) =
     );
 };
 
+/* ── Celular (abaixo de 1024px): linhas no lugar dos cartões altos, endereço e
+   horário em destaque e botões grandes para aceitar e concluir ────────────── */
+const DIAS_CURTOS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+/** "Qua 25 nov, 11:00" */
+const quandoSaida = (r: ReservationWithDetails) => {
+    const d = parseISO(r.check_out_date);
+    return `${DIAS_CURTOS[d.getDay()]} ${format(d, 'd MMM', { locale: ptBR })}${r.checkout_time ? `, ${String(r.checkout_time).slice(0, 5)}` : ''}`;
+};
+const taxaDaFaxina = (r: ReservationWithDetails) => formatarMoeda(Number(r.cleaning_fee || 0));
+const ICONE_URGENCIA = { overdue: AlertTriangle, critical: AlertTriangle, warning: Clock, normal: Calendar } as const;
+const TOM_URGENCIA = { overdue: 'danger', critical: 'danger', warning: 'warning', normal: 'brand' } as const;
+
+/** Endereço (abre o mapa), janela de trabalho em destaque e os dados da faxina */
+const DetalhesFaxinaCelular = ({ reservation }: { reservation: ReservationWithDetails }) => {
+    const janela = janelaDeTrabalho(reservation);
+    const nivel = reservation.urgency?.level || 'normal';
+    return (
+        <div className="grid gap-3">
+            {nivel !== 'normal' && (
+                <p className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold ${nivel === 'warning' ? 'bg-warning-100 text-warning-800' : 'bg-danger-100 text-danger-700'}`}>
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    {reservation.urgency?.message}
+                </p>
+            )}
+            {reservation.properties?.address ? (
+                <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(reservation.properties.address)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex min-h-12 items-center gap-2 rounded-xl bg-brand-50 px-3 py-2 text-[15px] font-medium text-brand-800"
+                >
+                    <MapPin className="h-5 w-5 shrink-0 text-brand" />
+                    <span className="min-w-0 flex-1">{reservation.properties.address}</span>
+                    <span className="text-xs font-semibold text-brand">Mapa</span>
+                </a>
+            ) : (
+                <p className="flex items-center gap-1.5 text-sm text-gray-500"><MapPin className="h-4 w-4 shrink-0" />Endereço não informado</p>
+            )}
+            <div className="grid gap-2 rounded-2xl bg-surface p-3">
+                <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{janela.startLabel}</p>
+                    <p className="font-mono text-[28px] font-semibold leading-tight tabular-nums text-brand-700">{janela.startValue}</p>
+                </div>
+                <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{janela.endLabel}</p>
+                    <p className="text-base font-semibold text-ink">{janela.endValue}</p>
+                </div>
+            </div>
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                <div className="min-w-0"><dt className="text-xs text-gray-500">Sua taxa</dt><dd className="font-mono font-semibold tabular-nums text-success-700">{taxaDaFaxina(reservation)}</dd></div>
+                {reservation.number_of_guests ? <div className="min-w-0"><dt className="text-xs text-gray-500">Hóspedes</dt><dd className="font-semibold text-gray-900">{reservation.number_of_guests}</dd></div> : null}
+                {reservation.guest_name ? <div className="col-span-2 min-w-0"><dt className="text-xs text-gray-500">Hóspede anterior</dt><dd className="truncate font-semibold text-gray-900">{reservation.guest_name}</dd></div> : null}
+            </dl>
+            {reservation.cleaning_notes && (
+                <p className="rounded-xl bg-gray-50 p-3 text-sm"><span className="font-semibold">Observações:</span> <span className="text-gray-600">{reservation.cleaning_notes}</span></p>
+            )}
+        </div>
+    );
+};
+
+/** Botão grande de concluir (só depois da saída do hóspede) */
+const BotaoConcluir = ({ reservation, onMarkAsComplete }: { reservation: ReservationWithDetails, onMarkAsComplete: (id: string) => void }) => {
+    const liberado = isPast(saidaDoHospede(reservation));
+    return (
+        <div className="grid gap-1.5">
+            <Button size="lg" className="h-12 w-full text-base" onClick={() => onMarkAsComplete(reservation.id)} disabled={!liberado}>
+                <CheckCircle className="mr-2 h-5 w-5" />Marcar como concluída
+            </Button>
+            {!liberado && <p className="text-center text-xs text-gray-500">Libera depois do check-out do hóspede.</p>}
+        </div>
+    );
+};
+
+const ProximasCelular = ({ reservations, onMarkAsComplete }: { reservations: ReservationWithDetails[], onMarkAsComplete: (id: string) => void }) => {
+    const [selId, setSelId] = useState<string | null>(null);
+    const sel = reservations.find((r) => r.id === selId) ?? null;
+    const [primeira, ...demais] = reservations;
+    return (
+        <div className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-3">
+            <section className="rounded-2xl border bg-card p-3.5 shadow-sm">
+                <div className="mb-2 flex min-w-0 items-center justify-between gap-2">
+                    <h2 className="min-w-0 truncate font-display text-base font-bold text-gray-900">{primeira.properties?.name || 'Propriedade'}</h2>
+                    <EtiquetaStatus status={primeira.cleaning_payment_status} />
+                </div>
+                <DetalhesFaxinaCelular reservation={primeira} />
+                <div className="mt-3"><BotaoConcluir reservation={primeira} onMarkAsComplete={onMarkAsComplete} /></div>
+            </section>
+            {demais.length > 0 && (
+                <GrupoLista titulo={<span className="normal-case">Depois desta</span>} resumo={`${demais.length} ${demais.length === 1 ? 'faxina' : 'faxinas'}`}>
+                    {demais.map((r) => (
+                        <LinhaLista
+                            key={r.id}
+                            icone={ICONE_URGENCIA[r.urgency?.level || 'normal']}
+                            tomIcone={TOM_URGENCIA[r.urgency?.level || 'normal']}
+                            titulo={r.properties?.name || 'Propriedade'}
+                            subtitulo={`Saída ${quandoSaida(r)}`}
+                            valor={taxaDaFaxina(r)}
+                            aoTocar={() => setSelId(r.id)}
+                        />
+                    ))}
+                </GrupoLista>
+            )}
+            <FolhaDetalhes
+                aberta={!!sel}
+                aoMudar={(v) => !v && setSelId(null)}
+                titulo={sel?.properties?.name || 'Faxina'}
+                etiqueta={sel ? <EtiquetaStatus status={sel.cleaning_payment_status} /> : undefined}
+                subtitulo={sel ? `Saída ${quandoSaida(sel)}` : undefined}
+            >
+                {sel && (<><DetalhesFaxinaCelular reservation={sel} /><BotaoConcluir reservation={sel} onMarkAsComplete={(id) => { onMarkAsComplete(id); setSelId(null); }} /></>)}
+            </FolhaDetalhes>
+        </div>
+    );
+};
+
+const OportunidadesCelular = ({ reservations, onSignUp, hasActiveCleaning }: { reservations: ReservationWithDetails[], onSignUp: (id: string) => void, hasActiveCleaning: boolean }) => {
+    const [selId, setSelId] = useState<string | null>(null);
+    const sel = reservations.find((r) => r.id === selId) ?? null;
+    const podeAceitar = (r: ReservationWithDetails) => !hasActiveCleaning || r.urgency?.level === 'critical' || r.urgency?.level === 'overdue';
+    return (
+        <div className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-3">
+            {hasActiveCleaning && <p className="px-1 text-xs text-gray-500">Você já tem uma faxina em andamento. Conclua-a para aceitar outras; as urgentes ficam liberadas.</p>}
+            <div className="rounded-2xl border bg-card px-3.5 py-1 shadow-sm">
+                <ListaLinhas>
+                    {reservations.map((r) => (
+                        <LinhaLista
+                            key={r.id}
+                            icone={ICONE_URGENCIA[r.urgency?.level || 'normal']}
+                            tomIcone={TOM_URGENCIA[r.urgency?.level || 'normal']}
+                            titulo={r.properties?.name || 'Propriedade'}
+                            subtitulo={`${quandoSaida(r)} · ${taxaDaFaxina(r)}`}
+                            aoTocar={() => setSelId(r.id)}
+                            acao={
+                                <Button className="h-11 rounded-full px-4 text-sm font-semibold" onClick={() => onSignUp(r.id)} disabled={!podeAceitar(r)}>
+                                    Aceitar
+                                </Button>
+                            }
+                        />
+                    ))}
+                </ListaLinhas>
+            </div>
+            <FolhaDetalhes
+                aberta={!!sel}
+                aoMudar={(v) => !v && setSelId(null)}
+                titulo={sel?.properties?.name || 'Faxina'}
+                subtitulo={sel ? `Saída ${quandoSaida(sel)}` : undefined}
+            >
+                {sel && (
+                    <>
+                        <DetalhesFaxinaCelular reservation={sel} />
+                        <Button size="lg" className="h-12 w-full text-base" onClick={() => { onSignUp(sel.id); setSelId(null); }} disabled={!podeAceitar(sel)}>
+                            <Hand className="mr-2 h-5 w-5" />Aceitar faxina
+                        </Button>
+                    </>
+                )}
+            </FolhaDetalhes>
+        </div>
+    );
+};
+
 const UpcomingList = ({ reservations, onMarkAsComplete }: { reservations: ReservationWithDetails[], onMarkAsComplete: (id: string) => void }) => {
+    const compacto = useEhCompacto();
+    if (reservations.length > 0 && compacto) return <ProximasCelular reservations={reservations} onMarkAsComplete={onMarkAsComplete} />;
     if (reservations.length === 0) { return <Card className="mt-4"><CardContent className="pt-6 text-center text-muted-foreground"><Calendar className="mx-auto h-12 w-12 mb-4 opacity-50" /><p>Nenhuma reserva encontrada</p><p className="text-sm">Você não possui faxinas futuras agendadas.</p></CardContent></Card>; }
     return (
         <div className="grid gap-4 mt-4">
             {reservations.map(reservation => {
-                const checkoutDateTime = parseISO(`${reservation.check_out_date}T${reservation.checkout_time}`);
+                const checkoutDateTime = saidaDoHospede(reservation);
                 const canMarkAsComplete = isPast(checkoutDateTime);
                 return (
                     <UpcomingCard key={reservation.id} reservation={reservation}>
@@ -401,6 +582,8 @@ const UpcomingList = ({ reservations, onMarkAsComplete }: { reservations: Reserv
 };
 
 const AvailableCleaningsList = ({ reservations, onSignUp, hasActiveCleaning }: { reservations: ReservationWithDetails[], onSignUp: (id: string) => void, hasActiveCleaning: boolean }) => {
+    const compacto = useEhCompacto();
+    if (reservations.length > 0 && compacto) return <OportunidadesCelular reservations={reservations} onSignUp={onSignUp} hasActiveCleaning={hasActiveCleaning} />;
     if (reservations.length === 0) { return <Card className="mt-4"><CardContent className="pt-6 text-center text-muted-foreground"><CheckCircle className="mx-auto h-12 w-12 mb-4 opacity-50 text-success-500" /><p>Nenhuma oportunidade no momento</p><p className="text-sm">Não há faxinas disponíveis nas suas propriedades para as próximas duas semanas.</p></CardContent></Card>; }
     return (
         <div className="grid gap-4 mt-4">
@@ -432,7 +615,13 @@ const AvailableCleaningsList = ({ reservations, onSignUp, hasActiveCleaning }: {
 };
 
 const HistoryList = ({ reservations }: { reservations: ReservationWithDetails[] }) => {
-    const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
+    const compacto = useEhCompacto();
+    // Abre no mês atual; sem faxinas nele, no mês mais recente do histórico (antes o seletor ficava em branco)
+    const [selectedMonth, setSelectedMonth] = useState(() => {
+        const atual = format(new Date(), 'yyyy-MM');
+        const meses = reservations.map(r => format(parseISO(r.check_out_date), 'yyyy-MM')).sort();
+        return meses.length === 0 || meses.includes(atual) ? atual : meses[meses.length - 1];
+    });
     const availableMonths = useMemo(() => {
         const months = new Set(reservations.map(r => format(parseISO(r.check_out_date), 'yyyy-MM')));
         if (months.size === 0) { months.add(format(new Date(), 'yyyy-MM')); }
@@ -462,11 +651,30 @@ const HistoryList = ({ reservations }: { reservations: ReservationWithDetails[] 
             {filteredReservations.length === 0 ? (
                 <Card className="mt-4"><CardContent className="pt-6 text-center text-muted-foreground"><p>Nenhuma faxina encontrada para o período selecionado.</p></CardContent></Card>
             ) : (
+                compacto ? (
+                    <div className="rounded-2xl border bg-card px-3.5 py-1 shadow-sm">
+                        <ListaLinhas>
+                            {filteredReservations.map(r => (
+                                <LinhaLista
+                                    key={r.id}
+                                    icone={CheckCircle}
+                                    tomIcone="success"
+                                    titulo={r.properties?.name || 'Propriedade'}
+                                    subtitulo={`${format(parseISO(r.check_out_date), 'dd/MM/yyyy')}${r.cleaning_rating > 0 ? ` · avaliação ${r.cleaning_rating}/5` : ''}`}
+                                    valor={taxaDaFaxina(r)}
+                                    legenda={(r.cleaning_payment_status || 'Pendente').replace(/pagamento no pr[oó]ximo ciclo/i, 'Próx. ciclo')}
+                                    tomLegenda={tomDoStatus(r.cleaning_payment_status)}
+                                />
+                            ))}
+                        </ListaLinhas>
+                    </div>
+                ) : (
                 <div className="grid gap-4">
                     {filteredReservations.map(reservation => (
                         <HistoryCard key={reservation.id} reservation={reservation} />
                     ))}
                 </div>
+                )
             )}
         </div>
     );

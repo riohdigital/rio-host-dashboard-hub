@@ -6,6 +6,12 @@ import { Input } from '@/components/ui/input';
 import { ChevronDown, ChevronUp, Building2, TrendingDown, ArrowRight, Search, Filter, CalendarX, CheckCircle2, Clock } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { OwnerPayment } from '@/hooks/painel-gestor/usePaymentsDashboard';
+import LinhaLista from '@/components/comum/LinhaLista';
+import { ListaLinhas } from '@/components/comum/GrupoLista';
+import FolhaDetalhes from '@/components/comum/FolhaDetalhes';
+import { Etiqueta } from '@/components/comum/Etiquetas';
+import { formatarMoedaSemCentavos } from '@/components/comum/formatos';
+import { useEhCompacto } from '@/hooks/useMidia';
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
@@ -255,6 +261,92 @@ const OwnerCard = ({ owner }: OwnerCardProps) => {
   );
 };
 
+/**
+ * Celular (plano T9): uma linha por imóvel (reservas e comissão do mês, valor
+ * do repasse e situação); tocar abre a folha com o cálculo e cada plataforma.
+ */
+const ListaProprietariosCelular = ({ imoveis }: { imoveis: OwnerPayment[] }) => {
+  const [sel, setSel] = useState<OwnerPayment | null>(null);
+  const t = sel ? calcTransferTotals(sel.platformBreakdown) : null;
+  return (
+    <>
+      <div className="rounded-2xl border bg-card px-3.5 py-1 shadow-sm">
+        <ListaLinhas>
+          {[...imoveis.filter((o) => o.hasPaymentsThisMonth), ...imoveis.filter((o) => !o.hasPaymentsThisMonth)].map((o) => {
+            const { totalRepassado, totalARepassar } = calcTransferTotals(o.platformBreakdown);
+            const reservas = o.platformBreakdown.reduce((s, p) => s + p.reservations, 0);
+            const sit = !o.hasPaymentsThisMonth
+              ? undefined
+              : totalARepassar > 0
+                ? { texto: 'A repassar', tom: 'warning' as const }
+                : totalRepassado > 0
+                  ? { texto: 'Repassado', tom: 'success' as const }
+                  : { texto: 'Pendente', tom: 'neutro' as const };
+            return (
+              <LinhaLista
+                key={o.propertyId}
+                icone={Building2}
+                tomIcone={o.hasPaymentsThisMonth ? 'warning' : 'neutro'}
+                titulo={o.nickname || o.propertyName}
+                subtitulo={o.hasPaymentsThisMonth ? `${reservas} ${reservas === 1 ? 'reserva' : 'reservas'} · comissão ${formatarMoedaSemCentavos(o.totalCommission)}` : 'Sem recebimentos neste mês'}
+                valor={o.hasPaymentsThisMonth ? fmt(Math.max(0, o.totalToTransfer)) : undefined}
+                legenda={sit?.texto}
+                tomLegenda={sit?.tom}
+                aoTocar={() => setSel(o)}
+              />
+            );
+          })}
+        </ListaLinhas>
+      </div>
+
+      <FolhaDetalhes
+        aberta={!!sel}
+        aoMudar={(v) => !v && setSel(null)}
+        titulo={sel ? sel.nickname || sel.propertyName : ''}
+        subtitulo={sel?.nickname ? sel.propertyName : undefined}
+      >
+        {sel && t && (
+          <>
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-2xl bg-gray-50 p-3.5">
+              {[
+                { rotulo: 'Receita bruta', valor: fmt(sel.platformBreakdown.reduce((s, p) => s + p.totalRevenue, 0)), classe: 'text-gray-900' },
+                { rotulo: 'Comissão', valor: fmt(sel.totalCommission), classe: 'text-brand-700' },
+                { rotulo: 'Investimentos', valor: sel.investments > 0 ? `-${fmt(sel.investments)}` : fmt(0), classe: 'text-danger-600' },
+                { rotulo: 'Repassado (Airbnb/Direto)', valor: fmt(t.totalRepassado), classe: 'text-success-700' },
+                { rotulo: 'A repassar (Booking)', valor: fmt(t.totalARepassar), classe: 'text-warning-700' },
+                { rotulo: 'Líquido a repassar', valor: fmt(Math.max(0, t.totalARepassar - sel.investments)), classe: 'text-gray-900' },
+              ].map((c) => (
+                <div key={c.rotulo} className="min-w-0">
+                  <dt className="truncate text-xs text-gray-500">{c.rotulo}</dt>
+                  <dd className={`truncate font-mono text-sm font-semibold tabular-nums ${c.classe}`}>{c.valor}</dd>
+                </div>
+              ))}
+            </dl>
+            {sel.platformBreakdown.length > 0 && (
+              <ListaLinhas>
+                {sel.platformBreakdown.map((p) => {
+                  const tr = getTransferLabel(p.platform, p.status);
+                  return (
+                    <LinhaLista
+                      key={p.platform}
+                      canal={p.platform}
+                      titulo={p.platform}
+                      subtitulo={`${p.reservations} ${p.reservations === 1 ? 'reserva' : 'reservas'} · total ${fmt(p.totalRevenue)} · comissão ${fmt(p.commission)}`}
+                      valor={fmt(p.netRevenue)}
+                      legenda={tr.label}
+                      tomLegenda={tr.label === 'Repassado' ? 'success' : tr.label === 'A Repassar' ? 'warning' : 'neutro'}
+                    />
+                  );
+                })}
+              </ListaLinhas>
+            )}
+          </>
+        )}
+      </FolhaDetalhes>
+    </>
+  );
+};
+
 interface OwnerPaymentsTabProps {
   ownerPayments: OwnerPayment[];
   loading: boolean;
@@ -263,6 +355,7 @@ interface OwnerPaymentsTabProps {
 
 const OwnerPaymentsTab = ({ ownerPayments, loading, hasFilter }: OwnerPaymentsTabProps) => {
   const [search, setSearch] = useState('');
+  const compacto = useEhCompacto();
 
   const filtered = useMemo(() => {
     if (!search.trim()) return ownerPayments;
@@ -320,6 +413,32 @@ const OwnerPaymentsTab = ({ ownerPayments, loading, hasFilter }: OwnerPaymentsTa
     },
     { repassado: 0, aRepassar: 0 }
   );
+
+  if (compacto) {
+    const aRepassarLiquido = Math.max(0, globalTotals.aRepassar - totalInvestments);
+    return (
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
+        <dl className="grid grid-cols-3 gap-2.5 rounded-2xl border bg-card p-3.5 shadow-sm">
+          {[
+            { rotulo: 'Comissão', valor: fmt(totalCommission), classe: 'text-brand-700' },
+            { rotulo: 'Repassado', valor: fmt(globalTotals.repassado), classe: 'text-success-700' },
+            { rotulo: 'A repassar', valor: fmt(aRepassarLiquido), classe: 'text-warning-700' },
+          ].map((c) => (
+            <div key={c.rotulo} className="min-w-0">
+              <dt className="truncate text-xs text-gray-500">{c.rotulo}</dt>
+              <dd className={`truncate font-mono text-[13px] font-semibold tabular-nums ${c.classe}`}>{c.valor}</dd>
+            </div>
+          ))}
+        </dl>
+        {totalInvestments > 0 && (
+          <p className="-mt-1 px-1 text-xs text-gray-500">
+            <Etiqueta tom="danger">-{fmt(totalInvestments)}</Etiqueta> de investimentos no mês, já descontados do que falta repassar.
+          </p>
+        )}
+        <ListaProprietariosCelular imoveis={ownerPayments} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

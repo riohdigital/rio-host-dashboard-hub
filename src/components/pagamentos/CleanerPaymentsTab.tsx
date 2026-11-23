@@ -11,6 +11,11 @@ import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { CleanerPayment } from '@/hooks/painel-gestor/usePaymentsDashboard';
+import LinhaLista from '@/components/comum/LinhaLista';
+import { ListaLinhas } from '@/components/comum/GrupoLista';
+import FolhaDetalhes from '@/components/comum/FolhaDetalhes';
+import type { Tom } from '@/components/comum/cores';
+import { useEhCompacto } from '@/hooks/useMidia';
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
@@ -191,6 +196,92 @@ const CleanerCard = ({ cleaner }: CleanerCardProps) => {
   );
 };
 
+/** Situação de uma faxineira no mês: o que ainda falta pagar vem primeiro */
+const situacaoFaxineira = (c: CleanerPayment): { texto: string; tom: Tom } | null => {
+  if (!c.hasCleaningsThisMonth) return null;
+  if (c.totalPending > 0) return { texto: 'Pendente', tom: 'warning' };
+  if (c.totalNextCycle > 0) return { texto: 'Próx. ciclo', tom: 'info' };
+  return { texto: 'Pago', tom: 'success' };
+};
+
+const tomDoPagamento = (status: string): Tom =>
+  status === 'Pago' ? 'success' : status === 'Próximo Ciclo' || status === 'D+1' ? 'info' : status === 'Pagamento na Data' ? 'brand' : 'warning';
+
+/**
+ * Celular (plano T9): uma linha por faxineira (faxinas no mês, valor e
+ * situação); tocar abre a folha com contato, totais e as faxinas do mês.
+ * Os totais do mês ficam na faixa do topo da tela.
+ */
+const ListaFaxineirasCelular = ({ faxineiras }: { faxineiras: CleanerPayment[] }) => {
+  const [sel, setSel] = useState<CleanerPayment | null>(null);
+  return (
+    <>
+      <div className="rounded-2xl border bg-card px-3.5 py-1 shadow-sm">
+        <ListaLinhas>
+          {faxineiras.map((c) => {
+            const sit = situacaoFaxineira(c);
+            return (
+              <LinhaLista
+                key={c.cleanerId}
+                icone={User}
+                tomIcone={c.hasCleaningsThisMonth ? 'brand' : 'neutro'}
+                titulo={c.cleanerName}
+                subtitulo={c.hasCleaningsThisMonth ? `${c.cleanings.length} ${c.cleanings.length === 1 ? 'faxina' : 'faxinas'} no mês` : 'Sem faxinas neste mês'}
+                valor={c.hasCleaningsThisMonth ? fmt(c.total) : undefined}
+                legenda={sit?.texto}
+                tomLegenda={sit?.tom}
+                aoTocar={() => setSel(c)}
+              />
+            );
+          })}
+        </ListaLinhas>
+      </div>
+
+      <FolhaDetalhes
+        aberta={!!sel}
+        aoMudar={(v) => !v && setSel(null)}
+        titulo={sel?.cleanerName ?? ''}
+        subtitulo={sel ? [sel.phone, sel.pix && `PIX: ${sel.pix}`].filter(Boolean).join(' · ') || undefined : undefined}
+      >
+        {sel && (
+          <>
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-2xl bg-gray-50 p-3.5">
+              {[
+                { rotulo: 'Pago', valor: fmt(sel.totalPaid), classe: 'text-success-700' },
+                { rotulo: 'Pendente', valor: fmt(sel.totalPending), classe: 'text-warning-700' },
+                { rotulo: 'Próximo ciclo', valor: fmt(sel.totalNextCycle), classe: 'text-info-700' },
+                { rotulo: 'Total do mês', valor: fmt(sel.total), classe: 'text-gray-900' },
+              ].map((c) => (
+                <div key={c.rotulo} className="min-w-0">
+                  <dt className="text-xs text-gray-500">{c.rotulo}</dt>
+                  <dd className={`truncate font-mono text-sm font-semibold tabular-nums ${c.classe}`}>{c.valor}</dd>
+                </div>
+              ))}
+            </dl>
+            {sel.cleanings.length === 0 ? (
+              <p className="text-sm text-gray-500">Faxineira vinculada ao imóvel, sem faxinas registradas neste mês.</p>
+            ) : (
+              <ListaLinhas>
+                {sel.cleanings.map((f) => (
+                  <LinhaLista
+                    key={f.reservationId}
+                    canal={f.platform}
+                    titulo={f.propertyNickname || f.propertyName}
+                    subtitulo={`${format(parseISO(f.date), 'dd/MM', { locale: ptBR })} · ${f.platform}`}
+                    valor={fmt(f.fee)}
+                    legenda={f.paymentStatus === 'Pagamento na Data' ? 'Na data' : f.paymentStatus}
+                    tomLegenda={tomDoPagamento(f.paymentStatus)}
+                  />
+                ))}
+              </ListaLinhas>
+            )}
+          </>
+        )}
+      </FolhaDetalhes>
+    </>
+  );
+};
+
 interface CleanerPaymentsTabProps {
   cleanerPayments: CleanerPayment[];
   loading: boolean;
@@ -205,6 +296,7 @@ const CleanerPaymentsTab = ({ cleanerPayments, loading, hasFilter }: CleanerPaym
   const [expensesLoading, setExpensesLoading] = useState(false);
   const [showReimbursementsList, setShowReimbursementsList] = useState(false);
   const { toast } = useToast();
+  const compacto = useEhCompacto();
 
   const fetchCleanerExpenses = async () => {
     setExpensesLoading(true);
@@ -375,7 +467,8 @@ const CleanerPaymentsTab = ({ cleanerPayments, loading, hasFilter }: CleanerPaym
         </Card>
       )}
 
-      {/* Filter bar */}
+      {/* Filter bar (no celular, a lista é curta e os totais estão na faixa do topo) */}
+      {!compacto && (<>
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative w-full sm:min-w-[180px] sm:max-w-xs sm:flex-1">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -423,7 +516,11 @@ const CleanerPaymentsTab = ({ cleanerPayments, loading, hasFilter }: CleanerPaym
         </div>
       </div>
 
-      {filtered.length === 0 ? (
+      </>)}
+
+      {compacto ? (
+        <ListaFaxineirasCelular faxineiras={filtered} />
+      ) : filtered.length === 0 ? (
         <div className="text-center py-10 text-muted-foreground">
           <User className="h-8 w-8 mx-auto mb-2 opacity-30" />
           <p className="font-medium">Nenhuma faxineira corresponde ao filtro</p>
