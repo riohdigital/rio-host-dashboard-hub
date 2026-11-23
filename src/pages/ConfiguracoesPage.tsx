@@ -7,6 +7,7 @@ import ChannelSyncSection from '@/components/settings/ChannelSyncSection';
 import ReceiptIssuerSection from '@/components/settings/ReceiptIssuerSection';
 import { Button } from '@/components/ui/button';
 import { User, Tag, Shield, Users, RefreshCw, Receipt } from 'lucide-react';
+import BotaoInstalarApp from '@/components/pwa/BotaoInstalarApp';
 
 const ConfiguracoesPage = () => {
   const [activeSection, setActiveSection] = useState('profile');
@@ -24,9 +25,12 @@ const ConfiguracoesPage = () => {
 
   return (
     <div className="space-y-8">
-      <div className="border-b border-gray-200 pb-4">
-        <h1 className="text-3xl font-bold text-gradient-primary">Configurações</h1>
-        <p className="text-gray-600 mt-2">Gerencie suas preferências e configurações do sistema</p>
+      <div className="flex flex-col gap-4 border-b border-gray-200 pb-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gradient-primary">Configurações</h1>
+          <p className="text-gray-600 mt-2">Gerencie suas preferências e configurações do sistema</p>
+        </div>
+        <BotaoInstalarApp className="self-start sm:self-auto" />
       </div>
       
       <div className="flex flex-col lg:flex-row gap-8">

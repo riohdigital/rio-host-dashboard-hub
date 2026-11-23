@@ -12,6 +12,7 @@ import {
   DrawerTitle,
 } from '@/components/ui/drawer';
 import GlobalFilters from './GlobalFilters';
+import BotaoInstalarApp from '@/components/pwa/BotaoInstalarApp';
 import MarcaRioh from './MarcaRioh';
 import { useResumoFiltros } from './resumoFiltros';
 import { ICONE_GESTOR, type ItemNavegacao, rotaAtiva, tituloDaRota, useNavegacao, useSair } from './navegacao';
@@ -178,6 +179,7 @@ const NavegacaoCelular = () => {
 
             <div className="mt-3 grid gap-1 border-t border-gray-100 pt-3">
               {resto.filter((i) => i.caminho === '/configuracoes').map(linhaMais)}
+              <BotaoInstalarApp variante="linha" aoClicar={() => setMaisAberto(false)} />
             </div>
           </nav>
           <DrawerFooter className="pb-[calc(1rem+env(safe-area-inset-bottom))]">
