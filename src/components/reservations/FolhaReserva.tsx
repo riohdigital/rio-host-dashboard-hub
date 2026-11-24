@@ -34,6 +34,7 @@ import { cn } from '@/lib/utils';
 import ReservationForm from './ReservationForm';
 import Segmentado from './Segmentado';
 import { comHora, dataCurta, noites, periodoCurto } from './datas';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 /** A reserva como as telas a carregam: com o imóvel junto (select('*, properties(*)')) */
 export type ReservaDaFolha = Reservation & {
@@ -112,11 +113,13 @@ const FolhaReserva = ({ aberta, aoMudar, reserva, id, codigo, nomeFaxineira, aoA
   }, [origem, aberta]);
 
   const [gravando, setGravando] = useState<{ campo: string; valor: string } | null>(null);
-  const [escolhendoFaxineira, setEscolhendoFaxineira] = useState(false);
-  const [editando, setEditando] = useState(false);
+  // Voltam depois de recarregar a página, para a reserva que estava aberta
+  const chaveDaFolha = `reservas.folha.${reserva?.id ?? id ?? codigo ?? 'sem-reserva'}`;
+  const [escolhendoFaxineira, setEscolhendoFaxineira] = useEstadoPersistente<boolean>(`${chaveDaFolha}.escolhendoFaxineira`, false);
+  const [editando, setEditando] = useEstadoPersistente<boolean>(`${chaveDaFolha}.editando`, false);
   useEffect(() => {
     if (!aberta) setEscolhendoFaxineira(false);
-  }, [aberta]);
+  }, [aberta, setEscolhendoFaxineira]);
 
   const podeEditar = hasPermission('reservations_edit');
   const podeExcluir = hasPermission('reservations_delete');

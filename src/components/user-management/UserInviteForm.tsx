@@ -6,15 +6,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 interface UserInviteFormProps {
   onUserInvited: () => void;
 }
 
 const UserInviteForm: React.FC<UserInviteFormProps> = ({ onUserInvited }) => {
-  const [email, setEmail] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState<'owner' | 'gestor'>('gestor');
+  // O que foi digitado volta depois de recarregar a página
+  const [email, setEmail] = useEstadoPersistente('usuarios.convite.email', '');
+  const [fullName, setFullName] = useEstadoPersistente('usuarios.convite.nome', '');
+  const [role, setRole] = useEstadoPersistente<'owner' | 'gestor'>('usuarios.convite.papel', 'gestor', { aceita: ['owner', 'gestor'] });
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 

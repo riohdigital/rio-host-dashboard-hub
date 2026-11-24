@@ -11,6 +11,7 @@ import { UserX, UserCheck, Calendar, Clock, MapPin, User, CheckCircle, XCircle }
 import { supabase } from '@/integrations/supabase/client';
 import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import type { ReservationWithCleanerInfo, CleanerProfile } from '@/types/master-cleaning';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 interface MasterCleaningCardProps {
   reservation: ReservationWithCleanerInfo;
@@ -49,7 +50,7 @@ const MasterCleaningCard = ({
   isLoading = false 
 }: MasterCleaningCardProps) => {
   const { hasPermission } = useUserPermissions();
-  const [selectedCleaner, setSelectedCleaner] = React.useState<string>('');
+  const [selectedCleaner, setSelectedCleaner] = useEstadoPersistente<string>(`faxinas.cartao.${reservation.id}.faxineira`, '');
   const [propertyCleaners, setPropertyCleaners] = React.useState<CleanerProfile[]>(cleaners);
   const [loadingCleaners, setLoadingCleaners] = React.useState(false);
   

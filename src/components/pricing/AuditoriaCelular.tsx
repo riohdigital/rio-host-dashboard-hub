@@ -7,7 +7,7 @@
  * Só apresentação: as reservas, a ação de auditar e os links chegam prontos
  * do ReservationsAuditTab; a leitura do que veio do portal está em auditoria.ts.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ExternalLink, LayoutDashboard, RefreshCw, ShieldCheck, SlidersHorizontal, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -37,11 +37,13 @@ import {
   type ResultadoAuditoria,
 } from './auditoria';
 import type { ReservaAuditada } from './ReservationsAuditTab';
+import { useEstadoPersistente, useQuantasPersistente } from '@/hooks/useEstadoPersistente';
 
 const POR_VEZ = 30;
 
 type Filtro = 'todas' | ResultadoAuditoria;
 const ORDEM_DO_FILTRO: ResultadoAuditoria[] = ['conferida', 'diferenca', 'pendente', 'nao_concluida'];
+const FILTROS: Filtro[] = ['todas', ...ORDEM_DO_FILTRO];
 const PLURAL_DO_RESULTADO: Record<ResultadoAuditoria, string> = {
   conferida: 'Conferidas',
   diferenca: 'Com diferença',
@@ -178,14 +180,13 @@ const Comparacao = ({ leitura }: { leitura: Leitura }) => {
 /* ── Aba ─────────────────────────────────────────────────── */
 
 const AuditoriaCelular = ({ reservas, carregando, limite, auditando, aoAuditar, nomeDoImovel, linkDoPortal, linkDosRepasses }: AuditoriaCelularProps) => {
-  const [busca, setBusca] = useState('');
-  const [filtro, setFiltro] = useState<Filtro>('todas');
-  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
-  const [quantas, setQuantas] = useState(POR_VEZ);
-  const [abertaId, setAbertaId] = useState<string | null>(null);
-
+  // Busca, filtro, folhas abertas e "carregar mais" voltam depois de recarregar a página
+  const [busca, setBusca] = useEstadoPersistente('precificacao.auditoria.busca', '');
+  const [filtro, setFiltro] = useEstadoPersistente<Filtro>('precificacao.auditoria.filtro', 'todas', { aceita: FILTROS });
+  const [filtrosAbertos, setFiltrosAbertos] = useEstadoPersistente<boolean>('precificacao.auditoria.filtros.abertos', false);
   // Volta para as 30 primeiras quando a lista muda de recorte
-  useEffect(() => setQuantas(POR_VEZ), [busca, filtro]);
+  const [quantas, setQuantas] = useQuantasPersistente('precificacao.auditoria.quantas', `${filtro}|${busca}`, POR_VEZ);
+  const [abertaId, setAbertaId] = useEstadoPersistente<string | null>('precificacao.auditoria.folha', null);
 
   // Entrada mais recente primeiro, para os meses ficarem em blocos
   const leituras = useMemo<Leitura[]>(

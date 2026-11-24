@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { EtiquetaStatus } from '@/components/comum/Etiquetas';
 import LinhaLista from '@/components/comum/LinhaLista';
 import GrupoLista, { ListaLinhas } from '@/components/comum/GrupoLista';
@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 type ReservationWithDetails = Awaited<ReturnType<typeof fetchAssignedReservations>>[0] & { 
     next_check_in_date?: string,
@@ -45,7 +46,12 @@ const FaxineiraDashboard = () => {
     const { user, signOut } = useAuth();
     const queryClient = useQueryClient();
     const { toast } = useToast();
-    const [activeTab, setActiveTab] = useState('dashboard');
+    // Seção, aba, meses e folhas abertas voltam depois de recarregar a página
+    const [activeTab, setActiveTab] = useEstadoPersistente<string>('minhasFaxinas.secao', 'dashboard', { aceita: ['dashboard', 'ganhos', 'configuracao'] });
+    const [aba, setAba] = useEstadoPersistente<string>('minhasFaxinas.aba', 'proximas', { aceita: ['proximas', 'oportunidades', 'historico'] });
+    // Dados pessoais digitados (a senha nunca é guardada)
+    const [nomeDigitado, setNomeDigitado] = useEstadoPersistente<string | null>('minhasFaxinas.conta.nome', null);
+    const [telefoneDigitado, setTelefoneDigitado] = useEstadoPersistente<string | null>('minhasFaxinas.conta.telefone', null);
 
     const assignedKey = ['faxineira-reservations', user?.id];
     const availableKey = ['available-cleanings', user?.id];
@@ -171,7 +177,7 @@ const FaxineiraDashboard = () => {
                     <h1 className="font-display text-2xl font-extrabold text-ink">Minhas Faxinas</h1>
                     <p className="text-muted-foreground">Visualize e gerencie as limpezas designadas para você.</p>
                 </div>
-                <Tabs defaultValue="proximas" className="w-full mt-4 max-lg:mt-0">
+                <Tabs value={aba} onValueChange={setAba} className="w-full mt-4 max-lg:mt-0">
                     <AbasRolaveis
                         rotulo="Minhas faxinas"
                         itens={[
@@ -199,10 +205,10 @@ const FaxineiraDashboard = () => {
                     <CardHeader><CardTitle>Dados Pessoais</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                             <div><Label htmlFor="fullName">Nome Completo</Label><Input id="fullName" placeholder="Seu nome completo" defaultValue={user?.user_metadata.full_name || ''} /></div>
+                             <div><Label htmlFor="fullName">Nome Completo</Label><Input id="fullName" placeholder="Seu nome completo" value={nomeDigitado ?? user?.user_metadata.full_name ?? ''} onChange={(e) => setNomeDigitado(e.target.value)} /></div>
                             <div><Label htmlFor="email">Email</Label><Input id="email" type="email" placeholder="Seu email" defaultValue={user?.email || ''} disabled /></div>
                         </div>
-                        <div><Label htmlFor="phone">Telefone</Label><Input id="phone" placeholder="(XX) XXXXX-XXXX" defaultValue={user?.user_metadata.phone || ''} /></div>
+                        <div><Label htmlFor="phone">Telefone</Label><Input id="phone" placeholder="(XX) XXXXX-XXXX" value={telefoneDigitado ?? user?.user_metadata.phone ?? ''} onChange={(e) => setTelefoneDigitado(e.target.value)} /></div>
                          <div className="flex justify-end"><Button>Salvar Alterações</Button></div>
                     </CardContent>
                  </Card>
@@ -229,7 +235,7 @@ const FaxineiraDashboard = () => {
 };
 
 const MeusGanhosPage = ({ historicalData }: { historicalData: ReservationWithDetails[] }) => {
-    const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
+    const [selectedMonth, setSelectedMonth] = useEstadoPersistente<string>('minhasFaxinas.ganhos.mes', () => format(new Date(), 'yyyy-MM'));
     const availableMonths = useMemo(() => {
         const months = new Set(historicalData.map(r => format(parseISO(r.check_out_date), 'yyyy-MM')));
         if (months.size === 0) { months.add(format(new Date(), 'yyyy-MM')); }
@@ -457,7 +463,7 @@ const BotaoConcluir = ({ reservation, onMarkAsComplete }: { reservation: Reserva
 };
 
 const ProximasCelular = ({ reservations, onMarkAsComplete }: { reservations: ReservationWithDetails[], onMarkAsComplete: (id: string) => void }) => {
-    const [selId, setSelId] = useState<string | null>(null);
+    const [selId, setSelId] = useEstadoPersistente<string | null>('minhasFaxinas.proximas.folha', null);
     const sel = reservations.find((r) => r.id === selId) ?? null;
     const [primeira, ...demais] = reservations;
     return (
@@ -499,7 +505,7 @@ const ProximasCelular = ({ reservations, onMarkAsComplete }: { reservations: Res
 };
 
 const OportunidadesCelular = ({ reservations, onSignUp, hasActiveCleaning }: { reservations: ReservationWithDetails[], onSignUp: (id: string) => void, hasActiveCleaning: boolean }) => {
-    const [selId, setSelId] = useState<string | null>(null);
+    const [selId, setSelId] = useEstadoPersistente<string | null>('minhasFaxinas.oportunidades.folha', null);
     const sel = reservations.find((r) => r.id === selId) ?? null;
     const podeAceitar = (r: ReservationWithDetails) => !hasActiveCleaning || r.urgency?.level === 'critical' || r.urgency?.level === 'overdue';
     return (
@@ -617,7 +623,7 @@ const AvailableCleaningsList = ({ reservations, onSignUp, hasActiveCleaning }: {
 const HistoryList = ({ reservations }: { reservations: ReservationWithDetails[] }) => {
     const compacto = useEhCompacto();
     // Abre no mês atual; sem faxinas nele, no mês mais recente do histórico (antes o seletor ficava em branco)
-    const [selectedMonth, setSelectedMonth] = useState(() => {
+    const [selectedMonth, setSelectedMonth] = useEstadoPersistente<string>('minhasFaxinas.historico.mes', () => {
         const atual = format(new Date(), 'yyyy-MM');
         const meses = reservations.map(r => format(parseISO(r.check_out_date), 'yyyy-MM')).sort();
         return meses.length === 0 || meses.includes(atual) ? atual : meses[meses.length - 1];

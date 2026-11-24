@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import ProfileSection from '@/components/settings/ProfileSection';
 import ExpenseCategoriesSection from '@/components/settings/ExpenseCategoriesSection';
 import SecuritySection from '@/components/settings/SecuritySection';
@@ -9,10 +9,12 @@ import { Button } from '@/components/ui/button';
 import { User, Tag, Shield, Users, RefreshCw, Receipt, ChevronLeft, ChevronRight } from 'lucide-react';
 import BotaoInstalarApp from '@/components/pwa/BotaoInstalarApp';
 import { useMidia } from '@/hooks/useMidia';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 const ConfiguracoesPage = () => {
-  const [activeSection, setActiveSection] = useState('profile');
-  const [secaoCelular, setSecaoCelular] = useState<string | null>(null);
+  // A seção aberta volta depois de recarregar a página (celular e computador)
+  const [activeSection, setActiveSection] = useEstadoPersistente<string>('configuracoes.secao', 'profile');
+  const [secaoCelular, setSecaoCelular] = useEstadoPersistente<string | null>('configuracoes.secao.celular', null);
   const desktop = useMidia('(min-width: 1024px)');
 
   const sections = [

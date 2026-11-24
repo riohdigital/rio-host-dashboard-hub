@@ -6,7 +6,7 @@
  * - Agenda: entradas e saídas, dia a dia, 14 dias por vez.
  * No topo, uma linha com ocupação · receita · reservas e a etiqueta dos feriados.
  */
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { MessageCircle, Pencil } from 'lucide-react';
 import { useCalendarData } from '@/hooks/useCalendarData';
 import { useOccupancyStats } from '@/hooks/useOccupancyStats';
@@ -33,6 +33,7 @@ import VisaoImoveis from '@/components/calendario/VisaoImoveis';
 import VisaoAgenda from '@/components/calendario/VisaoAgenda';
 import { EtiquetaFaxina } from '@/components/calendario/LinhaMovimento';
 import { hora, indexarDias, mesesDoPeriodo, nomeDoImovel, paraTexto, periodoDesenhavel, rotuloDia, rotuloIntervalo } from '@/components/calendario/periodo';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 type Visao = 'mes' | 'imoveis' | 'agenda';
 
@@ -44,10 +45,11 @@ const VISOES = [
 
 const CalendarioPage = () => {
   const { selectedProperties, selectedPlatform, selectedPeriod, customStartDate, customEndDate } = useGlobalFilters();
-  const [visao, setVisao] = useState<Visao>('mes');
-  const [selectedReservation, setSelectedReservation] = useState<CalendarReservation | null>(null);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [detalheAberto, setDetalheAberto] = useState(false);
+  // Visão, reserva aberta (folha no celular, edição no computador): voltam depois de recarregar
+  const [visao, setVisao] = useEstadoPersistente<Visao>('calendario.visao', 'mes', { aceita: ['mes', 'imoveis', 'agenda'] });
+  const [reservaAbertaId, setReservaAbertaId] = useEstadoPersistente<string | null>('calendario.reserva', null);
+  const [isEditModalOpen, setIsEditModalOpen] = useEstadoPersistente<boolean>('calendario.edicao.aberta', false);
+  const [detalheAberto, setDetalheAberto] = useEstadoPersistente<boolean>('calendario.detalhe.aberto', false);
   const compacto = useEhCompacto();
   const hoje = hojeLocal();
 
@@ -66,6 +68,12 @@ const CalendarioPage = () => {
     propertyIds: selectedProperties,
     platform: selectedPlatform,
   });
+
+  const selectedReservation = useMemo(
+    () => (reservaAbertaId ? reservations.find((x) => x.id === reservaAbertaId) ?? null : null),
+    [reservations, reservaAbertaId],
+  );
+  const setSelectedReservation = (reserva: CalendarReservation | null) => setReservaAbertaId(reserva?.id ?? null);
 
   const idsImoveis = useMemo(() => filteredProperties.map((p) => p.id), [filteredProperties]);
   const { data: faxineiras } = useFaxineirasDosImoveis(idsImoveis);

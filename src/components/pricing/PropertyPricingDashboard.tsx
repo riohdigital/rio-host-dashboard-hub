@@ -47,6 +47,7 @@ import BlocoRecolhivel from '@/components/comum/BlocoRecolhivel';
 import VerTodos from '@/components/comum/VerTodos';
 import { Etiqueta } from '@/components/comum/Etiquetas';
 import { CartaoSugestao, FiltroSugestoes, IndicadoresPrecificacao, periodoCurto } from './PrecificacaoCelular';
+import { useEstadoDoRecorte, useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 interface PropertyPricingDashboardProps {
   propertyId: string;
@@ -81,13 +82,18 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
   const [reservations, setReservations] = useState<ReservaParaOcupacao[]>([]);
   const [regras, setRegras] = useState<PricingRule[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<'all' | 'Pendente' | 'Aprovado' | 'Rejeitado'>('Pendente');
+  // Filtro de status, aba e "Ver todas" voltam depois de recarregar (os mesmos no celular e no computador)
+  const [statusFilter, setStatusFilter] = useEstadoPersistente<'all' | 'Pendente' | 'Aprovado' | 'Rejeitado'>('precificacao.status', 'Pendente', {
+    aceita: ['all', 'Pendente', 'Aprovado', 'Rejeitado'],
+  });
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
   const [isRadarRunning, setIsRadarRunning] = useState(false);
   // Celular (abaixo de 1024px): o desenho da T8 do plano; o computador não muda.
   const compacto = useEhCompacto();
-  const [aba, setAba] = useState('underpricing');
-  const [verTodasSugestoes, setVerTodasSugestoes] = useState(false);
+  const [aba, setAba] = useEstadoPersistente<string>('precificacao.aba', 'underpricing', {
+    aceita: ['underpricing', 'overpricing', 'competitors', 'events', 'audit'],
+  });
+  const [verTodasSugestoes, setVerTodasSugestoes] = useEstadoDoRecorte<boolean>('precificacao.sugestoes.todas', `${aba}|${statusFilter}`, false);
 
   // Property selecionada
   const selectedProperty = useMemo(() => {
@@ -687,7 +693,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
       <div className="space-y-3">
         <FiltroSugestoes
           valor={statusFilter}
-          aoMudar={(v) => { setStatusFilter(v); setVerTodasSugestoes(false); }}
+          aoMudar={(v) => setStatusFilter(v)}
           pendentes={pendentes}
           total={lista.length}
           aoSincronizar={handleRunRadarManually}
@@ -719,7 +725,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
             )}
           </>
         )}
-        <BlocoRecolhivel titulo="Como a diária é calculada" resumo="Regras aprendidas de cada imóvel">
+        <BlocoRecolhivel chave="precificacao.regras.aberto" titulo="Como a diária é calculada" resumo="Regras aprendidas de cada imóvel">
           <div className="divide-y divide-gray-100">{renderRegrasAprendidas(true)}</div>
         </BlocoRecolhivel>
       </div>
@@ -745,7 +751,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
           <p className="truncate px-1 text-xs text-gray-500">Fora da análise, sem diária base: {foraDaAnalise.join(', ')}</p>
         )}
 
-        <Tabs value={aba} onValueChange={(v) => { setAba(v); setVerTodasSugestoes(false); }} className="w-full space-y-3">
+        <Tabs value={aba} onValueChange={setAba} className="w-full space-y-3">
           <AbasRolaveis
             sangrar
             rotulo="Seções da precificação"
@@ -920,7 +926,7 @@ export const PropertyPricingDashboard: React.FC<PropertyPricingDashboardProps> =
       </div>
 
       {/* Navegação por Abas de Inteligência de Precificação */}
-      <Tabs defaultValue="underpricing" className="w-full space-y-6">
+      <Tabs value={aba} onValueChange={setAba} className="w-full space-y-6">
         <TabsList className={cn(ABAS_ROLAVEIS, "gap-1 rounded-xl border bg-white p-1 shadow-xs sm:w-fit sm:max-w-full")}>
           <TabsTrigger
             value="underpricing"

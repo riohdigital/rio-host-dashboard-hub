@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 interface UserCreateModalProps {
   open: boolean;
@@ -21,10 +22,13 @@ const UserCreateModal: React.FC<UserCreateModalProps> = ({
   onUserCreated,
   onSwitchToCleanerFlow // <-- NOVA PROP
 }) => {
-  const [email, setEmail] = useState('');
+  // O que foi digitado volta depois de recarregar a página; a senha nunca é guardada
+  const [email, setEmail] = useEstadoPersistente('usuarios.novo.email', '');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState<'master' | 'owner' | 'gestor' | 'faxineira'>('gestor');
+  const [fullName, setFullName] = useEstadoPersistente('usuarios.novo.nome', '');
+  const [role, setRole] = useEstadoPersistente<'master' | 'owner' | 'gestor' | 'faxineira'>('usuarios.novo.papel', 'gestor', {
+    aceita: ['master', 'owner', 'gestor', 'faxineira'],
+  });
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 

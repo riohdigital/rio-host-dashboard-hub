@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TrendingUp } from 'lucide-react';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 interface NetProfitKPIProps {
   netRevenue: number;
@@ -10,7 +11,7 @@ interface NetProfitKPIProps {
 }
 
 const NetProfitKPI = ({ netRevenue, commission, baseRevenue }: NetProfitKPIProps) => {
-  const [viewType, setViewType] = useState<'net' | 'commission' | 'combined'>('net');
+  const [viewType, setViewType] = useEstadoPersistente<'net' | 'commission' | 'combined'>('dashboard.lucro.visao', 'net', { aceita: ['net', 'commission', 'combined'] });
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {

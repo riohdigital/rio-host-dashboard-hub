@@ -1,19 +1,20 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { DEFAULT_RECEIPT_ISSUER, ReceiptIssuer, useReceiptIssuer } from '@/hooks/useReceiptIssuer';
+import { ReceiptIssuer, useReceiptIssuer } from '@/hooks/useReceiptIssuer';
+import { resumoDe, useEstadoDoRecorte } from '@/hooks/useEstadoPersistente';
 
 /** Configurações → Emissão de Comprovantes: quem aparece no Comprovante do Hóspede. */
 const ReceiptIssuerSection = () => {
   const { issuer, loading, save } = useReceiptIssuer();
-  const [form, setForm] = useState<ReceiptIssuer>(DEFAULT_RECEIPT_ISSUER);
+  // O que foi digitado volta depois de recarregar; vale enquanto os dados
+  // salvos forem os mesmos (salvou, o formulário passa a mostrar o salvo).
+  const [form, setForm] = useEstadoDoRecorte<ReceiptIssuer>('configuracoes.emissor', resumoDe(issuer), issuer);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
-
-  useEffect(() => { setForm(issuer); }, [issuer]);
 
   const set = (campo: keyof ReceiptIssuer) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,

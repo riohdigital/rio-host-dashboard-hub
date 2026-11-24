@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import PageHeader from '@/components/comum/PageHeader';
 import AbasRolaveis from '@/components/comum/AbasRolaveis';
 import { useEhCelular, useEhCompacto } from '@/hooks/useMidia';
@@ -19,18 +19,34 @@ import RevenueScheduleTab from '@/components/pagamentos/RevenueScheduleTab';
 import MonthYearSelector from '@/components/pagamentos/MonthYearSelector';
 import PropertyMultiSelect from '@/components/dashboard/PropertyMultiSelect';
 import { useProperties } from '@/hooks/useProperties';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 const PagamentosPage = () => {
   const { isMaster, isGestor, isOwner, loading: permissionsLoading } = useUserPermissions();
 
   const now = new Date();
-  const [month, setMonth] = useState(now.getMonth() + 1);
-  const [year, setYear] = useState(now.getFullYear());
+  // Mês, imóveis e aba voltam depois de recarregar a página
+  const [month, setMonth] = useEstadoPersistente<number>('pagamentos.mes', now.getMonth() + 1, {
+    aceita: (v) => typeof v === 'number' && Number.isInteger(v) && v >= 1 && v <= 12,
+  });
+  const [year, setYear] = useEstadoPersistente<number>('pagamentos.ano', now.getFullYear(), {
+    aceita: (v) => typeof v === 'number' && Number.isInteger(v) && v >= 2000 && v <= 2100,
+  });
+  const [aba, setAba] = useEstadoPersistente<string>('pagamentos.aba', 'faxineiras', { aceita: ['faxineiras', 'proprietarios', 'agenda'] });
 
   // Local property filter (independent of global sidebar filter)
-  const [selectedProperties, setSelectedProperties] = useState<string[]>(['todas']);
-  const [propertySelectOpen, setPropertySelectOpen] = useState(false);
-  const { properties } = useProperties();
+  const [selectedProperties, setSelectedProperties] = useEstadoPersistente<string[]>('pagamentos.imoveis', ['todas'], {
+    aceita: (v) => Array.isArray(v) && v.length > 0 && v.every((id) => typeof id === 'string'),
+  });
+  const [propertySelectOpen, setPropertySelectOpen] = useEstadoPersistente<boolean>('pagamentos.imoveis.aberto', false);
+  const { properties, loading: carregandoImoveis } = useProperties();
+  // Imóvel guardado que não existe mais (ou sem acesso) sai da seleção
+  useEffect(() => {
+    if (carregandoImoveis || selectedProperties.includes('todas')) return;
+    const existentes = new Set(properties.map((p) => p.id));
+    const validos = selectedProperties.filter((id) => existentes.has(id));
+    if (validos.length !== selectedProperties.length) setSelectedProperties(validos.length > 0 ? validos : ['todas']);
+  }, [carregandoImoveis, properties, selectedProperties, setSelectedProperties]);
   const celular = useEhCelular();
   const compacto = useEhCompacto();
 
@@ -56,7 +72,7 @@ const PagamentosPage = () => {
   const showGuidanceBanner = !hasPropertyFilter;
 
   const abas = (
-    <Tabs defaultValue="faxineiras" className="space-y-4 max-lg:space-y-3">
+    <Tabs value={aba} onValueChange={setAba} className="space-y-4 max-lg:space-y-3">
       <AbasRolaveis
         rotulo="Pagamentos"
         itens={[
@@ -124,7 +140,7 @@ const PagamentosPage = () => {
           ]}
         />
         {hasPropertyFilter && (
-          <BlocoRecolhivel titulo="Balanço do mês" resumo={`Saldo ${formatarMoeda(kpis.netBalance)} · comissão − faxinas − repasse`}>
+          <BlocoRecolhivel chave="pagamentos.balanco.aberto" titulo="Balanço do mês" resumo={`Saldo ${formatarMoeda(kpis.netBalance)} · comissão − faxinas − repasse`}>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
               {[
                 { rotulo: 'Comissão recebida', valor: kpis.totalCommissionReceived, classe: 'text-success-700' },

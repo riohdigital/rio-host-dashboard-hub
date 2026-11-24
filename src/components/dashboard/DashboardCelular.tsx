@@ -5,7 +5,7 @@
  * Dicas da IA (recolhido). Usa só os dados e cálculos que o Dashboard já
  * carrega; o computador continua com o desenho de sempre (Dashboard.tsx).
  */
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { format } from 'date-fns';
 import { LogIn, LogOut } from 'lucide-react';
 import Bloco from '@/components/comum/Bloco';
@@ -24,6 +24,8 @@ import RevenueBreakdownCard from './RevenueBreakdownCard';
 import { StrategicInsightsCard } from './StrategicInsightsCard';
 import { explicacaoDoRecebimento } from './canais';
 import FolhaReserva from '@/components/reservations/FolhaReserva';
+import { ehCancelada, ehPago } from '@/components/reservations/pagamento';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 const DIAS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
@@ -45,8 +47,6 @@ function periodoCurto(entrada: string, saida: string): string {
 const nomeImovel = (r: { properties?: { nickname?: string | null; name?: string | null } | null }) =>
   r.properties?.nickname || r.properties?.name || 'Imóvel';
 
-const ehPago = (status?: string | null) => (status || '').toLowerCase() === 'pago';
-const ehCancelada = (status?: string | null) => /cancel/i.test(status || '');
 
 interface Fluxo {
   airbnbReceived: number;
@@ -133,7 +133,9 @@ const DashboardCelular = (p: DashboardCelularProps) => {
   const agora = new Date();
   const rotuloHoje = `${DIAS[agora.getDay()]}, ${agora.getDate()} ${MESES[agora.getMonth()]}`;
   /* Tocar numa reserva abre a folha dela aqui mesmo; sem id nem código, vai para a tela de Reservas */
-  const [aberta, setAberta] = useState<{ id?: string | null; codigo?: string | null } | null>(null);
+  const [aberta, setAberta] = useEstadoPersistente<{ id?: string | null; codigo?: string | null } | null>('dashboard.folhaReserva', null, {
+    aceita: (v) => v === null || (typeof v === 'object' && !Array.isArray(v)),
+  });
   const tocarReserva = (r: { id?: string | null; reservation_code?: string | null }) =>
     r.id || r.reservation_code ? () => setAberta({ id: r.id || null, codigo: r.reservation_code || null }) : undefined;
   const linkReserva = (r: { id?: string | null; reservation_code?: string | null }) =>
@@ -218,6 +220,7 @@ const DashboardCelular = (p: DashboardCelularProps) => {
       >
         {totalCanais > 0 ? (
           <BarrasCanais
+            chave="dashboard.canais.aberto"
             itens={canais}
             detalhe={(c) => (
               <>
@@ -285,7 +288,7 @@ const DashboardCelular = (p: DashboardCelularProps) => {
         <VerTodos para="/reservas" rotulo="Ver todas as reservas" />
       </Bloco>
 
-      <BlocoRecolhivel titulo="Detalhamento da receita" resumo="Bruto, comissão, líquido e despesas">
+      <BlocoRecolhivel chave="dashboard.detalhamento.aberto" titulo="Detalhamento da receita" resumo="Bruto, comissão, líquido e despesas">
         <RevenueBreakdownCard
           semCartao
           grossRevenue={p.detalhamento.bruto}
@@ -297,7 +300,7 @@ const DashboardCelular = (p: DashboardCelularProps) => {
       </BlocoRecolhivel>
 
       {p.pode('dashboard_revenue') && (
-        <BlocoRecolhivel titulo="Dicas da IA" etiqueta={<MarcaIA />} resumo="Resumo, diagnóstico e plano de ação por imóvel">
+        <BlocoRecolhivel chave="dashboard.dicas.bloco" titulo="Dicas da IA" etiqueta={<MarcaIA />} resumo="Resumo, diagnóstico e plano de ação por imóvel">
           <StrategicInsightsCard semCartao />
         </BlocoRecolhivel>
       )}

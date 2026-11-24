@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { FOLHA_NO_CELULAR } from '@/components/comum/classes';
 import { cn } from '@/lib/utils';
 import { useForm } from 'react-hook-form';
@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { useNotificationDestinations } from '@/hooks/useNotificationDestinations';
 import { useAvailableUsers } from '@/hooks/useAvailableUsers';
 import { Loader2, Search, UserPlus, Users } from 'lucide-react';
+import { useRascunhoFormulario } from '@/hooks/useRascunhoFormulario';
 
 const formSchema = z.object({
   destination_role: z.string().min(1, 'Papel é obrigatório'),
@@ -60,6 +61,13 @@ const DestinationForm = ({ onClose, onSuccess }: DestinationFormProps) => {
     },
   });
 
+  // Rascunho: o que foi digitado volta depois de recarregar a página
+  const rascunho = useRascunhoFormulario({ chave: 'alertas.destinatario.form.novo', valores: form.watch(), setValue: form.setValue });
+  useEffect(() => {
+    rascunho.restaurar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- uma vez, ao abrir
+  }, []);
+
   const userType = form.watch('user_type');
   const selectedUserId = form.watch('selected_user_id');
 
@@ -89,6 +97,7 @@ const DestinationForm = ({ onClose, onSuccess }: DestinationFormProps) => {
 
       const result = await createDestination(destinationData);
       if (result) {
+        rascunho.limpar();
         onSuccess();
       }
     } finally {
@@ -287,7 +296,7 @@ const DestinationForm = ({ onClose, onSuccess }: DestinationFormProps) => {
             />
 
             <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={onClose}>
+              <Button type="button" variant="outline" onClick={() => { rascunho.limpar(); onClose(); }}>
                 Cancelar
               </Button>
               <Button 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Download, PlusSquare, Share } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/drawer';
 import { cn } from '@/lib/utils';
 import { useInstalacaoApp } from '@/lib/pwa';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 interface Props {
   /** linha: item da gaveta "Mais"; botao: botão comum (Configurações) */
@@ -27,7 +28,7 @@ interface Props {
  */
 const BotaoInstalarApp = ({ variante = 'botao', className, aoClicar }: Props) => {
   const { estado, instalar } = useInstalacaoApp();
-  const [instrucaoIOS, setInstrucaoIOS] = useState(false);
+  const [instrucaoIOS, setInstrucaoIOS] = useEstadoPersistente<boolean>(`pwa.instrucaoIOS.${variante}`, false);
 
   if (estado === 'instalado' || estado === 'indisponivel') return null;
 

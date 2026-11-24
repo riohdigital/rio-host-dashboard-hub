@@ -24,9 +24,11 @@ import { formatarData, formatarMoeda } from '@/components/comum/formatos';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import type { CleanerProfile, ReservationWithCleanerInfo } from '@/types/master-cleaning';
+import { useEstadoPersistente, useQuantasPersistente } from '@/hooks/useEstadoPersistente';
+import { ABAS_DE_FAXINAS, ABA_NO_CELULAR, type AbaCelular } from './abas';
 
 type Faxina = ReservationWithCleanerInfo;
-type Aba = 'pendentes' | 'hoje' | 'concluidas' | 'todas';
+type Aba = AbaCelular;
 
 interface FaxinasCelularProps {
   /** Faxinas do período já filtradas pela busca e pela faxineira (ordem crescente de saída) */
@@ -149,7 +151,7 @@ const FolhaFaxina = ({ f, historico, aoFechar, faxineirasDoImovel, aoCarregarFax
   const podeAtribuir = hasPermission('gestao_faxinas_assign');
   const podeRemover = hasPermission('gestao_faxinas_reassign');
   const podeConcluir = hasPermission('gestao_faxinas_manage');
-  const [escolhida, setEscolhida] = useState('');
+  const [escolhida, setEscolhida] = useEstadoPersistente(`faxinas.folha.${f?.id ?? 'nenhuma'}.escolhida`, '');
   const [carregando, setCarregando] = useState(false);
 
   const imovelId = f?.property_id;
@@ -158,7 +160,7 @@ const FolhaFaxina = ({ f, historico, aoFechar, faxineirasDoImovel, aoCarregarFax
 
   // Mesma busca do cartão do computador: faxineiras que este usuário pode ver no imóvel
   useEffect(() => {
-    setEscolhida('');
+    // A escolha é guardada por faxina: trocar de faxina já começa vazia
     if (!precisaLista || !imovelId || opcoes) return;
     let ativo = true;
     setCarregando(true);
@@ -373,16 +375,19 @@ const FolhaFaxineiras = ({
 const ListaPorSemana = ({
   itens,
   vazio,
+  chave,
   podeAtribuir,
   aoAbrir,
 }: {
   itens: Faxina[];
   vazio: string;
+  /** Onde guardar o "Mostrar mais" desta lista */
+  chave: string;
   podeAtribuir: boolean;
   aoAbrir: (f: Faxina) => void;
 }) => {
-  const [limite, setLimite] = useState(POR_VEZ);
-  useEffect(() => setLimite(POR_VEZ), [itens.length]);
+  // Volta ao começo quando a lista muda de tamanho; na mesma lista, o "Mostrar mais" é lembrado
+  const [limite, setLimite] = useQuantasPersistente(chave, String(itens.length), POR_VEZ);
   const grupos = useMemo(() => porSemana(itens.slice(0, limite)), [itens, limite]);
   // Contagem de cada semana com a lista inteira (não só o pedaço mostrado)
   const totalDaSemana = useMemo(() => {
@@ -419,9 +424,11 @@ const ListaPorSemana = ({
 const FaxinasCelular = (p: FaxinasCelularProps) => {
   const { hasPermission } = useUserPermissions();
   const podeAtribuir = hasPermission('gestao_faxinas_assign');
-  const [aba, setAba] = useState<Aba>('pendentes');
-  const [selId, setSelId] = useState<string | null>(null);
-  const [filtroAberto, setFiltroAberto] = useState(false);
+  // Aba (a mesma escolha vale no computador), folha aberta e filtro: voltam depois de recarregar
+  const [abaGuardada, setAba] = useEstadoPersistente<string | null>('faxinas.aba', null, { aceita: ABAS_DE_FAXINAS });
+  const aba: Aba = (ABA_NO_CELULAR[abaGuardada ?? ''] ?? 'pendentes') as Aba;
+  const [selId, setSelId] = useEstadoPersistente<string | null>('faxinas.folha.id', null);
+  const [filtroAberto, setFiltroAberto] = useEstadoPersistente<boolean>('faxinas.filtro.aberto', false);
 
   // Todas as faxinas da tela: as do período + as disponíveis que ainda não vieram
   const todas = useMemo(() => {
@@ -485,6 +492,7 @@ const FaxinasCelular = (p: FaxinasCelularProps) => {
         <>
           {listas.atrasadas.length > 0 && (
             <BlocoRecolhivel
+              chave="faxinas.atrasadas.aberto"
               titulo="Atrasadas"
               resumo={`${plural(listas.atrasadas.length, 'saída já passou', 'saídas já passaram')} sem a faxina marcada como feita`}
               etiqueta={<Etiqueta tom="danger">{listas.atrasadas.length}</Etiqueta>}
@@ -499,12 +507,12 @@ const FaxinasCelular = (p: FaxinasCelularProps) => {
               )}
             </BlocoRecolhivel>
           )}
-          <ListaPorSemana itens={listas.proximas} vazio="Nenhuma faxina pendente daqui para a frente." podeAtribuir={podeAtribuir} aoAbrir={abrir} />
+          <ListaPorSemana chave="faxinas.limite.pendentes" itens={listas.proximas} vazio="Nenhuma faxina pendente daqui para a frente." podeAtribuir={podeAtribuir} aoAbrir={abrir} />
         </>
       )}
-      {aba === 'hoje' && <ListaPorSemana itens={listas.hoje} vazio="Nenhuma saída hoje." podeAtribuir={podeAtribuir} aoAbrir={abrir} />}
-      {aba === 'concluidas' && <ListaPorSemana itens={listas.feitas} vazio="Nenhuma faxina concluída no período." podeAtribuir={podeAtribuir} aoAbrir={abrir} />}
-      {aba === 'todas' && <ListaPorSemana itens={todas} vazio="Nenhuma faxina encontrada." podeAtribuir={podeAtribuir} aoAbrir={abrir} />}
+      {aba === 'hoje' && <ListaPorSemana chave="faxinas.limite.hoje" itens={listas.hoje} vazio="Nenhuma saída hoje." podeAtribuir={podeAtribuir} aoAbrir={abrir} />}
+      {aba === 'concluidas' && <ListaPorSemana chave="faxinas.limite.concluidas" itens={listas.feitas} vazio="Nenhuma faxina concluída no período." podeAtribuir={podeAtribuir} aoAbrir={abrir} />}
+      {aba === 'todas' && <ListaPorSemana chave="faxinas.limite.todas" itens={todas} vazio="Nenhuma faxina encontrada." podeAtribuir={podeAtribuir} aoAbrir={abrir} />}
 
       <FolhaFaxina
         f={sel}

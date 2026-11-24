@@ -21,7 +21,7 @@ interface RecentReservationsProps {
 
 const RecentReservations = ({ reservations, loading }: RecentReservationsProps) => {
   // Celular: 3 reservas + "Ver todas" (sem rolagem dentro da página); computador: caixa com rolagem
-  const lista = useListaCurta(reservations, 3, { soCompacto: true });
+  const lista = useListaCurta(reservations, 3, { soCompacto: true, chave: 'dashboard.recentes.todas' });
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
       case 'confirmada':

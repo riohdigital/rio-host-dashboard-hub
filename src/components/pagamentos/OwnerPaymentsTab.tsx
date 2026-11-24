@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,8 @@ import FolhaDetalhes from '@/components/comum/FolhaDetalhes';
 import { Etiqueta } from '@/components/comum/Etiquetas';
 import { formatarMoedaSemCentavos } from '@/components/comum/formatos';
 import { useEhCompacto } from '@/hooks/useMidia';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
+import { useItemAberto } from '@/hooks/useItemAberto';
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
@@ -60,7 +62,7 @@ interface OwnerCardProps {
 }
 
 const OwnerCard = ({ owner }: OwnerCardProps) => {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useEstadoPersistente<boolean>(`pagamentos.proprietarios.aberto.${owner.propertyId}`, false);
   const noPayments = !owner.hasPaymentsThisMonth;
 
   const initials = (owner.nickname || owner.propertyName)
@@ -266,7 +268,10 @@ const OwnerCard = ({ owner }: OwnerCardProps) => {
  * do repasse e situação); tocar abre a folha com o cálculo e cada plataforma.
  */
 const ListaProprietariosCelular = ({ imoveis }: { imoveis: OwnerPayment[] }) => {
-  const [sel, setSel] = useState<OwnerPayment | null>(null);
+  // A folha do imóvel volta aberta depois de recarregar (guarda só o id)
+  const folha = useItemAberto('pagamentos.proprietarios.folha', imoveis, { idDe: (o) => o.propertyId });
+  const sel = folha.aberto ? folha.item : null;
+  const setSel = (o: OwnerPayment | null) => (o ? folha.abrir(o) : folha.limpar());
   const t = sel ? calcTransferTotals(sel.platformBreakdown) : null;
   return (
     <>
@@ -354,7 +359,7 @@ interface OwnerPaymentsTabProps {
 }
 
 const OwnerPaymentsTab = ({ ownerPayments, loading, hasFilter }: OwnerPaymentsTabProps) => {
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useEstadoPersistente('pagamentos.proprietarios.busca', '');
   const compacto = useEhCompacto();
 
   const filtered = useMemo(() => {

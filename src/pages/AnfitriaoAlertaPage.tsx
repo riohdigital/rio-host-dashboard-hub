@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React from 'react';
 import PermissionGuard from '@/components/auth/PermissionGuard';
 import DestinationsList from '@/components/anfitriao-alerta/DestinationsList';
 import EmailTemplatesList from '@/components/anfitriao-alerta/EmailTemplatesList';
 import { Button } from '@/components/ui/button';
 import { MessageCircle, Mail } from 'lucide-react';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 const AnfitriaoAlertaPage = () => {
-  const [activeTab, setActiveTab] = useState<'whatsapp' | 'email'>('whatsapp');
+  const [activeTab, setActiveTab] = useEstadoPersistente<'whatsapp' | 'email'>('alertas.aba', 'whatsapp', { aceita: ['whatsapp', 'email'] });
 
   return (
     <PermissionGuard permission="anfitriao_alerta_view">

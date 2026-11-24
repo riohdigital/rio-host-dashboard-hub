@@ -8,6 +8,7 @@ import MarcaIA from '@/components/comum/MarcaIA';
 import { Sparkles, TrendingUp, TrendingDown, AlertTriangle, CheckCircle2, Target, Zap, ChevronDown } from 'lucide-react';
 import { usePropertyInsights, PropertyInsight, ActionPlanItem } from '@/hooks/usePropertyInsights';
 import { cn } from '@/lib/utils';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 // Expand Indicator Component with Tooltip
 const ExpandIndicator = ({ isExpanded }: { isExpanded: boolean }) => (
@@ -63,8 +64,9 @@ const SentimentBadge = ({ sentiment }: { sentiment: PropertyInsight['sentiment']
   );
 };
 
-const RichActionItem = ({ action, index }: { action: ActionPlanItem; index: number }) => {
-  const [checked, setChecked] = useState(false);
+const RichActionItem = ({ action, index, chave }: { action: ActionPlanItem; index: number; chave: string }) => {
+  // O "feito" de cada ação volta depois de recarregar (vale para esta análise)
+  const [checked, setChecked] = useEstadoPersistente<boolean>(chave, false);
 
   return (
     <div 
@@ -198,7 +200,7 @@ export function StrategicInsightsCard({ semCartao = false }: { semCartao?: boole
   } = usePropertyInsights();
   
   const [animationKey, setAnimationKey] = useState(0);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useEstadoPersistente<boolean>('dashboard.dicas.aberto', false);
 
   // Trigger animation when property changes
   useEffect(() => {
@@ -375,7 +377,7 @@ export function StrategicInsightsCard({ semCartao = false }: { semCartao?: boole
                 </h4>
                 <div className="space-y-2">
                   {currentInsight.actionPlan.map((action, index) => (
-                    <RichActionItem key={index} action={action} index={index} />
+                    <RichActionItem key={`${currentInsight.id}-${index}`} action={action} index={index} chave={`dashboard.dicas.feito.${currentInsight.id}.${index}`} />
                   ))}
                 </div>
               </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +8,7 @@ import { useEhCompacto } from '@/hooks/useMidia';
 import LinhaLista from '@/components/comum/LinhaLista';
 import FolhaDetalhes from '@/components/comum/FolhaDetalhes';
 import { Etiqueta } from '@/components/comum/Etiquetas';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 interface EmailTemplateCardProps {
   template: EmailTemplate;
@@ -19,7 +20,7 @@ interface EmailTemplateCardProps {
 const EmailTemplateCard = ({ template, onEdit, onToggleStatus, onDelete }: EmailTemplateCardProps) => {
   // Celular: uma linha; tocar abre a folha com Editar, Ativar/Desativar e Excluir (longe de editar)
   const compacto = useEhCompacto();
-  const [folha, setFolha] = useState(false);
+  const [folha, setFolha] = useEstadoPersistente<boolean>(`alertas.modelo.${template.id}.folha`, false);
   const getTypeIcon = (type: string) => {
     switch (type) {
       case 'guest':

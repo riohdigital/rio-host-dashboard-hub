@@ -4,12 +4,12 @@ import ChartCard from '@/components/graficos/ChartCard';
 import LegendaGrafico from '@/components/graficos/LegendaGrafico';
 import TooltipGrafico from '@/components/graficos/TooltipGrafico';
 import { eixoMoeda, moedaCompleta, PROPS_EIXO_X, PROPS_EIXO_Y, PROPS_GRADE, RAIO_BARRA } from '@/components/graficos/tema';
-import { useState } from 'react';
 import Bloco from '@/components/comum/Bloco';
 import { formatarMoedaSemCentavos } from '@/components/comum/formatos';
 import BarrasSimples from '@/components/graficos/BarrasSimples';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useEhCompacto } from '@/hooks/useMidia';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 interface CommissionChartProps {
   data: MonthlyCommission[];
@@ -33,7 +33,9 @@ const ehFuturo = (d: MonthlyCommission) => {
  * segundo eixo); tocar num mês mostra a quantidade de reservas.
  */
 const ComissoesCelular = ({ data, loading }: CommissionChartProps) => {
-  const [sel, setSel] = useState<number | null>(null);
+  const [sel, setSel] = useEstadoPersistente<number | null>('gestor.comissoesMes.selecionado', null, {
+    aceita: (v) => v === null || (typeof v === 'number' && Number.isInteger(v) && v >= 0),
+  });
   const itens = data.map((d) => ({ ...d, rotulo: d.month.slice(0, 3).toLowerCase(), valor: d.commission, futuro: ehFuturo(d) }));
   const escolhido = sel !== null ? itens[sel] : null;
   return (

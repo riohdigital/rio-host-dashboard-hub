@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -21,6 +21,7 @@ import { useEhCompacto } from '@/hooks/useMidia';
 import { useResumoFiltros } from '@/components/layout/resumoFiltros';
 import { abrirFiltros } from '@/components/layout/controleFiltros';
 import { formatarData } from '@/components/comum/formatos';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 const RelatoriosPage: React.FC = () => {
   const { selectedPeriod, selectedProperties, selectedPlatform, customStartDate: globalCustomStartDate, customEndDate: globalCustomEndDate, setSelectedPeriod } = useGlobalFilters();
@@ -34,9 +35,18 @@ const RelatoriosPage: React.FC = () => {
   const { generateReport, loading: reportLoading } = useReportData();
   const { exportToPDF, exportToExcel } = usePDFExport();
   
-  const [reportType, setReportType] = useState<'financial_owner' | 'financial_expenses' | 'occupancy' | 'property' | 'platform' | 'expenses' | 'checkins'>('financial_owner');
-  const [selectedProperty, setSelectedProperty] = useState<string>('all');
-  const [localPlatform, setLocalPlatform] = useState<string>('all');
+  // Tipo, imóvel e canal do formulário voltam depois de recarregar a página
+  const [reportType, setReportType] = useEstadoPersistente<'financial_owner' | 'financial_expenses' | 'occupancy' | 'property' | 'platform' | 'expenses' | 'checkins'>(
+    'relatorios.tipo',
+    'financial_owner',
+    { aceita: ['financial_owner', 'financial_expenses', 'occupancy', 'property', 'platform', 'expenses', 'checkins'] },
+  );
+  const [selectedProperty, setSelectedProperty] = useEstadoPersistente<string>('relatorios.imovel', 'all');
+  const [localPlatform, setLocalPlatform] = useEstadoPersistente<string>('relatorios.canal', 'all');
+  // O relatório em si não é guardado (são os dados da conta): guarda-se que ele
+  // estava na tela, e ao recarregar ele é gerado de novo com os mesmos filtros.
+  const [relatorioNaTela, setRelatorioNaTela] = useEstadoPersistente<boolean>('relatorios.gerado', false);
+  const regerou = useRef(false);
   const [currentReport, setCurrentReport] = useState<ReportData | null>(null);
   const [exportando, setExportando] = useState(false);
   // Prévia: o modelo tem 794px (A4); em telas menores ele é reduzido para caber
@@ -64,6 +74,13 @@ const RelatoriosPage: React.FC = () => {
   const canViewReports = isMaster() || 
                          permissions.some(p => p.permission_type === 'reports_view' && p.permission_value) || 
                          permissions.some(p => p.permission_type === 'reports_create' && p.permission_value);
+
+  useEffect(() => {
+    if (!canViewReports || !relatorioNaTela || regerou.current) return;
+    regerou.current = true;
+    handleGenerateReport(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- uma vez, quando as permissões chegam
+  }, [canViewReports, relatorioNaTela]);
 
   if (!canViewReports) {
     return (
@@ -96,7 +113,7 @@ const RelatoriosPage: React.FC = () => {
     return resumoFiltros.imoveis;
   })();
 
-  const handleGenerateReport = async () => {
+  const handleGenerateReport = async (silencioso = false) => {
     try {
       const filters = {
         reportType,
@@ -111,10 +128,14 @@ const RelatoriosPage: React.FC = () => {
       const report = await generateReport(filters);
       if (report) {
         setCurrentReport(report);
-        toast({
-          title: "Relatório gerado com sucesso",
-          description: `${report.title} foi gerado para o período selecionado.`,
-        });
+        regerou.current = true;
+        setRelatorioNaTela(true);
+        if (!silencioso) {
+          toast({
+            title: "Relatório gerado com sucesso",
+            description: `${report.title} foi gerado para o período selecionado.`,
+          });
+        }
       }
     } catch (error) {
       toast({
@@ -268,7 +289,7 @@ const RelatoriosPage: React.FC = () => {
             </div>
 
             <Button
-              onClick={handleGenerateReport}
+              onClick={() => handleGenerateReport()}
               className="min-h-11 w-full gap-2 rounded-full"
               disabled={reportLoading || propertiesLoading}
             >
@@ -370,7 +391,7 @@ const RelatoriosPage: React.FC = () => {
       {/* Ações */}
       <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-3">
         <Button
-          onClick={handleGenerateReport}
+          onClick={() => handleGenerateReport()}
           className="col-span-2 gap-2 sm:col-span-1"
           disabled={reportLoading || propertiesLoading}
         >

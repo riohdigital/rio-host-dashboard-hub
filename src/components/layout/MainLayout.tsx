@@ -1,6 +1,7 @@
 import React from 'react';
 import Sidebar from './Sidebar';
 import NavegacaoCelular from './NavegacaoCelular';
+import LembrarRolagem from './LembrarRolagem';
 import { useUserRole } from '@/hooks/useUserRole';
 import { cn } from '@/lib/utils';
 
@@ -22,6 +23,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
     <div className="min-h-screen min-h-dvh bg-surface">
       <Sidebar />
       <NavegacaoCelular />
+      <LembrarRolagem />
       <div className="lg:pl-64">
         <main
           className={cn(

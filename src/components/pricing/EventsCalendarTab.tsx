@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -14,6 +14,7 @@ import { LocalEvent, PricingRule } from '@/types/pricing';
 import { Property } from '@/types/property';
 import { formatLocalDate } from '@/utils/dateUtils';
 import { ReservaParaOcupacao, ORIGEM_DA_REGRA, escopoDoEvento, eventoValeParaImovel, percentual, situacaoNoEvento, tipoDeData } from './ocupacao';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 interface EventsCalendarTabProps {
   /** Eventos futuros já filtrados para onde os imóveis da seleção estão. */
@@ -35,8 +36,9 @@ export const EventsCalendarTab: React.FC<EventsCalendarTabProps> = ({
   reservations,
   regras
 }) => {
-  const [filterImpact, setFilterImpact] = useState<string>('all');
-  const [filterCity, setFilterCity] = useState<string>('all');
+  // Os filtros voltam depois de recarregar a página
+  const [filterImpact, setFilterImpact] = useEstadoPersistente<string>('precificacao.eventos.impacto', 'all');
+  const [filterCity, setFilterCity] = useEstadoPersistente<string>('precificacao.eventos.lugar', 'all');
 
   // Lugares vêm dos próprios eventos: cidade, estado ou país (multi-inquilino: nada fixo no código).
   const cidades = useMemo(() => [...new Set(events.map(e => escopoDoEvento(e)))].sort(), [events]);

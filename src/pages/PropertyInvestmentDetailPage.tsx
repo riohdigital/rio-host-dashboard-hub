@@ -18,13 +18,14 @@ import { useEhCompacto } from '@/hooks/useMidia';
 import { HistoricoInvestimentosCelular, percentualROI } from '@/components/investments/InvestimentosCelular';
 import { AJUDA_ROI_IMOVEL, NOTA_ACUMULADO } from '@/components/investments/carteira';
 import { useUserPermissions } from '@/contexts/UserPermissionsContext';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 const PropertyInvestmentDetailPage = () => {
   const { propertyId } = useParams<{ propertyId: string }>();
   const navigate = useNavigate();
   const [property, setProperty] = useState<Property | null>(null);
   const [propertyLoading, setPropertyLoading] = useState(true);
-  const [formOpen, setFormOpen] = useState(false);
+  const [formOpen, setFormOpen] = useEstadoPersistente<boolean>(`investimentos.imovel.${propertyId ?? 'sem-imovel'}.form.aberto`, false);
   // Celular (abaixo de 1024px): faixa de resumo + histórico em linhas; o computador não muda
   const compacto = useEhCompacto();
   const { hasPermission } = useUserPermissions();

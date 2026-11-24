@@ -4,9 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 const ProfileSection = () => {
-  const [name, setName] = useState('');
+  const [name, setName] = useEstadoPersistente('configuracoes.perfil.nome', '');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 

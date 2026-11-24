@@ -8,7 +8,7 @@
  * Recebe as reservas já filtradas e os totais já calculados pela
  * ReservasPage; aqui só se organiza o que já foi carregado.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { CalendarX, Plus, SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import AbasRolaveis from '@/components/comum/AbasRolaveis';
@@ -20,7 +20,9 @@ import FolhaDetalhes from '@/components/comum/FolhaDetalhes';
 import GrupoLista from '@/components/comum/GrupoLista';
 import LinhaLista from '@/components/comum/LinhaLista';
 import { formatarMoedaSemCentavos } from '@/components/comum/formatos';
+import { useEstadoPersistente, useQuantasPersistente } from '@/hooks/useEstadoPersistente';
 import { emCurso, hojeISO, nomeDoMes, periodoCurto } from './datas';
+import { ROTULO_DA_SITUACAO, TOM_DA_SITUACAO, situacaoDoPagamento } from './pagamento';
 
 const POR_VEZ = 30;
 
@@ -90,11 +92,10 @@ const ReservasCelular = ({
   aoNova,
   aoTocar,
 }: ReservasCelularProps) => {
-  const [quantas, setQuantas] = useState(POR_VEZ);
-  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
-
-  // Volta para as 30 primeiras quando a lista muda de recorte
-  useEffect(() => setQuantas(POR_VEZ), [aba, busca, status, pagamento]);
+  // Volta para as 30 primeiras quando a lista muda de recorte; no mesmo
+  // recorte, o "Carregar mais" é lembrado ao recarregar a página.
+  const [quantas, setQuantas] = useQuantasPersistente('reservas.quantas', [aba, busca, status, pagamento].join('|'), POR_VEZ);
+  const [filtrosAbertos, setFiltrosAbertos] = useEstadoPersistente<boolean>('reservas.filtros.abertos', false);
 
   // Subtotal de cada mês sobre a lista inteira (não só as já carregadas)
   const subtotais = useMemo(() => {
@@ -194,8 +195,8 @@ const ReservasCelular = ({
                 resumo={s ? `${s.n} ${s.n === 1 ? 'reserva' : 'reservas'} · ${formatarMoedaSemCentavos(s.soma)}` : undefined}
               >
                 {g.itens.map((r) => {
-                  const cancelada = /cancel/i.test(r.reservation_status || '');
-                  const pago = (r.payment_status || '').toLowerCase() === 'pago';
+                  const situacao = situacaoDoPagamento(r);
+                  const cancelada = situacao === 'cancelada';
                   const imovel = r.properties?.nickname || r.properties?.name || 'Imóvel';
                   return (
                     <LinhaLista
@@ -205,8 +206,8 @@ const ReservasCelular = ({
                       titulo={r.guest_name || 'Hóspede sem nome'}
                       subtitulo={`${imovel} · ${periodoCurto(r.check_in_date, r.check_out_date)}${!cancelada && emCurso(r.check_in_date, r.check_out_date, hoje) ? ' · hospedado' : ''}`}
                       valor={formatarMoedaSemCentavos(r.net_revenue)}
-                      legenda={cancelada ? 'Cancelada' : pago ? 'Pago' : 'A receber'}
-                      tomLegenda={cancelada ? 'danger' : pago ? 'success' : 'warning'}
+                      legenda={ROTULO_DA_SITUACAO[situacao]}
+                      tomLegenda={TOM_DA_SITUACAO[situacao]}
                       aoTocar={() => aoTocar(r)}
                     />
                   );

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { ChatMessage as ChatMessageType } from '@/types/chat';
 import { Clock, AlertCircle, Check, ThumbsUp, ThumbsDown, Copy, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import MarcaIA from '@/components/comum/MarcaIA';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -36,7 +37,10 @@ const categoryConfig: Record<string, { label: string; color: string }> = {
 export const ChatMessage = ({ message, onReact, onRetry }: ChatMessageProps) => {
   const isUser = message.role === 'user';
   const isAssistant = message.role === 'assistant';
-  const [imagemAberta, setImagemAberta] = useState<{ url: string; nome: string } | null>(null);
+  // A imagem ampliada volta aberta depois de recarregar (endereços temporários do navegador não são guardados)
+  const [imagemAberta, setImagemAberta] = useEstadoPersistente<{ url: string; nome: string } | null>(`chat.imagem.${message.id}`, null, {
+    aceita: (v) => v === null || (typeof v === 'object' && /^https?:/.test(String((v as { url?: unknown }).url ?? ''))),
+  });
 
   const getStatusIcon = () => {
     switch (message.status) {

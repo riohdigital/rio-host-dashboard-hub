@@ -36,6 +36,7 @@ import {
   rotuloDiaComSemana,
   semanasDoMes,
 } from './periodo';
+import { useEstadoDoRecorte } from '@/hooks/useEstadoPersistente';
 
 interface Props {
   meses: MesDoPeriodo[];
@@ -74,7 +75,7 @@ const ListaDoDia = ({
     info?.hospedados.forEach((r) => lista.push({ tipo: 'hospedado', r }));
     return lista;
   }, [info]);
-  const lista = useListaCurta(itens, 3);
+  const lista = useListaCurta(itens, 3, { chave: `calendario.mes.dia.${dia}.todos` });
   const restantes = itens.slice(3);
   const soHospedados = restantes.length > 0 && restantes.every((x) => x.tipo === 'hospedado');
 
@@ -178,9 +179,16 @@ const CelulaDia = ({
 const VisaoMes = ({ meses, dias, imoveis, nomesImoveis, faxineiras, hoje, aoTocarReserva }: Props) => {
   const compacto = useEhCompacto();
   const totalImoveis = imoveis.length;
-  const [abertos, setAbertos] = useState(() => Math.min(meses.length, MESES_POR_VEZ));
-  const [foco, setFoco] = useState(0);
-  const [diaSel, setDiaSel] = useState<string | null>(() => (hoje >= (meses[0]?.inicio ?? '') && hoje <= (meses[meses.length - 1]?.fim ?? '') ? hoje : null));
+  // Meses abertos, mês em foco e dia tocado voltam depois de recarregar, enquanto o período for o mesmo
+  const recorte = `${meses[0]?.inicio ?? ''}|${meses[meses.length - 1]?.fim ?? ''}`;
+  const [abertos, setAbertos] = useEstadoDoRecorte<number>('calendario.mes.abertos', recorte, () => Math.min(meses.length, MESES_POR_VEZ));
+  const [foco, setFoco] = useEstadoDoRecorte<number>('calendario.mes.foco', recorte, 0);
+  const [diaSel, setDiaSel] = useEstadoDoRecorte<string | null>(
+    'calendario.mes.dia',
+    recorte,
+    () => (hoje >= (meses[0]?.inicio ?? '') && hoje <= (meses[meses.length - 1]?.fim ?? '') ? hoje : null),
+    (v) => v === null || typeof v === 'string',
+  );
   const [rolarPara, setRolarPara] = useState<number | null>(null);
   const refs = useRef<(HTMLElement | null)[]>([]);
   const faixaRef = useRef<HTMLDivElement | null>(null);
@@ -215,7 +223,7 @@ const VisaoMes = ({ meses, dias, imoveis, nomesImoveis, faxineiras, hoje, aoToca
     );
     refs.current.slice(0, abertos).forEach((el) => el && obs.observe(el));
     return () => obs.disconnect();
-  }, [abertos, meses.length]);
+  }, [abertos, meses.length, setFoco]);
 
   // A pílula do mês em foco entra inteira na faixa
   useEffect(() => {

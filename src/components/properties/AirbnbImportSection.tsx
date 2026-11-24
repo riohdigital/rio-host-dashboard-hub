@@ -8,6 +8,7 @@ import { Property } from '@/types/property';
 import ImportLoadingState from './ImportLoadingState';
 import { getPropertyFieldsSchema } from '@/utils/propertyFieldsSchema';
 import { fetchN8n } from '@/lib/n8n';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 interface AirbnbImportSectionProps {
   onImportSuccess: (data: Partial<Property>) => void;
@@ -15,7 +16,7 @@ interface AirbnbImportSectionProps {
 }
 
 const AirbnbImportSection = ({ onImportSuccess, onImportError }: AirbnbImportSectionProps) => {
-  const [airbnbLink, setAirbnbLink] = useState('');
+  const [airbnbLink, setAirbnbLink] = useEstadoPersistente('imoveis.form.novo.linkAirbnb', '');
   const [isImporting, setIsImporting] = useState(false);
   const { toast } = useToast();
 

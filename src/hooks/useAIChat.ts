@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ChatMessage, MessageStatus, MessageReaction } from '@/types/chat';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchN8n } from '@/lib/n8n';
-import { alternarChat, contarNaoLida, useChatAberto, useNaoLidasChat } from '@/components/chat/controleChat';
+import { alternarChat, contarNaoLida, definirChatAberto, useChatAberto, useNaoLidasChat } from '@/components/chat/controleChat';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 const CHAT_WEBHOOK = 'DashBoard%20RiohHost%20ChatAI';
 
@@ -14,8 +15,22 @@ export const useAIChat = () => {
   const unreadCount = useNaoLidasChat();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  // Busca, categoria e aberto/fechado voltam depois de recarregar a página
+  const [searchQuery, setSearchQuery] = useEstadoPersistente('chat.busca', '');
+  const [selectedCategory, setSelectedCategory] = useEstadoPersistente<string>('chat.categoria', 'all');
+  const [abertoGuardado, setAbertoGuardado] = useEstadoPersistente<boolean>('chat.aberto', false);
+  const primeiraVez = useRef(true);
+  useEffect(() => {
+    if (primeiraVez.current) {
+      primeiraVez.current = false;
+      if (abertoGuardado && !isOpen) {
+        definirChatAberto(true);
+        return;
+      }
+    }
+    setAbertoGuardado(isOpen);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só acompanha o abrir e fechar
+  }, [isOpen]);
   const { toast } = useToast();
   const { user } = useAuth();
 

@@ -9,11 +9,12 @@
  * Rótulos do eixo X: primeiro, do meio e último. `formatar` muda o formato
  * do valor (padrão: R$ curto, "R$ 34 mil").
  */
-import React, { useId, useState } from 'react';
+import React, { useId } from 'react';
 import { cn } from '@/lib/utils';
 import { formatarMoedaCurta } from '@/components/comum/formatos';
 import { COR_TEXTO_FRACO, COR_TRILHO, FONTE_MONO, corDoTom, type TomGrafico } from './cores';
 import { useLargura } from './useLargura';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 export interface PontoLinha {
   rotulo: string;
@@ -27,16 +28,21 @@ interface LinhaSemEixoProps {
   formatar?: (v: number) => string;
   tom?: TomGrafico;
   altura?: number;
+  /** Guarda na sessão o ponto tocado (volta depois de recarregar) */
+  chave?: string;
   className?: string;
 }
 
 const M = { esq: 8, dir: 8, topo: 22, base: 22 };
 
-const LinhaSemEixo = ({ pontos, rotulo, formatar = formatarMoedaCurta, tom = 'brand', altura = 150, className }: LinhaSemEixoProps) => {
+const LinhaSemEixo = ({ pontos, rotulo, formatar = formatarMoedaCurta, tom = 'brand', altura = 150, chave, className }: LinhaSemEixoProps) => {
   const [ref, largura] = useLargura<HTMLDivElement>();
   const idGrad = useId().replace(/:/g, '');
   const n = pontos.length;
-  const [sel, setSel] = useState<number | null>(null);
+  const [selGuardado, setSel] = useEstadoPersistente<number | null>(chave ?? null, null, {
+    aceita: (v) => v === null || (typeof v === 'number' && Number.isInteger(v) && v >= 0),
+  });
+  const sel = selGuardado !== null && selGuardado < n ? selGuardado : null;
   if (n === 0) return null;
 
   const atual = sel ?? n - 1;

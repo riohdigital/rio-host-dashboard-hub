@@ -15,6 +15,20 @@ import PropertyAccessEditor from './PropertyAccessEditor';
 import CleanerPropertyAccessEditor from './CleanerPropertyAccessEditor';
 import type { UserProfile, UserPermission, UserPropertyAccess } from '@/types/user-management';
 import type { Property } from '@/types/property';
+import { apagarEscolhas, gravarEscolha, lerEscolha, useDonoDasEscolhas, useEstadoPersistente } from '@/hooks/useEstadoPersistente';
+
+type Papel = 'master' | 'owner' | 'gestor' | 'faxineira';
+const PAPEIS: Papel[] = ['master', 'owner', 'gestor', 'faxineira'];
+
+interface RascunhoDoUsuario {
+  fullName: string;
+  role: Papel;
+  isActive: boolean;
+  permissions: UserPermission[];
+  propertyAccess: UserPropertyAccess[];
+  cleanerPix: string;
+  cleanerLinkedProperties: string[];
+}
 
 interface UserEditModalProps {
   user: UserProfile | null;
@@ -41,24 +55,65 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
   const [allProperties, setAllProperties] = useState<Property[]>([]);
   const [cleanerLinkedProperties, setCleanerLinkedProperties] = useState<string[]>([]);
 
+  // Rascunho da edição: o que foi mudado e ainda não salvo volta depois de
+  // recarregar a página. Só é aplicado depois de os dados do usuário chegarem,
+  // e é descartado ao salvar, cancelar ou fechar a janela.
+  const dono = useDonoDasEscolhas();
+  const prefixoRascunho = user ? `usuarios.editar.${user.user_id}.` : null;
+  const [pronto, setPronto] = useState(false);
+  const [aba, setAba] = useEstadoPersistente<string>('usuarios.editar.aba', 'basic', { aceita: ['basic', 'permissions', 'properties'] });
+
   useEffect(() => {
     if (user && open) {
+      let ativo = true;
+      setPronto(false);
       setFullName(user.full_name || '');
       setRole(user.role);
       setIsActive(user.is_active);
-      fetchUserPermissions(user.user_id);
+      const buscas: Promise<unknown>[] = [fetchUserPermissions(user.user_id)];
       
       if (user.role === 'faxineira') {
-        fetchAllProperties();
-        fetchCleanerLinkedProperties(user.user_id);
+        buscas.push(fetchAllProperties(), fetchCleanerLinkedProperties(user.user_id));
         setPropertyAccess([]);
       } else {
-        fetchPropertyAccess(user.user_id);
+        buscas.push(fetchPropertyAccess(user.user_id));
         setCleanerLinkedProperties([]);
         setAllProperties([]);
       }
+
+      Promise.all(buscas).then(() => {
+        if (!ativo) return;
+        const r = lerEscolha(dono, `usuarios.editar.${user.user_id}.rascunho`) as Partial<RascunhoDoUsuario> | undefined;
+        if (r && typeof r === 'object') {
+          if (typeof r.fullName === 'string') setFullName(r.fullName);
+          if (r.role && PAPEIS.includes(r.role)) setRole(r.role);
+          if (typeof r.isActive === 'boolean') setIsActive(r.isActive);
+          if (Array.isArray(r.permissions)) setPermissions(r.permissions);
+          if (Array.isArray(r.propertyAccess)) setPropertyAccess(r.propertyAccess);
+          if (typeof r.cleanerPix === 'string') setCleanerPix(r.cleanerPix);
+          if (Array.isArray(r.cleanerLinkedProperties)) setCleanerLinkedProperties(r.cleanerLinkedProperties);
+        }
+        setPronto(true);
+      });
+      return () => {
+        ativo = false;
+      };
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só ao abrir ou trocar de usuário
   }, [user, open]);
+
+  useEffect(() => {
+    if (!pronto || !open || !user) return;
+    const rascunho: RascunhoDoUsuario = { fullName, role, isActive, permissions, propertyAccess, cleanerPix, cleanerLinkedProperties };
+    gravarEscolha(dono, `usuarios.editar.${user.user_id}.rascunho`, rascunho);
+  }, [pronto, open, user, dono, fullName, role, isActive, permissions, propertyAccess, cleanerPix, cleanerLinkedProperties]);
+
+  /** Fecha a janela e descarta o rascunho (salvou, cancelou ou fechou de propósito) */
+  const fechar = () => {
+    setPronto(false);
+    if (prefixoRascunho) apagarEscolhas(dono, prefixoRascunho);
+    onClose();
+  };
 
   const fetchAllProperties = async () => {
     try {
@@ -179,7 +234,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
 
       toast({ title: "Sucesso", description: "Usuário atualizado com sucesso." });
       onUserUpdated();
-      onClose();
+      fechar();
     } catch (error: any) {
       console.error('Erro ao atualizar usuário:', error);
       toast({ title: "Erro", description: error.message || "Não foi possível atualizar o usuário.", variant: "destructive" });
@@ -191,13 +246,13 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
   if (!user) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={(a) => { if (!a) fechar(); }}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Editar Usuário</DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue="basic" className="w-full">
+        <Tabs value={aba} onValueChange={setAba} className="w-full">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="basic">Informações Básicas</TabsTrigger>
             <TabsTrigger value="permissions">Permissões</TabsTrigger>
@@ -298,7 +353,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
         </Tabs>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button variant="outline" onClick={fechar}>Cancelar</Button>
           <Button onClick={handleSave} disabled={loading}>
             {loading ? 'Salvando...' : 'Salvar Alterações'}
           </Button>

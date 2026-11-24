@@ -6,7 +6,7 @@
  * ao rolar a página (não há rolagem de lado: os 14 dias cabem na largura).
  * Tocar no nome do imóvel abre o mês só dele (MesDoImovel).
  */
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { corDoCanal } from '@/components/comum/cores';
 import { noites, somarDias } from '@/components/pricing/ocupacao';
@@ -26,6 +26,7 @@ import {
   rotuloDia,
   rotuloIntervalo,
 } from './periodo';
+import { useEstadoDoRecorte } from '@/hooks/useEstadoPersistente';
 
 interface Props {
   inicio: string;
@@ -41,8 +42,10 @@ interface Props {
 const COLUNAS = 'grid grid-cols-[86px_repeat(14,minmax(0,1fr))] lg:grid-cols-[12rem_repeat(14,minmax(0,1fr))]';
 
 const VisaoImoveis = ({ inicio, fim, meses, imoveis, reservas, hoje, aoTocarReserva }: Props) => {
-  const [janela, setJanela] = useState(inicio);
-  const [imovelAberto, setImovelAberto] = useState<string | null>(null);
+  // A janela de 14 dias e o imóvel aberto voltam depois de recarregar, enquanto o período for o mesmo
+  const recorte = `${inicio}|${fim}`;
+  const [janela, setJanela] = useEstadoDoRecorte<string>('calendario.imoveis.janela', recorte, inicio);
+  const [imovelAberto, setImovelAberto] = useEstadoDoRecorte<string | null>('calendario.imoveis.aberto', recorte, null);
 
   const dias = useMemo(() => Array.from({ length: DIAS_POR_JANELA }, (_, i) => somarDias(janela, i)), [janela]);
   const fimJanela = dias[dias.length - 1];
@@ -71,6 +74,7 @@ const VisaoImoveis = ({ inicio, fim, meses, imoveis, reservas, hoje, aoTocarRese
         reservas={porImovel.get(aberto.id) || []}
         meses={meses}
         mesInicial={idx}
+        recorte={recorte}
         hoje={hoje}
         aoVoltar={() => setImovelAberto(null)}
         aoTocarReserva={aoTocarReserva}

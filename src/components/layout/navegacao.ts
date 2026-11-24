@@ -20,6 +20,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useUserPermissions } from '@/contexts/UserPermissionsContext';
+import { limparEscolhasDaSessao } from '@/lib/escolhasGuardadas';
 
 export interface ItemNavegacao {
   nome: string;
@@ -106,6 +107,8 @@ export function rotaAtiva(caminhoAtual: string, item: ItemNavegacao): boolean {
 export function useSair() {
   const { toast } = useToast();
   return useCallback(async () => {
+    // Saiu de propósito: o que estava digitado ou aberto nas telas não fica no aparelho
+    limparEscolhasDaSessao();
     try {
       const {
         data: { session },

@@ -14,12 +14,15 @@ import PropriedadesCelular from './PropriedadesCelular';
 import { BotaoExcluir } from '@/components/comum/FolhaDetalhes';
 import { useEhCompacto } from '@/hooks/useMidia';
 import { Property } from '@/types/property';
+import { useItemAberto } from '@/hooks/useItemAberto';
 
 const PropertiesList = () => {
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingProperty, setEditingProperty] = useState<Property | null>(null);
+  // Janela do cadastro (novo ou edição): volta aberta ao recarregar a página
+  const janelaCadastro = useItemAberto('imoveis.form', properties, { carregando: loading });
+  const dialogOpen = janelaCadastro.aberto;
+  const editingProperty = janelaCadastro.item;
   const { toast } = useToast();
   const { hasPermission, canAccessProperty, getAccessibleProperties, isMaster } = useUserPermissions();
   // ?editar=<id> abre o cadastro direto (vem do pedido de "Atualizar cadastro" da Precificação).
@@ -64,20 +67,17 @@ const PropertiesList = () => {
 
   const handleSuccess = () => {
     fetchProperties();
-    setDialogOpen(false);
-    setEditingProperty(null);
+    janelaCadastro.limpar();
   };
 
   const handleCancel = () => {
-    setDialogOpen(false);
-    setEditingProperty(null);
+    janelaCadastro.limpar();
   };
 
   const handleEdit = (property: Property) => {
     const accessLevel = canAccessProperty(property.id);
     if (accessLevel === 'full' || (accessLevel === 'read_only' && hasPermission('properties_edit'))) {
-      setEditingProperty(property);
-      setDialogOpen(true);
+      janelaCadastro.abrir(property);
     } else {
       toast({
         title: "Erro",
@@ -168,7 +168,7 @@ const PropertiesList = () => {
   const janela = (
     <JanelaResponsiva
       aberta={dialogOpen}
-      aoMudar={(a) => { if (!a) handleCancel(); else setDialogOpen(true); }}
+      aoMudar={(a) => { if (!a) handleCancel(); }}
       titulo={editingProperty ? 'Editar Propriedade' : 'Nova Propriedade'}
       telaCheia
       largura="xl"
@@ -201,7 +201,7 @@ const PropertiesList = () => {
           imoveis={properties}
           podeCriar={hasPermission('properties_create')}
           podeAbrir={(p) => podeEditar(p.id)}
-          aoNova={() => { setEditingProperty(null); setDialogOpen(true); }}
+          aoNova={() => janelaCadastro.abrir(null)}
           aoAbrir={handleEdit}
         />
         {janela}
@@ -218,7 +218,7 @@ const PropertiesList = () => {
         </div>
         
         {hasPermission('properties_create') && (
-          <Button onClick={() => { setEditingProperty(null); setDialogOpen(true); }} className="gap-2">
+          <Button onClick={() => janelaCadastro.abrir(null)} className="gap-2">
             <Plus className="h-4 w-4" />
             Nova Propriedade
           </Button>
@@ -234,7 +234,7 @@ const PropertiesList = () => {
             <p className="text-gray-500 mb-4">Comece adicionando sua primeira propriedade.</p>
             {hasPermission('properties_create') && (
               <Button 
-                onClick={() => setDialogOpen(true)}
+                onClick={() => janelaCadastro.abrir(null)}
                 className="bg-brand hover:bg-brand-hover text-white"
               >
                 <Plus className="h-4 w-4 mr-2" />

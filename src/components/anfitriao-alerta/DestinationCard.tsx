@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Phone, Settings, Trash2, CheckCircle, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { useEhCompacto } from '@/hooks/useMidia';
 import LinhaLista from '@/components/comum/LinhaLista';
 import FolhaDetalhes from '@/components/comum/FolhaDetalhes';
 import { Etiqueta } from '@/components/comum/Etiquetas';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 interface DestinationCardProps {
   destination: NotificationDestination;
@@ -19,11 +20,12 @@ interface DestinationCardProps {
 const DestinationCard = ({ destination }: DestinationCardProps) => {
   const { deleteDestination } = useNotificationDestinations();
   const { hasPermission } = useUserPermissions();
-  const [showAuth, setShowAuth] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
+  // Janelas e folha abertas voltam depois de recarregar (o código de autenticação nunca é guardado)
+  const [showAuth, setShowAuth] = useEstadoPersistente<boolean>(`alertas.destinatario.${destination.id}.autenticar`, false);
+  const [showSettings, setShowSettings] = useEstadoPersistente<boolean>(`alertas.destinatario.${destination.id}.configurar`, false);
   // Celular: uma linha; tocar abre a folha com Autenticar, Configurar e Remover (longe de editar)
   const compacto = useEhCompacto();
-  const [folha, setFolha] = useState(false);
+  const [folha, setFolha] = useEstadoPersistente<boolean>(`alertas.destinatario.${destination.id}.folha`, false);
   
   const canEdit = hasPermission('anfitriao_alerta_edit');
   const canDelete = hasPermission('anfitriao_alerta_delete');

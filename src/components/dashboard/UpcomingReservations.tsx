@@ -15,7 +15,7 @@ interface PeriodEvent {
 
 const UpcomingReservations = ({ events, loading }: { events: PeriodEvent[], loading: boolean }) => {
   // Celular: 3 eventos + "Ver todos" (sem rolagem dentro da página); computador: caixa com rolagem
-  const lista = useListaCurta(events, 3, { soCompacto: true });
+  const lista = useListaCurta(events, 3, { soCompacto: true, chave: 'dashboard.proximas.todas' });
   const formatDate = (dateString: string) => {
     const date = new Date(dateString + 'T00:00:00');
     const today = new Date();

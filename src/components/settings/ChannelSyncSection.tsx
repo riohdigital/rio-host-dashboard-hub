@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
@@ -26,6 +26,8 @@ import { PENDING_KIND_LABELS, type ChannelSyncSource } from '@/types/channelSync
 import SourceDialog from './channel-sync/SourceDialog';
 import StatementImport from './channel-sync/StatementImport';
 import OTASessionsCard from './channel-sync/OTASessionsCard';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
+import { useItemAberto } from '@/hooks/useItemAberto';
 
 const formatDateTime = (value: string | null) =>
   value ? format(new Date(value), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : 'Nunca';
@@ -54,11 +56,15 @@ const ChannelSyncSection: React.FC = () => {
     assignPendingProperty, refetch,
   } = useChannelSync();
 
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<ChannelSyncSource | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<ChannelSyncSource | null>(null);
+  // Janelas abertas voltam depois de recarregar a página (guardam só o id do calendário)
+  const janela = useItemAberto('sincronizacao.calendario.janela', sources, { carregando: loading });
+  const dialogOpen = janela.aberto;
+  const editing = janela.item;
+  const exclusao = useItemAberto('sincronizacao.calendario.excluir', sources, { carregando: loading });
+  const deleteTarget = exclusao.aberto ? exclusao.item : null;
+  const setDeleteTarget = (alvo: ChannelSyncSource | null) => (alvo ? exclusao.abrir(alvo) : exclusao.limpar());
   // Propriedade escolhida em cada pendência de "propriedade não identificada".
-  const [escolhas, setEscolhas] = useState<Record<string, string>>({});
+  const [escolhas, setEscolhas] = useEstadoPersistente<Record<string, string>>('sincronizacao.pendencias.escolhas', {});
 
   const propertyName = useMemo(() => {
     const map = new Map(properties.map((p) => [p.id, p.nickname || p.name]));
@@ -188,7 +194,7 @@ const ChannelSyncSection: React.FC = () => {
               Sincronizar agora
             </Button>
             <Button
-              onClick={() => { setEditing(null); setDialogOpen(true); }}
+              onClick={() => janela.abrir(null)}
               className="bg-brand hover:bg-brand-hover"
             >
               <Plus className="h-4 w-4 mr-2" />
@@ -245,7 +251,7 @@ const ChannelSyncSection: React.FC = () => {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => { setEditing(source); setDialogOpen(true); }}
+                      onClick={() => janela.abrir(source)}
                       title="Editar"
                     >
                       <Pencil className="h-4 w-4" />
@@ -436,7 +442,7 @@ const ChannelSyncSection: React.FC = () => {
 
       <SourceDialog
         open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        onOpenChange={janela.mudar}
         properties={properties}
         source={editing}
         onSave={saveSource}

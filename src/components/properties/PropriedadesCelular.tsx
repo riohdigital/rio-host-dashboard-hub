@@ -5,7 +5,7 @@
  * fica dentro do imóvel, com confirmação (PropertiesList passa o botão ao
  * formulário).
  */
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { BedDouble, Building, Building2, Home, MapPin, Plus, type LucideIcon } from 'lucide-react';
 import BarraBusca, { BotaoBarra } from '@/components/comum/BarraBusca';
 import EstadoVazio from '@/components/comum/EstadoVazio';
@@ -14,6 +14,7 @@ import { ListaLinhas } from '@/components/comum/GrupoLista';
 import { Etiqueta } from '@/components/comum/Etiquetas';
 import { formatarMoedaSemCentavos } from '@/components/comum/formatos';
 import type { Property } from '@/types/property';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 /** Ícone conforme o tipo cadastrado (texto livre) */
 function iconeDoTipo(tipo?: string | null): LucideIcon {
@@ -35,7 +36,7 @@ interface PropriedadesCelularProps {
 }
 
 const PropriedadesCelular = ({ imoveis, podeCriar, podeAbrir, aoNova, aoAbrir }: PropriedadesCelularProps) => {
-  const [busca, setBusca] = useState('');
+  const [busca, setBusca] = useEstadoPersistente('imoveis.busca', '');
 
   const lista = useMemo(() => {
     const termo = busca.trim().toLowerCase();

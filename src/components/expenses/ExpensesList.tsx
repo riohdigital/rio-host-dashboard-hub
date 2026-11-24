@@ -19,16 +19,25 @@ import ExpenseForm from './ExpenseForm';
 import { Expense } from '@/types/expense';
 import RecurrenceDetailModal from './RecurrenceDetailModal';
 import DespesasCelular from './DespesasCelular';
+import { ABAS_DE_DESPESAS } from './abas';
 import { useEhCompacto } from '@/hooks/useMidia';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
+import { useItemAberto } from '@/hooks/useItemAberto';
 
 const ExpensesList = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
-  const [detailModalOpen, setDetailModalOpen] = useState(false);
-  const [selectedGroup, setSelectedGroup] = useState<any>(null);
-  const [filterOnlyPendingReimbursements, setFilterOnlyPendingReimbursements] = useState(false);
+  // Janela do formulário (nova despesa ou edição): volta aberta ao recarregar
+  const formulario = useItemAberto('despesas.form', expenses, { carregando: loading });
+  const dialogOpen = formulario.aberto;
+  const editingExpense = formulario.item;
+  // Janela da recorrência: guarda só o id do grupo
+  const [detailModalOpen, setDetailModalOpen] = useEstadoPersistente<boolean>('despesas.recorrencia.aberta', false);
+  const [grupoAbertoId, setGrupoAbertoId] = useEstadoPersistente<string | null>('despesas.recorrencia.id', null);
+  // A aba é a mesma do celular: "reembolsos" liga o filtro de reembolsos daqui
+  const [aba, setAba] = useEstadoPersistente<string>('despesas.aba', 'todas', { aceita: ABAS_DE_DESPESAS });
+  const filterOnlyPendingReimbursements = aba === 'reembolsos';
+  const setFilterOnlyPendingReimbursements = (ligado: boolean) => setAba(ligado ? 'reembolsos' : 'todas');
   const { toast } = useToast();
   const { hasPermission, getAccessibleProperties } = useUserPermissions();
   const { selectedProperties, selectedPeriod } = useGlobalFilters();
@@ -134,15 +143,29 @@ const ExpensesList = () => {
     return { recurrent: Object.values(recurrentGroups), single: singleExpenses };
   }, [expenses, filterOnlyPendingReimbursements]);
 
+  const selectedGroup = useMemo(() => {
+    if (!grupoAbertoId) return null;
+    const ocorrencias = expenses.filter(exp => exp.recurrence_group_id === grupoAbertoId);
+    if (ocorrencias.length === 0) return null;
+    const primeira = ocorrencias[0];
+    return {
+      recurrence_group_id: grupoAbertoId,
+      description: primeira.description,
+      amount: primeira.amount,
+      property_name: primeira.properties?.nickname || primeira.properties?.name,
+      category: primeira.category,
+      count: ocorrencias.length,
+      expenses: ocorrencias,
+    };
+  }, [expenses, grupoAbertoId]);
+
   const handleSuccess = () => {
     fetchExpenses();
-    setDialogOpen(false);
-    setEditingExpense(null);
+    formulario.limpar();
   };
 
   const handleEdit = (expense: Expense) => {
-    setEditingExpense(expense);
-    setDialogOpen(true);
+    formulario.abrir(expense);
   };
 
   // Exclui sem perguntar (a folha de detalhes do celular já confirmou)
@@ -167,18 +190,8 @@ const ExpensesList = () => {
 
   // Abre a janela da recorrência a partir de uma ocorrência (celular)
   const verRecorrencia = (grupoId: string) => {
-    const ocorrencias = expenses.filter(exp => exp.recurrence_group_id === grupoId);
-    if (ocorrencias.length === 0) return;
-    const primeira = ocorrencias[0];
-    setSelectedGroup({
-      recurrence_group_id: grupoId,
-      description: primeira.description,
-      amount: primeira.amount,
-      property_name: primeira.properties?.nickname || primeira.properties?.name,
-      category: primeira.category,
-      count: ocorrencias.length,
-      expenses: ocorrencias,
-    });
+    if (!expenses.some(exp => exp.recurrence_group_id === grupoId)) return;
+    setGrupoAbertoId(grupoId);
     setDetailModalOpen(true);
   };
 
@@ -217,9 +230,8 @@ const ExpensesList = () => {
       onClose={() => setDetailModalOpen(false)} 
       group={selectedGroup} 
       onEditGroup={(expense) => {
-        setEditingExpense(expense);
         setDetailModalOpen(false);
-        setDialogOpen(true);
+        formulario.abrir(expense);
       }} 
       onDeleteAll={handleDeleteAllRecurrent} 
       onDeleteSingle={(id) => handleDeleteSingle(id, true)}
@@ -230,11 +242,11 @@ const ExpensesList = () => {
   const janelaFormulario = (
     <JanelaResponsiva
       aberta={dialogOpen}
-      aoMudar={setDialogOpen}
+      aoMudar={formulario.mudar}
       titulo={`${editingExpense ? 'Editar' : 'Nova'} Despesa`}
       largura="lg"
     >
-      <ExpenseForm expense={editingExpense} onSuccess={handleSuccess} onCancel={() => setDialogOpen(false)} />
+      <ExpenseForm expense={editingExpense} onSuccess={handleSuccess} onCancel={formulario.fechar} />
     </JanelaResponsiva>
   );
 
@@ -247,7 +259,7 @@ const ExpensesList = () => {
           totalAReembolsar={totalPendingReimbursements}
           podeCriar={hasPermission('expenses_create')}
           podeEditar={hasPermission('expenses_edit')}
-          aoNova={() => { setEditingExpense(null); setDialogOpen(true); }}
+          aoNova={() => formulario.abrir(null)}
           aoEditar={handleEdit}
           aoExcluir={(id) => excluirDespesa(id)}
           aoMarcarPaga={handleMarkAsPaid}
@@ -268,7 +280,7 @@ const ExpensesList = () => {
           <p className="text-sm text-gray-600 mt-1">Gerencie despesas fixas, variáveis e notas fiscais a reembolsar.</p>
         </div>
         {hasPermission('expenses_create') && (
-          <Button onClick={() => { setEditingExpense(null); setDialogOpen(true); }} className="gap-2">
+          <Button onClick={() => formulario.abrir(null)} className="gap-2">
             <Plus className="h-4 w-4" />
             Nova Despesa
           </Button>
@@ -325,7 +337,7 @@ const ExpensesList = () => {
           <h3 className="font-semibold text-gray-700">Despesas Recorrentes</h3>
           <div className="grid gap-4">
             {groupedExpenses.recurrent.map(group => (
-              <Card key={group.recurrence_group_id} className="bg-white hover:shadow-lg transition-shadow cursor-pointer" onClick={() => { setSelectedGroup(group); setDetailModalOpen(true); }}>
+              <Card key={group.recurrence_group_id} className="bg-white hover:shadow-lg transition-shadow cursor-pointer" onClick={() => verRecorrencia(group.recurrence_group_id)}>
                 <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-3 sm:gap-4">
                     <div className="p-3 bg-info-100 rounded-lg"><RefreshCw className="h-6 w-6 text-info-600" /></div>

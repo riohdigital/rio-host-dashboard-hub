@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import ChartCard from '@/components/graficos/ChartCard';
@@ -13,6 +13,7 @@ import LinhaSemEixo from '@/components/graficos/LinhaSemEixo';
 import BarrasSimples from '@/components/graficos/BarrasSimples';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useEhCompacto } from '@/hooks/useMidia';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 interface MonthlyData {
   month: string;
@@ -32,7 +33,7 @@ interface AnnualGrowthChartProps {
 }
 
 const AnnualGrowthChart = ({ monthlyData, yearlyData, loading }: AnnualGrowthChartProps) => {
-  const [viewMode, setViewMode] = useState<'monthly' | 'yearly'>('monthly');
+  const [viewMode, setViewMode] = useEstadoPersistente<'monthly' | 'yearly'>('dashboard.crescimento.visao', 'monthly', { aceita: ['monthly', 'yearly'] });
   const compacto = useEhCompacto();
 
   const currentYear = new Date().getFullYear();
@@ -151,7 +152,7 @@ const AnnualGrowthChart = ({ monthlyData, yearlyData, loading }: AnnualGrowthCha
         ) : semDados ? (
           <p className="py-6 text-center text-sm text-gray-500">Sem receita para comparar ainda.</p>
         ) : viewMode === 'monthly' ? (
-          <LinhaSemEixo pontos={pontos} rotulo={`Receita por mês em ${currentYear}`} className="mt-1" />
+          <LinhaSemEixo chave="dashboard.crescimento.ponto" pontos={pontos} rotulo={`Receita por mês em ${currentYear}`} className="mt-1" />
         ) : (
           <BarrasSimples
             itens={yearlyData.map((y) => ({ rotulo: y.year, valor: y.revenue }))}

@@ -25,11 +25,12 @@ import { useEhCompacto } from '@/hooks/useMidia';
 import { HistoricoInvestimentosCelular, PorImovelCelular, percentualROI } from '@/components/investments/InvestimentosCelular';
 import { AJUDA_ROI_CARTEIRA, NOTA_ACUMULADO, resumirCarteira } from '@/components/investments/carteira';
 import AjudaInfo from '@/components/comum/AjudaInfo';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 const InvestmentsPage = () => {
   const [properties, setProperties] = useState<Property[]>([]);
   const [propertiesLoading, setPropertiesLoading] = useState(true);
-  const [formOpen, setFormOpen] = useState(false);
+  const [formOpen, setFormOpen] = useEstadoPersistente<boolean>('investimentos.geral.form.aberto', false);
   const { investments, loading: investmentsLoading, createInvestment, deleteInvestment } = usePropertyInvestments();
   const { roiData, loading: roiLoading, refetch: refetchROI } = useROICalculations();
   const { hasPermission, getAccessibleProperties, loading: permissionsLoading } = useUserPermissions();

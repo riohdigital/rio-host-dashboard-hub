@@ -3,7 +3,7 @@
  * nos dias do período do filtro global, 14 dias por vez a partir do 1º dia.
  * Cada saída diz quem faz a faxina ou avisa "Sem faxineira".
  */
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { somarDias } from '@/components/pricing/ocupacao';
 import { ListaLinhas } from '@/components/comum/GrupoLista';
 import AjudaInfo from '@/components/comum/AjudaInfo';
@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { CalendarReservation } from '@/types/calendar';
 import LinhaMovimento from './LinhaMovimento';
 import { DIAS_POR_JANELA, DiaDoCalendario, SEMANA_ABREV, diaDaSemana, janelaQueContem, nomeDoImovel, rotuloDia, rotuloIntervalo } from './periodo';
+import { useEstadoDoRecorte } from '@/hooks/useEstadoPersistente';
 
 interface Props {
   inicio: string;
@@ -25,8 +26,10 @@ interface Props {
 const minimo = (a: string, b: string) => (a < b ? a : b);
 
 const VisaoAgenda = ({ inicio, fim, dias, nomesImoveis, faxineiras, hoje, aoTocarReserva }: Props) => {
-  const [comeco, setComeco] = useState(inicio);
-  const [blocos, setBlocos] = useState(1);
+  // O começo e os blocos de 14 dias já abertos voltam depois de recarregar, enquanto o período for o mesmo
+  const recorte = `${inicio}|${fim}`;
+  const [comeco, setComeco] = useEstadoDoRecorte<string>('calendario.agenda.comeco', recorte, inicio);
+  const [blocos, setBlocos] = useEstadoDoRecorte<number>('calendario.agenda.blocos', recorte, 1);
 
   const ate = minimo(somarDias(comeco, DIAS_POR_JANELA * blocos - 1), fim);
   const contemHoje = hoje >= inicio && hoje <= fim;

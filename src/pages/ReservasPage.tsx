@@ -28,12 +28,20 @@ import StatusSelector from '@/components/reservations/StatusSelector';
 import ReservasCelular from '@/components/reservations/ReservasCelular';
 import FolhaReserva, { type ReservaDaFolha } from '@/components/reservations/FolhaReserva';
 import { useEhCompacto } from '@/hooks/useMidia';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
+import { situacaoDoPagamento } from '@/components/reservations/pagamento';
 import { supabase } from '@/integrations/supabase/client';
 import { Reservation } from '@/types/reservation';
 import { Property } from '@/types/property';
 import { useToast } from '@/hooks/use-toast';
 import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useItemAberto } from '@/hooks/useItemAberto';
+
+// Valores aceitos nas escolhas guardadas (os mesmos dos seletores da tela)
+const RECORTES = ['cashflow', 'received', 'future', 'active'];
+const SITUACOES = ['all', 'Confirmada', 'Em Andamento', 'Finalizada', 'Cancelada'];
+const PAGAMENTOS = ['all', 'Pago', 'Pendente'];
 
 const formatDate = (dateString: string | null): string => {
     if (!dateString) return '';
@@ -126,16 +134,24 @@ const ReservasPage = () => {
     const [searchParams] = useSearchParams();
     const urlSearchCode = searchParams.get('search') || searchParams.get('code') || '';
 
-    const [showForm, setShowForm] = useState(false);
-    const [editingReservation, setEditingReservation] = useState<Reservation | null>(null);
-    const [searchTerm, setSearchTerm] = useState(urlSearchCode);
-    const [selectedStatus, setSelectedStatus] = useState('all');
-    const [selectedPaymentStatus, setSelectedPaymentStatus] = useState('all');
-    const [activeTab, setActiveTab] = useState(urlSearchCode ? 'active' : 'cashflow');
-    const [excluindoId, setExcluindoId] = useState<string | null>(null);
-    // Celular: a reserva aberta na folha de detalhes (D5)
-    const [folhaId, setFolhaId] = useState<string | null>(null);
-    const [folhaAberta, setFolhaAberta] = useState(false);
+    // Escolhas da tela: voltam depois de recarregar (por usuário, na sessão)
+    const [buscaGuardada, setBuscaGuardada] = useEstadoPersistente('reservas.busca', '');
+    const [selectedStatus, setSelectedStatus] = useEstadoPersistente('reservas.situacao', 'all', { aceita: SITUACOES });
+    const [selectedPaymentStatus, setSelectedPaymentStatus] = useEstadoPersistente('reservas.pagamento', 'all', { aceita: PAGAMENTOS });
+    const [abaGuardada, setAbaGuardada] = useEstadoPersistente('reservas.aba', 'cashflow', { aceita: RECORTES });
+    // ?code= / ?search= na URL têm prioridade sobre o que está guardado e não
+    // o substituem: saindo do link, a tela volta à busca e à aba do usuário.
+    const [buscaDaUrl, setBuscaDaUrl] = useState(urlSearchCode);
+    const [abaDaUrl, setAbaDaUrl] = useState('active');
+    const veioDaUrl = Boolean(urlSearchCode);
+    const searchTerm = veioDaUrl ? buscaDaUrl : buscaGuardada;
+    const setSearchTerm = veioDaUrl ? setBuscaDaUrl : setBuscaGuardada;
+    const activeTab = veioDaUrl ? abaDaUrl : abaGuardada;
+    const setActiveTab = veioDaUrl ? setAbaDaUrl : setAbaGuardada;
+    const [excluindoId, setExcluindoId] = useEstadoPersistente<string | null>('reservas.excluindo', null);
+    // Celular: a reserva aberta na folha de detalhes (D5); volta aberta ao recarregar
+    const [folhaId, setFolhaId] = useEstadoPersistente<string | null>('reservas.folha.id', null);
+    const [folhaAberta, setFolhaAberta] = useEstadoPersistente<boolean>('reservas.folha.aberta', false);
     const codigoJaAberto = useRef<string | null>(null);
     const compacto = useEhCompacto();
     const { toast } = useToast();
@@ -146,8 +162,8 @@ const ReservasPage = () => {
 
     useEffect(() => {
         if (urlSearchCode) {
-            setSearchTerm(urlSearchCode);
-            setActiveTab('active');
+            setBuscaDaUrl(urlSearchCode);
+            setAbaDaUrl('active');
         }
     }, [urlSearchCode]);
 
@@ -171,6 +187,10 @@ const ReservasPage = () => {
     });
 
     const reservations = data?.reservations || [];
+    // Janela do formulário (nova reserva ou edição): volta aberta ao recarregar
+    const formulario = useItemAberto<Reservation>('reservas.form', reservations as unknown as Reservation[], { carregando: !data });
+    const showForm = formulario.aberto;
+    const editingReservation = formulario.item;
     const properties = data?.properties || [];
     const cleanerMap = data?.cleanerMap || new Map<string, string>();
 
@@ -185,7 +205,7 @@ const ReservasPage = () => {
             setFolhaId(achada.id);
             setFolhaAberta(true);
         }
-    }, [compacto, urlSearchCode, data]);
+    }, [compacto, urlSearchCode, data, setFolhaId, setFolhaAberta]);
 
     const handleDelete = async (reservationId: string): Promise<void> => {
         try {
@@ -216,13 +236,11 @@ const ReservasPage = () => {
     };
 
     const handleEdit = (reservation: Reservation) => {
-        setEditingReservation(reservation);
-        setShowForm(true);
+        formulario.abrir(reservation);
     };
 
     const handleFormSuccess = () => {
-        setShowForm(false);
-        setEditingReservation(null);
+        formulario.limpar();
         queryClient.invalidateQueries({ queryKey });
     };
 
@@ -315,14 +333,12 @@ const ReservasPage = () => {
         acc.totalRevenue += reservation.total_revenue || 0;
         acc.netRevenue += reservation.net_revenue || 0;
         
-        // Separar receitas recebidas vs futuras (para aba Caixa)
+        // Recebido x A receber (aba Receita gerada): pela situação do pagamento
+        // de cada reserva, a mesma que a linha mostra. Canceladas ficam fora.
         if (activeTab === 'cashflow') {
-            if (reservation.platform === 'Booking.com' && 
-                (!reservation.payment_date || new Date(reservation.payment_date) > new Date(endDateString))) {
-                acc.futureNetRevenue += reservation.net_revenue || 0;
-            } else {
-                acc.receivedNetRevenue += reservation.net_revenue || 0;
-            }
+            const situacao = situacaoDoPagamento(reservation);
+            if (situacao === 'pago') acc.receivedNetRevenue += reservation.net_revenue || 0;
+            else if (situacao === 'a_receber') acc.futureNetRevenue += reservation.net_revenue || 0;
         }
         
         if (reservation.payment_status === 'Pago') acc.paidCount += 1;
@@ -344,7 +360,7 @@ const ReservasPage = () => {
         airbnbCount: 0, 
         bookingCount: 0, 
         diretoCount: 0 
-    }), [filteredReservations, activeTab, endDateString]);
+    }), [filteredReservations, activeTab]);
 
     const totalLoading = dataLoading || permissionsLoading;
 
@@ -477,7 +493,7 @@ const ReservasPage = () => {
     ];
 
     const ABAS = [
-        { valor: 'cashflow', rotulo: 'Receita Gerada no Período', curto: 'Receita gerada', total: reservationsByCompetence.cashflow.length, ajuda: 'Representa a receita efetivamente gerada no período selecionado: inclui Airbnb e Direto já recebidos + Booking.com com check-out no período (mesmo que o pagamento seja futuro). Este é o caixa real do mês.' },
+        { valor: 'cashflow', rotulo: 'Receita Gerada no Período', curto: 'Receita gerada', total: reservationsByCompetence.cashflow.length, ajuda: 'Representa a receita efetivamente gerada no período selecionado: inclui Airbnb e Direto já recebidos + Booking.com com check-out no período (mesmo que o pagamento seja futuro). Este é o caixa real do mês. Recebido e A receber seguem a situação do pagamento de cada reserva: as marcadas como "Pago" somam em Recebido e as demais em A receber; canceladas não entram em nenhum dos dois.' },
         { valor: 'received', rotulo: 'Receber no Período (Airbnb e Direto)', curto: 'Recebidas', total: reservationsByCompetence.received.length, ajuda: 'Mostra reservas do Airbnb e Direto cujo pagamento foi efetivamente recebido dentro do período selecionado. Exclui Booking.com que paga no mês seguinte ao check-out.' },
         { valor: 'future', rotulo: 'À Receber no Próximo Período (Booking)', curto: 'A receber (Booking)', total: reservationsByCompetence.future.length, ajuda: 'Reservas do Booking.com com check-out no período selecionado, mas cujo pagamento será recebido apenas no próximo período (mês seguinte ao check-out).' },
         { valor: 'active', rotulo: 'Ativas no Período', curto: 'Ativas', total: reservationsByCompetence.active.length, ajuda: 'Mostra todas as reservas que possuem intersecção com o período selecionado (check-in ou check-out dentro do período), independente de quando o pagamento foi recebido. Útil para visualizar a ocupação geral.' },
@@ -501,7 +517,7 @@ const ReservasPage = () => {
                     aoMudarPagamento={setSelectedPaymentStatus}
                     totais={totals}
                     podeCriar={canCreateReservations}
-                    aoNova={() => { setEditingReservation(null); setShowForm(true); }}
+                    aoNova={() => formulario.abrir(null)}
                     aoTocar={(r) => { setFolhaId(r.id); setFolhaAberta(true); }}
                 />
                 <FolhaReserva
@@ -514,7 +530,7 @@ const ReservasPage = () => {
                 />
                 <JanelaResponsiva
                     aberta={showForm}
-                    aoMudar={(aberta) => { if (!aberta) { setShowForm(false); setEditingReservation(null); } }}
+                    aoMudar={(aberta) => { if (!aberta) formulario.limpar(); }}
                     titulo={editingReservation ? 'Editar Reserva' : 'Nova Reserva'}
                     telaCheia
                     largura="xl"
@@ -522,7 +538,7 @@ const ReservasPage = () => {
                     <ReservationForm
                         reservation={editingReservation}
                         onSuccess={handleFormSuccess}
-                        onCancel={() => { setShowForm(false); setEditingReservation(null); }}
+                        onCancel={formulario.limpar}
                     />
                 </JanelaResponsiva>
             </div>
@@ -535,7 +551,7 @@ const ReservasPage = () => {
                     titulo="Reservas"
                     descricao="Gerencie suas reservas e acompanhe o status"
                     acao={canCreateReservations ? (
-                        <Button onClick={() => { setEditingReservation(null); setShowForm(true); }} className="gap-2">
+                        <Button onClick={() => formulario.abrir(null)} className="gap-2">
                             <Plus className="h-4 w-4" />
                             Nova reserva
                         </Button>
@@ -663,7 +679,7 @@ const ReservasPage = () => {
 
                 <JanelaResponsiva
                     aberta={showForm}
-                    aoMudar={(aberta) => { if (!aberta) { setShowForm(false); setEditingReservation(null); } }}
+                    aoMudar={(aberta) => { if (!aberta) formulario.limpar(); }}
                     titulo={editingReservation ? 'Editar Reserva' : 'Nova Reserva'}
                     telaCheia
                     largura="xl"
@@ -671,7 +687,7 @@ const ReservasPage = () => {
                     <ReservationForm
                         reservation={editingReservation}
                         onSuccess={handleFormSuccess}
-                        onCancel={() => { setShowForm(false); setEditingReservation(null); }}
+                        onCancel={formulario.limpar}
                     />
                 </JanelaResponsiva>
             </div>

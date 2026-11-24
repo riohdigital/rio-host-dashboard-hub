@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { useFormPersistence } from '@/hooks/useFormPersistence';
+import { useRascunhoFormulario } from '@/hooks/useRascunhoFormulario';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Calendar, DollarSign, FileText, Upload } from 'lucide-react';
@@ -50,17 +50,18 @@ const InvestmentForm = ({ properties, onSubmit, loading, defaultPropertyId }: In
 
   const watchedValues = form.watch();
   
-  // Persistência de formulário
-  const { restoreData, clearSavedData } = useFormPersistence({
-    key: 'investment-form-new',
-    values: watchedValues,
-    setValue: (field, value) => form.setValue(field as any, value),
-    enabled: true
+  // Rascunho: o que foi digitado volta depois de recarregar a página.
+  // Nos seletores, o '' que o Select emite enquanto as opções carregam é ignorado
+  // (senão apagaria a escolha restaurada).
+  const rascunho = useRascunhoFormulario({
+    chave: `investimentos.form.novo.${defaultPropertyId ?? 'geral'}`,
+    valores: watchedValues,
+    setValue: form.setValue,
   });
 
   useEffect(() => {
-    // Restaurar dados salvos ao montar o componente
-    setTimeout(() => restoreData(), 100);
+    rascunho.restaurar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- uma vez, ao abrir
   }, []);
 
   const handleSubmit = async (data: InvestmentFormData) => {
@@ -69,7 +70,7 @@ const InvestmentForm = ({ properties, onSubmit, loading, defaultPropertyId }: In
       await onSubmit(data);
       
       // Limpar dados salvos e resetar formulário após sucesso
-      clearSavedData();
+      rascunho.limpar();
       form.reset();
     } catch (error) {
       console.error('Erro ao submeter formulário:', error);
@@ -96,7 +97,7 @@ const InvestmentForm = ({ properties, onSubmit, loading, defaultPropertyId }: In
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Propriedade</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={defaultPropertyId || field.value}>
+                    <Select onValueChange={(v) => { if (v) field.onChange(v); }} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione uma propriedade" />
@@ -121,7 +122,7 @@ const InvestmentForm = ({ properties, onSubmit, loading, defaultPropertyId }: In
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Categoria</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={(v) => { if (v) field.onChange(v); }} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione uma categoria" />
