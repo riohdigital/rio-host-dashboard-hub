@@ -14,12 +14,12 @@ import { Button } from '@/components/ui/button';
 import AbasRolaveis from '@/components/comum/AbasRolaveis';
 import AjudaInfo from '@/components/comum/AjudaInfo';
 import BarraBusca, { BotaoBarra } from '@/components/comum/BarraBusca';
+import Escolhas from '@/components/comum/Escolhas';
 import EstadoVazio from '@/components/comum/EstadoVazio';
 import FolhaDetalhes from '@/components/comum/FolhaDetalhes';
 import GrupoLista from '@/components/comum/GrupoLista';
 import LinhaLista from '@/components/comum/LinhaLista';
 import { formatarMoedaSemCentavos } from '@/components/comum/formatos';
-import { cn } from '@/lib/utils';
 import { emCurso, hojeISO, nomeDoMes, periodoCurto } from './datas';
 
 const POR_VEZ = 30;
@@ -73,32 +73,6 @@ const OPCOES_PAGAMENTO = [
   { valor: 'Pago', rotulo: 'Pago' },
   { valor: 'Pendente', rotulo: 'Pendente' },
 ];
-
-/** Pílulas de escolha única que quebram linha (filtros) */
-const Escolhas = ({ rotulo, opcoes, valor, aoMudar }: { rotulo: string; opcoes: { valor: string; rotulo: string }[]; valor: string; aoMudar: (v: string) => void }) => (
-  <fieldset className="grid gap-2">
-    <legend className="mb-2 text-xs text-gray-500">{rotulo}</legend>
-    <div className="flex flex-wrap gap-2">
-      {opcoes.map((o) => {
-        const ativo = o.valor === valor;
-        return (
-          <button
-            key={o.valor}
-            type="button"
-            aria-pressed={ativo}
-            onClick={() => aoMudar(o.valor)}
-            className={cn(
-              'min-h-9 rounded-full border px-3.5 text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
-              ativo ? 'border-brand bg-brand text-white' : 'border-gray-200 bg-card text-gray-700 hover:bg-gray-50',
-            )}
-          >
-            {o.rotulo}
-          </button>
-        );
-      })}
-    </div>
-  </fieldset>
-);
 
 const ReservasCelular = ({
   reservas,

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, DollarSign, TrendingUp, BarChart3, Calendar } from 'lucide-react';
+import { ArrowLeft, Plus, DollarSign, TrendingUp, BarChart3, Calendar, Receipt } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -16,6 +16,7 @@ import FaixaResumo from '@/components/comum/FaixaResumo';
 import { formatarMoedaSemCentavos } from '@/components/comum/formatos';
 import { useEhCompacto } from '@/hooks/useMidia';
 import { HistoricoInvestimentosCelular, percentualROI } from '@/components/investments/InvestimentosCelular';
+import { AJUDA_ROI_IMOVEL, NOTA_ACUMULADO } from '@/components/investments/carteira';
 import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 
 const PropertyInvestmentDetailPage = () => {
@@ -58,7 +59,7 @@ const PropertyInvestmentDetailPage = () => {
     fetchProperty();
   }, [propertyId]);
 
-  const handleCreateInvestment = async (investmentData: any) => {
+  const handleCreateInvestment = async (investmentData: Parameters<typeof createInvestment>[0]) => {
     await createInvestment({ ...investmentData, property_id: propertyId });
     await refetchROI();
     setFormOpen(false);
@@ -149,12 +150,17 @@ const PropertyInvestmentDetailPage = () => {
               Novo
             </Button>
           }
+          ajuda={propertyROI ? AJUDA_ROI_IMOVEL : undefined}
+          colunasApoio={2}
           apoio={propertyROI ? [
             { rotulo: 'Investido', valor: formatarMoedaSemCentavos(propertyROI.total_investment) },
-            { rotulo: 'Receita líq.', valor: formatarMoedaSemCentavos(propertyROI.net_revenue), tom: propertyROI.net_revenue >= 0 ? 'success' : 'danger' },
+            { rotulo: 'Receita líq. acumulada', valor: formatarMoedaSemCentavos(propertyROI.total_revenue) },
+            { rotulo: 'Retorno líquido', valor: formatarMoedaSemCentavos(propertyROI.net_revenue), tom: propertyROI.net_revenue >= 0 ? 'success' : 'danger' },
             { rotulo: 'Payback', valor: formatPaybackTime(propertyROI.payback_months) },
           ] : []}
-        />
+        >
+          {propertyROI && <p className="mt-2.5 text-xs text-gray-500">{NOTA_ACUMULADO}</p>}
+        </FaixaResumo>
 
         <HistoricoInvestimentosCelular
           investments={investments}
@@ -217,11 +223,12 @@ const PropertyInvestmentDetailPage = () => {
 
         {/* KPIs Específicos da Propriedade */}
         {propertyROI && (
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-6 [&>*]:min-w-0">
+          <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-6 2xl:grid-cols-5 [&>*]:min-w-0">
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-gray-600">
-                  Investimento Total
+                  Investido
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -237,13 +244,29 @@ const PropertyInvestmentDetailPage = () => {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-gray-600">
-                  Receita Líquida
+                  Receita líquida acumulada
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-success-500" />
-                  <span className="break-words font-mono text-lg font-semibold tabular-nums sm:text-xl text-success-600">
+                  <Receipt className="h-5 w-5 text-info-500" />
+                  <span className="break-words font-mono text-lg font-semibold tabular-nums sm:text-xl text-info-600">
+                    {formatCurrency(propertyROI.total_revenue)}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-gray-600">
+                  Retorno líquido
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-2">
+                  <TrendingUp className={`h-5 w-5 ${propertyROI.net_revenue >= 0 ? 'text-success-500' : 'text-danger-500'}`} />
+                  <span className={`break-words font-mono text-lg font-semibold tabular-nums sm:text-xl ${propertyROI.net_revenue >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
                     {formatCurrency(propertyROI.net_revenue)}
                   </span>
                 </div>
@@ -283,6 +306,8 @@ const PropertyInvestmentDetailPage = () => {
                 </div>
               </CardContent>
             </Card>
+          </div>
+          <p className="text-xs text-gray-500">{NOTA_ACUMULADO}</p>
           </div>
         )}
 

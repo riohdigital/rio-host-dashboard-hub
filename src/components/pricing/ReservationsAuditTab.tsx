@@ -27,11 +27,11 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables } from '@/integrations/supabase/types';
 import { useToast } from '@/hooks/use-toast';
-import { useListaCurta } from '@/components/comum/useListaCurta';
-import VerTodos from '@/components/comum/VerTodos';
+import { useEhCompacto } from '@/hooks/useMidia';
 import { Property } from '@/types/property';
 import { formatLocalDate } from '@/utils/dateUtils';
 import { fetchN8n } from '@/lib/n8n';
+import AuditoriaCelular from './AuditoriaCelular';
 
 interface ReservationsAuditTabProps {
   propertyId: string;
@@ -45,7 +45,7 @@ interface ReservationsAuditTabProps {
 }
 
 /** Linha de reserva da consulta abaixo, com o imóvel junto. */
-type ReservaAuditada = Tables<'reservations'> & {
+export type ReservaAuditada = Tables<'reservations'> & {
   // Colunas da auditoria, ainda fora dos tipos gerados do Supabase.
   is_verified_by_ai?: boolean | null;
   verified_at?: string | null;
@@ -53,6 +53,9 @@ type ReservaAuditada = Tables<'reservations'> & {
   platform_verified_data?: unknown;
   properties?: { id: string; name: string; nickname: string | null } | null;
 };
+
+/** Quantas reservas a aba carrega: as lançadas mais recentemente no filtro. */
+const LIMITE = 50;
 
 const brl = (v: unknown) => Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -67,8 +70,8 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
   const [loading, setLoading] = useState(true);
   const [auditingIds, setAuditingIds] = useState<Record<string, boolean>>({});
   const [selectedModalRes, setSelectedModalRes] = useState<ReservaAuditada | null>(null);
-  // Celular: 10 reservas por vez (regra 5); o computador vê todas
-  const listaCurta = useListaCurta(reservations, 10, { soCompacto: true });
+  // Celular (abaixo de 1024px): linhas por mês + folha de detalhes (AuditoriaCelular); o computador não muda
+  const compacto = useEhCompacto();
   // hotel_id da Booking por imóvel: sem ele o link da extranet dá erro 400.
   const [bookingHotelIds, setBookingHotelIds] = useState<Record<string, string>>({});
 
@@ -118,7 +121,7 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
           )
         `)
         .order('created_at', { ascending: false })
-        .limit(50);
+        .limit(LIMITE);
 
       if (propertyId !== 'todas') {
         query = query.eq('property_id', propertyId);
@@ -174,10 +177,13 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
     };
   }, [propertyId]);
 
-  const handleAuditSingle = async (e: React.MouseEvent, res: ReservaAuditada) => {
+  const handleAuditSingle = (e: React.MouseEvent, res: ReservaAuditada) => {
     e.preventDefault();
     e.stopPropagation();
+    return auditar(res);
+  };
 
+  const auditar = async (res: ReservaAuditada) => {
     // 1. Marca imediatamente a reserva como sendo auditada no estado local
     setAuditingIds(prev => ({ ...prev, [res.id]: true }));
 
@@ -278,6 +284,24 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
   const verifiedCount = reservations.filter(r => r.is_verified_by_ai).length;
   const pendingCount = reservations.length - verifiedCount;
 
+  const nomeDoImovel = (res: ReservaAuditada) =>
+    res.properties?.nickname || res.properties?.name || selectedProperty?.nickname || selectedProperty?.name || 'Imóvel';
+
+  if (compacto) {
+    return (
+      <AuditoriaCelular
+        reservas={reservations}
+        carregando={loading}
+        limite={LIMITE}
+        auditando={auditingIds}
+        aoAuditar={auditar}
+        nomeDoImovel={nomeDoImovel}
+        linkDoPortal={(res) => getPlatformDirectUrl(res.platform, res.reservation_code, res.property_id)}
+        linkDosRepasses={(res) => getPlatformPayoutUrl(res.platform, res.check_out_date)}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Top Banner com Estatísticas de Auditoria */}
@@ -316,7 +340,7 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
         </div>
       ) : (
         <div className="space-y-3">
-          {listaCurta.visiveis.map(res => {
+          {reservations.map(res => {
             const isVerified = !!res.is_verified_by_ai;
             const isAuditing = !!auditingIds[res.id];
             const isAirbnb = res.platform?.toLowerCase() === 'airbnb';
@@ -497,15 +521,6 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
               </Card>
             );
           })}
-          {listaCurta.temMais && (
-            <VerTodos
-              semFio
-              total={listaCurta.total}
-              expandido={listaCurta.expandido}
-              aoClicar={listaCurta.alternar}
-              className="rounded-2xl border bg-card"
-            />
-          )}
         </div>
       )}
 

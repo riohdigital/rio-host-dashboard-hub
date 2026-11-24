@@ -4,7 +4,6 @@ import PageHeader from '@/components/comum/PageHeader';
 import JanelaResponsiva from '@/components/comum/JanelaResponsiva';
 import { CartaoIndicador } from '@/components/comum/CartaoIndicador';
 import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
-import { useDateRange } from '@/hooks/dashboard/useDateRange';
 import { usePageVisibility } from '@/hooks/usePageVisibility';
 import { TrendingUp, DollarSign, Plus, BarChart3, AlertTriangle, Receipt } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,25 +17,23 @@ import { usePropertyInvestments } from '@/hooks/investments/usePropertyInvestmen
 import { useROICalculations } from '@/hooks/investments/useROICalculations';
 import { supabase } from '@/integrations/supabase/client';
 import { Property } from '@/types/property';
-import { Reservation } from '@/types/reservation';
 import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import FaixaResumo from '@/components/comum/FaixaResumo';
 import { formatarMoedaSemCentavos } from '@/components/comum/formatos';
 import { useEhCompacto } from '@/hooks/useMidia';
 import { HistoricoInvestimentosCelular, PorImovelCelular, percentualROI } from '@/components/investments/InvestimentosCelular';
+import { AJUDA_ROI_CARTEIRA, NOTA_ACUMULADO, resumirCarteira } from '@/components/investments/carteira';
+import AjudaInfo from '@/components/comum/AjudaInfo';
 
 const InvestmentsPage = () => {
   const [properties, setProperties] = useState<Property[]>([]);
-  const [reservations, setReservations] = useState<Reservation[]>([]);
   const [propertiesLoading, setPropertiesLoading] = useState(true);
-  const [reservationsLoading, setReservationsLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const { investments, loading: investmentsLoading, createInvestment, deleteInvestment } = usePropertyInvestments();
   const { roiData, loading: roiLoading, refetch: refetchROI } = useROICalculations();
   const { hasPermission, getAccessibleProperties, loading: permissionsLoading } = useUserPermissions();
-  const { selectedProperties, selectedPeriod, customStartDate, customEndDate } = useGlobalFilters();
-  const { startDateString, endDateString } = useDateRange(selectedPeriod, customStartDate, customEndDate);
+  const { selectedProperties } = useGlobalFilters();
   const { isVisible, shouldRefetch } = usePageVisibility();
   // Celular (abaixo de 1024px): desenho da T10 do plano; o computador não muda
   const compacto = useEhCompacto();
@@ -73,12 +70,11 @@ const InvestmentsPage = () => {
     }
   }, [permissionsLoading, getAccessibleProperties]);
 
-  // Effect para refetch quando página volta a ficar visível
+  // Ao voltar para a página depois de um tempo fora, recarrega os imóveis
   useEffect(() => {
     if (isVisible && shouldRefetch() && !permissionsLoading) {
-      // Re-fetch data when page becomes visible after being hidden
       const accessibleProperties = getAccessibleProperties();
-      
+
       const refetchProperties = async () => {
         try {
           let query = supabase
@@ -98,107 +94,12 @@ const InvestmentsPage = () => {
         }
       };
 
-      const refetchReservations = async () => {
-        try {
-          let query = supabase
-            .from('reservations')
-            .select('*')
-            .order('check_in_date', { ascending: false });
-
-          if (selectedPeriod !== 'general') {
-            query = query
-              .gte('check_in_date', startDateString)
-              .lte('check_out_date', endDateString);
-          }
-
-          if (accessibleProperties.length > 0) {
-            query = query.in('property_id', accessibleProperties);
-          }
-
-          const { data, error } = await query;
-          if (error) throw error;
-          setReservations(data || []);
-        } catch (error) {
-          console.error('Erro ao carregar reservations:', error);
-        }
-      };
-
       setPropertiesLoading(true);
-      setReservationsLoading(true);
-      Promise.all([refetchProperties(), refetchReservations()]).finally(() => {
-        setPropertiesLoading(false);
-        setReservationsLoading(false);
-      });
+      refetchProperties().finally(() => setPropertiesLoading(false));
     }
   }, [isVisible]);
 
-// Carregar reservations
-useEffect(() => {
-  const fetchReservations = async () => {
-    try {
-      const accessibleProperties = getAccessibleProperties();
-      let query = supabase
-        .from('reservations')
-        .select('*')
-        .order('check_in_date', { ascending: false });
-
-      if (selectedPeriod !== 'general') {
-        query = query
-          .gte('check_in_date', startDateString)
-          .lte('check_out_date', endDateString);
-      }
-
-      if (accessibleProperties.length > 0) {
-        query = query.in('property_id', accessibleProperties);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      setReservations(data || []);
-    } catch (error) {
-      console.error('Erro ao carregar reservations:', error);
-    } finally {
-      setReservationsLoading(false);
-    }
-  };
-
-  if (!permissionsLoading) {
-    fetchReservations();
-  }
-}, [permissionsLoading, getAccessibleProperties]);
-
-// Refetch automático ao alterar período global
-useEffect(() => {
-  if (!permissionsLoading) {
-    (async () => {
-      try {
-        setReservationsLoading(true);
-        const accessibleProperties = getAccessibleProperties();
-        let query = supabase
-          .from('reservations')
-          .select('*')
-          .order('check_in_date', { ascending: false });
-        if (selectedPeriod !== 'general') {
-          query = query
-            .gte('check_in_date', startDateString)
-            .lte('check_out_date', endDateString);
-        }
-        if (accessibleProperties.length > 0) {
-          query = query.in('property_id', accessibleProperties);
-        }
-        const { data, error } = await query;
-        if (error) throw error;
-        setReservations(data || []);
-      } catch (error) {
-        console.error('Erro ao recarregar reservations:', error);
-      } finally {
-        setReservationsLoading(false);
-      }
-    })();
-  }
-}, [selectedPeriod, startDateString, endDateString, permissionsLoading, getAccessibleProperties, customStartDate, customEndDate]);
-
-  const handleCreateInvestment = async (investmentData: any) => {
+  const handleCreateInvestment = async (investmentData: Parameters<typeof createInvestment>[0]) => {
     await createInvestment(investmentData);
     await refetchROI();
     setFormOpen(false);
@@ -218,18 +119,10 @@ useEffect(() => {
     ? investments
     : investments.filter(inv => selectedProperties.includes(inv.property_id));
 
-  const filteredReservations = selectedProperties.includes('todas')
-    ? reservations
-    : reservations.filter(res => selectedProperties.includes(res.property_id || ''));
-
-  // Calcular estatísticas gerais (baseadas nos dados filtrados)
-  const totalGrossRevenue = filteredReservations.reduce((sum, res) => sum + (res.net_revenue || 0), 0);
-  const totalInvestment = filteredInvestments.reduce((sum, inv) => sum + Number(inv.amount), 0);
-  const totalNetRevenue = totalGrossRevenue - totalInvestment;
-  const averageROI = filteredROIData.length > 0 
-    ? filteredROIData.reduce((sum, roi) => sum + roi.roi_percentage, 0) / filteredROIData.length 
-    : 0;
-  const profitableProperties = filteredROIData.filter(roi => roi.is_profitable).length;
+  // Faixa de resumo: a mesma fonte das linhas por imóvel (useROICalculations).
+  // Tudo acumulado; o período do filtro não entra (ver carteira.ts).
+  const carteira = resumirCarteira(filteredROIData);
+  const lucrativos = `${carteira.lucrativos} de ${carteira.imoveis}`;
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -238,7 +131,7 @@ useEffect(() => {
     }).format(value);
   };
 
-  const totalLoading = investmentsLoading || roiLoading || permissionsLoading || propertiesLoading || reservationsLoading;
+  const totalLoading = investmentsLoading || roiLoading || permissionsLoading || propertiesLoading;
 
   if (totalLoading) {
     return (
@@ -288,22 +181,26 @@ useEffect(() => {
         <h1 className="sr-only">Investimentos & ROI</h1>
         {formulario}
         <FaixaResumo
-          rotulo="ROI médio"
-          valor={percentualROI(averageROI)}
-          tomValor={averageROI >= 0 ? 'neutro' : 'danger'}
-          ajuda={`Média do ROI dos imóveis com investimento. Receita líquida = receita bruta do período (${formatarMoedaSemCentavos(totalGrossRevenue)}) menos o investido.`}
+          rotulo="ROI da carteira"
+          valor={percentualROI(carteira.roi)}
+          tomValor={carteira.roi >= 0 ? 'neutro' : 'danger'}
+          ajuda={AJUDA_ROI_CARTEIRA}
           acao={canCreateInvestments ? (
             <Button onClick={() => setFormOpen(true)} className="min-h-11 gap-1.5 rounded-full px-4">
               <Plus className="h-[18px] w-[18px]" aria-hidden="true" />
               Novo
             </Button>
           ) : undefined}
+          colunasApoio={2}
           apoio={[
-            { rotulo: 'Investido', valor: formatarMoedaSemCentavos(totalInvestment) },
-            { rotulo: 'Receita líq.', valor: formatarMoedaSemCentavos(totalNetRevenue), tom: totalNetRevenue >= 0 ? 'success' : 'danger' },
-            { rotulo: 'Lucrativos', valor: `${profitableProperties} de ${filteredROIData.length}` },
+            { rotulo: 'Investido', valor: formatarMoedaSemCentavos(carteira.investido) },
+            { rotulo: 'Receita líq. acumulada', valor: formatarMoedaSemCentavos(carteira.receitaLiquida) },
+            { rotulo: 'Retorno líquido', valor: formatarMoedaSemCentavos(carteira.retornoLiquido), tom: carteira.retornoLiquido >= 0 ? 'success' : 'danger' },
+            { rotulo: 'Lucrativos', valor: lucrativos },
           ]}
-        />
+        >
+          <p className="mt-2.5 text-xs text-gray-500">{NOTA_ACUMULADO}</p>
+        </FaixaResumo>
         <PorImovelCelular roiData={filteredROIData} podeGerenciar={canCreateInvestments} />
         <HistoricoInvestimentosCelular
           recolhido
@@ -332,25 +229,34 @@ useEffect(() => {
 
         {formulario}
 
-        {/* Resumo: ROI em destaque */}
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-4 2xl:grid-cols-5">
-          <CartaoIndicador
-            className="col-span-2 border-brand-200 bg-brand-50/60 lg:col-span-1"
-            titulo="ROI Médio"
-            valor={`${averageROI.toFixed(1)}%`}
-            icone={BarChart3}
-            tom={averageROI >= 0 ? 'brand' : 'danger'}
-            detalhe={`${profitableProperties}/${filteredROIData.length} propriedades lucrativas`}
-          />
-          <CartaoIndicador titulo="Receita Bruta Total" valor={formatCurrency(totalGrossRevenue)} icone={Receipt} tom="info" />
-          <CartaoIndicador titulo="Investimento Total" valor={formatCurrency(totalInvestment)} icone={DollarSign} tom="danger" />
-          <CartaoIndicador
-            titulo="Receita Líquida Total"
-            valor={formatCurrency(totalNetRevenue)}
-            icone={TrendingUp}
-            tom={totalNetRevenue >= 0 ? 'success' : 'danger'}
-          />
-          <CartaoIndicador titulo="Propriedades Lucrativas" valor={`${profitableProperties}/${filteredROIData.length}`} icone={TrendingUp} tom="neutro" />
+        {/* Resumo: ROI da carteira em destaque; os mesmos números da faixa do celular */}
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-4 2xl:grid-cols-5">
+            <CartaoIndicador
+              className="col-span-2 border-brand-200 bg-brand-50/60 lg:col-span-1"
+              titulo={
+                <span className="inline-flex items-center gap-1.5">
+                  ROI da carteira
+                  <AjudaInfo titulo="ROI da carteira" rotulo="Como o ROI da carteira é calculado">{AJUDA_ROI_CARTEIRA}</AjudaInfo>
+                </span>
+              }
+              valor={percentualROI(carteira.roi)}
+              icone={BarChart3}
+              tom={carteira.roi >= 0 ? 'brand' : 'danger'}
+              detalhe="Ponderado pelo valor investido"
+            />
+            <CartaoIndicador titulo="Investido" valor={formatCurrency(carteira.investido)} icone={DollarSign} tom="danger" />
+            <CartaoIndicador titulo="Receita líquida acumulada" valor={formatCurrency(carteira.receitaLiquida)} icone={Receipt} tom="info" />
+            <CartaoIndicador
+              titulo="Retorno líquido"
+              valor={formatCurrency(carteira.retornoLiquido)}
+              icone={TrendingUp}
+              tom={carteira.retornoLiquido >= 0 ? 'success' : 'danger'}
+              detalhe="Receita líquida acumulada − investido"
+            />
+            <CartaoIndicador titulo="Lucrativos" valor={lucrativos} icone={TrendingUp} tom="neutro" detalhe="Imóveis que já recuperaram o investido" />
+          </div>
+          <p className="text-xs text-gray-500">{NOTA_ACUMULADO}</p>
         </div>
 
         {/* Resumo por Propriedade */}
