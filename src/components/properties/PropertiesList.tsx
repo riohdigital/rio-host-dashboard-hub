@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import JanelaResponsiva from "@/components/comum/JanelaResponsiva";
 import { Badge } from "@/components/ui/badge";
-import { Plus, MapPin, Users, DollarSign, Link2, Trash2, Edit, Home } from 'lucide-react';
+import { Plus, MapPin, Users, DollarSign, Link2, Trash2, Edit, Home, FolderOpen, Building2, ChevronRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useUserPermissions } from '@/contexts/UserPermissionsContext';
@@ -15,6 +15,9 @@ import { BotaoExcluir } from '@/components/comum/FolhaDetalhes';
 import { useEhCompacto } from '@/hooks/useMidia';
 import { Property } from '@/types/property';
 import { useItemAberto } from '@/hooks/useItemAberto';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
+import AbasRolaveis from '@/components/comum/AbasRolaveis';
+import DocumentosImoveis, { TODOS_OS_IMOVEIS } from '@/components/documentos/DocumentosImoveis';
 
 const PropertiesList = () => {
   const [properties, setProperties] = useState<Property[]>([]);
@@ -29,6 +32,14 @@ const PropertiesList = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const editarId = searchParams.get('editar');
   const compacto = useEhCompacto();
+  // Aba Imóveis | Documentos e o imóvel escolhido nos documentos: voltam ao recarregar
+  const [aba, setAba] = useEstadoPersistente<'imoveis' | 'documentos'>('imoveis.aba', 'imoveis', { aceita: ['imoveis', 'documentos'] });
+  const [filtroDocumentos, setFiltroDocumentos] = useEstadoPersistente('documentos.imovel', TODOS_OS_IMOVEIS);
+  const verDocumentos = (imovelId: string) => {
+    setFiltroDocumentos(imovelId);
+    setAba('documentos');
+    janelaCadastro.limpar();
+  };
 
   useEffect(() => {
     fetchProperties();
@@ -173,6 +184,20 @@ const PropertiesList = () => {
       telaCheia
       largura="xl"
     >
+      {editingProperty && (
+        <button
+          type="button"
+          onClick={() => verDocumentos(editingProperty.id)}
+          className="mb-4 flex w-full items-center gap-3 rounded-2xl border bg-card px-3.5 py-3 text-left transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        >
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand"><FolderOpen className="h-[18px] w-[18px]" aria-hidden="true" /></span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold text-ink">Documentos deste imóvel</span>
+            <span className="block text-xs text-gray-500">Dedetização, contratos, seguros e outros arquivos</span>
+          </span>
+          <ChevronRight className="h-4 w-4 shrink-0 text-gray-400" aria-hidden="true" />
+        </button>
+      )}
       <PropertyForm
         property={editingProperty}
         onSuccess={handleSuccess}
@@ -193,24 +218,59 @@ const PropertiesList = () => {
     </JanelaResponsiva>
   );
 
+  const abas = (
+    <AbasRolaveis
+      rotulo="Propriedades"
+      valor={aba}
+      aoMudar={(v) => setAba(v === 'documentos' ? 'documentos' : 'imoveis')}
+      itens={[
+        { valor: 'imoveis', rotulo: 'Imóveis', icone: Building2, contagem: properties.length },
+        { valor: 'documentos', rotulo: 'Documentos', icone: FolderOpen },
+      ]}
+    />
+  );
+
+  const documentos = (
+    <DocumentosImoveis
+      imoveis={properties}
+      podeEditar={podeEditar}
+      filtroImovel={filtroDocumentos}
+      aoMudarFiltroImovel={setFiltroDocumentos}
+    />
+  );
+
   // Celular e tablet: desenho novo (T5); o computador continua como está
   if (compacto) {
     return (
-      <>
-        <PropriedadesCelular
-          imoveis={properties}
-          podeCriar={hasPermission('properties_create')}
-          podeAbrir={(p) => podeEditar(p.id)}
-          aoNova={() => janelaCadastro.abrir(null)}
-          aoAbrir={handleEdit}
-        />
+      <div className="grid min-w-0 grid-cols-1 gap-3">
+        {abas}
+        {aba === 'documentos' ? documentos : (
+          <PropriedadesCelular
+            imoveis={properties}
+            podeCriar={hasPermission('properties_create')}
+            podeAbrir={(p) => podeEditar(p.id)}
+            aoNova={() => janelaCadastro.abrir(null)}
+            aoAbrir={handleEdit}
+          />
+        )}
         {janela}
-      </>
+      </div>
+    );
+  }
+
+  if (aba === 'documentos') {
+    return (
+      <div className="space-y-6">
+        {abas}
+        {documentos}
+        {janela}
+      </div>
     );
   }
 
   return (
     <div className="space-y-6">
+      {abas}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="font-display text-xl font-bold text-ink sm:text-2xl">Minhas Propriedades</h2>
@@ -315,6 +375,11 @@ const PropertiesList = () => {
                     </div>
                   )}
                 </div>
+
+                <Button variant="outline" size="sm" onClick={() => verDocumentos(property.id)} className="w-full gap-2">
+                  <FolderOpen className="h-4 w-4" />
+                  Documentos
+                </Button>
 
                 {(property.airbnb_link || property.booking_link) && (
                   <div className="flex gap-2 pt-2 border-t">
