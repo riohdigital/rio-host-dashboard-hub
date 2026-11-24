@@ -77,9 +77,9 @@ const PropertyInvestmentSummaryTable = ({ roiData, loading }: PropertyInvestment
           <TableHeader>
             <TableRow>
               <TableHead>Propriedade</TableHead>
-              <TableHead className="text-right">Receita Bruta</TableHead>
-              <TableHead className="text-right">Investimento</TableHead>
-              <TableHead className="text-right">Receita Líquida</TableHead>
+              <TableHead className="text-right">Receita líquida</TableHead>
+              <TableHead className="text-right">Investido</TableHead>
+              <TableHead className="text-right">Retorno líquido</TableHead>
               <TableHead className="text-center">ROI</TableHead>
               <TableHead className="text-center">Recuperação</TableHead>
               {hasPermission('investments_create') && <TableHead className="text-center">Ações</TableHead>}

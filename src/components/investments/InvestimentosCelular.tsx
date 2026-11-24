@@ -21,6 +21,7 @@ import VerTodos from '@/components/comum/VerTodos';
 import { useListaCurta } from '@/components/comum/useListaCurta';
 import { formatarData, formatarMoeda, formatarMoedaSemCentavos } from '@/components/comum/formatos';
 import type { PropertyInvestment, PropertyROI } from '@/types/investment';
+import { AJUDA_ROI_IMOVEL } from './carteira';
 
 export const percentualROI = (v: number) => `${v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 
@@ -33,7 +34,7 @@ interface PorImovelProps {
 }
 
 export const PorImovelCelular = ({ roiData, podeGerenciar }: PorImovelProps) => (
-  <Bloco titulo="Por imóvel" extra="ROI" compacto>
+  <Bloco titulo="Por imóvel" extra="ROI" ajuda={AJUDA_ROI_IMOVEL} compacto>
     {roiData.length === 0 ? (
       <p className="py-3 text-sm text-gray-500">Adicione investimentos aos imóveis para ver o retorno de cada um aqui.</p>
     ) : (
@@ -44,7 +45,13 @@ export const PorImovelCelular = ({ roiData, podeGerenciar }: PorImovelProps) => 
             icone={Building2}
             tomIcone={roi.is_profitable ? 'success' : 'warning'}
             titulo={roi.property_nickname || roi.property_name}
-            subtitulo={`Investido ${formatarMoedaSemCentavos(roi.total_investment)} · receita ${formatarMoedaSemCentavos(roi.total_revenue)}`}
+            subtitulo={
+              // Duas linhas curtas: numa só, a receita era cortada com reticências
+              <>
+                <span className="block truncate">Investido {formatarMoedaSemCentavos(roi.total_investment)}</span>
+                <span className="block truncate">Receita líq. {formatarMoedaSemCentavos(roi.total_revenue)}</span>
+              </>
+            }
             valor={percentualROI(roi.roi_percentage)}
             legenda={roi.is_profitable ? 'Lucrativo' : 'A recuperar'}
             tomLegenda={roi.is_profitable ? 'success' : 'warning'}

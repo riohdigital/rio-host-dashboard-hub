@@ -10,6 +10,8 @@
  * Os valores chegam já formatados (formatarMoeda/formatarMoedaSemCentavos).
  *
  * `acao`: um botão à direita do destaque (ex.: "+ Novo"), no lugar da tendência.
+ * `colunasApoio`: quebra os apoios em linhas (ex.: 4 apoios em 2 colunas),
+ * para valores longos que não cabem lado a lado em 360px.
  */
 import React from 'react';
 import { cn } from '@/lib/utils';
@@ -32,6 +34,8 @@ interface FaixaResumoProps {
   tomValor?: Tom;
   /** De 2 a 4 números de apoio */
   apoio?: ValorApoio[];
+  /** Colunas da grade de apoios; padrão: todos numa linha só */
+  colunasApoio?: number;
   /** Valores para a mini-linha ao lado do destaque (ex.: últimos 6 meses) */
   tendencia?: number[];
   /** Texto de ajuda atrás do ícone "i" */
@@ -43,7 +47,7 @@ interface FaixaResumoProps {
   className?: string;
 }
 
-const FaixaResumo = ({ rotulo, valor, tomValor = 'neutro', apoio = [], tendencia, ajuda, children, acao, className }: FaixaResumoProps) => (
+const FaixaResumo = ({ rotulo, valor, tomValor = 'neutro', apoio = [], colunasApoio, tendencia, ajuda, children, acao, className }: FaixaResumoProps) => (
   <section className={cn('min-w-0 rounded-2xl border bg-card p-3.5 shadow-sm', className)}>
     <div className="flex items-end justify-between gap-3">
       <div className="min-w-0">
@@ -62,7 +66,7 @@ const FaixaResumo = ({ rotulo, valor, tomValor = 'neutro', apoio = [], tendencia
     {apoio.length > 0 && (
       <dl
         className="mt-3 grid gap-2.5 border-t border-gray-100 pt-3"
-        style={{ gridTemplateColumns: `repeat(${apoio.length}, minmax(0, 1fr))` }}
+        style={{ gridTemplateColumns: `repeat(${colunasApoio ?? apoio.length}, minmax(0, 1fr))` }}
       >
         {apoio.map((a, i) => (
           <div key={i} className="min-w-0">
