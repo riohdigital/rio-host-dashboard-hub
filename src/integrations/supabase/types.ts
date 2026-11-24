@@ -566,6 +566,33 @@ export type Database = {
         }
         Relationships: []
       }
+      document_categories: {
+        Row: {
+          created_at: string
+          default_validity_months: number | null
+          description: string | null
+          id: string
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          default_validity_months?: number | null
+          description?: string | null
+          id?: string
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          default_validity_months?: number | null
+          description?: string | null
+          id?: string
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       email_templates: {
         Row: {
           body_html: string
@@ -1036,6 +1063,95 @@ export type Database = {
           status?: string
         }
         Relationships: []
+      }
+      property_documents: {
+        Row: {
+          ai_cost: number | null
+          ai_error: string | null
+          ai_model: string | null
+          ai_read_at: string | null
+          ai_status: string
+          amount: number | null
+          category: string
+          content_text: string | null
+          created_at: string
+          created_by: string | null
+          document_date: string | null
+          expires_at: string | null
+          expires_estimated: boolean
+          file_name: string | null
+          file_path: string
+          file_size: number | null
+          id: string
+          mime_type: string | null
+          notes: string | null
+          property_id: string
+          provider: string | null
+          summary: string | null
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          ai_cost?: number | null
+          ai_error?: string | null
+          ai_model?: string | null
+          ai_read_at?: string | null
+          ai_status?: string
+          amount?: number | null
+          category?: string
+          content_text?: string | null
+          created_at?: string
+          created_by?: string | null
+          document_date?: string | null
+          expires_at?: string | null
+          expires_estimated?: boolean
+          file_name?: string | null
+          file_path: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          notes?: string | null
+          property_id: string
+          provider?: string | null
+          summary?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ai_cost?: number | null
+          ai_error?: string | null
+          ai_model?: string | null
+          ai_read_at?: string | null
+          ai_status?: string
+          amount?: number | null
+          category?: string
+          content_text?: string | null
+          created_at?: string
+          created_by?: string | null
+          document_date?: string | null
+          expires_at?: string | null
+          expires_estimated?: boolean
+          file_name?: string | null
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          notes?: string | null
+          property_id?: string
+          provider?: string | null
+          summary?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_documents_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       property_calendar_prices: {
         Row: {

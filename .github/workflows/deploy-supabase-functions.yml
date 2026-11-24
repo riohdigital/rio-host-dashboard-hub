@@ -1,4 +1,4 @@
-# Publica as Edge Functions de sincronização de reservas no Supabase.
+# Publica as Edge Functions do Supabase (sincronização de reservas e leitura de documentos).
 #
 # Serve para quem não usa terminal: basta abrir a aba Actions do GitHub,
 # escolher este workflow e clicar em "Run workflow".
@@ -70,6 +70,15 @@ jobs:
       - name: Publicar import-platform-statement
         run: |
           supabase functions deploy import-platform-statement \
+            --project-ref "$PROJECT_REF" \
+            --no-verify-jwt \
+            --yes
+
+      # Lê documentos dos imóveis com IA (OpenRouter). Confere o login de quem
+      # pediu e as regras do banco por conta própria.
+      - name: Publicar ler-documento
+        run: |
+          supabase functions deploy ler-documento \
             --project-ref "$PROJECT_REF" \
             --no-verify-jwt \
             --yes
