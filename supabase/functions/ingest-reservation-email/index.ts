@@ -303,8 +303,9 @@ async function registerBookingInvoice(admin: any, email: RawEmail, dryRun: boole
 
   return {
     ...base,
-    action: resultado.pagas ? 'updated' : 'skipped',
+    action: resultado.pagas || resultado.confirmadas ? 'updated' : 'skipped',
     reason: `NFS-e ${link.numero} (${resumo}): ${resultado.pagas} reserva(s) marcada(s) como paga(s)` +
+      (resultado.confirmadas ? `, ${resultado.confirmadas} já paga(s) pela data da plataforma confirmada(s) pela nota` : '') +
       (resultado.aprendido ? `. Código do Cliente ${nota.hotelId} gravado no imóvel` : '') +
       (resultado.divergencia ? `. Conferir: ${resultado.divergencia}` : ''),
   };

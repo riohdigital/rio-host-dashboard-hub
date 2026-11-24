@@ -99,7 +99,13 @@ nome da propriedade citado → semelhança de título (corte 0,6 com margem de
 0,15) → imóvel único. O que não resolve vira pergunta na tela, e a resposta é
 aprendida.
 
-**Pagamento e status são automáticos** (07/10/2026):
+**Pagamento e status são automáticos** (07/10/2026; regra da data da
+plataforma em 23/11/2026):
+
+O pagamento tem duas camadas. O **comprovante** continua valendo e é o sinal
+principal (os dois primeiros itens abaixo). A **data de pagamento da plataforma**
+é a rede de segurança para quando ele não chega (terceiro item) — antes dela, a
+reserva sem comprovante ficava "Pendente" para sempre.
 
 - *Airbnb* — o aviso "Enviamos um pagamento" grava os lançamentos em
   `automation_metadata.repasses` da reserva e marca como **Pago** (estadia curta:
@@ -121,6 +127,43 @@ aprendida.
   gravado no calendário dele (Rio Marina = 13783833; o Triplex = 15209784 não
   tem calendário da Booking, então é achado pela soma a cada nota)
   (`_shared/bookingInvoice.ts`).
+- *Data da plataforma* (23/11/2026) — a cada rodada do cron do iCal, logo
+  depois do status, a reserva **"Pendente"** em Confirmada / Em Andamento /
+  Finalizada cuja `payment_date` já chegou (dia de Brasília) vira **Pago**
+  (`_shared/stayPayment.ts`). A data é a coluna do banco, calculada pelo gatilho
+  `calculate_payment_date`: Airbnb = dia seguinte ao check-in; Booking.com =
+  dia 1º do mês seguinte ao check-out; Direto e as demais = dia do check-in
+  (a regra só é repetida no código para a linha sem `payment_date`).
+  - **Nunca toca**: "Atrasado" (é como o Dono marca que não recebeu), "Pago",
+    Cancelada e qualquer outro status de reserva.
+  - **Estadia longa do Airbnb** (R3): a linha só é paga pela regra quando cabe
+    inteira em um ciclo de repasse da estadia (as linhas do mesmo código que se
+    encostam formam a estadia). A linha que atravessa mais de um ciclo — estadia
+    ainda não dividida, ou a última parcela esticada por uma extensão — fica
+    "Pendente" até o aviso de repasse: o `payment_date` dela é o D+1 da entrada
+    e marcaria como recebidos meses que o Airbnb ainda não pagou. A resposta da
+    rodada conta essas linhas em `pagamentosAguardandoRepasse`.
+  - **Desfazer à mão vale**: a regra marca uma vez por data de pagamento. Se
+    alguém devolver para "Pendente" uma linha que ela marcou, ela não marca de
+    novo (só se a data de pagamento mudar). Para dizer "não recebi", o status
+    certo continua sendo "Atrasado".
+  - **Rastro** de que foi a regra e não um comprovante:
+    `automation_metadata.pagamento_automatico = { regra: 'data_da_plataforma',
+    em, data_pagamento }` e a marca `[Pago pela data da plataforma — AAAA-MM-DD]`
+    em `verification_notes`. A gravação exige que a linha ainda esteja
+    "Pendente" (mudança concorrente ganha) e só mexe nesses três campos, então
+    nenhum gatilho de `reservations` reage (auditoria: só INSERT ou UPDATE de
+    `reservation_status`; `payment_date`: datas e plataforma; financeiro:
+    valores).
+  - **O comprovante que chega depois continua funcionando**: o repasse do
+    Airbnb grava `automation_metadata.repasses` e o valor (reserva sem valor, ou
+    o ciclo da estadia longa) mesmo com a linha já paga; a NFS-e da Booking soma
+    todas as reservas ativas do mês, pagas ou não, para a conferência de
+    vendas − comissão, e acrescenta a marca da nota, uma vez, na reserva que a
+    regra pagou antes.
+  - A resposta da função traz `pagamentosAutomaticos` ao lado de
+    `statusAtualizados`. Falha nesta etapa não impede o status nem os
+    calendários.
 - *Status* — a cada rodada do cron do iCal, `Confirmada → Em Andamento` no
   horário de check-in e `→ Finalizada` no de check-out, horário de Brasília
   (reserva → padrão do imóvel → 15:00/11:00). Cancelada e outros status não
@@ -214,6 +257,26 @@ FROM channel_sync_runs ORDER BY started_at DESC LIMIT 20;
 SELECT kind, platform, summary, created_at
 FROM reservation_sync_pending WHERE status = 'pending'
 ORDER BY created_at DESC;
+
+-- Pagas pela data da plataforma (sem comprovante), da mais recente para a mais antiga
+SELECT COALESCE(p.nickname, p.name) AS propriedade, r.platform, r.reservation_code,
+       r.check_in_date, r.check_out_date, r.payment_date, r.payment_status,
+       r.automation_metadata->'pagamento_automatico'->>'em' AS marcada_em,
+       r.automation_metadata->'repasses' IS NOT NULL AS tem_repasse
+FROM reservations r
+LEFT JOIN properties p ON p.id = r.property_id
+WHERE r.automation_metadata ? 'pagamento_automatico'
+ORDER BY marcada_em DESC;
+
+-- Vencidas que seguem "Pendente" (estadia longa do Airbnb esperando o repasse, ou desfeitas à mão)
+SELECT COALESCE(p.nickname, p.name) AS propriedade, r.platform, r.reservation_code,
+       r.reservation_status, r.check_in_date, r.check_out_date, r.payment_date
+FROM reservations r
+LEFT JOIN properties p ON p.id = r.property_id
+WHERE r.payment_status = 'Pendente'
+  AND r.reservation_status IN ('Confirmada', 'Em Andamento', 'Finalizada')
+  AND r.payment_date <= (now() AT TIME ZONE 'America/Sao_Paulo')::date
+ORDER BY r.payment_date;
 ```
 
 Script de limpeza, caso apareçam duplicatas de calendário cruzado:

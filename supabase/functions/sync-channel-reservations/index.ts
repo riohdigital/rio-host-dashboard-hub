@@ -11,6 +11,10 @@
  *   - Usuário logado no app: POST com `Authorization: Bearer <jwt>`
  *
  * Corpo opcional: { sourceId?: string, propertyId?: string, force?: boolean }
+ *
+ * A rodada do cron também atualiza o status da estadia pela data
+ * (`_shared/stayStatus.ts`) e o pagamento pela regra da plataforma
+ * (`_shared/stayPayment.ts`).
  */
 
 // deno-lint-ignore-file no-explicit-any
@@ -29,6 +33,7 @@ import {
   type ReservationCandidate,
 } from '../_shared/reservationSync.ts';
 import { atualizarStatusPorData } from '../_shared/stayStatus.ts';
+import { marcarPagamentosPorRegra } from '../_shared/stayPayment.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -482,6 +487,24 @@ serve(async (req: Request): Promise<Response> => {
     }
   }
 
+  // Na mesma rodada: "Pendente" → "Pago" quando a data de pagamento da plataforma
+  // já chegou e nenhum comprovante marcou antes (stayPayment.ts). Em bloco
+  // próprio: falha aqui não pode impedir o status nem a leitura dos calendários.
+  let pagamentosAutomaticos = 0;
+  let pagamentosAguardandoRepasse = 0;
+  if (viaSecret) {
+    try {
+      const pagamentos = await marcarPagamentosPorRegra(admin);
+      pagamentosAutomaticos = pagamentos.marcadas;
+      pagamentosAguardandoRepasse = pagamentos.aguardandoRepasse;
+      if (pagamentosAutomaticos > 0) {
+        console.log(`Pagamento pela data da plataforma: ${pagamentosAutomaticos} reserva(s) marcada(s) como paga(s).`);
+      }
+    } catch (erro) {
+      console.error('Falha ao marcar pagamentos pela data da plataforma:', erro instanceof Error ? erro.message : erro);
+    }
+  }
+
   let query = admin
     .from('channel_sync_sources')
     .select('*')
@@ -505,6 +528,8 @@ serve(async (req: Request): Promise<Response> => {
       ok: true,
       message: 'Nenhuma fonte de sincronização ativa encontrada',
       statusAtualizados,
+      pagamentosAutomaticos,
+      pagamentosAguardandoRepasse,
       results: [],
     });
   }
@@ -546,5 +571,5 @@ serve(async (req: Request): Promise<Response> => {
     { created: 0, updated: 0, skipped: 0, pending: 0 },
   );
 
-  return jsonResponse({ ok: true, triggeredBy: userId ?? 'cron', totals, statusAtualizados, results });
+  return jsonResponse({ ok: true, triggeredBy: userId ?? 'cron', totals, statusAtualizados, pagamentosAutomaticos, pagamentosAguardandoRepasse, results });
 });
