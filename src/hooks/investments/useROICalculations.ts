@@ -47,7 +47,9 @@ export const useROICalculations = () => {
             .from('reservations')
             .select('net_revenue, total_revenue')
             .eq('property_id', property.id)
-            .not('net_revenue', 'is', null);
+            .not('net_revenue', 'is', null)
+            // Reserva cancelada não é receita (decisão do dono em 23/11/2026)
+            .or('reservation_status.is.null,reservation_status.neq.Cancelada');
 
           // Buscar despesas da propriedade
           const { data: expenses } = await supabase
