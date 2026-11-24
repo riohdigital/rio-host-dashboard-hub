@@ -111,7 +111,7 @@ const arredonda = (n: number) => Math.round(n * 100) / 100;
 async function reservasDoMes(admin: any, propertyId: string, nota: BookingInvoice): Promise<any[]> {
   const { data, error } = await admin
     .from('reservations')
-    .select('id, reservation_code, total_revenue, payment_status, reservation_status, verification_notes')
+    .select('id, reservation_code, total_revenue, payment_status, reservation_status, verification_notes, automation_metadata')
     .eq('platform', 'Booking.com')
     .eq('property_id', propertyId)
     .gte('check_out_date', nota.mesInicio)
@@ -127,6 +127,10 @@ const somaDoMes = (reservas: any[]) => arredonda(reservas.reduce((s, r) => s + N
  * confere os totais. Divergência não impede a marcação (a Booking fechou o mês),
  * mas vira pendência com os números para conferência.
  *
+ * A conferência soma todas as reservas ativas do mês, pagas ou não: a reserva
+ * que a regra da data da plataforma (stayPayment.ts) marcou antes de a nota
+ * chegar entra na soma do mesmo jeito e recebe a marca da nota (`confirmadas`).
+ *
  * Código do Cliente ainda desconhecido: entre os imóveis com saída da Booking no
  * mês e sem outro código cadastrado, o único cujo mês soma vendas − comissão é o
  * da nota, e o código passa a ficar gravado no calendário dele (Rio Marina =
@@ -136,7 +140,7 @@ export async function applyBookingInvoice(
   admin: any,
   numero: string,
   nota: BookingInvoice,
-): Promise<{ pagas: number; divergencia: string | null; propertyId: string | null; aprendido?: boolean }> {
+): Promise<{ pagas: number; confirmadas: number; divergencia: string | null; propertyId: string | null; aprendido?: boolean }> {
   // Sem as vendas (notas antigas) não há total para conferir nem para achar o imóvel.
   const esperado = nota.vendas === null ? null : arredonda(nota.vendas - nota.comissao);
   const conta = esperado === null
@@ -173,6 +177,7 @@ export async function applyBookingInvoice(
     if (candidatos.length !== 1) {
       return {
         pagas: 0,
+        confirmadas: 0,
         propertyId: null,
         divergencia: `NFS-e ${numero}: Código do Cliente ${nota.hotelId} não está cadastrado em nenhum imóvel da Booking ` +
           `(${conta}, saídas de ${nota.mesInicio} a ${nota.mesFim}).`,
@@ -194,10 +199,26 @@ export async function applyBookingInvoice(
     : null;
 
   let pagas = 0;
+  let confirmadas = 0;
   for (const r of ativas) {
-    if (r.payment_status === 'Pago') continue;
     const marca = `[Pago — NFS-e ${numero} da Booking, saídas de ${nota.mesInicio.slice(0, 7)}]`;
     const observacao = r.verification_notes ? `${r.verification_notes} ${marca}` : marca;
+
+    if (r.payment_status === 'Pago') {
+      // Paga antes da nota. Se foi pela data da plataforma (stayPayment.ts), a
+      // nota é o comprovante que faltava: a marca entra na observação, uma vez
+      // só, sem mexer em mais nada. Paga à mão ou por nota anterior: fica como está.
+      const pelaRegra = !!r.automation_metadata?.pagamento_automatico;
+      if (!pelaRegra || String(r.verification_notes ?? '').includes(`NFS-e ${numero} da Booking`)) continue;
+      const { error: e } = await admin
+        .from('reservations')
+        .update({ verification_notes: observacao })
+        .eq('id', r.id);
+      if (e) throw new Error(`Falha ao anotar a NFS-e em ${r.reservation_code}: ${e.message}`);
+      confirmadas++;
+      continue;
+    }
+
     const { error: e } = await admin
       .from('reservations')
       .update({ payment_status: 'Pago', verification_notes: observacao })
@@ -206,5 +227,5 @@ export async function applyBookingInvoice(
     pagas++;
   }
 
-  return { pagas, divergencia, propertyId, aprendido };
+  return { pagas, confirmadas, divergencia, propertyId, aprendido };
 }
