@@ -112,13 +112,24 @@ export function diferencaDeReceita(reserva: ReservaParaAuditoria, conferencia: C
   return Math.round((conferencia.receita - sistema) * 100) / 100;
 }
 
+/**
+ * Tolerância da conferência (decisão do dono em 23/11/2026): diferença de até
+ * R$ 1,00 entre o portal e o sistema é arredondamento e conta como conferida.
+ */
+export const TOLERANCIA_DE_DIFERENCA = 1;
+
+/** A diferença passa da tolerância (null e até R$ 1,00 não contam) */
+export function temDiferenca(diferenca: number | null): boolean {
+  return diferenca !== null && Math.abs(diferenca) > TOLERANCIA_DE_DIFERENCA;
+}
+
 /** A nota começa dizendo que a auditoria não rodou ou falhou */
 const NOTA_SEM_RESULTADO = /^\s*\[Auditoria (falhou|não executada)/i;
 
 /**
  * O resultado que vira etiqueta:
- *   conferida      conferida no portal, sem diferença de valor
- *   diferenca      conferida, mas o valor do portal não é o do sistema
+ *   conferida      conferida no portal, sem diferença de valor (até R$ 1,00 é tolerado)
+ *   diferenca      conferida, mas o valor do portal difere do sistema em mais de R$ 1,00
  *   nao_concluida  tentou auditar e não conseguiu (erro ou sem login)
  *   pendente       ainda não foi conferida
  */
@@ -126,7 +137,7 @@ export function resultadoDaAuditoria(reserva: ReservaParaAuditoria): ResultadoAu
   const conferencia = lerConferencia(reserva.platform_verified_data);
   if (reserva.is_verified_by_ai) {
     const diferenca = diferencaDeReceita(reserva, conferencia);
-    return diferenca !== null && diferenca !== 0 ? 'diferenca' : 'conferida';
+    return temDiferenca(diferenca) ? 'diferenca' : 'conferida';
   }
   if (conferencia?.falhou || NOTA_SEM_RESULTADO.test(reserva.verification_notes || '')) return 'nao_concluida';
   return 'pendente';

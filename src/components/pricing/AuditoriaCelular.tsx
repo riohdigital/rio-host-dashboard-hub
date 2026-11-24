@@ -28,6 +28,7 @@ import {
   ROTULO_DO_RESULTADO,
   TOM_DO_RESULTADO,
   diferencaDeReceita,
+  temDiferenca,
   lerConferencia,
   mesmoPeriodo,
   resultadoDaAuditoria,
@@ -107,7 +108,8 @@ const Comparacao = ({ leitura }: { leitura: Leitura }) => {
       portal: conferencia?.receita !== undefined ? formatarMoeda(conferencia.receita) : '—',
     },
   ];
-  if (diferenca !== null && diferenca !== 0) linhas.push({ rotulo: 'Diferença', sistema: '', portal: comSinal(diferenca), tom: 'warning' });
+  if (temDiferenca(diferenca)) linhas.push({ rotulo: 'Diferença', sistema: '', portal: comSinal(diferenca as number), tom: 'warning' });
+  else if (diferenca) linhas.push({ rotulo: 'Diferença (dentro da tolerância de R$ 1)', sistema: '', portal: comSinal(diferenca) });
   if (Number(reserva.cleaning_fee) > 0 || conferencia?.limpeza !== undefined) {
     linhas.push({
       rotulo: 'Limpeza',
@@ -329,7 +331,7 @@ const AuditoriaCelular = ({ reservas, carregando, limite, auditando, aoAuditar, 
           <>
             <p>Conferência no portal da plataforma, com o login salvo do anfitrião. A lista traz as {limite} reservas lançadas mais recentemente nos imóveis e no período do filtro.</p>
             <p className="mt-2">
-              <strong>Com diferença</strong>: o valor visto no portal não é o do sistema. <strong>Não concluída</strong>: a auditoria tentou e não conseguiu (sem login ou erro).
+              <strong>Com diferença</strong>: o valor visto no portal difere do sistema em mais de R$ 1,00 (até R$ 1,00 é arredondamento e conta como conferida). <strong>Não concluída</strong>: a auditoria tentou e não conseguiu (sem login ou erro).
             </p>
           </>
         }
