@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
-import { useFormPersistence } from '@/hooks/useFormPersistence';
+import { useRascunhoFormulario } from '@/hooks/useRascunhoFormulario';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
@@ -33,6 +34,9 @@ interface ExpenseFormProps {
   onCancel: () => void;
 }
 
+/** Chave do rascunho deste formulário (por despesa; "nova" no cadastro) */
+const chaveRascunhoDespesa = (id?: string | null) => `despesas.form.${id ?? 'nova'}`;
+
 const ExpenseForm = ({ expense, selectedPropertyId, onSuccess, onCancel }: ExpenseFormProps) => {
   const [properties, setProperties] = useState<Property[]>([]);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
@@ -40,9 +44,11 @@ const ExpenseForm = ({ expense, selectedPropertyId, onSuccess, onCancel }: Expen
   const { toast } = useToast();
   const { hasPermission, getAccessibleProperties, isMaster } = useUserPermissions();
 
-  const [recurrenceType, setRecurrenceType] = useState('monthly');
-  const [recurrenceDuration, setRecurrenceDuration] = useState(12);
-  const [recurrenceStartDate, setRecurrenceStartDate] = useState(new Date().toISOString().split('T')[0]);
+  // Rascunho: o que foi digitado volta depois de recarregar (cadastro e edição)
+  const formKey = chaveRascunhoDespesa(expense?.id);
+  const [recurrenceType, setRecurrenceType] = useEstadoPersistente(`${formKey}.recorrencia.tipo`, 'monthly');
+  const [recurrenceDuration, setRecurrenceDuration] = useEstadoPersistente(`${formKey}.recorrencia.duracao`, 12);
+  const [recurrenceStartDate, setRecurrenceStartDate] = useEstadoPersistente(`${formKey}.recorrencia.inicio`, () => new Date().toISOString().split('T')[0]);
 
   const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<ExpenseFormData>({
     resolver: zodResolver(expenseSchema),
@@ -59,14 +65,11 @@ const ExpenseForm = ({ expense, selectedPropertyId, onSuccess, onCancel }: Expen
   const expenseType = watch('expense_type');
   const watchedValues = watch();
   
-  // Persistência de formulário
-  const formKey = `expense-form-${expense?.id || 'new'}`;
-  const { restoreData, clearSavedData } = useFormPersistence({
-    key: formKey,
-    values: watchedValues,
-    setValue,
-    enabled: !expense // Só persiste para novos formulários
-  });
+  const rascunho = useRascunhoFormulario({ chave: formKey, valores: watchedValues, setValue, edicao: !!expense });
+  useEffect(() => {
+    rascunho.restaurar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- uma vez, ao abrir
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -98,11 +101,6 @@ const ExpenseForm = ({ expense, selectedPropertyId, onSuccess, onCancel }: Expen
       setCategories(catRes.data || []);
     };
     fetchData().catch(console.error);
-    
-    // Restaurar dados salvos apenas para novos formulários
-    if (!expense) {
-      setTimeout(() => restoreData(), 100);
-    }
   }, [isMaster, hasPermission, getAccessibleProperties, expense]);
 
   const generateRecurrentExpenses = (baseExpense: Omit<ExpenseFormData, 'expense_date'>) => {
@@ -157,7 +155,7 @@ const ExpenseForm = ({ expense, selectedPropertyId, onSuccess, onCancel }: Expen
       }
       
       // Limpar dados salvos após sucesso
-      clearSavedData();
+      rascunho.limpar();
       onSuccess();
     } catch (error: any) {
       console.error('Erro ao salvar despesa:', error);
@@ -181,7 +179,7 @@ const ExpenseForm = ({ expense, selectedPropertyId, onSuccess, onCancel }: Expen
           <Controller name="property_id" control={control} render={({ field }) => (
             <div className="space-y-2">
               <Label>Propriedade *</Label>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={(v) => { if (v) field.onChange(v); }} value={field.value}>
                 <SelectTrigger><SelectValue placeholder="Selecionar propriedade" /></SelectTrigger>
                 <SelectContent>{properties.map(p => <SelectItem key={p.id} value={p.id}>{p.nickname || p.name}</SelectItem>)}</SelectContent>
               </Select>
@@ -203,7 +201,7 @@ const ExpenseForm = ({ expense, selectedPropertyId, onSuccess, onCancel }: Expen
           <Controller name="category" control={control} render={({ field }) => (
             <div className="space-y-2">
               <Label>Categoria *</Label>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={(v) => { if (v) field.onChange(v); }} value={field.value}>
                 <SelectTrigger><SelectValue placeholder="Selecionar categoria" /></SelectTrigger>
                 <SelectContent>{categories.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
               </Select>
@@ -213,7 +211,7 @@ const ExpenseForm = ({ expense, selectedPropertyId, onSuccess, onCancel }: Expen
           <Controller name="expense_type" control={control} render={({ field }) => (
             <div className="space-y-2">
               <Label>Tipo *</Label>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={(v) => { if (v) field.onChange(v); }} value={field.value}>
                 <SelectTrigger><SelectValue placeholder="Selecionar tipo" /></SelectTrigger>
                 <SelectContent><SelectItem value="Fixo">Fixo</SelectItem><SelectItem value="Variável">Variável</SelectItem></SelectContent>
               </Select>
@@ -239,7 +237,7 @@ const ExpenseForm = ({ expense, selectedPropertyId, onSuccess, onCancel }: Expen
         )}
         
         <div className="flex flex-col-reverse gap-2 pt-4 sm:flex-row sm:justify-end sm:gap-3">
-          <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
+          <Button type="button" variant="outline" onClick={() => { rascunho.limpar(); onCancel(); }}>Cancelar</Button>
           <Button type="submit" disabled={loading}>
             {loading ? 'Salvando...' : (expense ? 'Atualizar' : 'Salvar')}
           </Button>

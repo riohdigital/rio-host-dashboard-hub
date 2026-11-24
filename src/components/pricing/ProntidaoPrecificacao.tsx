@@ -12,6 +12,7 @@ import { fetchN8n } from '@/lib/n8n';
 import { Property } from '@/types/property';
 import { PipelineStage, PricingRule } from '@/types/pricing';
 import { NOME_DO_TIPO, ORIGEM_DA_REGRA, percentual } from './ocupacao';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 /**
  * Prontidão e ativação da precificação automática, imóvel a imóvel.
@@ -66,7 +67,7 @@ interface Props {
 }
 
 export const ProntidaoPrecificacao: React.FC<Props> = ({ properties, regras, onAtualizado, modo = 'cartao' }) => {
-  const [folhaAberta, setFolhaAberta] = useState(false);
+  const [folhaAberta, setFolhaAberta] = useEstadoPersistente<boolean>('precificacao.prontidao.aberta', false);
   const { user } = useAuth();
   const { toast } = useToast();
   const [etapas, setEtapas] = useState<PipelineStage[]>([]);

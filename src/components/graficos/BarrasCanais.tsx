@@ -16,11 +16,12 @@
  * - `detalhe(item)` faz cada canal virar um botão: tocar abre esse texto logo
  *   abaixo da barra (ex.: a regra de recebimento do canal).
  */
-import React, { useState } from 'react';
+import React from 'react';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatarMoedaSemCentavos } from '@/components/comum/formatos';
 import { corDoCanalGrafico } from './tema';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 export interface ItemCanal {
   canal: string;
@@ -37,11 +38,13 @@ interface BarrasCanaisProps {
   linha?: (item: ItemCanal) => React.ReactNode;
   /** Texto que abre ao tocar no canal */
   detalhe?: (item: ItemCanal) => React.ReactNode;
+  /** Guarda na sessão qual canal está aberto (volta depois de recarregar) */
+  chave?: string;
   className?: string;
 }
 
-const BarrasCanais = ({ itens, formatar = formatarMoedaSemCentavos, legenda = true, linha, detalhe, className }: BarrasCanaisProps) => {
-  const [aberto, setAberto] = useState<string | null>(null);
+const BarrasCanais = ({ itens, formatar = formatarMoedaSemCentavos, legenda = true, linha, detalhe, chave, className }: BarrasCanaisProps) => {
+  const [aberto, setAberto] = useEstadoPersistente<string | null>(chave ?? null, null);
   const linhas = itens
     .map((i) => ({ ...i, total: (i.recebido || 0) + (i.aReceber || 0) }))
     .filter((i) => i.total > 0)

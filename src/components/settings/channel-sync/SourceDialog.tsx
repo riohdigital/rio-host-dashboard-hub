@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/select';
 import type { ChannelSyncSource, SyncPlatform } from '@/types/channelSync';
 import type { Property } from '@/types/property';
+import { useRascunhoDeJanela } from '@/hooks/useRascunhoFormulario';
 
 interface SourceDialogProps {
   open: boolean;
@@ -56,6 +57,21 @@ const SourceDialog: React.FC<SourceDialogProps> = ({
     setIsActive(source?.is_active ?? true);
     setFormError(null);
   }, [open, source]);
+
+  // O que foi digitado volta depois de recarregar a página. O link do
+  // calendário fica de fora: ele carrega um código secreto de acesso.
+  useRascunhoDeJanela({
+    chave: `sincronizacao.calendario.${source?.id ?? 'novo'}`,
+    aberta: open,
+    depende: [source],
+    valores: { propertyId, platform, listingAlias, isActive },
+    aplicar: (r) => {
+      if (typeof r.propertyId === 'string') setPropertyId(r.propertyId);
+      if (typeof r.platform === 'string') setPlatform(r.platform as SyncPlatform);
+      if (typeof r.listingAlias === 'string') setListingAlias(r.listingAlias);
+      if (typeof r.isActive === 'boolean') setIsActive(r.isActive);
+    },
+  });
 
   const handleSave = async () => {
     if (!propertyId) {

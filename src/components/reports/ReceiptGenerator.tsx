@@ -24,6 +24,8 @@ import { useListaCurta } from '@/components/comum/useListaCurta';
 import { useEhCompacto } from '@/hooks/useMidia';
 import LinhaLista from '@/components/comum/LinhaLista';
 import { ListaLinhas } from '@/components/comum/GrupoLista';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
+import { useItemAberto } from '@/hooks/useItemAberto';
 
 // CÓDIGO ORIGINAL MANTIDO
 interface Reservation {
@@ -60,9 +62,11 @@ type ReceiptType = 'reservation' | 'payment' | 'guest';
 const ReceiptGenerator = () => {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [receiptType, setReceiptType] = useState<ReceiptType>('reservation');
-  const [previewReservation, setPreviewReservation] = useState<Reservation | null>(null);
-  const [previewGuestReceipt, setPreviewGuestReceipt] = useState<GuestMonthReceipt<Reservation> | null>(null);
+  // Tipo de recibo, "Ver todos" e a prévia aberta voltam depois de recarregar (da prévia, só o id)
+  const [receiptType, setReceiptType] = useEstadoPersistente<ReceiptType>('relatorios.recibos.tipo', 'reservation');
+  const previaReserva = useItemAberto('relatorios.recibos.previa', reservations, { carregando: loading });
+  const previewReservation = previaReserva.aberto ? previaReserva.item : null;
+  const setPreviewReservation = (r: Reservation | null) => (r ? previaReserva.abrir(r) : previaReserva.limpar());
   const { issuer } = useReceiptIssuer();
   const { toast } = useToast();
   const { selectedProperties, selectedPeriod, selectedPlatform, customStartDate, customEndDate } = useGlobalFilters();
@@ -79,8 +83,11 @@ const ReceiptGenerator = () => {
   }, [reservations]);
 
   // Celular: 3 itens + "Ver todos" (sem rolagem dentro da página); computador: caixa com rolagem
-  const listaComprovantes = useListaCurta(guestReceipts, 3, { soCompacto: true });
-  const listaRecibos = useListaCurta(reservations, 3, { soCompacto: true });
+  const previaComprovante = useItemAberto('relatorios.comprovantes.previa', guestReceipts, { carregando: loading, idDe: (c) => c.key });
+  const previewGuestReceipt = previaComprovante.aberto ? previaComprovante.item : null;
+  const setPreviewGuestReceipt = (c: GuestMonthReceipt<Reservation> | null) => (c ? previaComprovante.abrir(c) : previaComprovante.limpar());
+  const listaComprovantes = useListaCurta(guestReceipts, 3, { soCompacto: true, chave: 'relatorios.comprovantes.todos' });
+  const listaRecibos = useListaCurta(reservations, 3, { soCompacto: true, chave: 'relatorios.recibos.todos' });
   // Celular: cada recibo vira uma linha (tocar abre a prévia; o botão baixa o PDF)
   const compacto = useEhCompacto();
   const botaoPDF = (aoTocar: () => void) => (

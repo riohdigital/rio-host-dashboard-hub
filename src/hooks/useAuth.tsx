@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { limparEscolhasDaSessao } from '@/lib/escolhasGuardadas';
 
 interface AuthContextType {
   user: User | null;
@@ -23,6 +24,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isInitialized = useRef(false);
 
   const signOut = async () => {
+    // Saiu de propósito: o que estava digitado ou aberto nas telas não fica no aparelho
+    limparEscolhasDaSessao();
     try {
       await supabase.auth.signOut();
     } catch (error) {

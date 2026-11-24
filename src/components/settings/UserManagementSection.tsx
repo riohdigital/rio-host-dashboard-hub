@@ -13,6 +13,8 @@ import UserInviteForm from '@/components/user-management/UserInviteForm';
 import UserCreateModal from '@/components/user-management/UserCreateModal';
 import CleanerCreateModal from '@/components/reservations/CleanerCreateModal'; // NOVO: Importar o modal de faxineiras
 import type { UserProfile } from '@/types/user-management';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
+import { useItemAberto } from '@/hooks/useItemAberto';
 
 // NOVO: Definir um tipo para os dados que serão passados entre os modais
 type CleanerInitialData = {
@@ -25,16 +27,20 @@ const UserManagementSection = () => {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [userToDelete, setUserToDelete] = useState<UserProfile | null>(null);
-  const [showInviteForm, setShowInviteForm] = useState(false);
-  const [createModalOpen, setCreateModalOpen] = useState(false);
+  // Busca e janelas abertas voltam depois de recarregar a página (das janelas, só o id do usuário é guardado)
+  const [searchTerm, setSearchTerm] = useEstadoPersistente('usuarios.busca', '');
+  const edicao = useItemAberto('usuarios.editar', users, { carregando: loading });
+  const selectedUser = edicao.item;
+  const editModalOpen = edicao.aberto;
+  const exclusao = useItemAberto('usuarios.excluir', users, { carregando: loading });
+  const userToDelete = exclusao.item;
+  const deleteDialogOpen = exclusao.aberto;
+  const [showInviteForm, setShowInviteForm] = useEstadoPersistente<boolean>('usuarios.convite.aberto', false);
+  const [createModalOpen, setCreateModalOpen] = useEstadoPersistente<boolean>('usuarios.novo.aberto', false);
 
   // NOVO: Estados para controlar o fluxo de criação de faxineira
-  const [cleanerModalOpen, setCleanerModalOpen] = useState(false);
+  const [cleanerModalOpen, setCleanerModalOpen] = useEstadoPersistente<boolean>('usuarios.novaFaxineira.aberta', false);
+  // Traz a senha digitada na primeira janela: fica só na memória, nunca no storage
   const [cleanerInitialData, setCleanerInitialData] = useState<CleanerInitialData | undefined>(undefined);
   
   const { hasPermission, loading: permissionsLoading } = useUserPermissions();
@@ -82,8 +88,7 @@ const UserManagementSection = () => {
   }, [users, searchTerm]);
 
   const handleEditUser = (user: UserProfile) => {
-    setSelectedUser(user);
-    setEditModalOpen(true);
+    edicao.abrir(user);
   };
 
   const handleToggleUserStatus = async (user: UserProfile) => {
@@ -115,8 +120,7 @@ const UserManagementSection = () => {
   };
 
   const handleDeleteUser = (user: UserProfile) => {
-    setUserToDelete(user);
-    setDeleteDialogOpen(true);
+    exclusao.abrir(user);
   };
 
   const confirmDeleteUser = async () => {
@@ -143,8 +147,7 @@ const UserManagementSection = () => {
         variant: "destructive",
       });
     } finally {
-      setDeleteDialogOpen(false);
-      setUserToDelete(null);
+      exclusao.limpar();
     }
   };
 
@@ -237,10 +240,7 @@ const UserManagementSection = () => {
       <UserEditModal
         user={selectedUser}
         open={editModalOpen}
-        onClose={() => {
-          setEditModalOpen(false);
-          setSelectedUser(null);
-        }}
+        onClose={edicao.limpar}
         onUserUpdated={fetchUsers}
       />
 
@@ -263,7 +263,7 @@ const UserManagementSection = () => {
         initialData={cleanerInitialData}
       />
 
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <AlertDialog open={deleteDialogOpen} onOpenChange={exclusao.mudar}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>

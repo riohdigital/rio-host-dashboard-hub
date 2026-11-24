@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { LogOut, MessageSquare, MoreHorizontal, SlidersHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -18,6 +18,8 @@ import { useResumoFiltros } from './resumoFiltros';
 import { abrirChat, useNaoLidasChat } from '@/components/chat/controleChat';
 import { aoPedirFiltros } from './controleFiltros';
 import { ICONE_GESTOR, type ItemNavegacao, rotaAtiva, tituloDaRota, useNavegacao, useSair } from './navegacao';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
+import { useEhCompacto } from '@/hooks/useMidia';
 
 /**
  * Abas fixas da barra inferior, nesta ordem, com o Chat IA no meio; o resto
@@ -38,11 +40,14 @@ const NavegacaoCelular = () => {
   const sair = useSair();
   const { pathname } = useLocation();
   const resumo = useResumoFiltros();
-  const [maisAberto, setMaisAberto] = useState(false);
-  const [filtrosAberto, setFiltrosAberto] = useState(false);
+  // As gavetas voltam abertas depois de recarregar a página
+  const [maisAberto, setMaisAberto] = useEstadoPersistente<boolean>('navegacao.mais.aberta', false);
+  const [filtrosAberto, setFiltrosAberto] = useEstadoPersistente<boolean>('navegacao.filtros.aberta', false);
   // Telas podem pedir a gaveta de filtros (ex.: Imóvel e Período em Relatórios)
-  useEffect(() => aoPedirFiltros(() => setFiltrosAberto(true)), []);
+  useEffect(() => aoPedirFiltros(() => setFiltrosAberto(true)), [setFiltrosAberto]);
   const naoLidas = useNaoLidasChat();
+  // As gavetas são do celular: guardadas abertas, não aparecem (nem escurecem a tela) no computador
+  const compacto = useEhCompacto();
 
   const titulo = tituloDaRota(pathname);
 
@@ -194,7 +199,7 @@ const NavegacaoCelular = () => {
       </nav>
 
       {/* Gaveta "Mais" */}
-      <Drawer open={maisAberto} onOpenChange={setMaisAberto} shouldScaleBackground={false}>
+      <Drawer open={maisAberto && compacto} onOpenChange={setMaisAberto} shouldScaleBackground={false}>
         <DrawerContent className="max-h-[85dvh] lg:hidden">
           <DrawerHeader className="pb-2 text-left">
             <DrawerTitle className="font-display">Mais opções</DrawerTitle>
@@ -228,7 +233,7 @@ const NavegacaoCelular = () => {
       </Drawer>
 
       {/* Gaveta de filtros */}
-      <Drawer open={filtrosAberto} onOpenChange={setFiltrosAberto} shouldScaleBackground={false}>
+      <Drawer open={filtrosAberto && compacto} onOpenChange={setFiltrosAberto} shouldScaleBackground={false}>
         <DrawerContent className="max-h-[90dvh] lg:hidden">
           <DrawerHeader className="pb-0 text-left">
             <DrawerTitle className="font-display">Filtros</DrawerTitle>

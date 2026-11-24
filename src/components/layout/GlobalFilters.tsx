@@ -12,6 +12,7 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { CalendarDays } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 interface GlobalFiltersProps {
   /** lateral: compacto, no menu do desktop; gaveta: campos grandes, no celular */
@@ -34,8 +35,10 @@ const GlobalFilters = ({ variante = 'lateral' }: GlobalFiltersProps) => {
     setCustomEndDate
   } = useGlobalFilters();
   const [properties, setProperties] = useState<Property[]>([]);
-  const [propertySelectOpen, setPropertySelectOpen] = useState(false);
+  const [propertySelectOpen, setPropertySelectOpen] = useEstadoPersistente<boolean>(`filtros.imoveis.aberto.${variante}`, false);
   const [propertiesLoading, setPropertiesLoading] = useState(true);
+  // Só depois de uma busca que deu certo dá para conferir a seleção guardada
+  const [listaConfiavel, setListaConfiavel] = useState(false);
   const { hasPermission, getAccessibleProperties, isMaster, loading: permissionsLoading } = useUserPermissions();
 
   useEffect(() => {
@@ -56,6 +59,7 @@ const GlobalFilters = ({ variante = 'lateral' }: GlobalFiltersProps) => {
         }
         
         setProperties(filteredProperties);
+        setListaConfiavel(true);
       }
       setPropertiesLoading(false);
     };
@@ -68,6 +72,17 @@ const GlobalFilters = ({ variante = 'lateral' }: GlobalFiltersProps) => {
       setSelectedProperties(properties.map(p => p.id));
     }
   }, [properties, isMaster, hasPermission, setSelectedProperties]);
+
+  // A seleção guardada no aparelho pode citar um imóvel que não existe mais ou
+  // a que o usuário perdeu o acesso: esses saem; se não sobrar nenhum, volta
+  // para "todas" (que, para quem não vê tudo, vira a lista dos imóveis dele).
+  useEffect(() => {
+    if (!listaConfiavel || selectedProperties.includes('todas')) return;
+    const existentes = new Set(properties.map((p) => p.id));
+    const validos = selectedProperties.filter((id) => existentes.has(id));
+    if (validos.length === selectedProperties.length) return;
+    setSelectedProperties(validos.length > 0 ? validos : ['todas']);
+  }, [listaConfiavel, properties, selectedProperties, setSelectedProperties]);
 
   const generatePeriodOptions = () => {
     const now = new Date();

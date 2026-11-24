@@ -14,6 +14,7 @@ import { CheckCircle, Clock, DollarSign, TrendingUp } from 'lucide-react';
 import { CommissionSummary, CommissionDetail } from '@/types/painel-gestor';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 interface CommissionDetailsCardProps {
   data: CommissionSummary;
@@ -103,8 +104,8 @@ const CommissionItem = ({ item }: { item: CommissionDetail }) => {
 };
 
 /** Lista de uma aba: caixa com rolagem no computador; no celular, 5 itens + "Ver todas" */
-const ListaComissoes = ({ itens, vazio }: { itens: CommissionDetail[]; vazio: React.ReactNode }) => {
-  const lista = useListaCurta(itens, 5, { soCompacto: true });
+const ListaComissoes = ({ itens, vazio, chave }: { itens: CommissionDetail[]; vazio: React.ReactNode; chave: string }) => {
+  const lista = useListaCurta(itens, 5, { soCompacto: true, chave });
   const compacto = useEhCompacto();
   return (
     <RolagemComputador className="h-[280px] pr-3">
@@ -157,8 +158,11 @@ export const AbasComissoes = ({ data }: { data: CommissionSummary }) => {
     .filter(d => d.status === 'pending')
     .sort(sortByRelevantDate);
 
+  // A aba escolhida volta depois de recarregar (a mesma no celular e no computador)
+  const [aba, setAba] = useEstadoPersistente<string>('gestor.comissoes.aba', 'pending', { aceita: ['pending', 'received'] });
+
   return (
-    <Tabs defaultValue="pending" className="w-full">
+    <Tabs value={aba} onValueChange={setAba} className="w-full">
       {compacto ? (
         <AbasRolaveis
           rotulo="Comissões"
@@ -181,6 +185,7 @@ export const AbasComissoes = ({ data }: { data: CommissionSummary }) => {
 
       <TabsContent value="pending">
         <ListaComissoes
+          chave="gestor.comissoes.aReceber.todas"
           itens={pendingItems}
           vazio={
             <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
@@ -193,6 +198,7 @@ export const AbasComissoes = ({ data }: { data: CommissionSummary }) => {
 
       <TabsContent value="received">
         <ListaComissoes
+          chave="gestor.comissoes.recebidas.todas"
           itens={receivedItems}
           vazio={
             <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">

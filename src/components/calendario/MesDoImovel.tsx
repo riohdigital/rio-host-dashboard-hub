@@ -3,7 +3,7 @@
  * cada reserva é uma faixa contínua na cor do canal, do check-in à véspera do
  * check-out. As setas andam de mês em mês dentro do período do filtro.
  */
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import { corDoCanal } from '@/components/comum/cores';
 import { noites, somarDias } from '@/components/pricing/ocupacao';
@@ -12,12 +12,15 @@ import { cn } from '@/lib/utils';
 import { CalendarReservation } from '@/types/calendar';
 import { Property } from '@/types/property';
 import { MesDoPeriodo, SEMANA_CURTA, primeiroNome, rotuloDia, semanasDoMes } from './periodo';
+import { useEstadoDoRecorte } from '@/hooks/useEstadoPersistente';
 
 interface Props {
   imovel: Property;
   reservas: CalendarReservation[];
   meses: MesDoPeriodo[];
   mesInicial: number;
+  /** Período do calendário: o mês à mostra é lembrado enquanto ele for o mesmo */
+  recorte: string;
   hoje: string;
   aoVoltar: () => void;
   aoTocarReserva: (r: CalendarReservation) => void;
@@ -62,8 +65,9 @@ function faixasDaSemana(semana: (string | null)[], reservas: CalendarReservation
   return faixas;
 }
 
-const MesDoImovel = ({ imovel, reservas, meses, mesInicial, hoje, aoVoltar, aoTocarReserva }: Props) => {
-  const [i, setI] = useState(mesInicial);
+const MesDoImovel = ({ imovel, reservas, meses, mesInicial, recorte, hoje, aoVoltar, aoTocarReserva }: Props) => {
+  // O mês à mostra volta depois de recarregar (para este imóvel, neste período)
+  const [i, setI] = useEstadoDoRecorte<number>('calendario.imovel.mes', `${recorte}|${imovel.id}`, mesInicial);
   const mes = meses[i];
   const nome = imovel.nickname || imovel.name;
   const semanas = useMemo(() => (mes ? semanasDoMes(mes) : []), [mes]);

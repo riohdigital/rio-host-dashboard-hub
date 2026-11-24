@@ -10,7 +10,7 @@
  * Só apresentação: os números chegam prontos (useROICalculations e
  * usePropertyInvestments); nada é recalculado aqui.
  */
-import React, { useState } from 'react';
+import React from 'react';
 import { Building2, Receipt } from 'lucide-react';
 import Bloco from '@/components/comum/Bloco';
 import BlocoRecolhivel from '@/components/comum/BlocoRecolhivel';
@@ -22,6 +22,7 @@ import { useListaCurta } from '@/components/comum/useListaCurta';
 import { formatarData, formatarMoeda, formatarMoedaSemCentavos } from '@/components/comum/formatos';
 import type { PropertyInvestment, PropertyROI } from '@/types/investment';
 import { AJUDA_ROI_IMOVEL } from './carteira';
+import { useItemAberto } from '@/hooks/useItemAberto';
 
 export const percentualROI = (v: number) => `${v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 
@@ -84,8 +85,12 @@ export const HistoricoInvestimentosCelular = ({
   recolhido = false,
   loading,
 }: HistoricoProps) => {
-  const [aberto, setAberto] = useState<PropertyInvestment | null>(null);
-  const lista = useListaCurta(investments, recolhido ? 5 : 10);
+  // "Ver todos", o bloco aberto e a folha do lançamento voltam depois de recarregar
+  const onde = recolhido ? 'investimentos.geral' : 'investimentos.imovel';
+  const folha = useItemAberto(`${onde}.folha`, investments, { carregando: !!loading });
+  const aberto = folha.aberto ? folha.item : null;
+  const setAberto = (inv: PropertyInvestment | null) => (inv ? folha.abrir(inv) : folha.limpar());
+  const lista = useListaCurta(investments, recolhido ? 5 : 10, { chave: `${onde}.historico.todos` });
   const total = investments.reduce((soma, inv) => soma + Number(inv.amount), 0);
   const titulo = 'Histórico de investimentos';
   const resumo = `${investments.length} ${investments.length === 1 ? 'lançamento' : 'lançamentos'} · ${formatarMoedaSemCentavos(total)}`;
@@ -118,7 +123,7 @@ export const HistoricoInvestimentosCelular = ({
   return (
     <>
       {recolhido ? (
-        <BlocoRecolhivel titulo={titulo} resumo={resumo}>
+        <BlocoRecolhivel chave={`${onde}.historico.aberto`} titulo={titulo} resumo={resumo}>
           {linhas}
         </BlocoRecolhivel>
       ) : (

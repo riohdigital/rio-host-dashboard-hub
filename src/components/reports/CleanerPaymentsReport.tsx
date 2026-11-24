@@ -10,6 +10,7 @@ import { useDateRange } from '@/hooks/dashboard/useDateRange';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { usePDFExport } from '@/hooks/reports/usePDFExport';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 interface CleanerRow {
   id: string;
@@ -30,6 +31,8 @@ const CleanerPaymentsReport: React.FC = () => {
   const { exportToExcel } = usePDFExport();
   const [rows, setRows] = useState<CleanerRow[]>([]);
   const [loading, setLoading] = useState(false);
+  // As faxineiras abertas na lista voltam depois de recarregar a página
+  const [abertos, setAbertos] = useEstadoPersistente<string[]>('relatorios.faxineiras.abertas', []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -176,7 +179,7 @@ const CleanerPaymentsReport: React.FC = () => {
             </div>
             <Separator />
             
-            <Accordion type="multiple" className="space-y-2">
+            <Accordion type="multiple" value={abertos} onValueChange={setAbertos} className="space-y-2">
               {Object.entries(grouped).map(([key, g]) => (
                 <AccordionItem key={key} value={key} className="border rounded-lg">
                   <AccordionTrigger className="px-4 py-3 hover:no-underline">

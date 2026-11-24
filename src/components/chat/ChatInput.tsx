@@ -3,6 +3,7 @@ import { Paperclip, Send, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 interface ChatInputProps {
   onSend: (content: string, attachments?: File[]) => void;
@@ -10,7 +11,8 @@ interface ChatInputProps {
 }
 
 export const ChatInput = ({ onSend, isLoading }: ChatInputProps) => {
-  const [message, setMessage] = useState('');
+  // O texto ainda não enviado volta depois de recarregar (anexos não: arquivo não cabe no storage)
+  const [message, setMessage] = useEstadoPersistente('chat.rascunho', '');
   const [attachments, setAttachments] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 

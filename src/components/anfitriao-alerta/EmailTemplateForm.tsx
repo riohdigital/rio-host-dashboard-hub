@@ -13,6 +13,8 @@ import { ArrowLeft, Save, Eye } from 'lucide-react';
 import { EmailTemplate } from '@/types/email';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
+import { useRascunhoFormulario } from '@/hooks/useRascunhoFormulario';
 
 const emailTemplateSchema = z.object({
   template_name: z.string().min(1, 'Nome do template é obrigatório'),
@@ -33,7 +35,9 @@ interface EmailTemplateFormProps {
 
 const EmailTemplateForm = ({ template, onSuccess, onCancel }: EmailTemplateFormProps) => {
   const [loading, setLoading] = useState(false);
-  const [previewMode, setPreviewMode] = useState(false);
+  // Rascunho: o que foi digitado volta depois de recarregar a página
+  const chaveRascunho = `alertas.modelo.form.${template?.id ?? 'novo'}`;
+  const [previewMode, setPreviewMode] = useEstadoPersistente<boolean>(`${chaveRascunho}.previa`, false);
   const { toast } = useToast();
 
   const {
@@ -56,6 +60,7 @@ const EmailTemplateForm = ({ template, onSuccess, onCancel }: EmailTemplateFormP
   });
 
   const watchedValues = watch();
+  const rascunho = useRascunhoFormulario({ chave: chaveRascunho, valores: watchedValues, setValue, edicao: !!template });
 
   useEffect(() => {
     if (template) {
@@ -68,6 +73,9 @@ const EmailTemplateForm = ({ template, onSuccess, onCancel }: EmailTemplateFormP
         is_active: template.is_active,
       });
     }
+    // O que estava digitado volta por cima dos dados do modelo
+    rascunho.restaurar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- o rascunho não muda entre renders
   }, [template, reset]);
 
   const onSubmit = async (data: EmailTemplateFormData) => {
@@ -119,6 +127,7 @@ const EmailTemplateForm = ({ template, onSuccess, onCancel }: EmailTemplateFormP
         });
       }
 
+      rascunho.limpar();
       onSuccess();
     } catch (error) {
       console.error('Erro ao salvar template:', error);
@@ -154,7 +163,7 @@ const EmailTemplateForm = ({ template, onSuccess, onCancel }: EmailTemplateFormP
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={onCancel} className="flex items-center gap-2">
+          <Button variant="ghost" onClick={() => { rascunho.limpar(); onCancel(); }} className="flex items-center gap-2">
             <ArrowLeft className="h-4 w-4" />
             Voltar
           </Button>

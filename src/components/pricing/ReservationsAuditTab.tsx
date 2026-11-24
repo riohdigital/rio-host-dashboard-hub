@@ -32,6 +32,7 @@ import { Property } from '@/types/property';
 import { formatLocalDate } from '@/utils/dateUtils';
 import { fetchN8n } from '@/lib/n8n';
 import AuditoriaCelular from './AuditoriaCelular';
+import { useItemAberto } from '@/hooks/useItemAberto';
 
 interface ReservationsAuditTabProps {
   propertyId: string;
@@ -69,7 +70,10 @@ export const ReservationsAuditTab: React.FC<ReservationsAuditTabProps> = ({
   const [reservations, setReservations] = useState<ReservaAuditada[]>([]);
   const [loading, setLoading] = useState(true);
   const [auditingIds, setAuditingIds] = useState<Record<string, boolean>>({});
-  const [selectedModalRes, setSelectedModalRes] = useState<ReservaAuditada | null>(null);
+  // A janela da auditoria volta aberta depois de recarregar (guarda só o id da reserva)
+  const janelaAuditoria = useItemAberto('precificacao.auditoria.janela', reservations, { carregando: loading });
+  const selectedModalRes = janelaAuditoria.aberto ? janelaAuditoria.item : null;
+  const setSelectedModalRes = (res: ReservaAuditada | null) => (res ? janelaAuditoria.abrir(res) : janelaAuditoria.limpar());
   // Celular (abaixo de 1024px): linhas por mês + folha de detalhes (AuditoriaCelular); o computador não muda
   const compacto = useEhCompacto();
   // hotel_id da Booking por imóvel: sem ele o link da extranet dá erro 400.

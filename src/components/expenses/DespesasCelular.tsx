@@ -21,6 +21,8 @@ import LinhaLista from '@/components/comum/LinhaLista';
 import { formatarData, formatarMoeda, formatarMoedaSemCentavos } from '@/components/comum/formatos';
 import { dataCurta, nomeDoMes } from '@/components/reservations/datas';
 import type { Expense } from '@/types/expense';
+import { useEstadoPersistente, useQuantasPersistente } from '@/hooks/useEstadoPersistente';
+import { ABAS_DE_DESPESAS } from './abas';
 
 /** Primeiras linhas mostradas; o corte sempre fecha o mês (nunca para no meio de um) */
 const POR_VEZ = 12;
@@ -70,13 +72,12 @@ const DespesasCelular = ({
   aoMarcarPaga,
   aoVerRecorrencia,
 }: DespesasCelularProps) => {
-  const [busca, setBusca] = useState('');
-  const [aba, setAba] = useState('todas');
-  const [quantas, setQuantas] = useState(POR_VEZ);
-  const [selId, setSelId] = useState<string | null>(null);
-  const [aberta, setAberta] = useState(false);
-
-  useEffect(() => setQuantas(POR_VEZ), [aba, busca]);
+  // Busca, aba, "carregar mais" e a folha aberta voltam depois de recarregar
+  const [busca, setBusca] = useEstadoPersistente('despesas.busca', '');
+  const [aba, setAba] = useEstadoPersistente<string>('despesas.aba', 'todas', { aceita: ABAS_DE_DESPESAS });
+  const [quantas, setQuantas] = useQuantasPersistente('despesas.quantas', `${aba}|${busca}`, POR_VEZ);
+  const [selId, setSelId] = useEstadoPersistente<string | null>('despesas.folha.id', null);
+  const [aberta, setAberta] = useEstadoPersistente<boolean>('despesas.folha.aberta', false);
 
   const soma = (lista: Expense[]) => lista.reduce((s, d) => s + (Number(d.amount) || 0), 0);
   const total = useMemo(() => soma(despesas), [despesas]);

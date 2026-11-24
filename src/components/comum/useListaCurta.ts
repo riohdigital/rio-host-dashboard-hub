@@ -6,13 +6,15 @@
  *   const lista = useListaCurta(itens, 5, { soCompacto: true });
  *
  * `soCompacto`: o corte só vale abaixo de 1024px; o computador vê tudo.
+ * `chave` (ex.: "dashboard.proximas.todas"): o "Ver todos" volta aberto
+ * depois de recarregar a página.
  */
-import { useState } from 'react';
 import { useEhCompacto } from '@/hooks/useMidia';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 /** Corta a lista em `n` itens até a pessoa pedir para ver todos */
-export function useListaCurta<T>(itens: T[], n = 5, opcoes: { soCompacto?: boolean } = {}) {
-  const [expandido, setExpandido] = useState(false);
+export function useListaCurta<T>(itens: T[], n = 5, opcoes: { soCompacto?: boolean; chave?: string } = {}) {
+  const [expandido, setExpandido] = useEstadoPersistente<boolean>(opcoes.chave ?? null, false);
   const compacto = useEhCompacto();
   const cortar = !expandido && (!opcoes.soCompacto || compacto) && itens.length > n;
   return {

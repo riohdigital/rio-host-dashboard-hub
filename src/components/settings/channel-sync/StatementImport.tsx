@@ -17,6 +17,7 @@ import {
   type StatementFile,
   type StatementRow,
 } from '@/utils/statementParsers';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 interface RowOutcome {
   reservationCode: string;
@@ -49,16 +50,18 @@ const StatementImport: React.FC<StatementImportProps> = ({ properties, onImporte
   const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const [arquivo, setArquivo] = useState<StatementFile | null>(null);
-  const [nomeArquivo, setNomeArquivo] = useState('');
-  const [propertyId, setPropertyId] = useState('');
-  const [previa, setPrevia] = useState<ImportResponse | null>(null);
+  // O extrato já lido, o imóvel escolhido e a prévia voltam depois de recarregar a página
+  const objetoOuNada = (v: unknown) => v === null || (typeof v === 'object' && !Array.isArray(v));
+  const [arquivo, setArquivo] = useEstadoPersistente<StatementFile | null>('sincronizacao.extrato.arquivo', null, { aceita: objetoOuNada });
+  const [nomeArquivo, setNomeArquivo] = useEstadoPersistente('sincronizacao.extrato.nome', '');
+  const [propertyId, setPropertyId] = useEstadoPersistente('sincronizacao.extrato.imovel', '');
+  const [previa, setPrevia] = useEstadoPersistente<ImportResponse | null>('sincronizacao.extrato.previa', null, { aceita: objetoOuNada });
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   // Anúncio → imóvel, para os casos em que o nome não se parece com nenhuma
   // propriedade. Apontar uma vez basta: o nome fica guardado no calendário.
-  const [vinculos, setVinculos] = useState<Record<string, string>>({});
-  const [importou, setImportou] = useState(false);
+  const [vinculos, setVinculos] = useEstadoPersistente<Record<string, string>>('sincronizacao.extrato.vinculos', {});
+  const [importou, setImportou] = useEstadoPersistente<boolean>('sincronizacao.extrato.importou', false);
 
   // O extrato do Booking.com sai de dentro de uma acomodação e não diz qual é;
   // o do Airbnb nomeia o anúncio em cada linha e se resolve sozinho.

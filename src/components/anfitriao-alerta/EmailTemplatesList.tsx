@@ -11,12 +11,15 @@ import { useEhCompacto } from '@/hooks/useMidia';
 import Bloco from '@/components/comum/Bloco';
 import AjudaInfo from '@/components/comum/AjudaInfo';
 import { ListaLinhas } from '@/components/comum/GrupoLista';
+import { useItemAberto } from '@/hooks/useItemAberto';
 
 const EmailTemplatesList = () => {
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
+  // O formulário (novo modelo ou edição) volta aberto depois de recarregar
+  const formulario = useItemAberto('alertas.modelo.janela', templates, { carregando: loading });
+  const showForm = formulario.aberto;
+  const editingTemplate = formulario.item;
   const { toast } = useToast();
   const compacto = useEhCompacto();
 
@@ -48,8 +51,7 @@ const EmailTemplatesList = () => {
 
   const handleTemplateSuccess = () => {
     fetchTemplates();
-    setShowForm(false);
-    setEditingTemplate(null);
+    formulario.limpar();
   };
 
   const toggleTemplateStatus = async (template: EmailTemplate) => {
@@ -110,8 +112,7 @@ const EmailTemplatesList = () => {
         template={editingTemplate}
         onSuccess={handleTemplateSuccess}
         onCancel={() => {
-          setShowForm(false);
-          setEditingTemplate(null);
+          formulario.limpar();
         }}
       />
     );
@@ -127,7 +128,7 @@ const EmailTemplatesList = () => {
             Gerencie os templates de e-mail para comunicação automatizada
           </p>
         </div>
-        <Button onClick={() => setShowForm(true)} className="flex items-center gap-2 max-lg:min-h-11">
+        <Button onClick={() => formulario.abrir(null)} className="flex items-center gap-2 max-lg:min-h-11">
           <Plus className="h-4 w-4" />
           Novo Template
         </Button>
@@ -158,7 +159,7 @@ const EmailTemplatesList = () => {
             <p className="text-muted-foreground mb-4">
               Crie seu primeiro template de e-mail para começar a automatizar a comunicação
             </p>
-            <Button onClick={() => setShowForm(true)} className="flex items-center gap-2">
+            <Button onClick={() => formulario.abrir(null)} className="flex items-center gap-2">
               <Plus className="h-4 w-4" />
               Criar Primeiro Template
             </Button>
@@ -181,8 +182,7 @@ const EmailTemplatesList = () => {
                 key={template.id}
                 template={template}
                 onEdit={(template) => {
-                  setEditingTemplate(template);
-                  setShowForm(true);
+                  formulario.abrir(template);
                 }}
                 onToggleStatus={toggleTemplateStatus}
                 onDelete={deleteTemplate}
@@ -197,8 +197,7 @@ const EmailTemplatesList = () => {
               key={template.id}
               template={template}
               onEdit={(template) => {
-                setEditingTemplate(template);
-                setShowForm(true);
+                formulario.abrir(template);
               }}
               onToggleStatus={toggleTemplateStatus}
               onDelete={deleteTemplate}

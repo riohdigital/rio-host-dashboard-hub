@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 interface AvailableUser {
   user_id: string;
@@ -14,7 +15,7 @@ interface AvailableUser {
 export const useAvailableUsers = () => {
   const [users, setUsers] = useState<AvailableUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useEstadoPersistente('alertas.destinatario.form.novo.buscaUsuario', '');
   const { user } = useAuth();
   const { role: currentUserRole } = useUserRole();
 

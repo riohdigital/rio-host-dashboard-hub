@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -9,6 +9,7 @@ import LinhaLista from '@/components/comum/LinhaLista';
 import { ListaLinhas } from '@/components/comum/GrupoLista';
 import FolhaDetalhes from '@/components/comum/FolhaDetalhes';
 import { Etiqueta } from '@/components/comum/Etiquetas';
+import { useItemAberto } from '@/hooks/useItemAberto';
 
 interface UserListTableProps {
   users: UserProfile[];
@@ -27,7 +28,10 @@ const UserListTable: React.FC<UserListTableProps> = ({
 }) => {
   // Celular: a tabela (6 colunas) passava da tela; vira linhas que abrem uma folha
   const celular = useEhCelular();
-  const [aberto, setAberto] = useState<UserProfile | null>(null);
+  // A folha do usuário volta aberta depois de recarregar (guarda só o id)
+  const folha = useItemAberto('usuarios.folha', users, { carregando: loading });
+  const aberto = folha.aberto ? folha.item : null;
+  const setAberto = (u: UserProfile | null) => (u ? folha.abrir(u) : folha.limpar());
   const getRoleBadgeVariant = (role: string) => {
     switch (role) {
       case 'master': return 'default';

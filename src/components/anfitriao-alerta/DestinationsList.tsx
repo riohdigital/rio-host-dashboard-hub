@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNotificationDestinations } from '@/hooks/useNotificationDestinations';
@@ -8,11 +8,12 @@ import DestinationForm from './DestinationForm';
 import { useEhCompacto } from '@/hooks/useMidia';
 import Bloco from '@/components/comum/Bloco';
 import { ListaLinhas } from '@/components/comum/GrupoLista';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 const DestinationsList = () => {
   const { destinations, loading } = useNotificationDestinations();
   const { hasPermission } = useUserPermissions();
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useEstadoPersistente<boolean>('alertas.destinatario.novo.aberto', false);
   const compacto = useEhCompacto();
   
   const canCreate = hasPermission('anfitriao_alerta_create');

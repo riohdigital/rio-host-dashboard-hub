@@ -8,12 +8,15 @@
  *   </BlocoRecolhivel>
  *
  * `etiqueta` vai ao lado do título (ex.: <Etiqueta tom="brand">IA</Etiqueta>).
+ * `chave` (ex.: "dashboard.detalhamento") faz o aberto/fechado voltar depois
+ * de recarregar a página.
  * O conteúdo só é montado quando aberto (consultas pesadas não rodam antes).
  */
-import React, { useState } from 'react';
+import React from 'react';
 import { ChevronRight } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 interface BlocoRecolhivelProps {
   titulo: React.ReactNode;
@@ -26,11 +29,13 @@ interface BlocoRecolhivelProps {
   /** Controle externo (opcional) */
   aberto?: boolean;
   aoMudar?: (aberto: boolean) => void;
+  /** Guarda o aberto/fechado na sessão, com esta chave (por usuário) */
+  chave?: string;
   className?: string;
 }
 
-const BlocoRecolhivel = ({ titulo, resumo, etiqueta, children, abertoInicial = false, aberto, aoMudar, className }: BlocoRecolhivelProps) => {
-  const [interno, setInterno] = useState(abertoInicial);
+const BlocoRecolhivel = ({ titulo, resumo, etiqueta, children, abertoInicial = false, aberto, aoMudar, chave, className }: BlocoRecolhivelProps) => {
+  const [interno, setInterno] = useEstadoPersistente<boolean>(chave ?? null, abertoInicial);
   const estaAberto = aberto ?? interno;
   const mudar = (v: boolean) => {
     setInterno(v);

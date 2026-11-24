@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Property } from '@/types/property';
 import { useUserPermissions } from '@/contexts/UserPermissionsContext';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 interface CleanerCreateModalProps {
   open: boolean;
@@ -26,17 +27,18 @@ const CleanerCreateModal: React.FC<CleanerCreateModalProps> = ({
   propertyId,
   initialData
 }) => {
-  const [email, setEmail] = useState('');
+  // O que foi digitado volta depois de recarregar a página; a senha nunca é guardada
+  const [email, setEmail] = useEstadoPersistente('faxineiras.nova.email', '');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
-  const [pix, setPix] = useState('');
-  const [notes, setNotes] = useState('');
+  const [fullName, setFullName] = useEstadoPersistente('faxineiras.nova.nome', '');
+  const [phone, setPhone] = useEstadoPersistente('faxineiras.nova.telefone', '');
+  const [address, setAddress] = useEstadoPersistente('faxineiras.nova.endereco', '');
+  const [pix, setPix] = useEstadoPersistente('faxineiras.nova.pix', '');
+  const [notes, setNotes] = useEstadoPersistente('faxineiras.nova.observacoes', '');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const [accessibleProperties, setAccessibleProperties] = useState<Property[]>([]);
-  const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
+  const [selectedProperties, setSelectedProperties] = useEstadoPersistente<string[]>('faxineiras.nova.imoveis', []);
   const { isMaster } = useUserPermissions();
 
   useEffect(() => {
@@ -49,13 +51,14 @@ const CleanerCreateModal: React.FC<CleanerCreateModalProps> = ({
       }
       fetchAccessibleProperties();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só ao abrir ou quando chegam os dados da primeira janela
   }, [open, initialData]);
 
   useEffect(() => {
     if (propertyId) {
       setSelectedProperties(prev => prev.includes(propertyId) ? prev : [...prev, propertyId]);
     }
-  }, [propertyId, open]);
+  }, [propertyId, open, setSelectedProperties]);
   
   const fetchAccessibleProperties = async () => {
     try {

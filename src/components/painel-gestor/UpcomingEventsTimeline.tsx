@@ -15,7 +15,7 @@ interface UpcomingEventsTimelineProps {
 
 export const UpcomingEventsTimeline = ({ events, loading }: UpcomingEventsTimelineProps) => {
   // Celular: 3 eventos + "Ver todos" (sem rolagem dentro da página)
-  const lista = useListaCurta(events, 3, { soCompacto: true });
+  const lista = useListaCurta(events, 3, { soCompacto: true, chave: 'gestor.eventos.todos' });
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',

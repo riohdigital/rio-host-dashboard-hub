@@ -7,10 +7,11 @@ import { Trash2, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ExpenseCategory } from '@/types/expense';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 const ExpenseCategoriesSection = () => {
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
-  const [newCategory, setNewCategory] = useState('');
+  const [newCategory, setNewCategory] = useEstadoPersistente('configuracoes.categorias.nova', '');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 

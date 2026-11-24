@@ -12,9 +12,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { useState } from 'react';
 import MarcaIA from '@/components/comum/MarcaIA';
 import { cn } from '@/lib/utils';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 interface ChatHeaderProps {
   onClose: () => void;
@@ -44,7 +44,8 @@ export const ChatHeader = ({
   onCategoryChange,
 }: ChatHeaderProps) => {
   // Busca e categorias ficam atrás da lupa
-  const [showSearch, setShowSearch] = useState(Boolean(searchQuery) || selectedCategory !== 'all');
+  const [limparAberto, setLimparAberto] = useEstadoPersistente<boolean>('chat.limpar.aberto', false);
+  const [showSearch, setShowSearch] = useEstadoPersistente<boolean>('chat.busca.aberta', Boolean(searchQuery) || selectedCategory !== 'all');
 
   return (
     <div className="shrink-0 border-b bg-background pt-safe-t">
@@ -67,7 +68,7 @@ export const ChatHeader = ({
           <Button variant="ghost" size="icon" className="h-10 w-10" onClick={onExport} aria-label="Exportar conversa">
             <Download className="h-4 w-4" />
           </Button>
-          <AlertDialog>
+          <AlertDialog open={limparAberto} onOpenChange={setLimparAberto}>
             <AlertDialogTrigger asChild>
               <Button variant="ghost" size="icon" className="h-10 w-10" aria-label="Limpar histórico">
                 <Trash2 className="h-4 w-4" />

@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { UserPropertyAccess } from '@/types/user-management';
 import type { Property } from '@/types/property';
 import { toast } from "sonner";
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 interface PropertyAccessEditorProps {
   propertyAccess: UserPropertyAccess[];
@@ -23,8 +24,13 @@ const PropertyAccessEditor: React.FC<PropertyAccessEditorProps> = ({
   userId
 }) => {
   const [properties, setProperties] = useState<Property[]>([]);
-  const [selectedPropertyId, setSelectedPropertyId] = useState<string>('');
-  const [selectedAccessLevel, setSelectedAccessLevel] = useState<'full' | 'read_only' | 'restricted'>('read_only');
+  // O imóvel e o nível escolhidos (ainda não adicionados) voltam depois de recarregar
+  const [selectedPropertyId, setSelectedPropertyId] = useEstadoPersistente<string>(`usuarios.editar.${userId ?? 'novo'}.acesso.imovel`, '');
+  const [selectedAccessLevel, setSelectedAccessLevel] = useEstadoPersistente<'full' | 'read_only' | 'restricted'>(
+    `usuarios.editar.${userId ?? 'novo'}.acesso.nivel`,
+    'read_only',
+    { aceita: ['full', 'read_only', 'restricted'] },
+  );
 
   useEffect(() => {
     fetchProperties();

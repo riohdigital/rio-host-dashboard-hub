@@ -3,7 +3,7 @@
  * reservas do período) que abre os detalhes por imóvel ao tocar, e os
  * feriados viram uma etiqueta ("N feriados no período") que abre a lista.
  */
-import React, { useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarHeart, ChevronRight } from 'lucide-react';
 import FolhaDetalhes from '@/components/comum/FolhaDetalhes';
@@ -15,6 +15,7 @@ import { OccupancyStats } from '@/hooks/useOccupancyStats';
 import { Property } from '@/types/property';
 import { FeriadosDoPeriodo } from './FeriadosDoPeriodo';
 import { FeriadoRelevante, rotuloFeriados } from './feriados';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 interface Props {
   stats: OccupancyStats[];
@@ -26,8 +27,8 @@ interface Props {
 const pct = (v: number) => `${v.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`;
 
 const ResumoDoPeriodo = ({ stats, rotuloPeriodo, feriados }: Props) => {
-  const [statsAberto, setStatsAberto] = useState(false);
-  const [feriadosAberto, setFeriadosAberto] = useState(false);
+  const [statsAberto, setStatsAberto] = useEstadoPersistente<boolean>('calendario.ocupacao.aberta', false);
+  const [feriadosAberto, setFeriadosAberto] = useEstadoPersistente<boolean>('calendario.feriados.aberta', false);
 
   const receita = stats.reduce((s, x) => s + x.totalRevenue, 0);
   const ocupacao = stats.length ? stats.reduce((s, x) => s + x.occupancyRate, 0) / stats.length : 0;

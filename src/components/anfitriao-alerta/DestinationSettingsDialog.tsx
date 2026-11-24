@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { FOLHA_NO_CELULAR } from '@/components/comum/classes';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { NotificationDestination } from '@/hooks/useNotificationDestinations';
 import PropertySelector from './PropertySelector';
 import NotificationToggles from './NotificationToggles';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 interface DestinationSettingsDialogProps {
   destination: NotificationDestination;
@@ -13,6 +14,7 @@ interface DestinationSettingsDialogProps {
 }
 
 const DestinationSettingsDialog = ({ destination, onClose }: DestinationSettingsDialogProps) => {
+  const [aba, setAba] = useEstadoPersistente<string>('alertas.destinatario.configurar.aba', 'properties', { aceita: ['properties', 'notifications'] });
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className={cn("sm:max-w-[600px]", FOLHA_NO_CELULAR)}>
@@ -20,7 +22,7 @@ const DestinationSettingsDialog = ({ destination, onClose }: DestinationSettings
           <DialogTitle>Configurações - {destination.destination_name}</DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue="properties" className="w-full">
+        <Tabs value={aba} onValueChange={setAba} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="properties">Propriedades</TabsTrigger>
             <TabsTrigger value="notifications">Notificações</TabsTrigger>

@@ -16,6 +16,8 @@ import JanelaResponsiva from '@/components/comum/JanelaResponsiva';
 import { useEhCelular } from '@/hooks/useMidia';
 import { Download, Home, Link2, NotebookPen, Wallet } from 'lucide-react';
 import { fetchN8n } from '@/lib/n8n';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
+import { useRascunho } from '@/hooks/useRascunhoFormulario';
 
 interface PropertyFormProps {
   property?: Property | null;
@@ -26,7 +28,9 @@ interface PropertyFormProps {
 }
 
 const PropertyForm = ({ property, onSuccess, onCancel, excluir }: PropertyFormProps) => {
-  const [formData, setFormData] = useState({
+  // Rascunho: o que foi digitado volta depois de recarregar a página
+  const rascunho = useRascunho(`imoveis.form.${property?.id ?? 'novo'}`, { edicao: !!property });
+  const [formData, setFormData] = useEstadoPersistente(rascunho.de('dados'), {
     name: '',
     nickname: '',
     address: '',
@@ -43,21 +47,22 @@ const PropertyForm = ({ property, onSuccess, onCancel, excluir }: PropertyFormPr
     default_checkout_time: '11:00'
   });
   // Localização usada na precificação: a esteira encontra pelo endereço; o usuário pode corrigir.
-  const [local, setLocal] = useState({ city: '', uf: '', country_code: '' });
-  const [localEditado, setLocalEditado] = useState(false);
+  const [local, setLocal] = useEstadoPersistente(rascunho.de('local'), { city: '', uf: '', country_code: '' });
+  const [localEditado, setLocalEditado] = useEstadoPersistente<boolean>(rascunho.de('localEditado'), false);
   const celular = useEhCelular();
-  const [importAberto, setImportAberto] = useState(false);
+  const [importAberto, setImportAberto] = useEstadoPersistente<boolean>(rascunho.de('importar'), false);
   // Blocos recolhidos pela pessoa (todos começam abertos)
-  const [blocosFechados, setBlocosFechados] = useState<string[]>([]);
+  const [blocosFechados, setBlocosFechados] = useEstadoPersistente<string[]>(rascunho.de('blocosFechados'), []);
   const alternarBloco = (chave: string, aberto: boolean) =>
     setBlocosFechados((atual) => (aberto ? atual.filter((c) => c !== chave) : [...atual, chave]));
   const [loading, setLoading] = useState(false);
-  const [importedData, setImportedData] = useState(false);
+  const [importedData, setImportedData] = useEstadoPersistente<boolean>(rascunho.de('importado'), false);
   const { toast } = useToast();
   const { user } = useAuth();
 
   useEffect(() => {
-    if (property) {
+    // Com rascunho guardado, o que foi digitado vale mais que o cadastro
+    if (property && !rascunho.tem('dados')) {
       setFormData({
         name: property.name || '',
         nickname: property.nickname || '',
@@ -81,6 +86,7 @@ const PropertyForm = ({ property, onSuccess, onCancel, excluir }: PropertyFormPr
       });
       setLocalEditado(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só quando o imóvel muda
   }, [property]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -144,6 +150,7 @@ const { error: insertError } = await supabase
           : "Propriedade criada. Ative a precificação automática na página Precificação.",
       });
       
+      rascunho.limpar();
       onSuccess();
     } catch (error) {
       console.error('Erro ao salvar propriedade:', error);
@@ -479,7 +486,7 @@ const { error: insertError } = await supabase
         <Button
           type="button"
           variant="outline"
-          onClick={onCancel}
+          onClick={() => { rascunho.limpar(); onCancel(); }}
           disabled={loading}
         >
           Cancelar

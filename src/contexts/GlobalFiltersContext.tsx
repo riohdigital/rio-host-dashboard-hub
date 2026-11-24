@@ -1,5 +1,6 @@
 
-import React, { createContext, useContext, useState, useCallback, useMemo, useRef } from 'react';
+import React, { createContext, useContext, useCallback, useMemo } from 'react';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 interface GlobalFiltersContextType {
   selectedProperties: string[];
@@ -16,65 +17,81 @@ interface GlobalFiltersContextType {
 
 const GlobalFiltersContext = createContext<GlobalFiltersContextType | undefined>(undefined);
 
+/** Períodos e plataformas que o filtro oferece (um valor guardado fora daqui é ignorado). */
+const PERIODOS_DO_FILTRO = [
+  'current_month', 'current_year', 'general', 'custom',
+  'last_month', 'last_3_months', 'last_6_months', 'last_year',
+  'next_month', 'next_3_months', 'next_6_months', 'next_12_months',
+] as const;
+const PLATAFORMAS_DO_FILTRO = ['all', 'Airbnb', 'Booking.com', 'Direto', 'VRBO', 'Hospedagem.com'] as const;
+
+const IMOVEIS_PADRAO = ['todas'];
+const listaDeImoveis = (v: unknown) =>
+  Array.isArray(v) && v.length > 0 && v.every((id) => typeof id === 'string' && id.length > 0);
+const dataGuardada = (v: unknown) => v === null || (typeof v === 'string' && !Number.isNaN(new Date(v).getTime()));
+
+/**
+ * Filtros globais (imóveis, período, plataforma e datas personalizadas).
+ * Ficam guardados no aparelho (`localStorage`), numa chave com o id do
+ * usuário: voltam ao recarregar a página e ao reabrir o app, e nunca passam
+ * de uma conta para outra. As datas são gravadas em ISO e lidas como `Date`.
+ * Imóvel guardado que não existe mais (ou perdeu o acesso) é retirado pelo
+ * GlobalFilters, que conhece a lista de imóveis do usuário.
+ */
 export const GlobalFiltersProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [selectedProperties, setSelectedPropertiesState] = useState<string[]>(['todas']);
-  const [selectedPeriod, setSelectedPeriodState] = useState('current_year');
-  const [selectedPlatform, setSelectedPlatformState] = useState('all');
-  const [customStartDate, setCustomStartDateState] = useState<Date | undefined>(undefined);
-  const [customEndDate, setCustomEndDateState] = useState<Date | undefined>(undefined);
-  const stableSettersRef = useRef({ 
-    setSelectedProperties: null as any, 
-    setSelectedPeriod: null as any, 
-    setSelectedPlatform: null as any,
-    setCustomStartDate: null as any,
-    setCustomEndDate: null as any
+  const [selectedProperties, setSelectedPropertiesState] = useEstadoPersistente<string[]>('filtros.imoveis', IMOVEIS_PADRAO, {
+    onde: 'aparelho',
+    aceita: listaDeImoveis,
   });
+  const [selectedPeriod, setSelectedPeriod] = useEstadoPersistente<string>('filtros.periodo', 'current_year', {
+    onde: 'aparelho',
+    aceita: PERIODOS_DO_FILTRO,
+  });
+  const [selectedPlatform, setSelectedPlatform] = useEstadoPersistente<string>('filtros.plataforma', 'all', {
+    onde: 'aparelho',
+    aceita: PLATAFORMAS_DO_FILTRO,
+  });
+  const [inicioISO, setInicioISO] = useEstadoPersistente<string | null>('filtros.inicio', null, { onde: 'aparelho', aceita: dataGuardada });
+  const [fimISO, setFimISO] = useEstadoPersistente<string | null>('filtros.fim', null, { onde: 'aparelho', aceita: dataGuardada });
 
-  const setSelectedProperties = useCallback((properties: string[]) => {
-    // Evitar atualizações desnecessárias
-    setSelectedPropertiesState(prev => {
-      if (JSON.stringify(prev) === JSON.stringify(properties)) {
-        return prev;
-      }
-      return properties;
-    });
-  }, []);
+  const customStartDate = useMemo(() => (inicioISO ? new Date(inicioISO) : undefined), [inicioISO]);
+  const customEndDate = useMemo(() => (fimISO ? new Date(fimISO) : undefined), [fimISO]);
 
-  const setSelectedPeriod = useCallback((period: string) => {
-    setSelectedPeriodState(prev => prev === period ? prev : period);
-  }, []);
+  const setSelectedProperties = useCallback(
+    (properties: string[]) => {
+      // Evitar atualizações desnecessárias
+      setSelectedPropertiesState((prev) => (JSON.stringify(prev) === JSON.stringify(properties) ? prev : properties));
+    },
+    [setSelectedPropertiesState],
+  );
 
-  const setSelectedPlatform = useCallback((platform: string) => {
-    setSelectedPlatformState(prev => prev === platform ? prev : platform);
-  }, []);
+  const setCustomStartDate = useCallback(
+    (date: Date | undefined) => setInicioISO(date && !Number.isNaN(date.getTime()) ? date.toISOString() : null),
+    [setInicioISO],
+  );
+  const setCustomEndDate = useCallback(
+    (date: Date | undefined) => setFimISO(date && !Number.isNaN(date.getTime()) ? date.toISOString() : null),
+    [setFimISO],
+  );
 
-  const setCustomStartDate = useCallback((date: Date | undefined) => {
-    setCustomStartDateState(date);
-  }, []);
-
-  const setCustomEndDate = useCallback((date: Date | undefined) => {
-    setCustomEndDateState(date);
-  }, []);
-
-  // Manter referências estáveis dos setters
-  stableSettersRef.current.setSelectedProperties = setSelectedProperties;
-  stableSettersRef.current.setSelectedPeriod = setSelectedPeriod;
-  stableSettersRef.current.setSelectedPlatform = setSelectedPlatform;
-  stableSettersRef.current.setCustomStartDate = setCustomStartDate;
-  stableSettersRef.current.setCustomEndDate = setCustomEndDate;
-
-  const value = useMemo(() => ({
-    selectedProperties,
-    selectedPeriod,
-    selectedPlatform,
-    customStartDate,
-    customEndDate,
-    setSelectedProperties: stableSettersRef.current.setSelectedProperties,
-    setSelectedPeriod: stableSettersRef.current.setSelectedPeriod,
-    setSelectedPlatform: stableSettersRef.current.setSelectedPlatform,
-    setCustomStartDate: stableSettersRef.current.setCustomStartDate,
-    setCustomEndDate: stableSettersRef.current.setCustomEndDate,
-  }), [selectedProperties, selectedPeriod, selectedPlatform, customStartDate, customEndDate]);
+  const value = useMemo(
+    () => ({
+      selectedProperties,
+      selectedPeriod,
+      selectedPlatform,
+      customStartDate,
+      customEndDate,
+      setSelectedProperties,
+      setSelectedPeriod,
+      setSelectedPlatform,
+      setCustomStartDate,
+      setCustomEndDate,
+    }),
+    [
+      selectedProperties, selectedPeriod, selectedPlatform, customStartDate, customEndDate,
+      setSelectedProperties, setSelectedPeriod, setSelectedPlatform, setCustomStartDate, setCustomEndDate,
+    ],
+  );
 
   return (
     <GlobalFiltersContext.Provider value={value}>

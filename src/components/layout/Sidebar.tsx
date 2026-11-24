@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { ChevronDown, ChevronRight, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import GlobalFilters from './GlobalFilters';
 import MarcaRioh from './MarcaRioh';
 import { ICONE_GESTOR, type ItemNavegacao, useNavegacao, useSair } from './navegacao';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 const classeItem = (ativo: boolean, pequeno = false) =>
   cn(
@@ -31,7 +32,7 @@ const Sidebar = () => {
   const location = useLocation();
 
   const secaoGestor = location.pathname.startsWith('/painel-gestor');
-  const [gestorAberto, setGestorAberto] = useState(secaoGestor);
+  const [gestorAberto, setGestorAberto] = useEstadoPersistente<boolean>('navegacao.gestor.aberto', secaoGestor);
 
   return (
     <aside

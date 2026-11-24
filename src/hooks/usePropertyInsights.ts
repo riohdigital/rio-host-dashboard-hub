@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useGlobalFilters } from '@/contexts/GlobalFiltersContext';
 import { supabase } from '@/integrations/supabase/client';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 // Interface alinhada com output do n8n
 export interface ActionPlanItem {
@@ -89,7 +90,8 @@ export function usePropertyInsights() {
   const { selectedProperties } = useGlobalFilters();
   const [loading, setLoading] = useState(true);
   const [insights, setInsights] = useState<PropertyInsight[]>([]);
-  const [activePropertyIndex, setActivePropertyIndex] = useState(0);
+  // O imóvel em foco é guardado pelo id (a ordem da lista pode mudar)
+  const [imovelEmFoco, setImovelEmFoco] = useEstadoPersistente<string | null>('dashboard.dicas.imovel', null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -187,18 +189,24 @@ export function usePropertyInsights() {
     fetchInsights();
   }, [selectedProperties]);
 
+  const activePropertyIndex = Math.max(0, insights.findIndex((i) => i.property_id === imovelEmFoco));
   const currentInsight = insights[activePropertyIndex] || null;
 
   const goToProperty = (index: number) => {
     if (index >= 0 && index < insights.length) {
-      setActivePropertyIndex(index);
+      setImovelEmFoco(insights[index].property_id);
     }
   };
 
-  // Reset to first property when selection changes
+  // Volta ao primeiro imóvel quando a seleção do filtro muda (não ao abrir a
+  // tela: aí vale o imóvel guardado)
+  const selecaoAnterior = useRef(JSON.stringify(selectedProperties));
   useEffect(() => {
-    setActivePropertyIndex(0);
-  }, [selectedProperties]);
+    const atual = JSON.stringify(selectedProperties);
+    if (atual === selecaoAnterior.current) return;
+    selecaoAnterior.current = atual;
+    setImovelEmFoco(null);
+  }, [selectedProperties, setImovelEmFoco]);
 
   return {
     insights,

@@ -16,6 +16,8 @@ import { ListaLinhas } from '@/components/comum/GrupoLista';
 import FolhaDetalhes from '@/components/comum/FolhaDetalhes';
 import type { Tom } from '@/components/comum/cores';
 import { useEhCompacto } from '@/hooks/useMidia';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
+import { useItemAberto } from '@/hooks/useItemAberto';
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
@@ -48,7 +50,7 @@ interface CleanerCardProps {
 }
 
 const CleanerCard = ({ cleaner }: CleanerCardProps) => {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useEstadoPersistente<boolean>(`pagamentos.faxineiras.aberta.${cleaner.cleanerId}`, false);
   const noCleanings = !cleaner.hasCleaningsThisMonth;
 
   const initials = cleaner.cleanerName
@@ -213,7 +215,10 @@ const tomDoPagamento = (status: string): Tom =>
  * Os totais do mês ficam na faixa do topo da tela.
  */
 const ListaFaxineirasCelular = ({ faxineiras }: { faxineiras: CleanerPayment[] }) => {
-  const [sel, setSel] = useState<CleanerPayment | null>(null);
+  // A folha da faxineira volta aberta depois de recarregar (guarda só o id)
+  const folha = useItemAberto('pagamentos.faxineiras.folha', faxineiras, { idDe: (c) => c.cleanerId });
+  const sel = folha.aberto ? folha.item : null;
+  const setSel = (c: CleanerPayment | null) => (c ? folha.abrir(c) : folha.limpar());
   return (
     <>
       <div className="rounded-2xl border bg-card px-3.5 py-1 shadow-sm">
@@ -289,12 +294,14 @@ interface CleanerPaymentsTabProps {
 }
 
 const CleanerPaymentsTab = ({ cleanerPayments, loading, hasFilter }: CleanerPaymentsTabProps) => {
-  const [search, setSearch] = useState('');
-  const [selectedCleaner, setSelectedCleaner] = useState('todas');
-  const [showOnlyWithCleanings, setShowOnlyWithCleanings] = useState(false);
+  const [search, setSearch] = useEstadoPersistente('pagamentos.faxineiras.busca', '');
+  const [faxineiraGuardada, setSelectedCleaner] = useEstadoPersistente('pagamentos.faxineiras.quem', 'todas');
+  // Faxineira guardada que não está na lista deste mês: mostra todas
+  const selectedCleaner = cleanerPayments.some((c) => c.cleanerId === faxineiraGuardada) ? faxineiraGuardada : 'todas';
+  const [showOnlyWithCleanings, setShowOnlyWithCleanings] = useEstadoPersistente<boolean>('pagamentos.faxineiras.soComFaxinas', false);
   const [cleanerExpenses, setCleanerExpenses] = useState<any[]>([]);
   const [expensesLoading, setExpensesLoading] = useState(false);
-  const [showReimbursementsList, setShowReimbursementsList] = useState(false);
+  const [showReimbursementsList, setShowReimbursementsList] = useEstadoPersistente<boolean>('pagamentos.faxineiras.notas', false);
   const { toast } = useToast();
   const compacto = useEhCompacto();
 

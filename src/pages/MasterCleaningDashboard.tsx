@@ -18,8 +18,10 @@ import CleanerSelector from '@/components/master-cleaning/CleanerSelector';
 import MasterCleaningCard from '@/components/master-cleaning/MasterCleaningCard';
 import CleaningStats from '@/components/master-cleaning/CleaningStats';
 import FaxinasCelular from '@/components/master-cleaning/FaxinasCelular';
+import { ABAS_DE_FAXINAS, ABA_NO_COMPUTADOR } from '@/components/master-cleaning/abas';
 import { useEhCompacto } from '@/hooks/useMidia';
 import type { ReservationWithCleanerInfo, CleanerProfile } from '@/types/master-cleaning';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 const MasterCleaningDashboard = () => {
   const { toast } = useToast();
@@ -45,9 +47,13 @@ const MasterCleaningDashboard = () => {
     showToasts: true
   });
   
-  const [selectedCleaner, setSelectedCleaner] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState('all');
+  // Faxineira, busca e aba voltam depois de recarregar (as mesmas no celular e no computador)
+  const [faxineiraGuardada, setSelectedCleaner] = useEstadoPersistente<string | null>('faxinas.faxineira', null);
+  // Faxineira guardada que saiu da lista: mostra todas
+  const selectedCleaner = faxineiraGuardada && cleaners.some((c) => c.user_id === faxineiraGuardada) ? faxineiraGuardada : null;
+  const [searchTerm, setSearchTerm] = useEstadoPersistente('faxinas.busca', '');
+  const [abaGuardada, setActiveTab] = useEstadoPersistente<string | null>('faxinas.aba', null, { aceita: ABAS_DE_FAXINAS });
+  const activeTab = ABA_NO_COMPUTADOR[abaGuardada ?? ''] ?? 'all';
   const [propertyCleaners, setPropertyCleaners] = useState<Record<string, CleanerProfile[]>>({});
   const compacto = useEhCompacto();
 

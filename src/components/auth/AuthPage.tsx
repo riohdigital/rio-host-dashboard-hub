@@ -7,11 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff } from "lucide-react";
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 const AuthPage = () => {
-  const [email, setEmail] = useState('');
+  // O e-mail e o modo (entrar/criar conta) voltam ao recarregar; a senha nunca é guardada
+  const [email, setEmail] = useEstadoPersistente('login.email', '');
   const [password, setPassword] = useState('');
-  const [isLogin, setIsLogin] = useState(true);
+  const [isLogin, setIsLogin] = useEstadoPersistente<boolean>('login.entrar', true);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const { toast } = useToast();

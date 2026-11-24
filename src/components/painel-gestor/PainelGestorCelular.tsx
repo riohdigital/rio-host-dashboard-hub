@@ -6,7 +6,7 @@
  * recentes (recolhidos). Usa só os dados que useGestorDashboard já calcula;
  * o computador continua com o desenho de sempre (PainelGestorPage).
  */
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format, formatDistanceToNow, isToday, isTomorrow, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -36,6 +36,8 @@ import type {
   RecentActivity,
   UpcomingEvent,
 } from '@/types/painel-gestor';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
+import { useItemAberto } from '@/hooks/useItemAberto';
 
 interface PainelGestorCelularProps {
   loading: boolean;
@@ -81,7 +83,7 @@ const Campos = ({ itens }: { itens: { rotulo: string; valor: React.ReactNode; cl
 /* ── Saídas sem faxineira ─────────────────────────────── */
 const AlertasFaxina = ({ alertas }: { alertas: CleaningRiskAlert[] }) => {
   const navigate = useNavigate();
-  const lista = useListaCurta(alertas, 3);
+  const lista = useListaCurta(alertas, 3, { chave: 'gestor.alertas.todos' });
   if (alertas.length === 0) return null;
   return (
     <Bloco tom="alerta" titulo={plural(alertas.length, 'saída sem faxineira', 'saídas sem faxineira')} extra="próximas primeiro" compacto>
@@ -115,7 +117,7 @@ const AlertasFaxina = ({ alertas }: { alertas: CleaningRiskAlert[] }) => {
 
 /* ── Comissões: recebidas · a receber + lista recolhida ── */
 const ResumoComissoes = ({ dados }: { dados: CommissionSummary }) => {
-  const [aberta, setAberta] = useState(false);
+  const [aberta, setAberta] = useEstadoPersistente<boolean>('gestor.comissoes.lista', false);
   return (
     <Bloco titulo="Comissões" className="pb-0">
       <dl className="grid grid-cols-2 gap-3 pb-3">
@@ -141,8 +143,11 @@ const ResumoComissoes = ({ dados }: { dados: CommissionSummary }) => {
 /* ── Desempenho por imóvel ────────────────────────────── */
 const DesempenhoImoveis = ({ dados, receitaTotal }: { dados: PropertyPerformance[]; receitaTotal: number }) => {
   const ordenados = useMemo(() => [...dados].sort((a, b) => b.totalRevenue - a.totalRevenue), [dados]);
-  const lista = useListaCurta(ordenados, 5);
-  const [sel, setSel] = useState<PropertyPerformance | null>(null);
+  const lista = useListaCurta(ordenados, 5, { chave: 'gestor.imoveis.todos' });
+  // A folha do imóvel volta aberta depois de recarregar (guarda só o id)
+  const folha = useItemAberto('gestor.imovel.folha', dados, { idDe: (p) => p.propertyId });
+  const sel = folha.aberto ? folha.item : null;
+  const setSel = (p: PropertyPerformance | null) => (p ? folha.abrir(p) : folha.limpar());
   const maior = Math.max(1, ...ordenados.map((p) => p.totalRevenue));
 
   return (
@@ -220,7 +225,7 @@ const EtiquetaFaxina = ({ evento }: { evento: UpcomingEvent }) => {
 };
 
 const ProximosEventos = ({ eventos }: { eventos: UpcomingEvent[] }) => {
-  const lista = useListaCurta(eventos, 5);
+  const lista = useListaCurta(eventos, 5, { chave: 'gestor.eventos.todos' });
   const entradas = eventos.filter((e) => e.type === 'check-in').length;
   const saidas = eventos.filter((e) => e.type === 'check-out').length;
   const prox = eventos[0];
@@ -230,7 +235,7 @@ const ProximosEventos = ({ eventos }: { eventos: UpcomingEvent[] }) => {
       : `${plural(entradas, 'entrada', 'entradas')} · ${plural(saidas, 'saída', 'saídas')} · próximo: ${rotuloDia(prox.date)}${prox.time ? ` ${prox.time.slice(0, 5)}` : ''}`;
 
   return (
-    <BlocoRecolhivel titulo="Próximos eventos" resumo={resumo}>
+    <BlocoRecolhivel chave="gestor.eventos.aberto" titulo="Próximos eventos" resumo={resumo}>
       {eventos.length === 0 ? (
         <p className="text-sm text-gray-500">Nenhum evento nos próximos 7 dias.</p>
       ) : (
@@ -265,10 +270,10 @@ const ICONE_ATIVIDADE = {
 } as const;
 
 const AtividadesRecentes = ({ atividades }: { atividades: RecentActivity[] }) => {
-  const lista = useListaCurta(atividades, 5);
+  const lista = useListaCurta(atividades, 5, { chave: 'gestor.atividades.todas' });
   const resumo = atividades.length === 0 ? 'Nenhuma atividade recente' : `Última: ${atividades[0].description}`;
   return (
-    <BlocoRecolhivel titulo="Atividades recentes" resumo={resumo}>
+    <BlocoRecolhivel chave="gestor.atividades.aberto" titulo="Atividades recentes" resumo={resumo}>
       {atividades.length === 0 ? (
         <p className="text-sm text-gray-500">Nenhuma atividade recente.</p>
       ) : (

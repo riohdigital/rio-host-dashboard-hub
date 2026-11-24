@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { Search, Copy } from 'lucide-react';
-import { useFormPersistence } from '@/hooks/useFormPersistence';
+import { useRascunhoFormulario } from '@/hooks/useRascunhoFormulario';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
@@ -78,26 +79,28 @@ interface ReservationFormProps {
 }
 
 const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormProps) => {
+    // Rascunho (cadastro e edição): campos e ajustes do formulário voltam depois de recarregar
+    const formKey = `reservas.form.${reservation?.id ?? 'nova'}`;
     const [properties, setProperties] = useState<Property[]>([]);
     const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
     const [loading, setLoading] = useState(false);
     // Blocos recolhidos pela pessoa (todos começam abertos)
-    const [blocosFechados, setBlocosFechados] = useState<string[]>([]);
+    const [blocosFechados, setBlocosFechados] = useEstadoPersistente<string[]>(`${formKey}.blocosFechados`, []);
     const alternarBloco = (chave: string, aberto: boolean) =>
         setBlocosFechados((atual) => (aberto ? atual.filter((c) => c !== chave) : [...atual, chave]));
     const [numberOfDays, setNumberOfDays] = useState(0);
-    const [usePropertyDefaults, setUsePropertyDefaults] = useState(true);
+    const [usePropertyDefaults, setUsePropertyDefaults] = useEstadoPersistente<boolean>(`${formKey}.horariosPadrao`, true);
     const [cleaners, setCleaners] = useState<{ user_id: string; full_name: string | null; email: string }[]>([]);
-    const [editingCleaningFee, setEditingCleaningFee] = useState(false);
-    const [editingCommission, setEditingCommission] = useState(false);
-    const [manualCleaningFee, setManualCleaningFee] = useState<number | undefined>(undefined);
-    const [manualCommission, setManualCommission] = useState<number | undefined>(undefined);
-    const [showCleanerForm, setShowCleanerForm] = useState(false);
+    const [editingCleaningFee, setEditingCleaningFee] = useEstadoPersistente<boolean>(`${formKey}.editandoTaxa`, false);
+    const [editingCommission, setEditingCommission] = useEstadoPersistente<boolean>(`${formKey}.editandoComissao`, false);
+    const [manualCleaningFee, setManualCleaningFee] = useEstadoPersistente<number | undefined>(`${formKey}.taxaManual`, undefined);
+    const [manualCommission, setManualCommission] = useEstadoPersistente<number | undefined>(`${formKey}.comissaoManual`, undefined);
+    const [showCleanerForm, setShowCleanerForm] = useEstadoPersistente<boolean>(`${formKey}.novaFaxineira`, false);
     const [showCleanerModal, setShowCleanerModal] = useState(false);
-    const [duplicateSearch, setDuplicateSearch] = useState('');
+    const [duplicateSearch, setDuplicateSearch] = useEstadoPersistente(`${formKey}.duplicar.busca`, '');
     const [duplicateResults, setDuplicateResults] = useState<any[]>([]);
     const [duplicateLoading, setDuplicateLoading] = useState(false);
-    const [duplicateApplied, setDuplicateApplied] = useState<string | null>(null);
+    const [duplicateApplied, setDuplicateApplied] = useEstadoPersistente<string | null>(`${formKey}.duplicar.aplicada`, null);
     const { toast } = useToast();
 
     const {
@@ -119,19 +122,16 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
 
     const watchedValues = watch();
     
-    const formKey = `reservation-form-${reservation?.id || 'new'}`;
-    const { restoreData, clearSavedData } = useFormPersistence({
-        key: formKey,
-        values: watchedValues,
-        setValue,
-        enabled: !reservation
-    });
+    const rascunho = useRascunhoFormulario({ chave: formKey, valores: watchedValues, setValue, edicao: !!reservation });
+    // Havia rascunho ao abrir? Então ele vale mais que os valores do registro.
+    const haviaRascunho = useRef<boolean | null>(null);
+    if (haviaRascunho.current === null) haviaRascunho.current = rascunho.tem('campos');
 
     useEffect(() => {
         fetchProperties();
-        if (!reservation) {
-            setTimeout(() => restoreData(), 100);
-        }
+        // Cadastro novo: o rascunho entra já; na edição, depois de carregar a reserva (abaixo)
+        if (!reservation) rascunho.restaurar();
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- uma vez, ao abrir
     }, []);
 
     const fetchProperties = async () => {
@@ -154,10 +154,12 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                 checkout_time: reservation.checkout_time?.slice(0, 5) || '',
             };
             reset(initialValues);
+            // O que estava digitado (rascunho) volta por cima dos dados da reserva
+            rascunho.restaurar();
 
             // Detectar valores financeiros manuais comparando com o cálculo automático
             const property = properties.find(p => p.id === reservation.property_id);
-            if (property) {
+            if (property && !haviaRascunho.current) {
                 const expectedCleaningFee = property.cleaning_fee || 0;
                 const expectedBase = reservation.total_revenue - expectedCleaningFee;
                 const expectedCommission = expectedBase * (property.commission_rate || 0);
@@ -172,10 +174,11 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                 }
             }
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- o rascunho não muda entre renders
     }, [reservation, properties, reset]);
     
     useEffect(() => {
-        if (reservation && cleaners.length > 0) {
+        if (reservation && cleaners.length > 0 && !haviaRascunho.current) {
             let destinationValue = 'none';
             if (reservation.cleaner_user_id) {
                 if (cleaners.some(c => c.user_id === reservation.cleaner_user_id)) {
@@ -335,7 +338,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                 toast({ title: "Sucesso", description: "Reserva criada com sucesso." });
             }
 
-            clearSavedData();
+            rascunho.limpar();
             onSuccess();
         } catch (error: any) {
             console.error('Erro ao salvar reserva:', error);
@@ -507,7 +510,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <Label htmlFor="property_id">Propriedade *</Label>
-                        <Select value={watchedValues.property_id || ''} onValueChange={(value) => setValue('property_id', value)}>
+                        <Select value={watchedValues.property_id || ''} onValueChange={(value) => { if (value) setValue('property_id', value); }}>
                             <SelectTrigger><SelectValue placeholder="Selecione uma propriedade" /></SelectTrigger>
                             <SelectContent>
                                 {properties.map((property) => (
@@ -721,7 +724,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
                             <Label htmlFor="cleaning_destination">Faxineira responsável</Label>
                             <Select 
                                 value={watchedValues.cleaning_destination || 'none'} 
-                                onValueChange={(value) => { setValue('cleaning_destination', value); }}>
+                                onValueChange={(value) => { if (value) setValue('cleaning_destination', value); }}>
                                 <SelectTrigger><SelectValue placeholder="Selecione o destino da taxa..." /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="none">A decidir / Nenhuma</SelectItem>
@@ -780,7 +783,7 @@ const ReservationForm = ({ reservation, onSuccess, onCancel }: ReservationFormPr
             </BlocoFormulario>
             {/* Botões sempre à mão: colados embaixo na tela cheia do celular */}
             <div className="sticky -bottom-4 z-10 -mx-4 -mb-4 flex justify-end gap-3 border-t bg-background px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 sm:-mx-6 sm:px-6 sm:pb-3 [&>button]:flex-1 sm:[&>button]:flex-none">
-                <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>Cancelar</Button>
+                <Button type="button" variant="outline" onClick={() => { rascunho.limpar(); onCancel(); }} disabled={loading}>Cancelar</Button>
                 <Button type="submit" disabled={loading}>
                     {loading ? 'Salvando...' : 'Salvar'}
                 </Button>

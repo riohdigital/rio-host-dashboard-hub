@@ -6,6 +6,7 @@ import TabelaResponsiva from '@/components/comum/TabelaResponsiva';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useUserPermissions } from '@/contexts/UserPermissionsContext';
 import { PropertyInvestment } from '@/types/investment';
+import { useEstadoPersistente } from '@/hooks/useEstadoPersistente';
 
 interface InvestmentsListProps {
   investments: PropertyInvestment[];
@@ -16,6 +17,8 @@ interface InvestmentsListProps {
 
 const InvestmentsList = ({ investments, onDelete, loading, showPropertyColumn = true }: InvestmentsListProps) => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  // A pergunta de exclusão volta aberta depois de recarregar a página
+  const [confirmandoId, setConfirmandoId] = useEstadoPersistente<string | null>('investimentos.excluir', null);
   const { hasPermission } = useUserPermissions();
 
   const formatCurrency = (value: number) => {
@@ -65,7 +68,7 @@ const InvestmentsList = ({ investments, onDelete, loading, showPropertyColumn = 
   }
 
   const botaoExcluir = (id: string) => (
-    <AlertDialog>
+    <AlertDialog open={confirmandoId === id} onOpenChange={(aberto) => setConfirmandoId(aberto ? id : null)}>
       <AlertDialogTrigger asChild>
         <Button variant="outline" size="icon" className="h-9 w-9" aria-label="Excluir investimento">
           <Trash2 className="h-4 w-4" />

@@ -14,7 +14,7 @@ interface RecentActivityFeedProps {
 
 export const RecentActivityFeed = ({ activities, loading }: RecentActivityFeedProps) => {
   // Celular: 3 atividades + "Ver todas" (sem rolagem dentro da página)
-  const lista = useListaCurta(activities, 3, { soCompacto: true });
+  const lista = useListaCurta(activities, 3, { soCompacto: true, chave: 'gestor.atividades.todas' });
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
