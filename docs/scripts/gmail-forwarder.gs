@@ -65,6 +65,19 @@ const LIMITE_POR_REQUISICAO = 50;
 /** Quantas conversas examinar por execução. */
 const LOTE_CONVERSAS = 100;
 
+/**
+ * Instabilidade do Google ("We're sorry, a server error occurred", "error
+ * reading from storage") acontece algumas vezes por mês e some sozinha. Nesses
+ * casos a execução tenta de novo depois de ESPERA_NOVA_TENTATIVA_MS e, se ainda
+ * falhar, deixa para a próxima execução sem disparar o e-mail de falha. Nada se
+ * perde: a conversa só ganha o rótulo de processada depois de enviada.
+ *
+ * O e-mail de falha só vem quando o problema persiste por
+ * LIMITE_FALHAS_SEGUIDAS execuções seguidas (com o acionador de 30 min, 3 h).
+ */
+const ESPERA_NOVA_TENTATIVA_MS = 20000;
+const LIMITE_FALHAS_SEGUIDAS = 6;
+
 /** Converte "Rioh Host/Processado" na forma que a busca do Gmail entende. */
 function comoRotuloDeBusca_(nome) {
   return nome.replace(/\//g, '-').replace(/\s+/g, '-');
@@ -85,7 +98,60 @@ function configurar() {
 
 /** Execução automática: janela móvel dos últimos JANELA_DIAS dias. */
 function sincronizarReservas() {
-  processarLote_('newer_than:' + JANELA_DIAS + 'd');
+  return executarComTolerancia_(function () {
+    return processarLote_('newer_than:' + JANELA_DIAS + 'd');
+  });
+}
+
+/**
+ * Erro passageiro do Google ou do servidor do dashboard, que vale tentar de
+ * novo. Segredo errado (HTTP 401) e erros do próprio script não entram aqui:
+ * esses precisam de alguém e avisam na hora.
+ */
+function ehErroPassageiro_(erro) {
+  const texto = String((erro && erro.message) || erro);
+  return /server error|erro (no|do) servidor|try again|tente novamente|INTERNAL|Service (unavailable|error)|Servi[cç]o indispon[ií]vel|temporarily|temporariamente|timed? ?out|tempo limite|Address unavailable|Endere[cç]o indispon[ií]vel|DNS error|Bandwidth quota|HTTP 5\d\d|HTTP 429/i.test(texto);
+}
+
+/**
+ * Roda a função sem sobrepor execuções e absorvendo a instabilidade passageira
+ * do Google (ver ESPERA_NOVA_TENTATIVA_MS e LIMITE_FALHAS_SEGUIDAS).
+ */
+function executarComTolerancia_(funcao) {
+  const trava = LockService.getScriptLock();
+  if (!trava.tryLock(5000)) {
+    Logger.log('Outra execução ainda está rodando. Esta foi pulada.');
+    return null;
+  }
+
+  const propriedades = PropertiesService.getScriptProperties();
+  try {
+    let ultimoErro = null;
+    for (let tentativa = 1; tentativa <= 2; tentativa++) {
+      try {
+        const resultado = funcao();
+        propriedades.deleteProperty('FALHAS_SEGUIDAS');
+        return resultado;
+      } catch (erro) {
+        if (!ehErroPassageiro_(erro)) throw erro;
+        ultimoErro = erro;
+        Logger.log('Tentativa %s: instabilidade do Google (%s).', tentativa, erro.message || erro);
+        if (tentativa === 1) Utilities.sleep(ESPERA_NOVA_TENTATIVA_MS);
+      }
+    }
+
+    const falhas = Number(propriedades.getProperty('FALHAS_SEGUIDAS') || 0) + 1;
+    propriedades.setProperty('FALHAS_SEGUIDAS', String(falhas));
+    propriedades.setProperty('ULTIMA_FALHA', new Date().toISOString() + ' ' + (ultimoErro.message || ultimoErro));
+
+    if (falhas >= LIMITE_FALHAS_SEGUIDAS) {
+      throw new Error('Instabilidade persistente há ' + falhas + ' execuções seguidas: ' + (ultimoErro.message || ultimoErro));
+    }
+    Logger.log('Ainda instável (%s de %s seguidas). A próxima execução tenta de novo; nada se perde.', falhas, LIMITE_FALHAS_SEGUIDAS);
+    return null;
+  } finally {
+    trava.releaseLock();
+  }
 }
 
 /**
