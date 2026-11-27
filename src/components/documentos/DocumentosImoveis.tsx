@@ -4,6 +4,8 @@
  * Busca no que a IA leu (título, tipo, fornecedor, resumo e texto do
  * documento), filtro por imóvel, aviso do que vence em até 30 dias, lista por
  * imóvel e folha de detalhes com o arquivo, a leitura da IA e a edição.
+ * Dentro de cada imóvel, documentos com a mesma pasta (ex.: uma benfeitoria)
+ * ficam juntos numa linha de pasta que abre e fecha.
  * Enviar: escolhe o imóvel e um ou mais arquivos (PDF ou foto); cada arquivo
  * vira um documento e a IA lê na hora.
  */
@@ -12,6 +14,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   FileText,
+  Folder,
   FolderOpen,
   ImageIcon,
   Loader2,
@@ -43,6 +46,7 @@ import type { Property } from '@/types/property';
 import {
   ATENCAO_DIAS,
   diasParaVencer,
+  limparPasta,
   semAcento,
   TIPOS_ACEITOS,
   useDocumentos,
@@ -77,6 +81,35 @@ function situacaoDaValidade(doc: Documento): { texto: string; legenda: string; t
 
 const ehImagem = (doc: Documento) => (doc.mime_type || '').startsWith('image/');
 
+/** Data mais recente da pasta, para ordenar (a pasta mais nova primeiro) */
+const maisRecente = (docs: Documento[]) =>
+  docs.reduce((max, d) => {
+    const data = d.document_date || d.created_at.slice(0, 10);
+    return data > max ? data : max;
+  }, '');
+
+/** Período coberto pelos documentos da pasta: "21/11 a 27/11/2026" */
+function periodoDaPasta(docs: Documento[]): string {
+  const datas = docs.map((d) => d.document_date).filter((d): d is string => !!d).sort();
+  if (!datas.length) return 'Pasta';
+  const [ini, fim] = [datas[0], datas[datas.length - 1]];
+  if (ini === fim) return `Pasta · ${formatarData(ini)}`;
+  const mesmoAno = ini.slice(0, 4) === fim.slice(0, 4);
+  return `Pasta · ${formatarData(ini, mesmoAno)} a ${formatarData(fim)}`;
+}
+
+/** Pastas já usadas em cada imóvel, para sugerir ao enviar e ao editar */
+function pastasPorImovel(docs: Documento[]): Map<string, string[]> {
+  const mapa = new Map<string, Set<string>>();
+  for (const d of docs) {
+    const pasta = limparPasta(d.folder);
+    if (!pasta) continue;
+    if (!mapa.has(d.property_id)) mapa.set(d.property_id, new Set());
+    mapa.get(d.property_id)!.add(pasta);
+  }
+  return new Map([...mapa].map(([id, nomes]) => [id, [...nomes].sort((a, b) => a.localeCompare(b, 'pt-BR'))]));
+}
+
 /** Abre o arquivo numa aba nova. A aba abre antes do link existir, senão o celular bloqueia. */
 async function abrirArquivo(doc: Documento, gerarLink: (d: Documento) => Promise<string | null>) {
   const aba = window.open('', '_blank');
@@ -105,6 +138,10 @@ const DocumentosImoveis = ({ imoveis, podeEditar, filtroImovel, aoMudarFiltroImo
   const [busca, setBusca] = useEstadoPersistente('documentos.busca', '');
   const folha = useItemAberto<Documento>('documentos.folha', documentos, { carregando });
   const [envioAberto, setEnvioAberto] = useEstadoPersistente('documentos.envio', false);
+  // Pastas abertas ("imóvel|pasta"): voltam abertas ao recarregar
+  const [pastasAbertas, setPastasAbertas] = useEstadoPersistente<string[]>('documentos.pastasAbertas', [], {
+    aceita: (v) => Array.isArray(v) && v.every((x) => typeof x === 'string'),
+  });
 
   const imovelPorId = useMemo(() => new Map(imoveis.map((p) => [p.id, p])), [imoveis]);
   const imovelFiltrado = filtroImovel !== TODOS && imovelPorId.has(filtroImovel) ? filtroImovel : TODOS;
@@ -112,6 +149,7 @@ const DocumentosImoveis = ({ imoveis, podeEditar, filtroImovel, aoMudarFiltroImo
 
   // Só os documentos dos imóveis que esta pessoa vê na tela
   const doUsuario = useMemo(() => documentos.filter((d) => imovelPorId.has(d.property_id)), [documentos, imovelPorId]);
+  const pastas = useMemo(() => pastasPorImovel(doUsuario), [doUsuario]);
 
   const filtrados = useMemo(() => {
     const termos = semAcento(busca.trim()).split(/\s+/).filter(Boolean);
@@ -119,7 +157,7 @@ const DocumentosImoveis = ({ imoveis, podeEditar, filtroImovel, aoMudarFiltroImo
       if (imovelFiltrado !== TODOS && d.property_id !== imovelFiltrado) return false;
       if (!termos.length) return true;
       const alvo = semAcento(
-        [d.title, d.category, d.provider, d.summary, d.content_text, d.notes, d.file_name, nomeDoImovel(imovelPorId.get(d.property_id)), formatarData(d.document_date)]
+        [d.title, d.category, d.folder, d.provider, d.summary, d.content_text, d.notes, d.file_name, nomeDoImovel(imovelPorId.get(d.property_id)), formatarData(d.document_date)]
           .filter(Boolean)
           .join(' '),
       );
@@ -176,6 +214,54 @@ const DocumentosImoveis = ({ imoveis, podeEditar, filtroImovel, aoMudarFiltroImo
     );
   };
 
+  const buscando = busca.trim().length > 0;
+  const alternarPasta = (chave: string) =>
+    setPastasAbertas((lista) => (lista.includes(chave) ? lista.filter((c) => c !== chave) : [...lista, chave]));
+
+  /** Documentos de um imóvel: primeiro as pastas (a mais recente em cima), depois os soltos */
+  const conteudoDoImovel = (imovelId: string, docs: Documento[]) => {
+    const porPasta = new Map<string, Documento[]>();
+    const soltos: Documento[] = [];
+    for (const d of docs) {
+      const pasta = limparPasta(d.folder);
+      if (!pasta) soltos.push(d);
+      else {
+        if (!porPasta.has(pasta)) porPasta.set(pasta, []);
+        porPasta.get(pasta)!.push(d);
+      }
+    }
+    const ordenadas = [...porPasta.entries()].sort(
+      (a, b) => maisRecente(b[1]).localeCompare(maisRecente(a[1])) || a[0].localeCompare(b[0], 'pt-BR'),
+    );
+    return (
+      <>
+        {ordenadas.map(([pasta, itens]) => {
+          const chave = `${imovelId}|${pasta}`;
+          // Na busca, a pasta abre sozinha para mostrar o que achou
+          const aberta = buscando || pastasAbertas.includes(chave);
+          return (
+            <div key={chave}>
+              <LinhaLista
+                icone={aberta ? FolderOpen : Folder}
+                titulo={pasta}
+                subtitulo={periodoDaPasta(itens)}
+                valor={String(itens.length)}
+                legenda={itens.length === 1 ? 'documento' : 'documentos'}
+                aoTocar={buscando ? undefined : () => alternarPasta(chave)}
+              />
+              {aberta && (
+                <div className="mb-2 ml-4 divide-y divide-gray-100 border-l-2 border-brand-100 pl-3">
+                  {itens.map((d) => linha(d))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {soltos.map((d) => linha(d))}
+      </>
+    );
+  };
+
   const opcoesImovel = (
     <Select value={imovelFiltrado} onValueChange={setFiltroImovel}>
       <SelectTrigger className="h-11 min-w-0 bg-card sm:w-64" aria-label="Imóvel">
@@ -226,7 +312,7 @@ const DocumentosImoveis = ({ imoveis, podeEditar, filtroImovel, aoMudarFiltroImo
         <div className="grid gap-4 xl:grid-cols-2">
           {grupos.map(([imovelId, docs]) => (
             <GrupoLista key={imovelId} titulo={nomeDoImovel(imovelPorId.get(imovelId))} resumo={`${docs.length} documento${docs.length === 1 ? '' : 's'}`}>
-              {docs.map((d) => linha(d))}
+              {conteudoDoImovel(imovelId, docs)}
             </GrupoLista>
           ))}
         </div>
@@ -239,6 +325,7 @@ const DocumentosImoveis = ({ imoveis, podeEditar, filtroImovel, aoMudarFiltroImo
           doc={folha.item}
           imovel={nomeDoImovel(imovelPorId.get(folha.item.property_id))}
           tipos={tipos}
+          pastas={pastas.get(folha.item.property_id) ?? []}
           podeEditar={podeEditar(folha.item.property_id)}
           aoAbrirArquivo={async (d) => {
             if (!(await abrirArquivo(d, linkDoArquivo))) toast({ title: 'Não foi possível abrir o arquivo', variant: 'destructive' });
@@ -264,6 +351,7 @@ const DocumentosImoveis = ({ imoveis, podeEditar, filtroImovel, aoMudarFiltroImo
         aberta={envioAberto}
         aoMudar={setEnvioAberto}
         imoveis={imoveisEditaveis}
+        pastasDoImovel={(id) => pastas.get(id) ?? []}
         imovelInicial={imovelFiltrado !== TODOS && podeEditar(imovelFiltrado) ? imovelFiltrado : imoveisEditaveis.length === 1 ? imoveisEditaveis[0].id : ''}
         aoEnviar={enviar}
         aoConcluir={(ids, falhas) => {
@@ -284,6 +372,8 @@ interface FolhaDocumentoProps {
   doc: Documento;
   imovel: string;
   tipos: TipoDocumento[];
+  /** Pastas já usadas neste imóvel (sugestões) */
+  pastas: string[];
   podeEditar: boolean;
   aoAbrirArquivo: (d: Documento) => Promise<void>;
   aoReler: (d: Documento) => Promise<void>;
@@ -306,9 +396,10 @@ const camposDe = (d: Documento): CamposEditaveis => ({
   provider: d.provider,
   amount: d.amount,
   notes: d.notes,
+  folder: d.folder,
 });
 
-const FolhaDocumento = ({ aberta, aoMudar, doc, imovel, tipos, podeEditar, aoAbrirArquivo, aoReler, aoSalvar, aoExcluir }: FolhaDocumentoProps) => {
+const FolhaDocumento = ({ aberta, aoMudar, doc, imovel, tipos, pastas, podeEditar, aoAbrirArquivo, aoReler, aoSalvar, aoExcluir }: FolhaDocumentoProps) => {
   // Edição em andamento: volta ao recarregar a página, por documento
   const [rascunho, setRascunho] = useEstadoPersistente<CamposEditaveis | null>(`documentos.edicao.${doc.id}`, null, {
     aceita: (v) => v === null || (typeof v === 'object' && !Array.isArray(v)),
@@ -336,7 +427,7 @@ const FolhaDocumento = ({ aberta, aoMudar, doc, imovel, tipos, podeEditar, aoAbr
   const salvar = () =>
     fazer('salvar', async () => {
       if (!rascunho) return;
-      const campos = { ...rascunho, category: rascunho.category || 'Outros' };
+      const campos = { ...rascunho, category: rascunho.category || 'Outros', folder: limparPasta(rascunho.folder) };
       const mudouValidade = campos.expires_at !== doc.expires_at;
       const ok = await aoSalvar(doc, mudouValidade ? { ...campos, expires_estimated: false } : campos);
       if (ok) setRascunho(null);
@@ -351,7 +442,7 @@ const FolhaDocumento = ({ aberta, aoMudar, doc, imovel, tipos, podeEditar, aoAbr
       aoMudar={(a) => { if (!a) setRascunho(null); aoMudar(a); }}
       titulo={doc.title || doc.file_name || 'Documento'}
       etiqueta={<Etiqueta tom="brand">{doc.category}</Etiqueta>}
-      subtitulo={[imovel, doc.document_date ? formatarData(doc.document_date) : null].filter(Boolean).join(' · ')}
+      subtitulo={[imovel, limparPasta(doc.folder), doc.document_date ? formatarData(doc.document_date) : null].filter(Boolean).join(' · ')}
       largura="md"
       acoes={
         editando ? (
@@ -403,6 +494,11 @@ const FolhaDocumento = ({ aberta, aoMudar, doc, imovel, tipos, podeEditar, aoAbr
             <Label htmlFor="doc-titulo">Título</Label>
             <Input id="doc-titulo" className="h-11" value={r.title ?? ''} onChange={(e) => mudar('title', e.target.value)} />
           </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="doc-pasta">Pasta</Label>
+            <Input id="doc-pasta" className="h-11" list="doc-pastas" value={r.folder ?? ''} onChange={(e) => mudar('folder', e.target.value)} placeholder="Ex.: Benfeitorias 21 a 27/11/2026" />
+            <datalist id="doc-pastas">{pastas.map((p) => <option key={p} value={p} />)}</datalist>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
               <Label htmlFor="doc-data">Data</Label>
@@ -449,6 +545,7 @@ const FolhaDocumento = ({ aberta, aoMudar, doc, imovel, tipos, podeEditar, aoAbr
           )}
           <div>
             <Campo rotulo="Tipo">{doc.category}</Campo>
+            {limparPasta(doc.folder) && <Campo rotulo="Pasta">{limparPasta(doc.folder)}</Campo>}
             <Campo rotulo="Data">{doc.document_date ? formatarData(doc.document_date) : '—'}</Campo>
             <Campo rotulo="Validade">
               {doc.expires_at ? (
@@ -477,14 +574,17 @@ interface JanelaEnvioProps {
   aberta: boolean;
   aoMudar: (aberta: boolean) => void;
   imoveis: Property[];
+  /** Pastas já usadas no imóvel (sugestões) */
+  pastasDoImovel: (imovelId: string) => string[];
   imovelInicial: string;
-  aoEnviar: (imovelId: string, arquivo: File, observacao?: string) => Promise<{ ok: boolean; erro?: string; id?: string }>;
+  aoEnviar: (imovelId: string, arquivo: File, observacao?: string, pasta?: string) => Promise<{ ok: boolean; erro?: string; id?: string }>;
   aoConcluir: (ids: string[], falhas: string[]) => void;
 }
 
-const JanelaEnvio = ({ aberta, aoMudar, imoveis, imovelInicial, aoEnviar, aoConcluir }: JanelaEnvioProps) => {
+const JanelaEnvio = ({ aberta, aoMudar, imoveis, pastasDoImovel, imovelInicial, aoEnviar, aoConcluir }: JanelaEnvioProps) => {
   const [imovel, setImovel] = useEstadoPersistente('documentos.envio.imovel', '');
   const [observacao, setObservacao] = useEstadoPersistente('documentos.envio.observacao', '');
+  const [pasta, setPasta] = useEstadoPersistente('documentos.envio.pasta', '');
   // Arquivo escolhido não cabe na memória do navegador: ao recarregar, escolhe de novo
   const [arquivos, setArquivos] = useState<File[]>([]);
   const [situacoes, setSituacoes] = useState<Record<number, Situacao>>({});
@@ -499,6 +599,7 @@ const JanelaEnvio = ({ aberta, aoMudar, imoveis, imovelInicial, aoEnviar, aoConc
       setArquivos([]);
       setSituacoes({});
       setObservacao('');
+      setPasta('');
       setImovel('');
     }
     aoMudar(false);
@@ -511,7 +612,7 @@ const JanelaEnvio = ({ aberta, aoMudar, imoveis, imovelInicial, aoEnviar, aoConc
     const falhas: string[] = [];
     for (let i = 0; i < arquivos.length; i++) {
       setSituacoes((s) => ({ ...s, [i]: 'enviando' }));
-      const r = await aoEnviar(imovelValido, arquivos[i], observacao);
+      const r = await aoEnviar(imovelValido, arquivos[i], observacao, pasta);
       if (r.id) ids.push(r.id);
       if (!r.ok) falhas.push(r.erro || `${arquivos[i].name}: falhou.`);
       setSituacoes((s) => ({ ...s, [i]: !r.ok ? 'erro' : r.erro ? 'aviso' : 'pronto' }));
@@ -522,6 +623,7 @@ const JanelaEnvio = ({ aberta, aoMudar, imoveis, imovelInicial, aoEnviar, aoConc
     setArquivos([]);
     setSituacoes({});
     setObservacao('');
+    setPasta('');
     setImovel('');
     aoMudar(false);
   };
@@ -600,6 +702,20 @@ const JanelaEnvio = ({ aberta, aoMudar, imoveis, imovelInicial, aoEnviar, aoConc
               ))}
             </ul>
           )}
+        </div>
+
+        <div className="grid gap-1.5">
+          <Label htmlFor="envio-pasta">Pasta (opcional)</Label>
+          <Input
+            id="envio-pasta"
+            className="h-11"
+            list="envio-pastas"
+            value={pasta}
+            disabled={enviando}
+            onChange={(e) => setPasta(e.target.value)}
+            placeholder="Ex.: Benfeitorias 21 a 27/11/2026"
+          />
+          <datalist id="envio-pastas">{(imovelValido ? pastasDoImovel(imovelValido) : []).map((p) => <option key={p} value={p} />)}</datalist>
         </div>
 
         <div className="grid gap-1.5">

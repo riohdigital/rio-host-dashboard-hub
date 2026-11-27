@@ -1079,6 +1079,7 @@ export type Database = {
           document_date: string | null
           expires_at: string | null
           expires_estimated: boolean
+          folder: string | null
           file_name: string | null
           file_path: string
           file_size: number | null
@@ -1105,6 +1106,7 @@ export type Database = {
           document_date?: string | null
           expires_at?: string | null
           expires_estimated?: boolean
+          folder?: string | null
           file_name?: string | null
           file_path: string
           file_size?: number | null
@@ -1131,6 +1133,7 @@ export type Database = {
           document_date?: string | null
           expires_at?: string | null
           expires_estimated?: boolean
+          folder?: string | null
           file_name?: string | null
           file_path?: string
           file_size?: number | null

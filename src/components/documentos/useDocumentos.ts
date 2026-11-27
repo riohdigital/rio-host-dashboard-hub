@@ -4,7 +4,8 @@
  * O arquivo vai para o espaço privado `property-documents`, na pasta do
  * imóvel; a linha vai para `property_documents`. Depois do envio, a Edge
  * Function `ler-documento` lê o arquivo com IA e preenche tipo, título, datas,
- * fornecedor, valor, resumo e o texto usado na busca.
+ * fornecedor, valor, resumo e o texto usado na busca. A pasta (opcional)
+ * junta documentos de um mesmo assunto no imóvel, como uma benfeitoria.
  */
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,7 +13,7 @@ import type { Database } from '@/integrations/supabase/types';
 
 export type Documento = Database['public']['Tables']['property_documents']['Row'];
 export type TipoDocumento = Database['public']['Tables']['document_categories']['Row'];
-export type CamposEditaveis = Pick<Documento, 'category' | 'title' | 'document_date' | 'expires_at' | 'provider' | 'amount' | 'notes'>;
+export type CamposEditaveis = Pick<Documento, 'category' | 'title' | 'document_date' | 'expires_at' | 'provider' | 'amount' | 'notes' | 'folder'>;
 /** O que a tela grava ao salvar a edição (a validade digitada deixa de ser estimada) */
 export type CamposSalvos = Partial<CamposEditaveis> & { expires_estimated?: boolean };
 
@@ -26,6 +27,9 @@ const extensao = (arquivo: File) => {
   if (arquivo.type === 'application/pdf') return 'pdf';
   return arquivo.type.split('/')[1] || 'bin';
 };
+
+/** Pasta sem espaços sobrando; vazia = sem pasta */
+export const limparPasta = (pasta?: string | null) => pasta?.replace(/\s+/g, ' ').trim() || null;
 
 /** Sem acento e em minúsculas, para a busca */
 export const semAcento = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -88,7 +92,7 @@ export function useDocumentos() {
   }, [trocar]);
 
   /** Envia o arquivo, cria a linha e já pede a leitura por IA */
-  const enviar = useCallback(async (imovelId: string, arquivo: File, observacao?: string): Promise<{ ok: boolean; erro?: string; id?: string }> => {
+  const enviar = useCallback(async (imovelId: string, arquivo: File, observacao?: string, pasta?: string): Promise<{ ok: boolean; erro?: string; id?: string }> => {
     if (arquivo.size > TAMANHO_MAXIMO) return { ok: false, erro: `${arquivo.name}: maior que 15 MB.` };
     const id = crypto.randomUUID();
     const caminho = `${imovelId}/${id}.${extensao(arquivo)}`;
@@ -108,6 +112,7 @@ export function useDocumentos() {
         mime_type: arquivo.type || null,
         file_size: arquivo.size,
         notes: observacao?.trim() || null,
+        folder: limparPasta(pasta),
         title: arquivo.name.replace(/\.[^.]+$/, ''),
       })
       .select('*')
